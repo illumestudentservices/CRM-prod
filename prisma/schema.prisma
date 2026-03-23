@@ -1,0 +1,1060 @@
+// Illume CRM/ERM - Complete Prisma Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ─────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  HQ_EXECUTIVE
+  HQ_ANALYTICS
+  REGIONAL_MANAGER
+  ICR
+  INSTITUTION_CLIENT
+  HR_MANAGER
+  EMPLOYEE
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  APPLICATION_SENT
+  DOCUMENTS_RECEIVED
+  OFFER_ISSUED
+  ENROLLED
+  DEFERRED
+  REJECTED
+  LOST
+}
+
+enum StudyLevel {
+  UNDERGRADUATE
+  POSTGRADUATE
+  PATHWAY
+  FOUNDATION
+}
+
+enum SourceType {
+  AGENT
+  SCHOOL
+  WALK_IN
+  CAMPAIGN
+  DIGITAL
+  PARTNER
+}
+
+enum AccountStatus {
+  PROSPECT
+  ACTIVE
+  RENEWAL_DUE
+  CHURNED
+}
+
+enum EventType {
+  EDUCATION_FAIR
+  CAMPUS_VISIT
+  WEBINAR
+  AGENT_TRAINING
+  SCHOOL_PRESENTATION
+  EXHIBITION
+}
+
+enum EventStatus {
+  PLANNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum ReportStatus {
+  DRAFT
+  PENDING_REVIEW
+  REGIONAL_APPROVED
+  HQ_REVIEW
+  FINAL_APPROVED
+  RETURNED
+}
+
+enum ApprovalAction {
+  SUBMITTED
+  APPROVED
+  RETURNED
+  ESCALATED
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  COMP_OFF
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TravelStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum InteractionType {
+  MEETING
+  CALL
+  EMAIL
+  TRAINING
+  EVENT
+  OTHER
+}
+
+// ─── AUTH MODELS ───────────────────────────────────────────────────────────
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  emailVerified      DateTime?
+  name               String?
+  image              String?
+  password           String?
+  role               Role      @default(EMPLOYEE)
+  isActive           Boolean   @default(true)
+  loginAttempts      Int       @default(0)
+  lockedUntil        DateTime?
+  mustChangePassword Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  regionId      String?
+  region        Region?   @relation(fields: [regionId], references: [id])
+  employee      Employee?
+  accounts      Account[]
+  sessions      Session[]
+  passwordResetTokens PasswordResetToken[]
+
+  assignedLeads        Lead[]           @relation("AssignedICR")
+  createdLeads         Lead[]           @relation("LeadCreatedBy")
+  leadActivities       LeadActivity[]
+  assignedEvents       Event[]
+  monthlyReports       MonthlyReport[]  @relation("ICRReports")
+  reportApprovals      ReportApproval[]
+  engagementLogs       EngagementLog[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  institutionAccess    InstitutionUser[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─── CORE GEOGRAPHY ────────────────────────────────────────────────────────
+
+model Region {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users          User[]
+  leads          Lead[]
+  sources        Source[]
+  events         Event[]
+  institutions   Institution[]
+  monthlyReports MonthlyReport[]
+  holidays       Holiday[]
+
+  @@map("regions")
+}
+
+// ─── PILLAR 1: STUDENT LEADS ───────────────────────────────────────────────
+
+model Lead {
+  id                 String     @id @default(uuid())
+  fullName           String
+  email              String
+  phone              String
+  nationality        String
+  countryOfResidence String
+  interestedProgram  String
+  faculty            String?
+  studyLevel         StudyLevel
+  intakeYear         Int
+  intakeMonth        Int
+  notes              String?    @db.Text
+  stage              LeadStage  @default(NEW)
+  isDuplicate        Boolean    @default(false)
+  duplicateOfId      String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
+  createdById        String
+  lastContactedAt    DateTime?
+  lastProgressedAt   DateTime?
+
+  regionId       String?
+  region         Region?      @relation(fields: [regionId], references: [id])
+  assignedICRId  String?
+  assignedICR    User?        @relation("AssignedICR", fields: [assignedICRId], references: [id])
+  createdBy      User         @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  institutionId  String?
+  institution    Institution? @relation(fields: [institutionId], references: [id])
+  sourceId       String?
+  source         Source?      @relation(fields: [sourceId], references: [id])
+  eventId        String?
+  event          Event?       @relation(fields: [eventId], references: [id])
+
+  activities      LeadActivity[]
+  notesLog        LeadNote[]
+  documents       LeadDocument[]
+  forecastEntries ForecastEntry[]
+
+  @@index([email])
+  @@index([stage])
+  @@index([assignedICRId])
+  @@index([institutionId])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  description String   @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@map("lead_activities")
+}
+
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("lead_notes")
+}
+
+model LeadDocument {
+  id         String   @id @default(uuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  type       String
+  size       Int?
+  uploadedAt DateTime @default(now())
+  uploadedBy String
+
+  @@map("lead_documents")
+}
+
+// ─── PILLAR 2: SOURCES ─────────────────────────────────────────────────────
+
+model Source {
+  id              String     @id @default(uuid())
+  name            String
+  type            SourceType
+  country         String
+  city            String?
+  contactPerson   String?
+  email           String?
+  phone           String?
+  agreementStatus String?
+  rating          Int?
+  notes           String?    @db.Text
+  isActive        Boolean    @default(true)
+  lastActiveAt    DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+  createdById     String
+
+  regionId  String?
+  region    Region?    @relation(fields: [regionId], references: [id])
+  leads     Lead[]
+  campaigns Campaign[]
+
+  @@map("sources")
+}
+
+model Campaign {
+  id             String    @id @default(uuid())
+  name           String
+  channel        String
+  startDate      DateTime
+  endDate        DateTime?
+  budget         Float?
+  actualSpend    Float?
+  leadsGenerated Int       @default(0)
+  notes          String?   @db.Text
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  createdById    String
+
+  sourceId String?
+  source   Source? @relation(fields: [sourceId], references: [id])
+
+  @@map("campaigns")
+}
+
+// ─── PILLAR 3: INSTITUTIONS / ERM ─────────────────────────────────────────
+
+model Institution {
+  id             String        @id @default(uuid())
+  name           String
+  country        String
+  type           String
+  website        String?
+  logoUrl        String?
+  primaryContact String?
+  accountStatus  AccountStatus @default(PROSPECT)
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  createdById    String
+
+  regionId String?
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  leads             Lead[]
+  contacts          InstitutionContact[]
+  contracts         Contract[]
+  engagementLogs    EngagementLog[]
+  deliverables      Deliverable[]
+  documents         InstitutionDocument[]
+  events            EventInstitution[]
+  monthlyReports    MonthlyReport[]
+  users             InstitutionUser[]
+  enrollmentTargets EnrollmentTarget[]
+
+  @@map("institutions")
+}
+
+model InstitutionUser {
+  institutionId String
+  userId        String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@id([institutionId, userId])
+  @@map("institution_users")
+}
+
+model InstitutionContact {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  title         String?
+  email         String?
+  phone         String?
+  isPrimary     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("institution_contacts")
+}
+
+model Contract {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  title         String
+  value         Float?
+  startDate     DateTime
+  endDate       DateTime
+  documentUrl   String?
+  status        String      @default("ACTIVE")
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  createdById   String
+
+  @@map("contracts")
+}
+
+model EngagementLog {
+  id            String          @id @default(uuid())
+  institutionId String
+  institution   Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  type          InteractionType
+  date          DateTime
+  notes         String?         @db.Text
+  outcome       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("engagement_logs")
+}
+
+model Deliverable {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?     @db.Text
+  dueDate       DateTime?
+  completedAt   DateTime?
+  status        String      @default("PENDING")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("deliverables")
+}
+
+model InstitutionDocument {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  url           String
+  type          String
+  size          Int?
+  uploadedAt    DateTime    @default(now())
+  uploadedBy    String
+
+  @@map("institution_documents")
+}
+
+model EnrollmentTarget {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  year          Int
+  target        Int
+  actual        Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("enrollment_targets")
+}
+
+// ─── PILLAR 5: EVENTS ─────────────────────────────────────────────────────
+
+model Event {
+  id             String      @id @default(uuid())
+  name           String
+  type           EventType
+  date           DateTime
+  city           String
+  country        String
+  status         EventStatus @default(PLANNED)
+  budget         Float?
+  totalCost      Float       @default(0)
+  notes          String?     @db.Text
+  postEventNotes String?     @db.Text
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+  createdById    String
+
+  regionId      String?
+  region        Region? @relation(fields: [regionId], references: [id])
+  assignedICRId String?
+  assignedICR   User?   @relation(fields: [assignedICRId], references: [id])
+
+  institutions EventInstitution[]
+  leads        Lead[]
+  expenses     EventExpense[]
+
+  @@map("events")
+}
+
+model EventInstitution {
+  eventId       String
+  institutionId String
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  @@id([eventId, institutionId])
+  @@map("event_institutions")
+}
+
+model EventExpense {
+  id          String   @id @default(uuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  category    String?
+  receiptUrl  String?
+  createdAt   DateTime @default(now())
+
+  @@map("event_expenses")
+}
+
+// ─── PILLAR 6: REPORTS & FORECASTING ─────────────────────────────────────
+
+model MonthlyReport {
+  id             String       @id @default(uuid())
+  icrId          String
+  icr            User         @relation("ICRReports", fields: [icrId], references: [id])
+  institutionId  String
+  institution    Institution  @relation(fields: [institutionId], references: [id])
+  regionId       String?
+  region         Region?      @relation(fields: [regionId], references: [id])
+  reportingMonth Int
+  reportingYear  Int
+  status         ReportStatus @default(DRAFT)
+
+  leadsData               Json?
+  programBreakdown        Json?
+  sourcePerformance       Json?
+  eventActivities         Json?
+  kpiSummary              Json?
+  engagementNotes         String? @db.Text
+  challengesOpportunities String? @db.Text
+  nextMonthPlan           String? @db.Text
+
+  submittedAt     DateTime?
+  finalApprovedAt DateTime?
+  pdfUrl          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  approvals       ReportApproval[]
+  forecastEntries ForecastEntry[]
+
+  @@unique([icrId, institutionId, reportingMonth, reportingYear])
+  @@map("monthly_reports")
+}
+
+model ReportApproval {
+  id       String         @id @default(uuid())
+  reportId String
+  report   MonthlyReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User           @relation(fields: [userId], references: [id])
+  action   ApprovalAction
+  comment  String?        @db.Text
+  createdAt DateTime      @default(now())
+
+  @@map("report_approvals")
+}
+
+model ForecastEntry {
+  id            String          @id @default(uuid())
+  reportId      String?
+  report        MonthlyReport?  @relation(fields: [reportId], references: [id])
+  leadId        String?
+  lead          Lead?           @relation(fields: [leadId], references: [id])
+  studentName   String
+  institutionId String
+  program       String
+  stage         LeadStage
+  expectedMonth Int
+  expectedYear  Int
+  confidence    ConfidenceLevel
+  weightedProb  Float
+  actualEnrolled Boolean        @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("forecast_entries")
+}
+
+// ─── ERP MODULE ────────────────────────────────────────────────────────────
+
+model Department {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  parentId    String?
+  parent      Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DeptHierarchy")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Employee {
+  id               String         @id @default(uuid())
+  employeeId       String         @unique
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id])
+  photoUrl         String?
+  departmentId     String?
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  jobTitle         String
+  employmentType   EmploymentType @default(FULL_TIME)
+  managerId        String?
+  manager          Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
+  directReports    Employee[]     @relation("EmployeeManager")
+  startDate        DateTime
+  endDate          DateTime?
+  phone            String?
+  emergencyContact String?
+  emergencyPhone   String?
+  address          String?        @db.Text
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  leaveBalances      LeaveBalance[]
+  leaveRequests      LeaveRequest[]
+  worklogs           Worklog[]
+  travelRequests     TravelRequest[]
+  performanceReviews PerformanceReview[]
+  kpiTargets         KPITarget[]
+  trainingRecords    TrainingRecord[]
+  assetAssignments   AssetAssignment[]
+  attendances        Attendance[]
+  tasks              Task[]           @relation("TaskAssignee")
+  createdTasks       Task[]           @relation("TaskCreator")
+  documents          EmployeeDocument[]
+  onboardingItems    OnboardingItem[]
+
+  @@map("employees")
+}
+
+model LeaveBalance {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType   LeaveType
+  year        Int
+  totalDays   Float     @default(0)
+  usedDays    Float     @default(0)
+  pendingDays Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, leaveType, year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id            String      @id @default(uuid())
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType     LeaveType
+  startDate     DateTime
+  endDate       DateTime
+  days          Float
+  reason        String?     @db.Text
+  status        LeaveStatus @default(PENDING)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("leave_requests")
+}
+
+model Attendance {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime  @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  hoursWorked Float?
+  overtime    Float?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@map("attendances")
+}
+
+model Worklog {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  taskDesc   String   @db.Text
+  hours      Float
+  notes      String?  @db.Text
+  location   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("worklogs")
+}
+
+model TravelRequest {
+  id            String       @id @default(uuid())
+  employeeId    String
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  destination   String
+  purpose       String       @db.Text
+  departDate    DateTime
+  returnDate    DateTime
+  estimatedCost Float?
+  actualCost    Float?
+  status        TravelStatus @default(PENDING)
+  approvedById  String?
+  approvedAt    DateTime?
+  notes         String?      @db.Text
+  receiptUrl    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("travel_requests")
+}
+
+model PerformanceReview {
+  id           String    @id @default(uuid())
+  employeeId   String
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  period       String
+  score        Float?
+  strengths    String?   @db.Text
+  improvements String?   @db.Text
+  goals        String?   @db.Text
+  status       String    @default("PENDING")
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("performance_reviews")
+}
+
+model KPITarget {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title       String
+  description String?   @db.Text
+  target      String
+  current     String?
+  unit        String?
+  period      String
+  dueDate     DateTime?
+  achieved    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("kpi_targets")
+}
+
+model TrainingRecord {
+  id             String    @id @default(uuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title          String
+  provider       String?
+  completedAt    DateTime?
+  expiryDate     DateTime?
+  certificateUrl String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("training_records")
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?      @db.Text
+  assigneeId  String?
+  assignee    Employee?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdById String
+  createdBy   Employee     @relation("TaskCreator", fields: [createdById], references: [id])
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  @@map("tasks")
+}
+
+model EmployeeDocument {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name        String
+  type        String
+  url         String
+  size        Int?
+  expiryDate  DateTime?
+  uploadedAt  DateTime  @default(now())
+  uploadedBy  String
+
+  @@map("employee_documents")
+}
+
+model OnboardingItem {
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  isOffboarding Boolean   @default(false)
+  completedAt   DateTime?
+  completedBy   String?
+  dueDate       DateTime?
+  order         Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@map("onboarding_items")
+}
+
+// ─── CROSS-CUTTING MODELS ─────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String   @db.Text
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  changes   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  title       String
+  content     String    @db.Text
+  authorId    String
+  isGlobal    Boolean   @default(true)
+  regionId    String?
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  readReceipts AnnouncementRead[]
+
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  announcementId String
+  userId         String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+
+  @@id([announcementId, userId])
+  @@map("announcement_reads")
+}
+
+model KnowledgeBase {
+  id          String    @id @default(uuid())
+  title       String
+  content     String    @db.Text
+  category    String
+  tags        String[]
+  authorId    String
+  isPublished Boolean   @default(true)
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  attachments KnowledgeBaseAttachment[]
+
+  @@map("knowledge_base")
+}
+
+model KnowledgeBaseAttachment {
+  id        String        @id @default(uuid())
+  articleId String
+  name      String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime      @default(now())
+
+  article KnowledgeBase @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("kb_attachments")
+}
+
+model ITAsset {
+  id           String    @id @default(uuid())
+  name         String
+  type         String
+  serialNumber String?   @unique
+  brand        String?
+  model        String?
+  purchasedAt  DateTime?
+  warrantyEnd  DateTime?
+  status       String    @default("AVAILABLE")
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignments AssetAssignment[]
+
+  @@map("it_assets")
+}
+
+model AssetAssignment {
+  id         String    @id @default(uuid())
+  assetId    String
+  asset      ITAsset   @relation(fields: [assetId], references: [id])
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  assignedAt DateTime  @default(now())
+  returnedAt DateTime?
+  notes      String?
+
+  @@map("asset_assignments")
+}
+
+
+model PermissionOverride {
+  id          String   @id @default(uuid())
+  role        Role
+  resource    String
+  action      String
+  granted     Boolean
+  updatedAt   DateTime @updatedAt
+  updatedById String
+
+  @@unique([role, resource, action])
+  @@map("permission_overrides")
+}
+
+model Holiday {
+  id          String    @id @default(uuid())
+  name        String
+  date        DateTime  @db.Date
+  description String?
+  regionId    String?
+  region      Region?   @relation(fields: [regionId], references: [id])
+  isGlobal    Boolean   @default(false)
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("holidays")
+}

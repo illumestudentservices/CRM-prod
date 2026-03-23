@@ -1,0 +1,263 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import type { Role } from "@/lib/permissions";
+import { sendWelcomeEmail, sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
+import { createMagicLink } from "@/lib/magic-link";
+import { generateTempPassword } from "@/lib/password";
+
+// ─── Schemas ──────────────────────────────────────────────────────────────────
+
+const createEmployeeSchema = z
+  .object({
+    email: z.string().email("Invalid email"),
+    name: z.string().min(2, "Name is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    role: z
+      .enum([
+        "SUPER_ADMIN",
+        "HQ_EXECUTIVE",
+        "HQ_ANALYTICS",
+        "REGIONAL_MANAGER",
+        "ICR",
+        "INSTITUTION_CLIENT",
+        "HR_MANAGER",
+        "EMPLOYEE",
+      ])
+      .default("EMPLOYEE"),
+    regionId: z.string().min(1).optional().nullable(),
+    jobTitle: z.string().min(1, "Job title is required"),
+    departmentId: z.string().min(1).optional().nullable(),
+    employmentType: z
+      .enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN"])
+      .default("FULL_TIME"),
+    managerId: z.string().min(1).optional().nullable(),
+    startDate: z.string().transform((v) => new Date(v)),
+    phone: z.string().optional().nullable(),
+    emergencyContact: z.string().optional().nullable(),
+    emergencyPhone: z.string().optional().nullable(),
+    address: z.string().optional().nullable(),
+    photoUrl: z.string().url().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role !== "SUPER_ADMIN" && !data.managerId) {
+      ctx.addIssue({
+        path: ["managerId"],
+        code: z.ZodIssueCode.custom,
+        message: "Manager is required for all roles except Super Admin",
+      });
+    }
+  });
+
+const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
+
+// ─── GET /api/hr/employees ────────────────────────────────────────────────────
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Only HR managers and super admins can list all employees
+    if (!HR_ROLES.includes(session.user.role as Role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const departmentId = searchParams.get("departmentId");
+    const isActiveParam = searchParams.get("isActive");
+    const search = searchParams.get("search");
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "50"));
+
+    const where: Record<string, unknown> = {
+      // Default to active employees unless caller requests otherwise
+      isActive: isActiveParam !== null ? isActiveParam === "true" : true,
+    };
+    if (departmentId) where.departmentId = departmentId;
+    if (search) {
+      where.user = { name: { contains: search, mode: "insensitive" } };
+    }
+
+    const [employees, total] = await Promise.all([
+      db.employee.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              role: true,
+              isActive: true,
+            },
+          },
+          department: { select: { id: true, name: true } },
+          manager: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      db.employee.count({ where }),
+    ]);
+
+    return NextResponse.json({ employees, total, page, limit });
+  } catch (err) {
+    console.error("[GET /api/hr/employees]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// ─── POST /api/hr/employees ───────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!HR_ROLES.includes(session.user.role as Role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const parsed = createEmployeeSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 422 }
+      );
+    }
+
+    const data = parsed.data;
+
+    const existingUser = await db.user.findUnique({ where: { email: data.email } });
+    if (existingUser) {
+      return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+    }
+
+    // Generate a secure temp password — the user will set their own via magic link
+    const hashedPassword = await bcrypt.hash(generateTempPassword(), 12);
+
+    const employee = await db.$transaction(async (tx) => {
+      // Determine next employee number inside the transaction to prevent race conditions
+      const lastEmp = await tx.employee.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { employeeId: true },
+      });
+      const lastNum = lastEmp
+        ? parseInt(lastEmp.employeeId.replace(/^[A-Z]+-/, ""), 10) || 0
+        : 0;
+      const employeeId = `ILL-${String(lastNum + 1).padStart(4, "0")}`;
+
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          name: data.name,
+          password: hashedPassword,
+          role: data.role as Role,
+          regionId: data.regionId ?? null,
+          isActive: true,
+          mustChangePassword: true,
+        },
+      });
+
+      const emp = await tx.employee.create({
+        data: {
+          employeeId,
+          userId: user.id,
+          jobTitle: data.jobTitle,
+          departmentId: data.departmentId ?? null,
+          employmentType: data.employmentType,
+          managerId: data.managerId ?? null,
+          startDate: data.startDate,
+          phone: data.phone ?? null,
+          emergencyContact: data.emergencyContact ?? null,
+          emergencyPhone: data.emergencyPhone ?? null,
+          address: data.address ?? null,
+          photoUrl: data.photoUrl ?? null,
+          isActive: true,
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true, role: true } },
+          department: { select: { id: true, name: true } },
+        },
+      });
+
+      // Seed default leave balances for current year
+      const year = new Date().getFullYear();
+      await tx.leaveBalance.createMany({
+        data: [
+          { leaveType: "ANNUAL" as const, totalDays: 20 },
+          { leaveType: "SICK" as const, totalDays: 10 },
+          { leaveType: "MATERNITY" as const, totalDays: 90 },
+          { leaveType: "PATERNITY" as const, totalDays: 5 },
+          { leaveType: "UNPAID" as const, totalDays: 30 },
+          { leaveType: "COMP_OFF" as const, totalDays: 0 },
+        ].map((l) => ({
+          employeeId: emp.id,
+          leaveType: l.leaveType,
+          year,
+          totalDays: l.totalDays,
+          usedDays: 0,
+          pendingDays: 0,
+        })),
+      });
+
+      return emp;
+    });
+
+    // Fire-and-forget: generate magic link + send welcome email
+    createMagicLink(employee.user.id, 72)
+      .then((magicLinkUrl) =>
+        sendWelcomeEmail({
+          to: data.email,
+          name: data.name,
+          employeeId: employee.employeeId,
+          jobTitle: data.jobTitle,
+          magicLinkUrl,
+        })
+      )
+      .catch((err) => console.error("[POST /api/hr/employees] Welcome email failed:", err));
+
+    // Security alert to super admins
+    getSuperAdminEmails()
+      .then((adminEmails) => {
+        if (!adminEmails.length) return;
+        return sendSecurityAlertEmail({
+          to: adminEmails,
+          alertType: "USER_CREATED",
+          targetName: data.name,
+          targetEmail: data.email,
+          changedBy: session.user.name ?? session.user.email ?? "HR Manager",
+          details: {
+            "Employee ID": employee.employeeId,
+            "Job Title": data.jobTitle,
+            Role: data.role,
+          },
+          actionUrl: `${process.env.NEXTAUTH_URL ?? ""}/hr`,
+        });
+      })
+      .catch((err) => console.error("[POST /api/hr/employees] Alert email failed:", err));
+
+    return NextResponse.json({ employee }, { status: 201 });
+  } catch (err) {
+    console.error("[POST /api/hr/employees]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

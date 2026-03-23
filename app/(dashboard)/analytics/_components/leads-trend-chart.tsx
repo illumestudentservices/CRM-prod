@@ -1,0 +1,93 @@
+"use client";
+
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
+interface MonthDataPoint {
+  month: string;
+  current: number;
+  lastYear: number;
+}
+
+interface LeadsTrendChartProps {
+  data: MonthDataPoint[];
+}
+
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-sm">
+      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+      {payload.map((entry, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span className="text-slate-500">{entry.name}:</span>
+          <span className="font-semibold text-slate-800">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export function LeadsTrendChart({ data }: LeadsTrendChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 12, fill: "#64748B" }}
+          axisLine={{ stroke: "#E2E8F0" }}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 12, fill: "#64748B" }}
+          axisLine={false}
+          tickLine={false}
+          width={35}
+        />
+        <Tooltip content={<CustomTooltip />} />
+        <Legend
+          wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }}
+          iconType="circle"
+          iconSize={8}
+        />
+        <Line
+          type="monotone"
+          dataKey="current"
+          name="This Year"
+          stroke="#0EA5E9"
+          strokeWidth={2.5}
+          dot={{ fill: "#0EA5E9", r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: "#0EA5E9", strokeWidth: 0 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="lastYear"
+          name="Last Year"
+          stroke="#94A3B8"
+          strokeWidth={2}
+          strokeDasharray="5 4"
+          dot={{ fill: "#94A3B8", r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: "#94A3B8", strokeWidth: 0 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}

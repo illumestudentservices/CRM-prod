@@ -1,0 +1,70 @@
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/shared/page-header";
+import { HRDashboardStats } from "./_components/hr-dashboard-stats";
+import { HRTabsClient } from "./_components/hr-tabs-client";
+
+export default async function HRPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const { role, id: userId } = session.user;
+  const isHR = role === "HR_MANAGER" || role === "SUPER_ADMIN";
+
+  // For employee self-service: redirect to their profile
+  if (role === "EMPLOYEE") {
+    const emp = await db.employee.findUnique({ where: { userId } });
+    if (emp) redirect(`/hr/employees/${emp.id}`);
+  }
+
+  const [totalEmployees, onLeaveToday, openTasks, pendingLeave] = await Promise.all([
+    db.employee.count({ where: { isActive: true } }),
+    db.leaveRequest.count({
+      where: { status: "APPROVED", startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+    }),
+    db.task.count({ where: { status: { in: ["TODO", "IN_PROGRESS"] }, deletedAt: null } }),
+    db.leaveRequest.count({ where: { status: "PENDING" } }),
+  ]);
+
+  // Stats for HRDashboardStats
+  const deptHeadcount = await db.department.findMany({
+    include: { _count: { select: { employees: true } } },
+  });
+
+  const leaveUtilization = await db.leaveBalance.groupBy({
+    by: ["leaveType"],
+    _sum: { usedDays: true, totalDays: true },
+  });
+
+  const trainingCompletion = await db.trainingRecord.count({ where: { completedAt: { not: null } } });
+  const trainingTotal = await db.trainingRecord.count();
+
+  const perfScores = await db.performanceReview.findMany({
+    where: { score: { not: null } },
+    select: { score: true },
+  });
+
+  return (
+    <div className="p-6 space-y-6">
+      <PageHeader title="HR & ERP" description="Workforce management, HR operations, and internal tools" />
+
+      <HRDashboardStats
+        deptHeadcount={deptHeadcount.map((d) => ({ name: d.name, count: d._count.employees }))}
+        leaveUtilization={leaveUtilization.map((l) => ({ type: l.leaveType, used: l._sum.usedDays ?? 0, total: l._sum.totalDays ?? 0 }))}
+        trainingCompletion={trainingTotal > 0 ? Math.round((trainingCompletion / trainingTotal) * 100) : 0}
+        perfScoreDistribution={perfScores.map((p) => ({ score: p.score ?? 0 }))}
+      />
+
+      <HRTabsClient
+        isHR={isHR}
+        isSuperAdmin={role === "SUPER_ADMIN"}
+        userId={userId}
+        totalEmployees={totalEmployees}
+        onLeaveToday={onLeaveToday}
+        openTasks={openTasks}
+        pendingLeave={pendingLeave}
+      />
+    </div>
+  );
+}
