@@ -37,6 +37,7 @@ const USER_SELECT = {
   loginAttempts: true,
   lockedUntil: true,
   deletedAt: true,
+  twoFactorEnabled: true,
   region: { select: { id: true, name: true } },
 } as const;
 

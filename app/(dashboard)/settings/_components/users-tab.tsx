@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials, formatDate } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { Pencil, ShieldOff } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface UserRow {
@@ -23,6 +23,7 @@ interface UserRow {
   createdAt: string;
   regionId: string | null;
   region: { name: string } | null;
+  twoFactorEnabled: boolean;
 }
 
 const ROLES = [
@@ -55,6 +56,8 @@ export function UsersSettingsTab() {
   const [editRole, setEditRole] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resettingMfa, setResettingMfa] = useState(false);
+  const [confirmMfaReset, setConfirmMfaReset] = useState(false);
 
   function load() {
     setLoading(true);
@@ -69,6 +72,23 @@ export function UsersSettingsTab() {
     setEditing(user);
     setEditRole(user.role);
     setEditActive(user.isActive);
+    setConfirmMfaReset(false);
+  }
+
+  async function handleResetMfa() {
+    if (!editing) return;
+    setResettingMfa(true);
+    const res = await fetch(`/api/settings/users/${editing.id}/reset-2fa`, { method: "POST" });
+    const data = await res.json();
+    setResettingMfa(false);
+    setConfirmMfaReset(false);
+    if (res.ok) {
+      toast({ title: "MFA reset", description: `Two-factor authentication has been disabled for ${editing.name ?? editing.email}.` });
+      setEditing(null);
+      load();
+    } else {
+      toast({ title: "Error", description: data.error ?? "Failed to reset MFA", variant: "destructive" });
+    }
   }
 
   async function handleSave() {
@@ -177,6 +197,29 @@ export function UsersSettingsTab() {
                 <Switch id="active" checked={editActive} onCheckedChange={setEditActive} />
                 <Label htmlFor="active">Account Active</Label>
               </div>
+
+              {editing.twoFactorEnabled && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <p className="text-xs font-medium text-amber-800 flex items-center gap-1.5">
+                    <ShieldOff className="h-3.5 w-3.5" /> Two-factor authentication is enabled
+                  </p>
+                  {confirmMfaReset ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-amber-700">This will disable MFA and clear all backup codes. The user will need to re-enrol. Are you sure?</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="destructive" onClick={handleResetMfa} disabled={resettingMfa}>
+                          {resettingMfa ? "Resetting..." : "Yes, reset MFA"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmMfaReset(false)}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-100" onClick={() => setConfirmMfaReset(true)}>
+                      Reset MFA
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
