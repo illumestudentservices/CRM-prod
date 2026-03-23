@@ -11,6 +11,7 @@ declare module "next-auth" {
       role: Role;
       regionId: string | null;
       mustChangePassword: boolean;
+      twoFactorPending?: boolean;
     };
   }
 
@@ -18,6 +19,7 @@ declare module "next-auth" {
     role: Role;
     regionId: string | null;
     mustChangePassword?: boolean;
+    twoFactorPending?: boolean;
   }
 }
 
@@ -27,5 +29,6 @@ declare module "next-auth/jwt" {
     role: Role;
     regionId: string | null;
     mustChangePassword?: boolean;
+    twoFactorPending?: boolean;
   }
 }

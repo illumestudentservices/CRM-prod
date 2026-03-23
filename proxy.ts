@@ -18,8 +18,8 @@ export default auth((req) => {
 
   // Public routes — no auth required
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    // Redirect already-authenticated users away from the login page
-    if (req.auth?.user && pathname === "/login") {
+    // Redirect fully-authenticated users away from the login page
+    if (req.auth?.user && !req.auth.user.twoFactorPending && pathname === "/login") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next({ request: { headers } });
@@ -30,6 +30,25 @@ export default auth((req) => {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Authenticated but 2FA not yet verified
+  if (req.auth.user?.twoFactorPending) {
+    // Allow the 2FA verification page — the /api/auth/* routes (including 2fa/verify)
+    // are already in PUBLIC_ROUTES and pass through above
+    if (pathname === "/verify-2fa") {
+      return NextResponse.next({ request: { headers } });
+    }
+    // Return JSON 401 for API routes, HTML redirect for pages
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "2FA verification required" }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL("/verify-2fa", req.url));
+  }
+
+  // Fully authenticated user hitting the verify-2fa page — redirect to dashboard
+  if (pathname === "/verify-2fa") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next({ request: { headers } });

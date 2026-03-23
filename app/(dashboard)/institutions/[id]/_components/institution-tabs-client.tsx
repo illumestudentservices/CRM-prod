@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
+import type { InteractionType } from "@prisma/client";
 import { EnrollmentChart } from "./enrollment-chart";
 import { ContractList } from "./contract-list";
 import { EngagementLog } from "./engagement-log";
@@ -36,7 +37,7 @@ interface Contract {
 
 interface LogEntry {
   id: string;
-  type: string;
+  type: InteractionType;
   date: Date | string;
   notes: string | null;
   outcome: string | null;

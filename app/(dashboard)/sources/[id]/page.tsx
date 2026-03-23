@@ -336,7 +336,7 @@ export default async function SourceDetailPage({
                         <TableCell className="font-medium text-slate-800">{campaign.name}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize text-xs">
-                            {campaign.status?.toLowerCase().replace(/_/g, " ") ?? "—"}
+                            {campaign.isActive ? "active" : "inactive"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-slate-500 text-xs">

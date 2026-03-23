@@ -35,6 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           user = await db.user.findUnique({
             where: { email },
             include: { region: true },
+            // twoFactorEnabled is needed to decide whether to issue a pending session
           });
         } catch (err) {
           console.error("[auth] DB lookup failed:", err);
@@ -43,6 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user || !user.password) return null;
         if (!user.isActive) return null;
+        if (user.deletedAt) return null;
 
         // Check account lockout
         if (user.lockedUntil && user.lockedUntil > new Date()) {
@@ -90,6 +92,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("[auth] Failed to reset login attempts:", err);
         }
 
+        // If 2FA is enabled, return a pending session — TOTP must be verified before full access
+        if (user.twoFactorEnabled) {
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            regionId: user.regionId,
+            mustChangePassword: user.mustChangePassword,
+            twoFactorPending: true,
+          };
+        }
+
         void logActivity(user.id, "LOGIN", "USER", user.id, { email: user.email, role: user.role });
 
         return {
@@ -100,18 +116,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           regionId: user.regionId,
           mustChangePassword: user.mustChangePassword,
+          twoFactorPending: false,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as { role: Role }).role;
         token.regionId = (user as { regionId: string | null }).regionId;
         token.mustChangePassword =
           (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+        token.twoFactorPending =
+          (user as { twoFactorPending?: boolean }).twoFactorPending ?? false;
+      }
+      // Client calls useSession().update({ twoFactorVerified: true }) after TOTP passes
+      if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorVerified === true) {
+        token.twoFactorPending = false;
       }
       return token;
     },
@@ -121,6 +144,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as Role;
         session.user.regionId = token.regionId as string | null;
         session.user.mustChangePassword = (token.mustChangePassword as boolean) ?? false;
+        session.user.twoFactorPending = (token.twoFactorPending as boolean) ?? false;
       }
       return session;
     },

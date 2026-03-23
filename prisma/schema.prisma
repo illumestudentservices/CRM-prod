@@ -159,10 +159,13 @@ model User {
   isActive           Boolean   @default(true)
   loginAttempts      Int       @default(0)
   lockedUntil        DateTime?
-  mustChangePassword Boolean   @default(false)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  deletedAt          DateTime?
+  mustChangePassword   Boolean   @default(false)
+  twoFactorEnabled     Boolean   @default(false)
+  twoFactorSecret      String?
+  twoFactorBackupCodes String[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
 
   regionId      String?
   region        Region?   @relation(fields: [regionId], references: [id])
