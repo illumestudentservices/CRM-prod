@@ -8,7 +8,6 @@ import {
   type WeeklyActivityType,
 } from "@/lib/weekly-activities";
 import { ReportDetailClient } from "./_components/report-detail-client";
-import { ApprovalActions } from "./_components/approval-actions";
 import {
   renderKpiHtml,
   renderLeadsHtml,
@@ -55,10 +54,6 @@ export default async function ReportViewPage({
       icr: { select: { id: true, name: true, email: true } },
       institution: { select: { id: true, name: true, country: true } },
       region: { select: { id: true, name: true } },
-      approvals: {
-        orderBy: { createdAt: "desc" },
-        include: { user: { select: { id: true, name: true, role: true } } },
-      },
     },
   });
 
@@ -73,8 +68,7 @@ export default async function ReportViewPage({
 
   const canEdit =
     role === "ICR" &&
-    report.icrId === userId &&
-    ["DRAFT", "RETURNED"].includes(report.status);
+    report.icrId === userId;
 
   // Parse JSON data
   const leads = Array.isArray(report.leadsData) ? (report.leadsData as Array<{ id: string; fullName: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; createdAt: string }>) : [];
@@ -143,7 +137,6 @@ export default async function ReportViewPage({
 
   const monthName = MONTH_NAMES_FULL[report.reportingMonth];
 
-  // Serialize approvals for client component
   const serializedReport = {
     id: report.id,
     icrId: report.icrId,
@@ -159,13 +152,7 @@ export default async function ReportViewPage({
     icr: report.icr,
     institution: report.institution,
     region: report.region,
-    approvals: report.approvals.map((a) => ({
-      id: a.id,
-      action: a.action,
-      comment: a.comment,
-      createdAt: a.createdAt.toISOString(),
-      user: { name: a.user.name, role: a.user.role },
-    })),
+    approvals: [],
   };
 
   return (
@@ -185,15 +172,6 @@ export default async function ReportViewPage({
         monthName={monthName}
       />
 
-      <div className="max-w-5xl mx-auto pt-2 pb-6">
-        <ApprovalActions
-          reportId={report.id}
-          reportStatus={report.status}
-          userRole={role}
-          userId={userId}
-          icrId={report.icrId}
-        />
-      </div>
     </div>
   );
 }

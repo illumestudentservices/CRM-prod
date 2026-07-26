@@ -65,11 +65,11 @@ const STAGE_COLORS: Record<string, string> = {
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600" },
-  PENDING_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800" },
-  REGIONAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
-  HQ_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800" },
-  FINAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
-  RETURNED: { label: "Returned", className: "bg-red-100 text-red-800" },
+  PENDING_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+  REGIONAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+  HQ_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+  FINAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+  RETURNED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
 };
 
 interface Approval {
@@ -578,34 +578,6 @@ export function ReportDetailClient({
           </CardContent>
         </Card>
       ))}
-
-      {/* ── Approval History ── */}
-      {report.approvals.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-slate-800">Approval History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {report.approvals.map((approval) => (
-                <div key={approval.id} className="flex items-start gap-3 text-xs">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    approval.action === "APPROVED" ? "bg-green-100 text-green-700"
-                      : approval.action === "RETURNED" ? "bg-red-100 text-red-700"
-                      : approval.action === "SUBMITTED" ? "bg-blue-100 text-blue-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}>
-                    {approval.action}
-                  </span>
-                  <span className="text-slate-600">{approval.user.name} ({approval.user.role.replace(/_/g, " ")})</span>
-                  <span className="text-slate-400">{new Date(approval.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
-                  {approval.comment && <span className="text-slate-500 italic truncate max-w-xs">&ldquo;{approval.comment}&rdquo;</span>}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ── Email Full Report Dialog ── */}
       <Dialog open={emailOpen} onOpenChange={setEmailOpen}>

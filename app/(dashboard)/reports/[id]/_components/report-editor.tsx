@@ -274,7 +274,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
       {/* Send */}
       <div className="flex items-center justify-between gap-4 pb-6">
         <p className="text-xs text-slate-400">
-          Sending submits this to your Regional Manager for a quick approval.
+          Sending finalises this report and makes it available to your team.
         </p>
         <Button
           onClick={handleSend}

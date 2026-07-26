@@ -28,39 +28,9 @@ interface ApiResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
-// Simplified flow: Draft → Awaiting Approval → Approved (or Returned).
-
-// Super Admin / HQ see everything (view-only for HQ).
-const SUPER_ADMIN_TABS = [
-  { label: "All",                status: "" },
-  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
-  { label: "Approved",           status: "FINAL_APPROVED" },
-  { label: "Returned",           status: "RETURNED" },
-  { label: "Draft",              status: "DRAFT" },
-] as const;
-
-const HQ_TABS = [
-  { label: "All",                status: "" },
-  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
-  { label: "Approved",           status: "FINAL_APPROVED" },
-  { label: "Returned",           status: "RETURNED" },
-] as const;
-
-// Regional Manager — the single approver.
-const RM_TABS = [
-  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
-  { label: "Approved",           status: "FINAL_APPROVED" },
-  { label: "Returned",           status: "RETURNED" },
-  { label: "All",                status: "" },
-] as const;
-
-// ICR — their own reports.
-const ICR_TABS = [
-  { label: "Draft",              status: "DRAFT" },
-  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
-  { label: "Approved",           status: "FINAL_APPROVED" },
-  { label: "Returned",           status: "RETURNED" },
-  { label: "All",                status: "" },
+const TABS = [
+  { label: "All",   status: "" },
+  { label: "Draft", status: "DRAFT" },
 ] as const;
 
 export function ReportQueueClient({
@@ -71,7 +41,7 @@ export function ReportQueueClient({
   isSuperAdmin,
   summary,
 }: ReportQueueClientProps) {
-  const tabs = isSuperAdmin ? SUPER_ADMIN_TABS : isHQ ? HQ_TABS : isRM ? RM_TABS : ICR_TABS;
+  const tabs = TABS;
   const [activeStatus, setActiveStatus] = useState<string>(tabs[0].status);
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,21 +77,11 @@ export function ReportQueueClient({
     setActiveStatus(status);
   }
 
-  // Stat cards config
-  // Single, consistent set of stat cards across roles for the simplified flow.
-  const statCards = isHQ && !isSuperAdmin
-    ? [
-        { title: "Awaiting Approval", value: summary.pendingReview, icon: "Clock" as const,       iconColor: "text-amber-600",   iconBg: "bg-amber-50",   status: "PENDING_REVIEW" },
-        { title: "Approved",          value: summary.finalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
-        { title: "Returned",          value: summary.returned,      icon: "RotateCcw" as const,   iconColor: "text-red-500",     iconBg: "bg-red-50",     status: "RETURNED" },
-        { title: "Total",             value: summary.draft + summary.pendingReview + summary.finalApproved + summary.returned, icon: "FileText" as const, iconColor: "text-slate-500", iconBg: "bg-slate-100", status: "" },
-      ]
-    : [
-        { title: "Draft",             value: summary.draft,         icon: "FileText" as const,    iconColor: "text-slate-500",   iconBg: "bg-slate-100",  status: "DRAFT" },
-        { title: "Awaiting Approval", value: summary.pendingReview, icon: "Clock" as const,       iconColor: "text-amber-600",   iconBg: "bg-amber-50",   status: "PENDING_REVIEW" },
-        { title: "Approved",          value: summary.finalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
-        { title: "Returned",          value: summary.returned,      icon: "RotateCcw" as const,   iconColor: "text-red-500",     iconBg: "bg-red-50",     status: "RETURNED" },
-      ];
+  const total = summary.draft + summary.pendingReview + summary.finalApproved + summary.returned;
+  const statCards = [
+    { title: "Total Reports", value: total,         icon: "FileText" as const,    iconColor: "text-[#1E3A5F]",   iconBg: "bg-[#1E3A5F]/10", status: "" },
+    { title: "Draft",         value: summary.draft,  icon: "ClipboardList" as const, iconColor: "text-slate-500",   iconBg: "bg-slate-100",    status: "DRAFT" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -158,19 +118,11 @@ export function ReportQueueClient({
             )}
           >
             {tab.label}
-            {tab.status && (() => {
-              const count =
-                tab.status === "DRAFT" ? summary.draft
-                : tab.status === "PENDING_REVIEW" ? summary.pendingReview
-                : tab.status === "FINAL_APPROVED" ? summary.finalApproved
-                : tab.status === "RETURNED" ? summary.returned
-                : null;
-              return count !== null && count > 0 ? (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">
-                  {count}
-                </span>
-              ) : null;
-            })()}
+            {tab.status === "DRAFT" && summary.draft > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">
+                {summary.draft}
+              </span>
+            )}
           </button>
         ))}
       </div>
