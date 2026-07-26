@@ -20,7 +20,6 @@ import {
   ChevronsRight,
   Download,
   Search,
-  Settings2,
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

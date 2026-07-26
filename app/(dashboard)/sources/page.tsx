@@ -1,6 +1,7 @@
 import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { SourceForm } from "./_components/source-form";
@@ -45,6 +46,7 @@ async function getRegions() {
 export default async function SourcesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await effectiveHasPermission(session.user.role, "sources", "read"))) redirect("/dashboard");
 
   const [stats, sources, campaigns, regions] = await Promise.all([
     getSourceStats(),

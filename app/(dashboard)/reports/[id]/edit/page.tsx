@@ -34,6 +34,12 @@ export default async function EditReportPage({
       icr: { select: { id: true, name: true, email: true } },
       institution: { select: { id: true, name: true, country: true } },
       region: { select: { id: true, name: true } },
+      approvals: {
+        where: { action: "RETURNED" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { comment: true },
+      },
     },
   });
 
@@ -69,16 +75,15 @@ export default async function EditReportPage({
           reportingMonth: report.reportingMonth,
           reportingYear: report.reportingYear,
           status: report.status as "DRAFT" | "RETURNED",
-          leadsData: report.leadsData as never,
-          programBreakdown: report.programBreakdown as never,
-          sourcePerformance: report.sourcePerformance as never,
-          eventActivities: report.eventActivities as never,
           kpiSummary: report.kpiSummary as never,
           engagementNotes: report.engagementNotes,
           challengesOpportunities: report.challengesOpportunities,
+          successStories: report.successStories,
+          marketInsights: report.marketInsights,
           nextMonthPlan: report.nextMonthPlan,
           icr: report.icr,
           institution: report.institution,
+          returnComment: report.approvals[0]?.comment ?? null,
         }}
       />
     </div>

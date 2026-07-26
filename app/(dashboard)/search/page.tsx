@@ -153,7 +153,7 @@ export default async function SearchPage({
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {sources.map((src) => (
-              <Link key={src.id} href="/sources">
+              <Link key={src.id} href={`/sources/${src.id}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">

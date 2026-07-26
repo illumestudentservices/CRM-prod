@@ -1,6 +1,7 @@
 import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { StudentsClientPage } from "./_components/students-client";
@@ -55,6 +56,7 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
 export default async function StudentsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await effectiveHasPermission(session.user.role, "leads", "read"))) redirect("/dashboard");
 
   const { id: userId, role, regionId } = session.user;
 

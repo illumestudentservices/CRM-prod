@@ -1,6 +1,7 @@
 import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { EventList } from "./_components/event-list";
@@ -93,6 +94,7 @@ async function getInstitutions() {
 export default async function EventsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await effectiveHasPermission(session.user.role, "events", "read"))) redirect("/dashboard");
 
   const [stats, events, regions, icrs, institutions] = await Promise.all([
     getEventStats(),

@@ -6,6 +6,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { cn } from "@/lib/utils";
 import { SourceTable, type SourceRow } from "./source-table";
 import { CampaignTable, type CampaignRow } from "./campaign-table";
+import { ExportButton } from "@/components/shared/export-button";
+import { formatDate, formatPercent } from "@/lib/utils";
 
 interface SourceStats {
   total: number;
@@ -34,7 +36,7 @@ export function SourcesTabsClient({ sources, campaigns, regions, stats }: Source
   return (
     <div className="space-y-4">
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
           <StatCard
             key={card.title}
@@ -53,12 +55,66 @@ export function SourcesTabsClient({ sources, campaigns, regions, stats }: Source
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between">
         <TabsList className="bg-white border border-slate-200">
           <TabsTrigger value="all">All Sources</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="schools">Schools</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
         </TabsList>
+
+        <ExportButton
+          exports={[
+            {
+              label: "Sources",
+              data: sources.map((s) => ({
+                name: s.name,
+                type: s.type,
+                country: s.country,
+                region: s.region?.name ?? "—",
+                contact: s.contactPerson ?? "—",
+                email: s.email ?? "—",
+                leads: s.totalLeads,
+                conversionRate: formatPercent(s.conversionRate),
+                status: s.isActive ? "Active" : "Inactive",
+              })),
+              columns: [
+                { key: "name", header: "Name" },
+                { key: "type", header: "Type" },
+                { key: "country", header: "Country" },
+                { key: "region", header: "Region" },
+                { key: "contact", header: "Contact" },
+                { key: "email", header: "Email" },
+                { key: "leads", header: "Leads" },
+                { key: "conversionRate", header: "Conversion Rate" },
+                { key: "status", header: "Status" },
+              ],
+              filename: "sources",
+            },
+            {
+              label: "Campaigns",
+              data: campaigns.map((c) => ({
+                name: c.name,
+                channel: c.channel,
+                startDate: formatDate(c.startDate),
+                endDate: c.endDate ? formatDate(c.endDate) : "—",
+                budget: c.budget ?? "—",
+                leadsGenerated: c.leadsGenerated,
+              })),
+              columns: [
+                { key: "name", header: "Name" },
+                { key: "channel", header: "Channel" },
+                { key: "startDate", header: "Start Date" },
+                { key: "endDate", header: "End Date" },
+                { key: "budget", header: "Budget" },
+                { key: "leadsGenerated", header: "Leads Generated" },
+              ],
+              filename: "campaigns",
+            },
+          ]}
+          title="Export Sources"
+        />
+        </div>
 
         <TabsContent value="all" className="mt-4">
           <SourceTable sources={sources} filterType={null} regions={regions} />

@@ -12,7 +12,8 @@ import {
   Search, ChevronLeft, ChevronRight, Activity, Users, Calendar,
   TrendingUp, ChevronDown, ChevronUp, X, Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
+import { ExportButton } from "@/components/shared/export-button";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -118,11 +119,6 @@ function countryFlag(code: string): string {
   );
 }
 
-function getInitials(name: string | null, email: string) {
-  if (name) return name.split(" ").map(p => p[0]).join("").slice(0, 2).toUpperCase();
-  return email.slice(0, 2).toUpperCase();
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ActivityLogView({ stats }: { stats: Stats }) {
@@ -182,7 +178,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
   return (
     <div className="space-y-6">
       {/* ── Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { label: "Total Actions",    value: stats.total.toLocaleString(),           icon: Activity,  color: "text-blue-600"   },
           { label: "Actions Today",    value: stats.today.toLocaleString(),            icon: Calendar,  color: "text-emerald-600" },
@@ -267,6 +263,24 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                 <X className="h-3.5 w-3.5" /> Clear
               </Button>
             )}
+            <ExportButton
+              data={logs.map((log) => ({
+                action: log.action,
+                entity: formatLabel(log.entity),
+                user: log.user.name ?? log.user.email,
+                timestamp: fullTime(log.createdAt),
+                details: log.changes ? JSON.stringify(log.changes) : "—",
+              }))}
+              columns={[
+                { key: "action", header: "Action" },
+                { key: "entity", header: "Entity" },
+                { key: "user", header: "User" },
+                { key: "timestamp", header: "Timestamp" },
+                { key: "details", header: "Details" },
+              ]}
+              filename="activity-log"
+              title="Export Activity Log"
+            />
           </div>
         </CardContent>
       </Card>

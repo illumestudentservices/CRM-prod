@@ -11,8 +11,11 @@ const createArticleSchema = z.object({
   title: z.string().min(1, "Title is required"),
   content: z.string().min(1, "Content is required"),
   category: z.string().min(1, "Category is required"),
+  knowledgeType: z.enum(["GENERAL", "INSTITUTION", "MARKET", "PROPOSAL"]).default("GENERAL"),
   tags: z.array(z.string()).default([]),
   isPublished: z.boolean().default(true),
+  institutionId: z.string().optional(),
+  marketId: z.string().optional(),
 });
 
 // ─── GET /api/hr/knowledge-base ───────────────────────────────────────────────
@@ -25,9 +28,12 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const search    = searchParams.get("search");
-    const category  = searchParams.get("category");
-    const articleId = searchParams.get("id");
+    const search        = searchParams.get("search");
+    const category      = searchParams.get("category");
+    const knowledgeType = searchParams.get("knowledgeType");
+    const institutionId = searchParams.get("institutionId");
+    const marketId      = searchParams.get("marketId");
+    const articleId     = searchParams.get("id");
 
     // Single article view — increment views
     if (articleId) {
@@ -46,8 +52,11 @@ export async function GET(req: NextRequest) {
     }
 
     const where: Record<string, unknown> = { deletedAt: null, isPublished: true };
-    if (search)   where.OR = [{ title: { contains: search, mode: "insensitive" } }, { content: { contains: search, mode: "insensitive" } }];
-    if (category) where.category = category;
+    if (search)        where.OR = [{ title: { contains: search, mode: "insensitive" } }, { content: { contains: search, mode: "insensitive" } }];
+    if (category)      where.category = category;
+    if (knowledgeType) where.knowledgeType = knowledgeType;
+    if (institutionId) where.institutionId = institutionId;
+    if (marketId)      where.marketId = marketId;
 
     const articles = await db.knowledgeBase.findMany({
       where,
@@ -101,9 +110,12 @@ export async function POST(req: NextRequest) {
       title: data.title,
       content: data.content,
       category: data.category,
+      knowledgeType: data.knowledgeType,
       tags: data.tags,
       authorId: session.user.id,
       isPublished: data.isPublished,
+      institutionId: data.institutionId ?? null,
+      marketId: data.marketId ?? null,
     },
   });
 

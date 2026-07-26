@@ -66,6 +66,15 @@ interface EmployeeDocument {
   expiryDate: Date | string | null;
 }
 
+interface PerformanceReview {
+  id: string;
+  period: string;
+  score: number | null;
+  status: string;
+  completedAt: Date | string | null;
+  createdAt: Date | string;
+}
+
 interface ProfileData {
   name: string | null;
   email: string;
@@ -89,6 +98,7 @@ interface EmployeeTabsClientProps {
   trainingRecords: TrainingRecord[];
   assetAssignments: AssetAssignment[];
   documents: EmployeeDocument[];
+  performanceReviews: PerformanceReview[];
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -104,6 +114,7 @@ export function EmployeeTabsClient({
   trainingRecords,
   assetAssignments,
   documents,
+  performanceReviews,
 }: EmployeeTabsClientProps) {
   return (
     <Tabs defaultValue="profile">
@@ -114,6 +125,7 @@ export function EmployeeTabsClient({
         <TabsTrigger value="kpis">KPIs</TabsTrigger>
         <TabsTrigger value="training">Training</TabsTrigger>
         <TabsTrigger value="assets">Assets</TabsTrigger>
+        <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
         <TabsTrigger value="documents">Documents</TabsTrigger>
       </TabsList>
 
@@ -228,6 +240,44 @@ export function EmployeeTabsClient({
                   </div>
                 </div>
               ))}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* PERFORMANCE REVIEWS */}
+      <TabsContent value="reviews" className="mt-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            {performanceReviews.length === 0
+              ? <p className="text-muted-foreground text-sm text-center py-6">No performance reviews.</p>
+              : performanceReviews.map((r) => {
+                const statusStyle: Record<string, { variant: "warning" | "default" | "success"; label: string }> = {
+                  PENDING: { variant: "warning", label: "Pending" },
+                  IN_PROGRESS: { variant: "default", label: "In Progress" },
+                  COMPLETED: { variant: "success", label: "Completed" },
+                };
+                const badge = statusStyle[r.status] ?? { variant: "secondary" as const, label: r.status };
+                return (
+                  <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="font-medium text-sm">{r.period}</p>
+                        {r.score != null && (
+                          <p className="text-xs text-muted-foreground">Score: {r.score.toFixed(1)} / 5</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                      {r.completedAt && (
+                        <span className="text-xs text-muted-foreground">
+                          Completed: {formatDate(r.completedAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </CardContent>
         </Card>
       </TabsContent>

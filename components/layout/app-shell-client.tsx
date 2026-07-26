@@ -18,6 +18,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  Map,
+  Handshake,
+  ClipboardList,
+  CheckSquare,
+  Plane,
+  ShieldAlert,
+  BookOpen,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
@@ -44,13 +52,21 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { key: "institutions", label: "Clients", href: "/institutions", icon: Building2 },
   { key: "students", label: "Students & Pipeline", href: "/students", icon: Users },
   { key: "sources", label: "Sources", href: "/sources", icon: Globe },
-  { key: "institutions", label: "Institutions", href: "/institutions", icon: Building2 },
-  { key: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { key: "markets", label: "Markets", href: "/markets", icon: Map },
+  { key: "stakeholders", label: "Stakeholders", href: "/stakeholders", icon: Handshake },
+  { key: "activities_field", label: "Activities", href: "/activities", icon: ClipboardList },
   { key: "events", label: "Events", href: "/events", icon: Calendar },
+  { key: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
   { key: "reports", label: "Reports", href: "/reports", icon: FileText },
+  { key: "tasks", label: "Tasks", href: "/tasks", icon: CheckSquare },
   { key: "hr", label: "HR & ERP", href: "/hr", icon: Briefcase },
+  { key: "travel", label: "Travel", href: "/travel", icon: Plane },
+  { key: "risk_compliance", label: "Risk & Compliance", href: "/risk-compliance", icon: ShieldAlert },
+  { key: "knowledge", label: "Knowledge Base", href: "/knowledge", icon: BookOpen },
+  { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
   { key: "activity_log", label: "Activity Log", href: "/activity-log", icon: ShieldCheck },
   { key: "settings",    label: "Settings",     href: "/settings",    icon: Settings },
 ];

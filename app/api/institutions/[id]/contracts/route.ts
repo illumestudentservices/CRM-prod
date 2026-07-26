@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { differenceInDays } from "date-fns";
 
 // ─── GET /api/institutions/:id/contracts ───────────────────────────────────
@@ -12,6 +13,8 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "read")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -24,6 +27,12 @@ export async function GET(
     const contracts = await db.contract.findMany({
       where: { institutionId: id },
       orderBy: { startDate: "desc" },
+      include: {
+        attachments: {
+          select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     // Annotate with days until expiry
@@ -48,6 +57,8 @@ export async function POST(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "write")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 

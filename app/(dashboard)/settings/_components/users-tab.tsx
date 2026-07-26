@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials, formatDate } from "@/lib/utils";
 import { Pencil, ShieldOff } from "lucide-react";
+import { ExportButton } from "@/components/shared/export-button";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface UserRow {
@@ -165,6 +166,26 @@ export function UsersSettingsTab() {
 
   return (
     <>
+      <div className="flex justify-end mb-3">
+        <ExportButton
+          data={users.map((u) => ({
+            name: u.name ?? "—",
+            email: u.email,
+            role: u.role.replace(/_/g, " "),
+            isActive: u.isActive ? "Active" : "Inactive",
+            createdAt: formatDate(u.createdAt),
+          }))}
+          columns={[
+            { key: "name", header: "Name" },
+            { key: "email", header: "Email" },
+            { key: "role", header: "Role" },
+            { key: "isActive", header: "Status" },
+            { key: "createdAt", header: "Joined" },
+          ]}
+          filename="users"
+          title="Export Users"
+        />
+      </div>
       <DataTable columns={columns} data={users} searchKey="" searchPlaceholder="Search users..." loading={loading} />
 
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>

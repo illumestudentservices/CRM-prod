@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type InteractionType } from "@prisma/client";
 
 // ─── GET /api/institutions/:id/engagement ──────────────────────────────────
@@ -12,6 +13,8 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "read")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -45,6 +48,8 @@ export async function POST(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "write")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 

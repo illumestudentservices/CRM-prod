@@ -10,6 +10,7 @@ const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   assigneeId: z.string().min(1).optional().nullable(),
+  sourceActivityId: z.string().min(1).optional().nullable(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
   dueDate: z.string().transform((v) => new Date(v)).optional().nullable(),
 });
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const assigneeId = searchParams.get("assigneeId");
+  const sourceActivityId = searchParams.get("sourceActivityId");
   const isHR = HR_ROLES.includes(session.user.role as Role);
 
   const where: Record<string, unknown> = { deletedAt: null };
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (status) where.status = status;
+  if (sourceActivityId) where.sourceActivityId = sourceActivityId;
 
   const tasks = await db.task.findMany({
     where,
@@ -51,6 +54,9 @@ export async function GET(req: NextRequest) {
       },
       createdBy: {
         include: { user: { select: { id: true, name: true } } },
+      },
+      sourceActivity: {
+        select: { id: true, title: true, type: true },
       },
     },
     orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { createdAt: "desc" }],
@@ -98,6 +104,7 @@ export async function POST(req: NextRequest) {
       title: data.title,
       description: data.description,
       assigneeId: data.assigneeId ?? null,
+      sourceActivityId: data.sourceActivityId ?? null,
       createdById: employee.id,
       priority: data.priority,
       status: "TODO",

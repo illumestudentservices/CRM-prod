@@ -28,41 +28,39 @@ interface ApiResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
-// Status tabs for Super Admin (sees everything)
+// Simplified flow: Draft → Awaiting Approval → Approved (or Returned).
+
+// Super Admin / HQ see everything (view-only for HQ).
 const SUPER_ADMIN_TABS = [
-  { label: "All",             status: "" },
-  { label: "Draft",           status: "DRAFT" },
-  { label: "Pending Review",  status: "PENDING_REVIEW" },
-  { label: "Awaiting HQ",     status: "REGIONAL_APPROVED" },
-  { label: "HQ Review",       status: "HQ_REVIEW" },
-  { label: "Approved",        status: "FINAL_APPROVED" },
-  { label: "Returned",        status: "RETURNED" },
+  { label: "All",                status: "" },
+  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
+  { label: "Approved",           status: "FINAL_APPROVED" },
+  { label: "Returned",           status: "RETURNED" },
+  { label: "Draft",              status: "DRAFT" },
 ] as const;
 
-// Status tabs for HQ
 const HQ_TABS = [
-  { label: "Awaiting Review", status: "REGIONAL_APPROVED" },
-  { label: "HQ Review",       status: "HQ_REVIEW" },
-  { label: "Approved",        status: "FINAL_APPROVED" },
-  { label: "Returned",        status: "RETURNED" },
-  { label: "All",             status: "" },
+  { label: "All",                status: "" },
+  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
+  { label: "Approved",           status: "FINAL_APPROVED" },
+  { label: "Returned",           status: "RETURNED" },
 ] as const;
 
-// Status tabs for RM
+// Regional Manager — the single approver.
 const RM_TABS = [
-  { label: "Pending Review",  status: "PENDING_REVIEW" },
-  { label: "Approved",        status: "REGIONAL_APPROVED" },
-  { label: "Returned",        status: "RETURNED" },
-  { label: "All",             status: "" },
+  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
+  { label: "Approved",           status: "FINAL_APPROVED" },
+  { label: "Returned",           status: "RETURNED" },
+  { label: "All",                status: "" },
 ] as const;
 
-// Status tabs for ICR
+// ICR — their own reports.
 const ICR_TABS = [
-  { label: "Draft",           status: "DRAFT" },
-  { label: "Under Review",    status: "PENDING_REVIEW" },
-  { label: "Approved",        status: "FINAL_APPROVED" },
-  { label: "Returned",        status: "RETURNED" },
-  { label: "All",             status: "" },
+  { label: "Draft",              status: "DRAFT" },
+  { label: "Awaiting Approval",  status: "PENDING_REVIEW" },
+  { label: "Approved",           status: "FINAL_APPROVED" },
+  { label: "Returned",           status: "RETURNED" },
+  { label: "All",                status: "" },
 ] as const;
 
 export function ReportQueueClient({
@@ -110,38 +108,25 @@ export function ReportQueueClient({
   }
 
   // Stat cards config
-  const statCards = isSuperAdmin
+  // Single, consistent set of stat cards across roles for the simplified flow.
+  const statCards = isHQ && !isSuperAdmin
     ? [
-        { title: "Draft",           value: summary.draft,            icon: "FileText" as const,    iconColor: "text-slate-500",   iconBg: "bg-slate-100",   status: "DRAFT" },
-        { title: "Pending Review",  value: summary.pendingReview,    icon: "Clock" as const,       iconColor: "text-amber-600",   iconBg: "bg-amber-50",    status: "PENDING_REVIEW" },
-        { title: "Final Approved",  value: summary.finalApproved,    icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50",  status: "FINAL_APPROVED" },
-        { title: "Returned",        value: summary.returned,         icon: "RotateCcw" as const,   iconColor: "text-red-500",     iconBg: "bg-red-50",      status: "RETURNED" },
-      ]
-    : isHQ
-    ? [
-        { title: "Awaiting HQ Review", value: summary.regionalApproved, icon: "ClipboardList" as const, iconColor: "text-blue-600", iconBg: "bg-blue-50", status: "REGIONAL_APPROVED" },
-        { title: "In HQ Review",       value: summary.hqReview,         icon: "Clock" as const,    iconColor: "text-indigo-600", iconBg: "bg-indigo-50", status: "HQ_REVIEW" },
-        { title: "Final Approved",     value: summary.finalApproved,    icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
-        { title: "Returned",           value: summary.returned,         icon: "RotateCcw" as const, iconColor: "text-red-500", iconBg: "bg-red-50", status: "RETURNED" },
-      ]
-    : isRM
-    ? [
-        { title: "Pending Review", value: summary.pendingReview,    icon: "Clock" as const,       iconColor: "text-amber-600", iconBg: "bg-amber-50", status: "PENDING_REVIEW" },
-        { title: "Approved",       value: summary.regionalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "REGIONAL_APPROVED" },
-        { title: "Returned",       value: summary.returned,         icon: "RotateCcw" as const,   iconColor: "text-red-500", iconBg: "bg-red-50", status: "RETURNED" },
-        { title: "Final Approved", value: summary.finalApproved,    icon: "Globe" as const,       iconColor: "text-sky-600", iconBg: "bg-sky-50", status: "FINAL_APPROVED" },
+        { title: "Awaiting Approval", value: summary.pendingReview, icon: "Clock" as const,       iconColor: "text-amber-600",   iconBg: "bg-amber-50",   status: "PENDING_REVIEW" },
+        { title: "Approved",          value: summary.finalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
+        { title: "Returned",          value: summary.returned,      icon: "RotateCcw" as const,   iconColor: "text-red-500",     iconBg: "bg-red-50",     status: "RETURNED" },
+        { title: "Total",             value: summary.draft + summary.pendingReview + summary.finalApproved + summary.returned, icon: "FileText" as const, iconColor: "text-slate-500", iconBg: "bg-slate-100", status: "" },
       ]
     : [
-        { title: "Draft",        value: summary.draft,         icon: "FileText" as const,    iconColor: "text-slate-500", iconBg: "bg-slate-100", status: "DRAFT" },
-        { title: "Under Review", value: summary.pendingReview, icon: "Clock" as const,       iconColor: "text-amber-600", iconBg: "bg-amber-50", status: "PENDING_REVIEW" },
-        { title: "Approved",     value: summary.finalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
-        { title: "Returned",     value: summary.returned,      icon: "RotateCcw" as const,   iconColor: "text-red-500", iconBg: "bg-red-50", status: "RETURNED" },
+        { title: "Draft",             value: summary.draft,         icon: "FileText" as const,    iconColor: "text-slate-500",   iconBg: "bg-slate-100",  status: "DRAFT" },
+        { title: "Awaiting Approval", value: summary.pendingReview, icon: "Clock" as const,       iconColor: "text-amber-600",   iconBg: "bg-amber-50",   status: "PENDING_REVIEW" },
+        { title: "Approved",          value: summary.finalApproved, icon: "CheckCircle" as const, iconColor: "text-emerald-600", iconBg: "bg-emerald-50", status: "FINAL_APPROVED" },
+        { title: "Returned",          value: summary.returned,      icon: "RotateCcw" as const,   iconColor: "text-red-500",     iconBg: "bg-red-50",     status: "RETURNED" },
       ];
 
   return (
     <div className="space-y-6">
       {/* Stat cards — clicking filters the list */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
           <StatCard
             key={card.title}
@@ -177,8 +162,6 @@ export function ReportQueueClient({
               const count =
                 tab.status === "DRAFT" ? summary.draft
                 : tab.status === "PENDING_REVIEW" ? summary.pendingReview
-                : tab.status === "REGIONAL_APPROVED" ? summary.regionalApproved
-                : tab.status === "HQ_REVIEW" ? summary.hqReview
                 : tab.status === "FINAL_APPROVED" ? summary.finalApproved
                 : tab.status === "RETURNED" ? summary.returned
                 : null;

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { InstitutionForm } from "./_components/institution-form";
@@ -53,6 +54,7 @@ async function getRegions() {
 export default async function InstitutionsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!(await effectiveHasPermission(session.user.role, "institutions", "read"))) redirect("/dashboard");
 
   const [stats, institutions, regions] = await Promise.all([
     getInstitutionStats(),
@@ -63,9 +65,9 @@ export default async function InstitutionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Institutions"
-        description="Manage partner universities, colleges and institutions"
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Institutions" }]}
+        title="Clients"
+        description="Manage partner universities, colleges and institution accounts"
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Clients" }]}
         actions={
           <div className="flex items-center gap-2">
             <ExportButton

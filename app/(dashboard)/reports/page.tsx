@@ -4,9 +4,11 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, BarChart3 } from "lucide-react";
 import { ReportQueueClient } from "./_components/report-queue-client";
+import { ReportsTabs } from "./_components/reports-tabs";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { canViewWeeklyActivities } from "@/lib/weekly-activities";
 import type { Role } from "@/lib/permissions";
 
 const REPORT_EXPORT_COLUMNS = [
@@ -55,12 +57,14 @@ export default async function ReportsPage() {
     effectiveHasPermission(role, "reports", "write"),
   ]);
 
-  const pageTitle = isICR ? "My Reports" : isRM ? "Regional Reports" : "HQ Report Queue";
+  const showWeeklyTab = canViewWeeklyActivities(role);
+
+  const pageTitle = isICR ? "My Reports" : isRM ? "Regional Reports" : "All Reports";
   const pageDescription = isICR
-    ? "Create and manage your monthly activity reports"
+    ? "Generate, review and send your monthly reports"
     : isRM
-    ? "Review and approve ICR monthly reports for your region"
-    : "Final review and approval of regionally approved reports";
+    ? "Review and approve your team's monthly reports"
+    : "View all monthly reports across regions";
 
   return (
     <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
@@ -69,27 +73,51 @@ export default async function ReportsPage() {
         description={pageDescription}
         breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Reports" }]}
         actions={
-          <div className="flex items-center gap-2">
-            {canCreate && (
-              <Button asChild className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
-                <Link href="/reports/new">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Report
-                </Link>
-              </Button>
-            )}
-          </div>
+          // When the weekly tab is shown, the action moves into ReportsTabs so it
+          // only appears on the Monthly Reports tab.
+          showWeeklyTab ? undefined : (
+            <div className="flex items-center gap-2">
+              {isHQ && (
+                <Button variant="outline" asChild>
+                  <Link href="/reports/qbr">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    QBR
+                  </Link>
+                </Button>
+              )}
+              {canCreate && (
+                <Button asChild className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white">
+                  <Link href="/reports/new">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Report
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )
         }
       />
 
-      <ReportQueueClient
-        userRole={role}
-        isHQ={isHQ}
-        isRM={isRM}
-        isICR={isICR}
-        isSuperAdmin={role === "SUPER_ADMIN"}
-        summary={summary}
-      />
+      {showWeeklyTab ? (
+        <ReportsTabs
+          userRole={role}
+          isHQ={isHQ}
+          isRM={isRM}
+          isICR={isICR}
+          isSuperAdmin={role === "SUPER_ADMIN"}
+          canCreate={canCreate}
+          summary={summary}
+        />
+      ) : (
+        <ReportQueueClient
+          userRole={role}
+          isHQ={isHQ}
+          isRM={isRM}
+          isICR={isICR}
+          isSuperAdmin={role === "SUPER_ADMIN"}
+          summary={summary}
+        />
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, AlertTriangle, AlertCircle } from "lucide-react";
+import { Plus, AlertTriangle, AlertCircle, Paperclip, Download, Trash2, FileIcon, Upload, ChevronDown, ChevronRight } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,14 @@ import { formatDate, formatCurrency, cn } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
+interface Attachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
 interface Contract {
   id: string;
   title: string;
@@ -48,11 +56,18 @@ interface Contract {
   status: string;
   documentUrl: string | null;
   notes: string | null;
+  attachments?: Attachment[];
 }
 
 interface ContractListProps {
   contracts: Contract[];
   institutionId: string;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ─── Renewal warning ──────────────────────────────────────────────────────
@@ -253,6 +268,177 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
   );
 }
 
+// ─── Attachment Section ───────────────────────────────────────────────────
+
+function AttachmentSection({
+  contractId,
+  institutionId,
+  initialAttachments,
+}: {
+  contractId: string;
+  institutionId: string;
+  initialAttachments: Attachment[];
+}) {
+  const [attachments, setAttachments] = React.useState<Attachment[]>(initialAttachments);
+  const [uploading, setUploading] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File exceeds 5 MB limit");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(
+        `/api/institutions/${institutionId}/contracts/${contractId}/attachments`,
+        { method: "POST", body: fd }
+      );
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? "Upload failed");
+      }
+      const newAtt: Attachment = await res.json();
+      setAttachments((prev) => [newAtt, ...prev]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleDelete = async (attachmentId: string) => {
+    if (!confirm("Delete this attachment?")) return;
+    try {
+      const res = await fetch(
+        `/api/institutions/${institutionId}/contracts/${contractId}/attachments/${attachmentId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+      }
+    } catch {
+      alert("Failed to delete attachment");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          className="hidden"
+          onChange={handleUpload}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv,.zip"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 h-7 text-xs"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+        >
+          <Upload className="h-3 w-3" />
+          {uploading ? "Uploading..." : "Attach File"}
+        </Button>
+        {attachments.length > 0 && (
+          <span className="text-xs text-slate-500">{attachments.length} file(s)</span>
+        )}
+      </div>
+
+      {attachments.length > 0 && (
+        <div className="space-y-1">
+          {attachments.map((att) => (
+            <div
+              key={att.id}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-sm group"
+            >
+              <FileIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <span className="truncate flex-1 text-slate-700">{att.name}</span>
+              <span className="text-xs text-slate-400 shrink-0">{formatFileSize(att.size)}</span>
+              <a
+                href={`/api/institutions/${institutionId}/contracts/${contractId}/attachments/${att.id}`}
+                className="text-blue-600 hover:text-blue-800 shrink-0"
+                title="Download"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </a>
+              <button
+                onClick={() => handleDelete(att.id)}
+                className="text-slate-400 hover:text-red-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Contract Row ─────────────────────────────────────────────────────────
+
+function ContractRow({
+  contract,
+  institutionId,
+}: {
+  contract: Contract;
+  institutionId: string;
+}) {
+  const [expanded, setExpanded] = React.useState(false);
+
+  return (
+    <>
+      <TableRow className="cursor-pointer hover:bg-slate-50/50" onClick={() => setExpanded(!expanded)}>
+        <TableCell className="font-medium">
+          <div className="flex items-center gap-1.5">
+            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+            {contract.title}
+          </div>
+        </TableCell>
+        <TableCell>{formatCurrency(contract.value)}</TableCell>
+        <TableCell>{formatDate(contract.startDate)}</TableCell>
+        <TableCell>{formatDate(contract.endDate)}</TableCell>
+        <TableCell>
+          <StatusBadge status={contract.status} />
+        </TableCell>
+        <TableCell>
+          <RenewalBadge endDate={contract.endDate} />
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-1 text-slate-500">
+            <Paperclip className="h-3.5 w-3.5" />
+            <span className="text-xs">{contract.attachments?.length ?? 0}</span>
+          </div>
+        </TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow>
+          <TableCell colSpan={7} className="bg-slate-50/50 border-t-0">
+            <div className="py-2 px-2">
+              <AttachmentSection
+                contractId={contract.id}
+                institutionId={institutionId}
+                initialAttachments={contract.attachments ?? []}
+              />
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function ContractList({ contracts, institutionId }: ContractListProps) {
@@ -273,29 +459,23 @@ export function ContractList({ contracts, institutionId }: ContractListProps) {
                 <TableHead>End Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Renewal</TableHead>
+                <TableHead>Files</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {contracts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-slate-400 py-8">
+                  <TableCell colSpan={7} className="text-center text-slate-400 py-8">
                     No contracts yet.
                   </TableCell>
                 </TableRow>
               ) : (
                 contracts.map((contract) => (
-                  <TableRow key={contract.id}>
-                    <TableCell className="font-medium">{contract.title}</TableCell>
-                    <TableCell>{formatCurrency(contract.value)}</TableCell>
-                    <TableCell>{formatDate(contract.startDate)}</TableCell>
-                    <TableCell>{formatDate(contract.endDate)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={contract.status} />
-                    </TableCell>
-                    <TableCell>
-                      <RenewalBadge endDate={contract.endDate} />
-                    </TableCell>
-                  </TableRow>
+                  <ContractRow
+                    key={contract.id}
+                    contract={contract}
+                    institutionId={institutionId}
+                  />
                 ))
               )}
             </TableBody>

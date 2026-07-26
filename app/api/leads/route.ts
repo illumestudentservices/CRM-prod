@@ -173,8 +173,7 @@ export async function POST(req: NextRequest) {
 
     const { role, id: userId, regionId } = session.user;
 
-    const canCreate = ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR"].includes(role);
-    if (!canCreate) {
+    if (!(await effectiveHasPermission(role as Role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

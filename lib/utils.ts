@@ -46,14 +46,12 @@ export function slugify(text: string): string {
     .replace(/[^\w-]+/g, "");
 }
 
-export function getInitials(name: string | null | undefined): string {
-  if (!name) return "??";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+export function getInitials(name: string | null | undefined, fallback?: string): string {
+  if (name) {
+    return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+  }
+  if (fallback) return fallback.slice(0, 2).toUpperCase();
+  return "??";
 }
 
 export function calculateROI(

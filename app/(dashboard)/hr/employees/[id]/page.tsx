@@ -36,6 +36,7 @@ export default async function EmployeeDetailPage({
         include: { asset: true },
       },
       worklogs: { orderBy: { date: "desc" }, take: 14 },
+      performanceReviews: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -162,6 +163,7 @@ export default async function EmployeeDetailPage({
         trainingRecords={employee.trainingRecords}
         assetAssignments={employee.assetAssignments}
         documents={employee.documents}
+        performanceReviews={employee.performanceReviews}
       />
     </div>
   );

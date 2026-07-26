@@ -8,7 +8,9 @@ import { sendReportSubmittedEmail, sendReportStatusEmail } from "@/lib/email";
 type ReportStatus = "DRAFT" | "PENDING_REVIEW" | "REGIONAL_APPROVED" | "HQ_REVIEW" | "FINAL_APPROVED" | "RETURNED";
 
 const approveSchema = z.object({
-  action: z.enum(["SUBMIT", "APPROVE", "RETURN", "FINAL_APPROVE"]),
+  // Simplified flow: ICR SUBMIT → Regional Manager APPROVE (final) or RETURN.
+  // (HQ is no longer part of the approval chain — view-only.)
+  action: z.enum(["SUBMIT", "APPROVE", "RETURN"]),
   comment: z.string().optional(),
 });
 
@@ -79,34 +81,33 @@ export async function PATCH(
         notificationMessage = `${report.icr.name} submitted a monthly report for ${report.institution.name} (${getMonthName(report.reportingMonth)} ${report.reportingYear})`;
       }
     } else if (action === "APPROVE") {
-      if (role !== "REGIONAL_MANAGER") {
-        return NextResponse.json({ error: "Only Regional Managers can approve at this stage" }, { status: 403 });
+      // Regional Manager (or Super Admin) gives the single, final approval.
+      if (role !== "REGIONAL_MANAGER" && role !== "SUPER_ADMIN") {
+        return NextResponse.json({ error: "Only Regional Managers can approve reports" }, { status: 403 });
       }
       if (report.status !== "PENDING_REVIEW") {
-        return NextResponse.json({ error: "Report must be in PENDING_REVIEW status" }, { status: 400 });
+        return NextResponse.json({ error: "Report must be awaiting approval" }, { status: 400 });
       }
-      if (regionId !== report.regionId) {
+      if (role === "REGIONAL_MANAGER" && regionId !== report.regionId) {
         return NextResponse.json({ error: "You can only approve reports in your region" }, { status: 403 });
       }
-      newStatus = "REGIONAL_APPROVED";
+      // Single-step approval is final now that HQ is out of the chain.
+      newStatus = "FINAL_APPROVED";
       approvalAction = "APPROVED";
 
-      // Notify HQ
-      const hqUser = await db.user.findFirst({
-        where: { role: { in: ["HQ_EXECUTIVE", "HQ_ANALYTICS"] }, isActive: true },
-        select: { id: true },
-      });
-      if (hqUser) {
-        notifyUserId = hqUser.id;
-        notificationTitle = "Report Ready for HQ Review";
-        notificationMessage = `Report from ${report.icr.name} for ${report.institution.name} has been regionally approved`;
-      }
+      // Notify ICR
+      notifyUserId = report.icrId;
+      notificationTitle = "Report Approved";
+      notificationMessage = `Your report for ${report.institution.name} (${getMonthName(report.reportingMonth)} ${report.reportingYear}) has been approved`;
     } else if (action === "RETURN") {
-      if (!["REGIONAL_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS", "SUPER_ADMIN"].includes(role)) {
-        return NextResponse.json({ error: "Insufficient permissions to return a report" }, { status: 403 });
+      if (role !== "REGIONAL_MANAGER" && role !== "SUPER_ADMIN") {
+        return NextResponse.json({ error: "Only Regional Managers can return a report" }, { status: 403 });
       }
-      if (!["PENDING_REVIEW", "REGIONAL_APPROVED", "HQ_REVIEW"].includes(report.status)) {
-        return NextResponse.json({ error: "Report cannot be returned in current status" }, { status: 400 });
+      if (report.status !== "PENDING_REVIEW") {
+        return NextResponse.json({ error: "Only reports awaiting approval can be returned" }, { status: 400 });
+      }
+      if (role === "REGIONAL_MANAGER" && regionId !== report.regionId) {
+        return NextResponse.json({ error: "You can only return reports in your region" }, { status: 403 });
       }
       if (!comment) {
         return NextResponse.json({ error: "A comment is required when returning a report" }, { status: 400 });
@@ -118,20 +119,6 @@ export async function PATCH(
       notifyUserId = report.icrId;
       notificationTitle = "Report Returned for Revision";
       notificationMessage = `Your report for ${report.institution.name} (${getMonthName(report.reportingMonth)} ${report.reportingYear}) has been returned: ${comment}`;
-    } else if (action === "FINAL_APPROVE") {
-      if (!["HQ_EXECUTIVE", "HQ_ANALYTICS", "SUPER_ADMIN"].includes(role)) {
-        return NextResponse.json({ error: "Only HQ can give final approval" }, { status: 403 });
-      }
-      if (report.status !== "REGIONAL_APPROVED" && report.status !== "HQ_REVIEW") {
-        return NextResponse.json({ error: "Report must be regionally approved for final approval" }, { status: 400 });
-      }
-      newStatus = "FINAL_APPROVED";
-      approvalAction = "APPROVED";
-
-      // Notify ICR
-      notifyUserId = report.icrId;
-      notificationTitle = "Report Finally Approved";
-      notificationMessage = `Your report for ${report.institution.name} (${getMonthName(report.reportingMonth)} ${report.reportingYear}) has been finally approved`;
     }
 
     if (!newStatus) {
@@ -145,7 +132,7 @@ export async function PATCH(
         data: {
           status: newStatus,
           ...(action === "SUBMIT" ? { submittedAt: new Date() } : {}),
-          ...(action === "FINAL_APPROVE" ? { finalApprovedAt: new Date() } : {}),
+          ...(action === "APPROVE" ? { finalApprovedAt: new Date() } : {}),
         },
       }),
       db.reportApproval.create({
@@ -187,11 +174,8 @@ export async function PATCH(
           reportUrl,
         });
       }
-    } else if ((action === "APPROVE" || action === "FINAL_APPROVE" || action === "RETURN") && report.icr.email) {
-      const emailAction =
-        action === "APPROVE" ? "REGIONAL_APPROVED" :
-        action === "FINAL_APPROVE" ? "FINAL_APPROVED" :
-        "RETURNED";
+    } else if ((action === "APPROVE" || action === "RETURN") && report.icr.email) {
+      const emailAction = action === "APPROVE" ? "FINAL_APPROVED" : "RETURNED";
       sendReportStatusEmail({
         to: report.icr.email,
         icrName: report.icr.name ?? "",

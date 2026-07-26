@@ -1,11 +1,11 @@
 import * as React from "react";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, MapPin } from "lucide-react";
+import { ExternalLink, MapPin, DollarSign, CalendarClock } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { InstitutionForm } from "../_components/institution-form";
 import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
@@ -22,8 +22,17 @@ async function getInstitution(id: string) {
     where: { id },
     include: {
       region: { select: { id: true, name: true } },
+      accountManager: { select: { id: true, name: true, email: true, role: true, image: true } },
       contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
-      contracts: { orderBy: { startDate: "desc" } },
+      contracts: {
+        orderBy: { startDate: "desc" },
+        include: {
+          attachments: {
+            select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      },
       engagementLogs: {
         include: { user: { select: { id: true, name: true, image: true } } },
         orderBy: { date: "desc" },
@@ -35,12 +44,39 @@ async function getInstitution(id: string) {
         select: { id: true, stage: true, createdAt: true },
       },
       enrollmentTargets: { orderBy: { year: "asc" } },
+      users: {
+        include: {
+          user: { select: { id: true, name: true, email: true, role: true, image: true } },
+        },
+      },
+      activities: {
+        orderBy: { date: "desc" },
+        take: 10,
+        select: { id: true, title: true, type: true, date: true, outcomes: true },
+      },
+      clientKPIs: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      riskRegisters: {
+        where: { status: { in: ["OPEN", "ESCALATED"] } },
+        orderBy: { riskScore: "desc" },
+      },
+      complianceItems: {
+        where: { completedAt: null },
+        orderBy: { dueDate: "asc" },
+      },
       _count: {
-        select: { leads: true, contacts: true, contracts: true, engagementLogs: true },
+        select: {
+          leads: true,
+          contacts: true,
+          contracts: true,
+          engagementLogs: true,
+          activities: true,
+        },
       },
     },
   });
-  // Filter out soft-deleted institutions
   if (institution?.deletedAt) return null;
   return institution;
 }
@@ -68,6 +104,26 @@ export default async function InstitutionDetailPage({
 
   const status = STATUS_CONFIG[institution.accountStatus];
   const enrolledCount = institution.leads.filter((l) => l.stage === "ENROLLED").length;
+  const deliverablesCompleted = institution.deliverables.filter((d) => d.status === "COMPLETED").length;
+  const deliverablesPending = institution.deliverables.filter((d) => d.status !== "COMPLETED").length;
+
+  const assignedUsers = institution.users.map((iu) => ({
+    id: iu.user.id,
+    name: iu.user.name,
+    email: iu.user.email,
+    role: iu.user.role,
+    image: iu.user.image,
+  }));
+
+  const accountManager = institution.accountManager
+    ? {
+        id: institution.accountManager.id,
+        name: institution.accountManager.name,
+        email: institution.accountManager.email,
+        role: institution.accountManager.role,
+        image: institution.accountManager.image,
+      }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -75,7 +131,7 @@ export default async function InstitutionDetailPage({
         title={institution.name}
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
-          { label: "Institutions", href: "/institutions" },
+          { label: "Clients", href: "/institutions" },
           { label: institution.name },
         ]}
         actions={
@@ -124,12 +180,29 @@ export default async function InstitutionDetailPage({
           </Link>
         )}
         <span className="text-sm text-slate-500">{institution.type}</span>
+        {institution.contractValue != null && (
+          <span className="inline-flex items-center gap-1 text-sm text-emerald-600 font-medium">
+            <DollarSign className="h-3.5 w-3.5" />
+            {formatCurrency(institution.contractValue)}
+          </span>
+        )}
+        {institution.renewalDate && (
+          <span className="inline-flex items-center gap-1 text-sm text-amber-600">
+            <CalendarClock className="h-3.5 w-3.5" />
+            Renewal: {formatDate(institution.renewalDate)}
+          </span>
+        )}
       </div>
+
+      {/* Overview text */}
+      {institution.overview && (
+        <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">{institution.overview}</p>
+      )}
 
       {/* Tabs */}
       <InstitutionTabsClient
         institutionId={institution.id}
-        counts={institution._count}
+        counts={{ ...institution._count }}
         enrolledCount={enrolledCount}
         enrollmentTargets={institution.enrollmentTargets}
         contacts={institution.contacts}
@@ -144,6 +217,38 @@ export default async function InstitutionDetailPage({
         }))}
         deliverablesCount={institution.deliverables.length}
         documents={institution.documents}
+        governanceData={{
+          stats: {
+            totalLeads: institution._count.leads,
+            enrolledCount,
+            activitiesCount: institution._count.activities,
+            openRisks: institution.riskRegisters.length,
+            openCompliance: institution.complianceItems.length,
+            deliverablesPending,
+            deliverablesCompleted,
+          },
+          budget: { total: institution.budgetTotal, used: institution.budgetUsed },
+          kpis: institution.clientKPIs.map((k) => ({
+            id: k.id,
+            name: k.name,
+            category: k.category,
+            targetValue: k.targetValue,
+            currentValue: k.currentValue,
+            unit: k.unit,
+          })),
+          recentActivities: institution.activities.map((a) => ({
+            id: a.id,
+            title: a.title,
+            type: a.type,
+            date: a.date.toISOString(),
+            outcomes: a.outcomes,
+          })),
+        }}
+        teamData={{
+          accountManager,
+          assignedUsers,
+        }}
+        strategicObjectives={institution.strategicObjectives}
       />
     </div>
   );

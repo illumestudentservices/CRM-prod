@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye, CheckCircle, XCircle, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExportButton } from "@/components/shared/export-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,18 +57,18 @@ const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
 
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200" },
-  PENDING_REVIEW: { label: "Pending Review", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  REGIONAL_APPROVED: { label: "Regionally Approved", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  HQ_REVIEW: { label: "HQ Review", className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
-  FINAL_APPROVED: { label: "Final Approved", className: "bg-green-100 text-green-800 border-green-200" },
+  PENDING_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  // Legacy statuses kept for historical reports.
+  REGIONAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800 border-green-200" },
+  HQ_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  FINAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800 border-green-200" },
   RETURNED: { label: "Returned", className: "bg-red-100 text-red-800 border-red-200" },
 };
 
+// Regional Manager (and Super Admin) are the only approvers now.
 const CAN_APPROVE: Record<string, ReportStatus[]> = {
   REGIONAL_MANAGER: ["PENDING_REVIEW"],
-  HQ_EXECUTIVE: ["REGIONAL_APPROVED", "HQ_REVIEW"],
-  HQ_ANALYTICS: ["REGIONAL_APPROVED", "HQ_REVIEW"],
-  SUPER_ADMIN: ["PENDING_REVIEW", "REGIONAL_APPROVED", "HQ_REVIEW"],
+  SUPER_ADMIN: ["PENDING_REVIEW"],
 };
 
 export function ReportList({
@@ -88,12 +89,10 @@ export function ReportList({
   async function handleApprove(reportId: string) {
     setActionLoading(reportId);
     try {
-      const isHQ = ["HQ_EXECUTIVE", "HQ_ANALYTICS", "SUPER_ADMIN"].includes(userRole);
-      const action = isHQ ? "FINAL_APPROVE" : "APPROVE";
       const res = await fetch(`/api/reports/${reportId}/approve`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: "APPROVE" }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -149,6 +148,32 @@ export function ReportList({
 
   return (
     <>
+      <div className="flex justify-end mb-3">
+        <ExportButton
+          data={reports.map((r) => ({
+            icr: r.icr.name ?? r.icr.email,
+            institution: r.institution.name,
+            period: `${MONTH_NAMES[r.reportingMonth]} ${r.reportingYear}`,
+            status: STATUS_CONFIG[r.status].label,
+            submitted: r.submittedAt
+              ? new Date(r.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+              : "—",
+            approved: r.finalApprovedAt
+              ? new Date(r.finalApprovedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+              : "—",
+          }))}
+          columns={[
+            { key: "icr", header: "ICR" },
+            { key: "institution", header: "Institution" },
+            { key: "period", header: "Period" },
+            { key: "status", header: "Status" },
+            { key: "submitted", header: "Submitted" },
+            { key: "approved", header: "Approved" },
+          ]}
+          filename="reports"
+          title="Export Reports"
+        />
+      </div>
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <Table>
           <TableHeader>

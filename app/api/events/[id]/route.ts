@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type EventStatus } from "@prisma/client";
 
 // ─── GET /api/events/:id ───────────────────────────────────────────────────
@@ -12,6 +13,8 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "events", "read")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -62,6 +65,8 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "events", "write")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -146,6 +151,8 @@ export async function DELETE(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "events", "delete")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 

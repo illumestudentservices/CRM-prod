@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type AccountStatus } from "@prisma/client";
 
 // ─── GET /api/institutions/:id ─────────────────────────────────────────────
@@ -12,6 +13,8 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "read")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -64,6 +67,8 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "write")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 
@@ -73,8 +78,23 @@ export async function PATCH(
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
     const body = await req.json();
-    const { name, country, type, website, primaryContact, accountStatus, regionId, notes } =
-      body;
+    const {
+      name,
+      country,
+      type,
+      website,
+      primaryContact,
+      accountStatus,
+      regionId,
+      notes,
+      contractValue,
+      renewalDate,
+      budgetTotal,
+      budgetUsed,
+      strategicObjectives,
+      overview,
+      accountManagerId,
+    } = body;
 
     const updated = await db.institution.update({
       where: { id },
@@ -89,6 +109,13 @@ export async function PATCH(
         }),
         ...(regionId !== undefined && { regionId: regionId || null }),
         ...(notes !== undefined && { notes }),
+        ...(contractValue !== undefined && { contractValue: contractValue !== null ? Number(contractValue) : null }),
+        ...(renewalDate !== undefined && { renewalDate: renewalDate ? new Date(renewalDate) : null }),
+        ...(budgetTotal !== undefined && { budgetTotal: budgetTotal !== null ? Number(budgetTotal) : null }),
+        ...(budgetUsed !== undefined && { budgetUsed: budgetUsed !== null ? Number(budgetUsed) : null }),
+        ...(strategicObjectives !== undefined && { strategicObjectives }),
+        ...(overview !== undefined && { overview }),
+        ...(accountManagerId !== undefined && { accountManagerId: accountManagerId || null }),
       },
     });
 
@@ -118,6 +145,8 @@ export async function DELETE(
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await effectiveHasPermission(session.user.role, "institutions", "delete")))
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
 

@@ -97,13 +97,13 @@ export function StatCard({
   const card = (
     <Card
       className={cn(
-        "overflow-hidden hover:shadow-md transition-shadow duration-200",
+        "h-full overflow-hidden hover:shadow-md transition-shadow duration-200",
         (onClick || href) && "cursor-pointer active:scale-[0.98] transition-transform",
         className
       )}
       onClick={onClick}
     >
-      <CardContent className="p-5">
+      <CardContent className="p-5 h-full">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-500 truncate">{title}</p>
@@ -192,7 +192,7 @@ export function StatCard({
   );
 
   if (href) {
-    return <Link href={href} className="block">{card}</Link>;
+    return <Link href={href} className="block h-full">{card}</Link>;
   }
 
   return card;

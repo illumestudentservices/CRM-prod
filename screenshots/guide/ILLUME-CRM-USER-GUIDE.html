@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Illume CRM & ERP - Complete User Guide</title>
+<style>
+  :root { --brand: #1E3A5F; --accent: #0EA5E9; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --green: #22c55e; --orange: #f59e0b; --red: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .header { background: linear-gradient(135deg, var(--brand) 0%, #0f2744 100%); color: white; padding: 60px 40px; text-align: center; }
+  .header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 8px; }
+  .header p { font-size: 1.1rem; opacity: 0.85; max-width: 600px; margin: 0 auto; }
+  .header .meta { margin-top: 20px; font-size: 0.85rem; opacity: 0.65; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin-bottom: 48px; }
+  .toc h2 { font-size: 1.3rem; margin-bottom: 16px; color: var(--brand); }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 0.95rem; padding: 6px 0; display: block; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .num { color: var(--brand); font-weight: 600; margin-right: 6px; }
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 36px; margin-bottom: 32px; }
+  .section h2 { font-size: 1.5rem; color: var(--brand); margin-bottom: 6px; padding-bottom: 12px; border-bottom: 2px solid var(--accent); }
+  .section h3 { font-size: 1.15rem; color: var(--brand); margin: 24px 0 8px; }
+  .section p, .section li { font-size: 0.95rem; color: var(--text); }
+  .section ul, .section ol { padding-left: 20px; margin: 8px 0 16px; }
+  .section li { margin-bottom: 4px; }
+  .screenshot { margin: 20px 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .screenshot img { width: 100%; display: block; }
+  .screenshot .cap { background: #f1f5f9; padding: 8px 16px; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--border); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .badge-role { background: #dbeafe; color: #1d4ed8; }
+  .badge-nav { background: #f0fdf4; color: #15803d; }
+  .login-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 0.9rem; }
+  .login-table th, .login-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .login-table th { background: #f8fafc; font-weight: 600; color: var(--brand); }
+  .login-table tr:hover { background: #f8fafc; }
+  .tip { background: #eff6ff; border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 0.9rem; }
+  .tip strong { color: var(--accent); }
+  .warn { background: #fefce8; border-left: 4px solid var(--orange); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 0.9rem; }
+  .warn strong { color: #b45309; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin: 16px 0; }
+  .feature-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .feature-card h4 { font-size: 0.95rem; color: var(--brand); margin-bottom: 4px; }
+  .feature-card p { font-size: 0.82rem; color: var(--muted); }
+  .flow-steps { counter-reset: step; list-style: none; padding: 0; }
+  .flow-steps li { counter-increment: step; padding: 10px 0 10px 40px; position: relative; border-left: 2px solid var(--border); margin-left: 14px; }
+  .flow-steps li::before { content: counter(step); position: absolute; left: -14px; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; }
+  .flow-steps li:last-child { border-left: none; }
+  @media print { body { font-size: 11pt; } .section { break-inside: avoid; } .screenshot img { max-height: 400px; object-fit: contain; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Illume CRM & ERP</h1>
+  <p>Complete User Guide - How Every Module Works</p>
+  <div class="meta">Version 2.0 | Generated July 7, 2026 | 15 Modules | 33 Screenshots</div>
+</div>
+
+<div class="container">
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <div class="toc-grid">
+    <a href="#login"><span class="num">0.</span> Login & Roles</a>
+    <a href="#dashboard"><span class="num">1.</span> Dashboard</a>
+    <a href="#clients"><span class="num">2.</span> Client Management</a>
+    <a href="#students"><span class="num">3.</span> Students & Pipeline</a>
+    <a href="#markets"><span class="num">4.</span> Market Management</a>
+    <a href="#stakeholders"><span class="num">5.</span> Stakeholder Management</a>
+    <a href="#activities"><span class="num">6.</span> Activity Management</a>
+    <a href="#tasks"><span class="num">7.</span> Tasks & Accountability</a>
+    <a href="#travel"><span class="num">8.</span> Travel Management</a>
+    <a href="#reports"><span class="num">9.</span> Reporting Engine</a>
+    <a href="#risk"><span class="num">10.</span> Risk & Compliance</a>
+    <a href="#hr"><span class="num">11.</span> HR & ERP</a>
+    <a href="#knowledge"><span class="num">12.</span> Knowledge Base</a>
+    <a href="#analytics"><span class="num">13.</span> Analytics & Executive Centre</a>
+    <a href="#sidebar"><span class="num">14.</span> Navigation & Permissions</a>
+  </div>
+</div>
+
+<!-- SECTION 0: LOGIN -->
+<div class="section" id="login">
+  <h2>0. Login & User Roles</h2>
+  <p>Navigate to <strong>http://localhost:3000</strong> (or your deployed URL). You'll be redirected to the login page.</p>
+
+  <h3>Test Accounts</h3>
+  <table class="login-table">
+    <tr><th>Email</th><th>Password</th><th>Role</th><th>What They Can Do</th></tr>
+    <tr><td>admin@illume.edu</td><td>password123</td><td><span class="badge badge-role">SUPER_ADMIN</span></td><td>Full access to everything. Manage users, permissions, all modules.</td></tr>
+    <tr><td>hq@illume.edu</td><td>password123</td><td><span class="badge badge-role">HQ_EXECUTIVE</span></td><td>Executive view. Analytics, reports, strategic decisions. Read-only on most data.</td></tr>
+    <tr><td>analytics@illume.edu</td><td>password123</td><td><span class="badge badge-role">HQ_ANALYTICS</span></td><td>Analytics dashboards. Read-only on data.</td></tr>
+    <tr><td>manager@illume.edu</td><td>password123</td><td><span class="badge badge-role">REGIONAL_MANAGER</span></td><td>Manage a region (SEA). Approve reports, manage ICRs, view regional data.</td></tr>
+    <tr><td>icr@illume.edu</td><td>password123</td><td><span class="badge badge-role">ICR</span></td><td>In-Country Representative. Log activities, manage leads, submit reports.</td></tr>
+    <tr><td>hr@illume.edu</td><td>password123</td><td><span class="badge badge-role">HR_MANAGER</span></td><td>HR module: employees, leave, attendance, knowledge base.</td></tr>
+  </table>
+
+  <div class="tip"><strong>Tip:</strong> Login as <code>admin@illume.edu</code> to see all modules. Other roles see a filtered sidebar based on their permissions.</div>
+</div>
+
+<!-- SECTION 1: DASHBOARD -->
+<div class="section" id="dashboard">
+  <h2>1. Dashboard</h2>
+  <p>The Dashboard is your landing page after login. It shows a high-level snapshot of the entire CRM.</p>
+
+  <div class="screenshot">
+    <img src="01-dashboard.png" alt="Dashboard">
+    <div class="cap">Dashboard - Overview with key metrics, pipeline stats, and recent activity</div>
+  </div>
+
+  <h3>What You See</h3>
+  <ul>
+    <li><strong>Total Leads, Enrolled, Conversion Rate</strong> - Pipeline metrics at a glance</li>
+    <li><strong>Active Institutions</strong> - Number of client partnerships</li>
+    <li><strong>Recent Activities</strong> - Latest logged activities across the team</li>
+    <li><strong>Notifications bell</strong> (top-right) - Contract renewals, pending reports, lead alerts</li>
+  </ul>
+</div>
+
+<!-- SECTION 2: CLIENTS -->
+<div class="section" id="clients">
+  <h2>2. Client Management (Institutions)</h2>
+  <p>The Clients module manages your institutional partnerships - universities, colleges, and other education providers. This is the backbone of the CRM.</p>
+
+  <h3>2.1 Client List</h3>
+  <p>Navigate: <strong>Sidebar > Clients</strong></p>
+  <div class="screenshot">
+    <img src="02a-clients-list.png" alt="Client List">
+    <div class="cap">Clients page - Card view showing 9 partner institutions with lead counts, ICR assignments, and contract counts</div>
+  </div>
+  <ul>
+    <li><strong>Summary cards</strong> at top: Total Partners (9), Active (7), Renewal Due (0), Prospects (2)</li>
+    <li><strong>Search & filter</strong>: by name, status, type, or region</li>
+    <li><strong>Each card</strong> shows leads count, ICRs assigned, contracts count</li>
+    <li>Click any card to open the institution detail page</li>
+    <li><strong>+ Add Institution</strong> button (top-right) to create a new client</li>
+  </ul>
+
+  <h3>2.2 Client Detail Page</h3>
+  <p>Click any institution card to see its full profile.</p>
+  <div class="screenshot">
+    <img src="02b-client-detail.png" alt="Client Detail">
+    <div class="cap">UCL detail page - Shows status, contract value ($15,000), renewal date, overview, and Governance dashboard with KPI progress bars</div>
+  </div>
+  <p>The detail page has <strong>8 tabs</strong>:</p>
+
+  <div class="feature-grid">
+    <div class="feature-card"><h4>Governance</h4><p>Pipeline stats, budget usage, KPI achievement bars, recent activities, open risks & compliance items.</p></div>
+    <div class="feature-card"><h4>Overview</h4><p>Strategic objectives, enrollment targets vs actuals, yearly performance charts.</p></div>
+    <div class="feature-card"><h4>Team</h4><p>Account manager, assigned ICRs and their contact details.</p></div>
+    <div class="feature-card"><h4>Contacts</h4><p>Institution contacts (Director of Recruitment, Regional Manager, etc.).</p></div>
+    <div class="feature-card"><h4>Contracts</h4><p>Partnership agreements with dates, values, renewal warnings, and file attachments.</p></div>
+    <div class="feature-card"><h4>Engagement</h4><p>History of meetings, calls, and emails with the institution.</p></div>
+    <div class="feature-card"><h4>KPIs</h4><p>Tracked KPIs by category with progress bars. Filter by year.</p></div>
+    <div class="feature-card"><h4>Documents</h4><p>Uploaded files related to the institution.</p></div>
+  </div>
+
+  <h3>2.3 KPIs Tab</h3>
+  <div class="screenshot">
+    <img src="02c-client-kpis.png" alt="Client KPIs">
+    <div class="cap">KPIs tab for UCL (2025) - 6 KPIs tracked across Recruitment, Engagement, Market Development, and Relationship categories</div>
+  </div>
+  <ul>
+    <li><strong>Year selector</strong> at top to switch between years</li>
+    <li>KPIs grouped by category (Recruitment, Engagement, Market Development, Relationship)</li>
+    <li>Each KPI shows: name, period (Annual/Quarterly), current vs target, progress bar, percentage</li>
+    <li><strong>"Update Progress"</strong> link to update current values</li>
+    <li><strong>"+ Add KPI"</strong> button to create new KPIs</li>
+  </ul>
+
+  <h3>2.4 Contracts Tab (with Attachments)</h3>
+  <div class="screenshot">
+    <img src="02d-client-contracts.png" alt="Client Contracts">
+    <div class="cap">Contracts tab - Table shows title, value, dates, status, renewal warnings, and a Files column with attachment count</div>
+  </div>
+  <ul>
+    <li>Each contract row has a <strong>chevron (>)</strong> - click to expand and see/upload attachments</li>
+    <li><strong>Files column</strong> shows attachment count with paperclip icon</li>
+    <li>When expanded: <strong>"Attach File"</strong> button to upload documents (PDF, DOCX, images, up to 5MB)</li>
+    <li>Attachments can be <strong>downloaded</strong> (click download icon) or <strong>deleted</strong> (hover to see trash icon)</li>
+    <li>Renewal warnings show as colored badges: red for expired or < 30 days, amber for < 60 days</li>
+  </ul>
+</div>
+
+<!-- SECTION 3: STUDENTS -->
+<div class="section" id="students">
+  <h2>3. Students & Pipeline</h2>
+  <p>Navigate: <strong>Sidebar > Students & Pipeline</strong></p>
+  <div class="screenshot">
+    <img src="03-students.png" alt="Students Pipeline">
+    <div class="cap">Student pipeline - 53 leads across 9 stages with filters, search, and stage-based color coding</div>
+  </div>
+
+  <h3>How It Works</h3>
+  <ol class="flow-steps">
+    <li><strong>Lead Created</strong> - Student enters as NEW (via form, agent referral, or event)</li>
+    <li><strong>CONTACTED</strong> - ICR makes first contact</li>
+    <li><strong>APPLICATION_SENT</strong> - Application submitted to institution</li>
+    <li><strong>DOCUMENTS_RECEIVED</strong> - Supporting documents collected</li>
+    <li><strong>OFFER_ISSUED</strong> - Institution issues an offer letter</li>
+    <li><strong>ENROLLED</strong> - Student accepts and pays deposit</li>
+  </ol>
+
+  <ul>
+    <li><strong>Filter by</strong>: stage, institution, source, region, assigned ICR</li>
+    <li><strong>Click any student</strong> to see full profile: documents, activity timeline, notes</li>
+    <li>Leads can also be DEFERRED, REJECTED, or LOST</li>
+    <li>The system tracks <strong>last contacted</strong> and <strong>last progressed</strong> dates for follow-up alerts</li>
+  </ul>
+</div>
+
+<!-- SECTION 4: MARKETS -->
+<div class="section" id="markets">
+  <h2>4. Market Management</h2>
+  <p>Navigate: <strong>Sidebar > Markets</strong></p>
+  <div class="screenshot">
+    <img src="04a-markets.png" alt="Markets">
+    <div class="cap">Markets page - 5 markets (Malaysia, India, UAE & Gulf, Nigeria, Vietnam) with health scores and risk levels</div>
+  </div>
+
+  <h3>What Each Market Contains</h3>
+  <ul>
+    <li><strong>Health Score</strong> (0-100): Overall market health assessment</li>
+    <li><strong>Political Risk Level</strong>: LOW, MEDIUM_RISK, HIGH_RISK, CRITICAL</li>
+    <li><strong>Student Mobility Notes</strong>: Trends in student movement from this market</li>
+    <li><strong>Competitor Institutions</strong>: Who you're competing against</li>
+    <li><strong>Visa Trends</strong>: Approval rates and policy changes</li>
+    <li><strong>Currency Trends</strong>: Exchange rate impacts on affordability</li>
+    <li><strong>Government Stakeholders</strong>: Key ministry contacts</li>
+    <li><strong>Industry Associations</strong>: Professional bodies to engage</li>
+  </ul>
+
+  <h3>Market Detail Page</h3>
+  <div class="screenshot">
+    <img src="04b-market-detail.png" alt="Market Detail">
+    <div class="cap">Market detail page - Full intelligence profile with linked schools, agents, and activities</div>
+  </div>
+</div>
+
+<!-- SECTION 5: STAKEHOLDERS -->
+<div class="section" id="stakeholders">
+  <h2>5. Stakeholder Management</h2>
+  <p>Navigate: <strong>Sidebar > Stakeholders</strong></p>
+  <p>Manages three types of stakeholders across 4 tabs: Schools, Agents, Counsellors, and Performance.</p>
+
+  <h3>5.1 Schools Tab</h3>
+  <div class="screenshot">
+    <img src="05a-stakeholders-schools.png" alt="Schools">
+    <div class="cap">Schools tab - 8 feeder schools with relationship status (Strategic, Established, Developing, New), student volume, and market</div>
+  </div>
+  <ul>
+    <li>Each school shows: name, type (Public/Private/International), relationship status, student volume, relationship score</li>
+    <li><strong>Relationship Status</strong>: NEW > DEVELOPING > ESTABLISHED > STRATEGIC (or AT_RISK / DORMANT)</li>
+    <li><strong>"+ Add School"</strong> to create new school partnerships</li>
+  </ul>
+
+  <h3>5.2 Agents Tab</h3>
+  <div class="screenshot">
+    <img src="05b-stakeholders-agents.png" alt="Agents">
+    <div class="cap">Agents tab - Shows agent profiles with tier (Platinum/Gold/Silver/Emerging), ICEF membership, pipeline metrics</div>
+  </div>
+  <ul>
+    <li>Agent data includes: tier, certification, ICEF membership, country coverage</li>
+    <li>Pipeline metrics: offers, deposits, enrolments, visa approvals, yield rate</li>
+  </ul>
+
+  <h3>5.3 Counsellors Tab</h3>
+  <div class="screenshot">
+    <img src="05c-stakeholders-counsellors.png" alt="Counsellors">
+    <div class="cap">Counsellors tab - School counsellors with influence scores (1-10), positions, and engagement notes</div>
+  </div>
+
+  <h3>5.4 Agent Performance Dashboard</h3>
+  <div class="screenshot">
+    <img src="05d-stakeholders-performance.png" alt="Agent Performance">
+    <div class="cap">Performance tab - Aggregated agent performance metrics for management review</div>
+  </div>
+</div>
+
+<!-- SECTION 6: ACTIVITIES -->
+<div class="section" id="activities">
+  <h2>6. Activity Management</h2>
+  <p>Navigate: <strong>Sidebar > Activities</strong></p>
+  <p>Every field interaction is logged here: school visits, agent meetings, student events, fairs, and partner meetings.</p>
+
+  <div class="screenshot">
+    <img src="06a-activities.png" alt="Activities">
+    <div class="cap">Activities page - 6 logged activities with type, date, location, leads generated, cost, and linked entities</div>
+  </div>
+
+  <h3>Activity Types</h3>
+  <div class="feature-grid">
+    <div class="feature-card"><h4>SCHOOL_VISIT</h4><p>Presentations at feeder schools. Tracks students engaged, counsellors met, leads generated.</p></div>
+    <div class="feature-card"><h4>AGENT_MEETING</h4><p>Quarterly reviews, training sessions with agent partners. Tracks ROI.</p></div>
+    <div class="feature-card"><h4>STUDENT_EVENT</h4><p>Open days, virtual events, webinars. Tracks attendees and applications.</p></div>
+    <div class="feature-card"><h4>FAIR</h4><p>Education fairs and exhibitions. Large-scale lead generation events.</p></div>
+    <div class="feature-card"><h4>PARTNER_MEETING</h4><p>Strategic meetings with institutional partners. Discusses targets and new programs.</p></div>
+  </div>
+
+  <h3>Logging an Activity</h3>
+  <div class="screenshot">
+    <img src="06b-log-activity.png" alt="Log Activity Dialog">
+    <div class="cap">Log Activity dialog - Select type, fill in details, link to institution/market/school/agent, record outcomes</div>
+  </div>
+  <ul>
+    <li>Click <strong>"+ Log Activity"</strong> to open the dialog</li>
+    <li>Select activity type - the form adapts based on type selected</li>
+    <li>Link to institution, market, school, or agent as relevant</li>
+    <li>Record: outcomes, follow-up actions, topics discussed, cost, ROI</li>
+    <li>Activities can <strong>auto-generate follow-up tasks</strong> based on action items</li>
+  </ul>
+</div>
+
+<!-- SECTION 7: TASKS -->
+<div class="section" id="tasks">
+  <h2>7. Tasks & Accountability</h2>
+  <p>Navigate: <strong>Sidebar > Tasks</strong></p>
+  <div class="screenshot">
+    <img src="07-tasks.png" alt="Tasks">
+    <div class="cap">Tasks page - 8 tasks with priority badges, status tracking, assignees, due dates, and linked source activities</div>
+  </div>
+
+  <h3>Key Features</h3>
+  <ul>
+    <li><strong>Priority levels</strong>: Urgent (red), High (orange), Medium (blue), Low (gray)</li>
+    <li><strong>Status workflow</strong>: To Do > In Progress > Done (or Cancelled)</li>
+    <li><strong>Activity-linked toggle</strong>: Filter to see only tasks that came from activities</li>
+    <li><strong>Source Activity column</strong>: Shows which activity generated this task (clickable link)</li>
+    <li><strong>Assignee</strong>: Who is responsible for completing the task</li>
+    <li><strong>Filter by</strong>: status, priority, activity-linked</li>
+    <li><strong>"+ Create Task"</strong> to manually create tasks</li>
+  </ul>
+
+  <div class="tip"><strong>Tip:</strong> When you log an activity with action items, the system can automatically create tasks assigned to the appropriate team member.</div>
+</div>
+
+<!-- SECTION 8: TRAVEL -->
+<div class="section" id="travel">
+  <h2>8. Travel Management</h2>
+  <p>Navigate: <strong>Sidebar > Travel</strong></p>
+  <div class="screenshot">
+    <img src="08a-travel.png" alt="Travel Management">
+    <div class="cap">Travel Management - 4 trips totaling $14,550 with status tracking (Pending, Approved, Completed)</div>
+  </div>
+
+  <h3>Two Tabs</h3>
+  <ul>
+    <li><strong>Travel Plans</strong>: List of all travel requests with destination, purpose, dates, estimated/actual costs, status</li>
+    <li><strong>Travel Reporting</strong>: Aggregated travel analytics and expense summaries</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="08b-travel-reporting.png" alt="Travel Reporting">
+    <div class="cap">Travel Reporting tab - Analytics on travel spending patterns</div>
+  </div>
+
+  <h3>Travel Request Workflow</h3>
+  <ol class="flow-steps">
+    <li><strong>Create</strong> - Employee creates travel request with destination, purpose, dates, estimated cost</li>
+    <li><strong>Pending</strong> - Request awaits manager approval</li>
+    <li><strong>Approved</strong> - Manager approves, travel can proceed</li>
+    <li><strong>Completed</strong> - After return, actual cost is recorded</li>
+  </ol>
+
+  <p>Each travel request can have:</p>
+  <ul>
+    <li><strong>Itinerary items</strong>: flights, hotels, transfers with confirmation references</li>
+    <li><strong>Meetings</strong>: scheduled meetings during the trip, linked to activities</li>
+  </ul>
+</div>
+
+<!-- SECTION 9: REPORTS -->
+<div class="section" id="reports">
+  <h2>9. Reporting Engine</h2>
+  <p>Navigate: <strong>Sidebar > Reports</strong></p>
+  <div class="screenshot">
+    <img src="09a-reports.png" alt="Reports">
+    <div class="cap">Reports page - Monthly reports with approval status workflow (Draft > Pending Review > Approved)</div>
+  </div>
+
+  <h3>Report Types</h3>
+  <ul>
+    <li><strong>Monthly Reports</strong>: ICRs submit monthly activity reports for each institution they manage. Includes leads data, program breakdown, source performance, KPI summary, engagement notes, challenges, and next month plan.</li>
+    <li><strong>Weekly Activities</strong>: Quick weekly activity tracking (agent visits, school engagements, enquiries)</li>
+    <li><strong>Quarterly Business Reviews (QBRs)</strong>: Comprehensive quarterly analysis per institution</li>
+  </ul>
+
+  <h3>Quarterly Business Reviews</h3>
+  <div class="screenshot">
+    <img src="09b-qbr.png" alt="QBR">
+    <div class="cap">QBR page - Quarterly Business Reviews with executive summaries, market performance, ROI analysis, and strategic recommendations</div>
+  </div>
+  <ul>
+    <li>QBRs contain: executive summary, market performance breakdown, ROI analysis, strategic recommendations, KPI summary</li>
+    <li>Status: DRAFT > SUBMITTED > APPROVED</li>
+    <li>Can be generated and exported as PDF</li>
+  </ul>
+
+  <h3>Report Approval Workflow</h3>
+  <ol class="flow-steps">
+    <li><strong>ICR creates</strong> monthly report (DRAFT)</li>
+    <li><strong>ICR submits</strong> for review (PENDING_REVIEW)</li>
+    <li><strong>Regional Manager reviews</strong> and approves (REGIONAL_APPROVED)</li>
+    <li><strong>HQ reviews</strong> and gives final approval (FINAL_APPROVED) or returns for edits</li>
+  </ol>
+</div>
+
+<!-- SECTION 10: RISK & COMPLIANCE -->
+<div class="section" id="risk">
+  <h2>10. Risk & Compliance</h2>
+  <p>Navigate: <strong>Sidebar > Risk & Compliance</strong></p>
+
+  <h3>10.1 Risk Register</h3>
+  <div class="screenshot">
+    <img src="10a-risks.png" alt="Risk Register">
+    <div class="cap">Risk Register - 5 risks with type (Market/Client/Staff/Operational), likelihood, impact, risk score, status, and owner</div>
+  </div>
+  <ul>
+    <li><strong>Risk Types</strong>: MARKET, CLIENT, STAFF, OPERATIONAL</li>
+    <li><strong>Risk Score</strong> = Likelihood (1-5) x Impact (1-5). Scores 15+ are critical.</li>
+    <li><strong>Status</strong>: OPEN, ESCALATED, MITIGATED, CLOSED</li>
+    <li>Each risk has an owner, optional institution/market link, and mitigation plan</li>
+    <li>Color-coded risk scores: red (15+), orange (10-14), green (&lt;10)</li>
+  </ul>
+
+  <h3>10.2 Compliance Tracker</h3>
+  <div class="screenshot">
+    <img src="10b-compliance.png" alt="Compliance">
+    <div class="cap">Compliance Tracker - 6 items across GDPR, FOIPOP, CASL, Agent Compliance, and Training categories</div>
+  </div>
+  <ul>
+    <li><strong>Compliance Types</strong>: GDPR, FOIPOP, CASL, AGENT_COMPLIANCE, TRAINING, OTHER</li>
+    <li>Tracks: title, description, due date, assigned person, status (Pending/In Progress/Completed)</li>
+    <li>Summary cards show: Open Risks, Critical Risks, Pending Compliance, Overdue Compliance</li>
+  </ul>
+</div>
+
+<!-- SECTION 11: HR -->
+<div class="section" id="hr">
+  <h2>11. HR & ERP Module</h2>
+  <p>Navigate: <strong>Sidebar > HR & ERP</strong></p>
+  <div class="screenshot">
+    <img src="11a-hr-overview.png" alt="HR Overview">
+    <div class="cap">HR overview - Department distribution chart, leave allocation, training completion, performance score distribution</div>
+  </div>
+
+  <h3>HR Tabs</h3>
+  <p>The HR module has <strong>11 tabs</strong>: Employees, Leave Management, Holidays, Attendance, Tasks, Announcements, Assets, Knowledge Base, Performance Reviews, Succession Planning, Leave Balances.</p>
+
+  <h3>11.1 Performance Reviews</h3>
+  <div class="screenshot">
+    <img src="11b-performance-reviews.png" alt="Performance Reviews">
+    <div class="cap">Performance Reviews tab - Q1 2025 reviews with scores, strengths, improvement areas, and goals</div>
+  </div>
+  <ul>
+    <li>Reviews include: period, score (1-5), strengths, areas for improvement, goals</li>
+    <li>Status: PENDING, COMPLETED</li>
+    <li>Scores feed into the performance distribution chart on the overview</li>
+  </ul>
+
+  <h3>11.2 Succession Planning</h3>
+  <div class="screenshot">
+    <img src="11c-succession.png" alt="Succession Planning">
+    <div class="cap">Succession Planning - Backup personnel, cross-training status, emergency coverage, and readiness levels</div>
+  </div>
+  <ul>
+    <li>For each key employee: backup personnel identified, cross-training notes</li>
+    <li><strong>Readiness Levels</strong>: READY (green), DEVELOPING (yellow)</li>
+    <li>Emergency coverage plan documented</li>
+    <li>Filter by readiness level; search by employee name</li>
+  </ul>
+</div>
+
+<!-- SECTION 12: KNOWLEDGE BASE -->
+<div class="section" id="knowledge">
+  <h2>12. Knowledge Base</h2>
+  <p>Navigate: <strong>Sidebar > Knowledge Base</strong></p>
+  <p>Centralized repository of organizational knowledge, split into 4 categories:</p>
+
+  <h3>12.1 General KB</h3>
+  <div class="screenshot">
+    <img src="12a-knowledge-general.png" alt="General KB">
+    <div class="cap">General KB - Articles on visa processes, agent management, admission requirements, and operations</div>
+  </div>
+
+  <h3>12.2 Institution KB</h3>
+  <div class="screenshot">
+    <img src="12b-knowledge-institution.png" alt="Institution KB">
+    <div class="cap">Institution KB - Institution-specific knowledge (UCL application guide, UOM scholarship guide)</div>
+  </div>
+  <p>Articles linked to specific institutions. Example: "UCL Application Process & Requirements" - detailed entry requirements, IELTS scores, deadlines.</p>
+
+  <h3>12.3 Market KB</h3>
+  <div class="screenshot">
+    <img src="12c-knowledge-market.png" alt="Market KB">
+    <div class="cap">Market KB - Market intelligence reports (Malaysia Q2 2025 - student mobility, competitor activity, regulatory updates)</div>
+  </div>
+
+  <h3>12.4 Proposal Library</h3>
+  <div class="screenshot">
+    <img src="12d-knowledge-proposals.png" alt="Proposal Library">
+    <div class="cap">Proposal Library - RFP templates, proposal documents, and institutional pitch materials</div>
+  </div>
+
+  <ul>
+    <li>All articles support: tags, categories, file attachments, view tracking</li>
+    <li><strong>"+ Create Article"</strong> button to add new knowledge</li>
+    <li>Articles can be linked to institutions or markets for context</li>
+  </ul>
+</div>
+
+<!-- SECTION 13: ANALYTICS -->
+<div class="section" id="analytics">
+  <h2>13. Analytics & Executive Command Centre</h2>
+  <p>Navigate: <strong>Sidebar > Analytics</strong></p>
+  <div class="screenshot">
+    <img src="13a-analytics.png" alt="Analytics">
+    <div class="cap">Analytics dashboard - Lead trends, enrollment funnel, source performance, and regional breakdown</div>
+  </div>
+
+  <h3>Executive Command Centre</h3>
+  <div class="screenshot">
+    <img src="13b-executive-widgets.png" alt="Executive Widgets">
+    <div class="cap">Executive Command Centre - 5 strategic widgets for CEO-level decision making</div>
+  </div>
+
+  <h3>Analytics Widgets</h3>
+  <ul>
+    <li><strong>Lead Trends</strong>: Monthly lead generation over time</li>
+    <li><strong>Enrollment Funnel</strong>: Pipeline conversion at each stage</li>
+    <li><strong>Source Performance</strong>: Which agents/schools/channels generate best results</li>
+    <li><strong>Regional Breakdown</strong>: Performance by geographic region</li>
+    <li><strong>Executive widgets</strong>: Revenue projections, risk summary, KPI achievements, strategic priorities</li>
+  </ul>
+</div>
+
+<!-- SECTION 14: SIDEBAR & NAVIGATION -->
+<div class="section" id="sidebar">
+  <h2>14. Navigation & Permissions</h2>
+
+  <h3>Sidebar Navigation</h3>
+  <p>The sidebar contains 17 navigation items, visible based on the user's role:</p>
+
+  <div class="feature-grid">
+    <div class="feature-card"><h4>Dashboard</h4><p>Home page with KPIs</p></div>
+    <div class="feature-card"><h4>Clients</h4><p>Institution management</p></div>
+    <div class="feature-card"><h4>Students & Pipeline</h4><p>Lead tracking</p></div>
+    <div class="feature-card"><h4>Sources</h4><p>Agents, schools, campaigns</p></div>
+    <div class="feature-card"><h4>Markets</h4><p>Market intelligence</p></div>
+    <div class="feature-card"><h4>Stakeholders</h4><p>Schools, agents, counsellors</p></div>
+    <div class="feature-card"><h4>Activities</h4><p>Field activity logging</p></div>
+    <div class="feature-card"><h4>Events</h4><p>Fairs, webinars, visits</p></div>
+    <div class="feature-card"><h4>Analytics</h4><p>Dashboards & charts</p></div>
+    <div class="feature-card"><h4>Reports</h4><p>Monthly/QBR reports</p></div>
+    <div class="feature-card"><h4>Tasks</h4><p>Task management</p></div>
+    <div class="feature-card"><h4>HR & ERP</h4><p>Employees, leave, payroll</p></div>
+    <div class="feature-card"><h4>Travel</h4><p>Travel planning</p></div>
+    <div class="feature-card"><h4>Risk & Compliance</h4><p>Risk register, compliance</p></div>
+    <div class="feature-card"><h4>Knowledge Base</h4><p>KB articles & proposals</p></div>
+    <div class="feature-card"><h4>Activity Log</h4><p>Audit trail</p></div>
+    <div class="feature-card"><h4>Settings</h4><p>System configuration</p></div>
+  </div>
+
+  <h3>Role-Based Access Control (RBAC)</h3>
+  <p>The system uses a sophisticated RBAC model with 8 roles across 20+ resources and 5 actions (view, create, edit, delete, export).</p>
+  <ul>
+    <li><strong>SUPER_ADMIN</strong>: Full access to everything</li>
+    <li><strong>HQ_EXECUTIVE</strong>: Read access to all modules, write access to reports and strategic items</li>
+    <li><strong>HQ_ANALYTICS</strong>: Read-only access to analytics, reports, and pipeline data</li>
+    <li><strong>REGIONAL_MANAGER</strong>: Full access to their region's data, approve reports</li>
+    <li><strong>ICR</strong>: Manage their assigned institutions, students, activities; submit reports</li>
+    <li><strong>INSTITUTION_CLIENT</strong>: View their own institution data only</li>
+    <li><strong>HR_MANAGER</strong>: Full access to HR module (employees, leave, attendance, KB)</li>
+    <li><strong>EMPLOYEE</strong>: View own data, submit leave requests, view announcements</li>
+  </ul>
+
+  <div class="warn"><strong>Security Note:</strong> Permission overrides can be configured at Settings > Permissions to grant or revoke specific permissions per role. The system supports database-level permission overrides on top of the static RBAC matrix.</div>
+
+  <h3>Sidebar Collapse</h3>
+  <p>Click <strong>"Collapse"</strong> at the bottom of the sidebar to minimize it to icon-only mode. Hover over icons to see tooltips. Click again to expand.</p>
+</div>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 40px 0; color: var(--muted); font-size: 0.85rem;">
+  <p>Illume CRM & ERP User Guide | Generated July 7, 2026</p>
+  <p>Built with Next.js 16 + React 19 + Prisma 7.5 + PostgreSQL + TailwindCSS + shadcn/ui</p>
+  <p style="margin-top: 8px; font-size: 0.78rem;">All screenshots captured from live application with real seed data.</p>
+</div>
+
+</div>
+</body>
+</html>

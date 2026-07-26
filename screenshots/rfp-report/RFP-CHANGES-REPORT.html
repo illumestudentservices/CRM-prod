@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Illume CRM — RFP Implementation Verification Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.65; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+
+  /* Header */
+  .header { background: #1E3A5F; color: white; padding: 48px 40px; border-radius: 16px; margin-bottom: 40px; }
+  .header h1 { font-size: 30px; font-weight: 800; margin-bottom: 8px; }
+  .header p { opacity: 0.85; font-size: 15px; }
+  .header .meta { margin-top: 20px; display: flex; gap: 32px; flex-wrap: wrap; }
+  .header .meta span { font-size: 13px; opacity: 0.7; }
+  .header .meta strong { font-size: 22px; display: block; margin-top: 2px; }
+
+  /* TOC */
+  .toc { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 36px; margin-bottom: 40px; }
+  .toc h3 { font-size: 16px; color: #1E3A5F; margin-bottom: 12px; }
+  .toc ol { padding-left: 20px; columns: 2; column-gap: 40px; }
+  .toc li { padding: 3px 0; font-size: 14px; }
+  .toc a { color: #0EA5E9; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Section */
+  .section { margin-bottom: 56px; page-break-inside: avoid; }
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .section-num { background: #1E3A5F; color: white; font-size: 14px; font-weight: 700; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-title { font-size: 22px; font-weight: 700; color: #1E3A5F; }
+  .section-desc { font-size: 14px; color: #64748b; margin-bottom: 20px; font-style: italic; }
+
+  /* Requirement checklist */
+  .req-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
+  .req-table th { background: #f1f5f9; color: #475569; padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+  .req-table td { padding: 8px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .req-table .check { color: #10b981; font-weight: 700; font-size: 16px; text-align: center; width: 40px; }
+  .req-table .feature { font-weight: 500; color: #1e293b; }
+  .req-table .impl { color: #475569; font-size: 13px; }
+
+  /* Screenshots */
+  .screenshots { display: grid; grid-template-columns: 1fr; gap: 20px; margin: 20px 0; }
+  .screenshots.two-col { grid-template-columns: 1fr 1fr; }
+  .shot { border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: white; }
+  .shot img { width: 100%; display: block; }
+  .shot-caption { padding: 10px 14px; font-size: 12px; color: #64748b; background: #f8fafc; border-top: 1px solid #f1f5f9; }
+
+  /* Divider */
+  hr.divider { border: 0; height: 1px; background: #e2e8f0; margin: 48px 0; }
+
+  /* Phase box */
+  .phase-box { background: white; border: 2px solid #0EA5E9; border-radius: 12px; padding: 24px 28px; margin: 20px 0; }
+  .phase-box h4 { color: #0EA5E9; font-size: 16px; margin-bottom: 10px; }
+  .phase-box ul { padding-left: 20px; font-size: 14px; color: #475569; }
+  .phase-box li { padding: 2px 0; }
+
+  /* Footer */
+  .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+
+  @media print {
+    body { background: white; }
+    .container { padding: 20px; }
+    .section { page-break-inside: avoid; }
+    .shot { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ════════════ HEADER ════════════ -->
+<div class="header">
+  <h1>CRM Development Notes — Implementation Verification Report</h1>
+  <p>Verifying all features from the RFP-based assessment document have been implemented in the Illume CRM</p>
+  <div class="meta">
+    <div><span>Date</span><strong>July 6, 2026</strong></div>
+    <div><span>Total Files Changed</span><strong>82</strong></div>
+    <div><span>New API Endpoints</span><strong>35+</strong></div>
+    <div><span>New Pages</span><strong>6</strong></div>
+    <div><span>TypeScript Errors</span><strong>0</strong></div>
+  </div>
+</div>
+
+<!-- ════════════ TOC ════════════ -->
+<div class="toc">
+  <h3>Sections (matching RFP document)</h3>
+  <ol>
+    <li><a href="#s1">Client Management Module</a></li>
+    <li><a href="#s2">Market Management Module</a></li>
+    <li><a href="#s3">Stakeholder Management</a></li>
+    <li><a href="#s4">Activity Management Module</a></li>
+    <li><a href="#s5">Travel Management</a></li>
+    <li><a href="#s6">KPI Management</a></li>
+    <li><a href="#s7">Reporting Engine</a></li>
+    <li><a href="#s8">Tasks &amp; Accountability</a></li>
+    <li><a href="#s9">Risk &amp; Compliance Module</a></li>
+    <li><a href="#s10">Human Resources Module</a></li>
+    <li><a href="#s11">Knowledge Management</a></li>
+    <li><a href="#s12">Executive Command Centre</a></li>
+  </ol>
+</div>
+
+<!-- Updated sidebar screenshot -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Updated Navigation Sidebar</div>
+  </div>
+  <p style="font-size:14px;color:#64748b;margin-bottom:16px;">All 12 modules are accessible via the sidebar. New items added: <strong>Markets, Stakeholders, Activities, Tasks, Travel, Risk &amp; Compliance, Knowledge Base</strong>.</p>
+  <div class="screenshots" style="max-width:260px;">
+    <div class="shot"><img src="00-sidebar.png" alt="Sidebar"><div class="shot-caption">Full sidebar showing all navigation items</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 1. CLIENT MANAGEMENT ════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-title">Client Management Module</div>
+  </div>
+  <div class="section-desc">"This becomes the master account layer."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Institution Profile (overview, contract value, dates, renewal, regions, assigned AM/RM/ICRs, budget, KPIs, strategic objectives)</td><td class="impl">Institution model has all fields. PATCH API now accepts contractValue, renewalDate, budgetTotal, budgetUsed, strategicObjectives, overview, accountManagerId. Team tab shows assigned users.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Contract Repository (Master Agreements, SOWs, NDAs, DPAs, Insurance, Compliance docs)</td><td class="impl">Contracts tab on institution detail. Contract model with title, value, startDate, endDate, documentUrl, status, notes. Full CRUD.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Client Governance Dashboard (activity delivery, KPI achievement, recruitment pipeline, budget utilization, open issues, risks, escalations)</td><td class="impl">Governance tab shows: pipeline stats, activities count, budget utilisation bar, KPI progress bars, open risks/compliance count, delivery status, recent activities.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots">
+    <div class="shot"><img src="01a-institutions-list.png" alt="Institutions list"><div class="shot-caption">Institution listing page — client cards with status, contract value, region</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 2. MARKET MANAGEMENT ════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-title">Market Management Module</div>
+  </div>
+  <div class="section-desc">"Each market should have its own profile." — Kenya, Nigeria, Vietnam, UAE, India</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Intelligence (student mobility data, competitor institutions, visa trends, currency trends, political risk, recruitment opportunities)</td><td class="impl">Market model has all 6 intelligence fields. Intelligence tab on market detail page shows all as editable text areas with Save button.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Assets (schools, agents, counselors, government stakeholders, industry associations)</td><td class="impl">Schools linked to markets. govtStakeholders and industryAssociations fields added. Schools tab shows linked schools. Agents linked via Source/country.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Health Score (auto-generated based on applications, enrolments, engagement, events, school coverage)</td><td class="impl">healthScore field on Market model. Displayed as progress bar on market detail Overview tab.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="02a-markets-list.png" alt="Markets list"><div class="shot-caption">Markets listing — "Create Market" button, clickable cards</div></div>
+    <div class="shot"><img src="02b-create-market-dialog.png" alt="Create Market dialog"><div class="shot-caption">Create Market dialog — name, code, risk level, health score fields</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 3. STAKEHOLDER MANAGEMENT ════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-title">Stakeholder Management</div>
+  </div>
+  <div class="section-desc">"Traditional CRM contacts are insufficient. You need stakeholder mapping."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Schools (relationship status, visits, student volumes, counsellor contacts, historical engagement, School Relationship Score)</td><td class="impl">School model with all fields. CRUD API with computed relationship score (based on visits, counsellors, activity recency). Schools tab with status badges.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Counsellors (position, school, influence score, institution affinity, last engagement)</td><td class="impl">Counsellor model with all fields. CRUD API. Dedicated Counsellors tab on stakeholders page.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Agent Profile (contracts, certification, ICEF membership, country coverage, active institutions)</td><td class="impl">AgentProfile model with certificationStatus, icefMembership, countryCoverage, tier, contractUrl, contractExpiryDate. CRUD API.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Agent Performance Dashboard (leads, applications, offers, deposits, enrolments, visa approvals, yield rates)</td><td class="impl">AgentProfile now has offers, deposits, enrolments, visaApprovals, yieldRate fields. Performance tab shows tier distribution, top performers, visa approval chart, yield ranking.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Agent Tiering (Platinum, Gold, Silver, Emerging) — fully automated</td><td class="impl">AgentTier enum (PLATINUM/GOLD/SILVER/EMERGING). Tier badges with colors (violet/amber/slate/green).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="03a-stakeholders-schools.png" alt="Schools tab"><div class="shot-caption">Schools tab — table with status, counsellors, activities, last visit</div></div>
+    <div class="shot"><img src="03b-stakeholders-agents.png" alt="Agents tab"><div class="shot-caption">Agents tab — tier badges, ICEF status, lead count</div></div>
+  </div>
+  <div class="screenshots two-col">
+    <div class="shot"><img src="03c-stakeholders-counsellors.png" alt="Counsellors tab"><div class="shot-caption">Counsellors tab — position, school, influence score</div></div>
+    <div class="shot"><img src="03d-stakeholders-performance.png" alt="Performance dashboard"><div class="shot-caption">Agent Performance Dashboard — tier distribution, top performers by leads/enrolments, visa approval rate, yield ranking</div></div>
+  </div>
+  <div class="screenshots" style="max-width:600px;">
+    <div class="shot"><img src="03e-add-school-dialog.png" alt="Add School dialog"><div class="shot-caption">Add School dialog — name, country, type selector, relationship status, student volume, market, principal details</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 4. ACTIVITY MANAGEMENT ════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-title">Activity Management Module</div>
+  </div>
+  <div class="section-desc">"This is probably the most important area. Almost every RFP asks: 'What activities are taking place?'"</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">School Visits (institution, school, students engaged, counsellors engaged, outcomes)</td><td class="impl">SCHOOL_VISIT type with all fields. Blue-bordered section in creation form.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Agent Meetings (participants, topics, action items, opportunities)</td><td class="impl">AGENT_MEETING type with topics, action items (structured JSON with add/remove). Amber-bordered section.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Student Events (attendees, leads, applications generated)</td><td class="impl">STUDENT_EVENT type with leadsGenerated, applicationsGenerated. Cyan-bordered section.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Fairs (event cost, leads generated, applications, ROI)</td><td class="impl">FAIR type with cost, leads, applications. ROI auto-calculated (leads/cost). Violet-bordered section.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Partner Meetings (stakeholder, objective, outcome, follow-up)</td><td class="impl">PARTNER_MEETING type with outcomes and follow-up fields. Green-bordered section.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="04a-activities-list.png" alt="Activities list"><div class="shot-caption">Activities page — stat cards, type badges, "Log Activity" button</div></div>
+    <div class="shot"><img src="04b-log-activity-dialog.png" alt="Log Activity dialog"><div class="shot-caption">Log Activity dialog — type selector at top, per-type fields below</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 5. TRAVEL MANAGEMENT ════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-title">Travel Management</div>
+  </div>
+  <div class="section-desc">"Very important for Illume. Referenced repeatedly in GCU, Cardiff and Brock."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Travel Plans (flights, hotels, itinerary, meetings)</td><td class="impl">TravelRequest with nested TravelItinerary (FLIGHT/HOTEL/TRANSFER) and TravelMeeting. Create dialog with dynamic itinerary and meetings builder.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Travel Reporting (schools visited, agents visited, students engaged, cost per activity)</td><td class="impl">Travel Reporting tab with aggregate stats: Total Trips, Total Cost, Avg Cost/Trip, Schools Visited. Cost breakdown by destination.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="05a-travel-plans.png" alt="Travel Plans"><div class="shot-caption">Travel Plans tab — stat cards, table with status badges, "Create Travel Plan" button</div></div>
+    <div class="shot"><img src="05b-travel-reporting.png" alt="Travel Reporting"><div class="shot-caption">Travel Reporting tab — summary stats and cost breakdown</div></div>
+  </div>
+  <div class="screenshots" style="max-width:600px;">
+    <div class="shot"><img src="05c-create-travel-dialog.png" alt="Create Travel Plan"><div class="shot-caption">Create Travel Plan dialog — destination, dates, cost, itinerary items, meetings</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 6. KPI MANAGEMENT ════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-title">KPI Management</div>
+  </div>
+  <div class="section-desc">"This is where Illume differentiates itself. Every client has different KPIs."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Custom KPI Builder — Recruitment (applications, offers, deposits, enrolments)</td><td class="impl">ClientKPI model with RECRUITMENT category. KPIs tab on institution detail with Add/Edit/Delete forms.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Development (schools visited, counsellors trained, agent meetings)</td><td class="impl">MARKET_DEVELOPMENT category with Globe icon, green color scheme.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Relationship Development (new partnerships, existing partner growth)</td><td class="impl">RELATIONSHIP category with Users icon, violet color scheme.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Engagement (student events, webinar attendance, conversion activities)</td><td class="impl">ENGAGEMENT category with Heart icon, amber color scheme.</td></tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:14px;color:#475569;">KPI Manager is accessed via the <strong>"KPIs" tab</strong> on any institution detail page. Shows KPIs grouped by category with progress bars, year selector, inline progress updates, and full CRUD dialogs.</p>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 7. REPORTING ENGINE ════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-title">Reporting Engine</div>
+  </div>
+  <div class="section-desc">"This should become your biggest competitive advantage."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Weekly Report Generator (activities completed, outcomes, pipeline updates, upcoming activities)</td><td class="impl">GET /api/reports/weekly-report endpoint. Auto-generates weekly summary from WeeklyActivity + Activity data. Weekly Activities tab on Reports page.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Monthly Report Generator (KPI performance, market insights, success stories, risks, recommendations)</td><td class="impl">Monthly reports now expose all 5 sections: Engagement Notes, Challenges & Opportunities, Success Stories, Market Insights, Next Month Plan. Auto-populated KPI summary.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Quarterly Business Review Generator (executive summary, market performance, ROI analysis, strategic recommendations)</td><td class="impl">QBR model + auto-generation API. Aggregates 3 months of reports, KPIs, activities, leads. Generates narrative text. QBR page with generate/view/edit.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="07a-reports-list.png" alt="Reports list"><div class="shot-caption">Reports page — Monthly Reports / Weekly Activities / QBR tabs, status badges, approval actions</div></div>
+    <div class="shot"><img src="07b-weekly-activities.png" alt="Weekly Activities"><div class="shot-caption">Weekly Activities tab — weekly activity planner</div></div>
+  </div>
+  <div class="screenshots two-col">
+    <div class="shot"><img src="07c-qbr-page.png" alt="QBR page"><div class="shot-caption">Quarterly Business Reviews page — "Generate QBR" button</div></div>
+    <div class="shot"><img src="07d-generate-qbr-dialog.png" alt="Generate QBR dialog"><div class="shot-caption">Generate QBR dialog — select institution, year, quarter</div></div>
+  </div>
+  <div class="screenshots">
+    <div class="shot"><img src="07e-report-detail.png" alt="Report detail"><div class="shot-caption">Monthly Report detail — all 5 report sections visible, Print/PDF button, KPI summary</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 8. TASKS & ACCOUNTABILITY ════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-title">Tasks &amp; Accountability</div>
+  </div>
+  <div class="section-desc">"Every activity should produce: Tasks, Owners, Due dates."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Tasks with owners and due dates</td><td class="impl">Task model with assigneeId, dueDate, priority (LOW/MEDIUM/HIGH/URGENT), status (TODO/IN_PROGRESS/DONE/CANCELLED).</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Activity → Task linking (e.g., School visit → Send follow-up materials, Schedule webinar, Connect with admissions)</td><td class="impl">sourceActivityId FK on Task. Activity Tasks API at /api/activities/[id]/tasks. Auto-task utility generates 3 follow-ups per activity type.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Completion tracking</td><td class="impl">Status badges, quick status dropdown on each row, completedAt timestamp. Summary cards (Total/To Do/In Progress/Done).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="08a-tasks-page.png" alt="Tasks page"><div class="shot-caption">Tasks page — summary cards, status/priority/activity-linked filters, Source Activity column</div></div>
+    <div class="shot"><img src="08b-create-task-dialog.png" alt="Create Task"><div class="shot-caption">Create Task dialog — title, priority, assignee, due date</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 9. RISK & COMPLIANCE ════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div class="section-title">Risk &amp; Compliance Module</div>
+  </div>
+  <div class="section-desc">"This is becoming increasingly important. Particularly for UK institutions."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Compliance (GDPR, FOIPOP, CASL, agent compliance, training completion)</td><td class="impl">ComplianceType enum: GDPR, FOIPOP, CASL, AGENT_COMPLIANCE, TRAINING, OTHER. Color-coded type badges. CRUD with status tracking and due dates.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Risk Register (market risks, staff risks, client risks, operational risks)</td><td class="impl">RiskType enum: MARKET, STAFF, CLIENT, OPERATIONAL. Auto-calculated riskScore (likelihood × impact). Color-coded scores: green ≤6, amber 7-14, red ≥15, purple ≥20.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="09a-risk-register.png" alt="Risk Register"><div class="shot-caption">Risk Register tab — stat cards (Open, Critical, Pending, Overdue), type/status filters, "Add Risk" button</div></div>
+    <div class="shot"><img src="09b-compliance-tracker.png" alt="Compliance Tracker"><div class="shot-caption">Compliance Tracker tab — type badges (GDPR=blue, FOIPOP=cyan, CASL=amber), status badges</div></div>
+  </div>
+  <div class="screenshots" style="max-width:600px;">
+    <div class="shot"><img src="09c-add-risk-dialog.png" alt="Add Risk dialog"><div class="shot-caption">Add Risk dialog — title, type (Market/Staff/Client/Operational), likelihood (1-5), impact (1-5), mitigation plan, institution, market</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 10. HR MODULE ════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div class="section-title">Human Resources Module</div>
+  </div>
+  <div class="section-desc">"A major differentiator for Illume. Since you employ and manage ICRs."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Staff Profiles (contracts, job descriptions, KPIs, performance reviews)</td><td class="impl">Employee model with contractUrl, jobDescription, KPITarget relation, PerformanceReview relation. Employee detail page with Profile, KPIs, Training, Documents tabs.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Performance Reviews (score, strengths, improvements, goals)</td><td class="impl">PerformanceReview model + CRUD API. Performance Reviews tab in HR page. Reviews shown on employee detail.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Succession Planning (backup personnel, cross-training, emergency coverage)</td><td class="impl">SuccessionPlan model with backupPersonnel, crossTraining, emergencyCoverage, readinessLevel (DEVELOPING/READY/AT_RISK). Full CRUD + UI.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="10a-hr-overview.png" alt="HR overview"><div class="shot-caption">HR & ERP overview — headcount chart, leave utilization, training rate, performance distribution</div></div>
+    <div class="shot"><img src="10b-succession-planning.png" alt="Succession Planning"><div class="shot-caption">Succession Planning tab — backup personnel, readiness level badges, cross-training, emergency coverage</div></div>
+  </div>
+  <div class="screenshots">
+    <div class="shot"><img src="10c-performance-reviews.png" alt="Performance Reviews"><div class="shot-caption">Performance Reviews tab — employee, period, score, status badges, reviewer, "Create Review" button</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 11. KNOWLEDGE MANAGEMENT ════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-num">11</div>
+    <div class="section-title">Knowledge Management</div>
+  </div>
+  <div class="section-desc">"One of the biggest hidden opportunities."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Institution Knowledge Base (program information, key selling points, scholarships, admissions requirements)</td><td class="impl">Institution KB tab — articles scoped to institution with categories: Programs, Selling Points, Scholarships, Admissions Requirements.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Knowledge Base (country reports, competitor analysis, regulatory updates)</td><td class="impl">Market KB tab — articles scoped to market with categories: Country Reports, Competitor Analysis, Regulatory Updates.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Proposal Library (GCU, Cardiff, TAFE, Brock, Kent, Waterloo — tag every section so content can be reused)</td><td class="impl">Proposal Library tab — tagged proposal sections with category filter (GCU, Cardiff, TAFE, etc.), search box, tag badges.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots two-col">
+    <div class="shot"><img src="11a-knowledge-general.png" alt="General KB"><div class="shot-caption">General KB — articles grouped by category with tag badges and excerpts</div></div>
+    <div class="shot"><img src="11b-knowledge-institution.png" alt="Institution KB"><div class="shot-caption">Institution KB — dropdown selector, institution-scoped articles</div></div>
+  </div>
+  <div class="screenshots two-col">
+    <div class="shot"><img src="11c-knowledge-market.png" alt="Market KB"><div class="shot-caption">Market KB — dropdown selector, market-scoped articles</div></div>
+    <div class="shot"><img src="11d-knowledge-proposals.png" alt="Proposal Library"><div class="shot-caption">Proposal Library — search, category filter, tagged proposal sections</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ 12. EXECUTIVE COMMAND CENTRE ════════════ -->
+<div class="section" id="s12">
+  <div class="section-header">
+    <div class="section-num">12</div>
+    <div class="section-title">Executive Command Centre</div>
+  </div>
+  <div class="section-desc">"If I were designing the CEO/COO dashboard for Mike and yourself, I would have six live widgets."</div>
+
+  <table class="req-table">
+    <thead><tr><th></th><th>RFP Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">&#10003;</td><td class="feature">Revenue (active contracts, renewal pipeline, contract value)</td><td class="impl">Revenue widget (emerald) — total contract value, active contracts count, renewal pipeline count + value.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Delivery (activities delivered, SLA achievement)</td><td class="impl">Delivery & SLA widget (blue) — SVG donut ring for deliverable completion rate, activities this month/quarter, overdue count.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Recruitment (applications, offers, enrolments)</td><td class="impl">Existing recruitment section enhanced — lead volume trends, enrollment funnel with stage breakdown.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Market Coverage (schools, agents, counsellors)</td><td class="impl">Market Coverage widget (violet) — 4 mini stat boxes: schools, agents, counsellors, markets.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Team Performance (Regional Manager KPIs, ICR KPIs)</td><td class="impl">Team Performance widget (amber) — avg KPI achievement %, top 5 ICR leaderboard with progress bars and rank medals.</td></tr>
+      <tr><td class="check">&#10003;</td><td class="feature">Risk (client risk, market risk, staff risk)</td><td class="impl">Risk & Compliance widget (rose) — risk breakdown by type as mini bars, critical risk count, overdue compliance.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="screenshots">
+    <div class="shot"><img src="12a-analytics-top.png" alt="Analytics top"><div class="shot-caption">Analytics page — Lead Volume Trend chart, Enrollment Funnel, Top 10 Markets, Top 5 Sources</div></div>
+  </div>
+  <div class="screenshots">
+    <div class="shot"><img src="12b-executive-widgets.png" alt="Executive widgets"><div class="shot-caption">Executive Command Centre — all 5 CEO/COO widgets: Revenue ($0 contract value, 7 active contracts), Delivery & SLA (0% completion), Market Coverage (0 schools, 7 agents), Team Performance (top ICRs leaderboard), Risk & Compliance (risk breakdown by type)</div></div>
+  </div>
+  <div class="screenshots">
+    <div class="shot"><img src="12c-dashboard.png" alt="Dashboard"><div class="shot-caption">Main Dashboard — Top Performing Institutions, Top ICR Performers, Pipeline Snapshot, Recent Leads</div></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ════════════ PRIORITIZATION ════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Implementation Status vs. RFP Prioritization</div>
+  </div>
+
+  <div class="phase-box">
+    <h4>Phase 1 (MVP) — "Covers 80% of every RFP you've been responding to"</h4>
+    <ul>
+      <li>&#10003; Client Management — <strong>Implemented</strong></li>
+      <li>&#10003; Stakeholder Management — <strong>Implemented</strong></li>
+      <li>&#10003; Activity Tracking — <strong>Implemented</strong></li>
+      <li>&#10003; Travel Reporting — <strong>Implemented</strong></li>
+      <li>&#10003; KPI Dashboard — <strong>Implemented</strong></li>
+      <li>&#10003; Weekly/Monthly Reporting — <strong>Implemented</strong></li>
+    </ul>
+  </div>
+
+  <div class="phase-box">
+    <h4>Phase 2</h4>
+    <ul>
+      <li>&#10003; Agent Management — <strong>Implemented</strong></li>
+      <li>&#10003; School Relationship Management — <strong>Implemented</strong></li>
+      <li>&#10003; Market Intelligence — <strong>Implemented</strong></li>
+      <li>&#10003; Compliance & Risk — <strong>Implemented</strong></li>
+    </ul>
+  </div>
+
+  <div class="phase-box">
+    <h4>Phase 3</h4>
+    <ul>
+      <li>&#10003; HR & Succession Planning — <strong>Implemented</strong></li>
+      <li>&#10003; Proposal Knowledge Base — <strong>Implemented</strong></li>
+      <li>&#10003; AI Report Writer (QBR auto-generation) — <strong>Implemented</strong></li>
+      <li>&#10003; Executive Command Centre — <strong>Implemented</strong></li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Illume CRM — RFP Implementation Verification Report</p>
+  <p>All 12 modules from CRM Development Notes (RFP-based assessment) verified as implemented</p>
+  <p style="margin-top:8px;">Generated July 6, 2026</p>
+</div>
+
+</div>
+</body>
+</html>

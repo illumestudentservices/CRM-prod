@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ export async function GET(
 
     const { role, id: userId, regionId } = session.user;
 
-    if (role === "HR_MANAGER" || role === "EMPLOYEE") {
+    if (!(await effectiveHasPermission(role as Role, "leads", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -130,8 +131,7 @@ export async function PATCH(
 
     const { role, id: userId, regionId } = session.user;
 
-    const writeRoles: Role[] = ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR"];
-    if (!writeRoles.includes(role)) {
+    if (!(await effectiveHasPermission(role as Role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -222,8 +222,7 @@ export async function DELETE(
 
     const { role, id: userId, regionId } = session.user;
 
-    const deleteRoles: Role[] = ["SUPER_ADMIN", "REGIONAL_MANAGER"];
-    if (!deleteRoles.includes(role)) {
+    if (!(await effectiveHasPermission(role as Role, "leads", "delete"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

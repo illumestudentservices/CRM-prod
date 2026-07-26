@@ -205,7 +205,7 @@ export function ICRDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard title="New This Month" value={loading ? "—" : newLeads} icon={Users} iconColor="text-[#0EA5E9]" iconBg="bg-[#0EA5E9]/10" loading={loading} />
         <StatCard title="In Progress" value={loading ? "—" : inProgress} icon={TrendingUp} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" loading={loading} />
         <StatCard title="Enrolled" value={loading ? "—" : enrolled} icon={GraduationCap} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" loading={loading} />

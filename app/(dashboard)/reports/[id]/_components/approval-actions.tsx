@@ -44,18 +44,15 @@ export function ApprovalActions({
   const [error, setError] = useState<string | null>(null);
 
   const isICR = userRole === "ICR" && userId === icrId;
-  const isRM = userRole === "REGIONAL_MANAGER";
-  const isHQ = ["HQ_EXECUTIVE", "HQ_ANALYTICS", "SUPER_ADMIN"].includes(userRole);
+  // Regional Manager gives the single, final approval. Super Admin can act too.
+  const isApprover = userRole === "REGIONAL_MANAGER" || userRole === "SUPER_ADMIN";
 
   // Determine what buttons to show
   const showSubmit = isICR && (reportStatus === "DRAFT" || reportStatus === "RETURNED");
-  const showRMApprove = isRM && reportStatus === "PENDING_REVIEW";
-  const showHQApprove = isHQ && (reportStatus === "REGIONAL_APPROVED" || reportStatus === "HQ_REVIEW");
-  const showReturn =
-    (isRM && reportStatus === "PENDING_REVIEW") ||
-    (isHQ && (reportStatus === "REGIONAL_APPROVED" || reportStatus === "HQ_REVIEW"));
+  const showApprove = isApprover && reportStatus === "PENDING_REVIEW";
+  const showReturn = isApprover && reportStatus === "PENDING_REVIEW";
 
-  if (!showSubmit && !showRMApprove && !showHQApprove && !showReturn) {
+  if (!showSubmit && !showApprove && !showReturn) {
     return null;
   }
 
@@ -103,18 +100,18 @@ export function ApprovalActions({
             className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
           >
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Submit for Review
+            Send report
           </Button>
         )}
 
-        {(showRMApprove || showHQApprove) && (
+        {showApprove && (
           <Button
-            onClick={() => callApprove(showHQApprove ? "FINAL_APPROVE" : "APPROVE")}
+            onClick={() => callApprove("APPROVE")}
             disabled={loading}
             className="bg-[#22C55E] hover:bg-[#22C55E]/90 text-white"
           >
             {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-            {showHQApprove ? "Final Approve" : "Approve"}
+            Approve
           </Button>
         )}
 

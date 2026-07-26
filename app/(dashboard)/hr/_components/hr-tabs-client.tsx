@@ -13,6 +13,8 @@ import { KnowledgeBaseView } from "./knowledge-base";
 import { HolidayManager } from "./holiday-manager";
 import { AssetManager } from "./asset-manager";
 import { LeaveBalances } from "./leave-balances";
+import { PerformanceReviews } from "./performance-reviews";
+import { SuccessionPlanning } from "./succession-planning";
 
 interface HRTabsClientProps {
   isHR: boolean;
@@ -45,7 +47,7 @@ export function HRTabsClient({
   return (
     <div className="space-y-4">
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
           <StatCard
             key={`${card.title}-${i}`}
@@ -73,6 +75,8 @@ export function HRTabsClient({
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="assets">Assets</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
+          <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>
+          <TabsTrigger value="succession-planning">Succession Planning</TabsTrigger>
           {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
         </TabsList>
         <TabsContent value="employees" className="mt-4">
@@ -98,6 +102,12 @@ export function HRTabsClient({
         </TabsContent>
         <TabsContent value="knowledge" className="mt-4">
           <KnowledgeBaseView isHR={isHR} />
+        </TabsContent>
+        <TabsContent value="performance-reviews" className="mt-4">
+          <PerformanceReviews isHR={isHR} />
+        </TabsContent>
+        <TabsContent value="succession-planning" className="mt-4">
+          <SuccessionPlanning isHR={isHR} />
         </TabsContent>
         {isHR && (
           <TabsContent value="leave-balances" className="mt-4">

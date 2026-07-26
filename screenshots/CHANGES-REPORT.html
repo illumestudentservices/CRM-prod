@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Illume CRM — RFP Module Implementation Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 32px; font-weight: 800; color: #1E3A5F; margin-bottom: 8px; }
+  h2 { font-size: 24px; font-weight: 700; color: #1E3A5F; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 18px; font-weight: 600; color: #334155; margin: 24px 0 12px; }
+  p { margin: 8px 0; color: #475569; }
+  .subtitle { font-size: 16px; color: #64748b; margin-bottom: 24px; }
+  .stats-row { display: flex; gap: 16px; margin: 24px 0; flex-wrap: wrap; }
+  .stat-box { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; flex: 1; min-width: 160px; text-align: center; }
+  .stat-box .number { font-size: 32px; font-weight: 800; color: #1E3A5F; }
+  .stat-box .label { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .module-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 32px; margin: 24px 0; }
+  .module-card.highlight { border-left: 4px solid #0EA5E9; }
+  .module-number { display: inline-block; background: #1E3A5F; color: white; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+  .feature-list { list-style: none; padding: 0; }
+  .feature-list li { padding: 6px 0; padding-left: 24px; position: relative; color: #475569; }
+  .feature-list li::before { content: "✓"; position: absolute; left: 0; color: #10b981; font-weight: 700; }
+  .screenshot { margin: 20px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+  .screenshot img { width: 100%; display: block; }
+  .screenshot-caption { background: #f1f5f9; padding: 10px 16px; font-size: 13px; color: #64748b; font-style: italic; }
+  .api-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  .api-table th { background: #1E3A5F; color: white; padding: 10px 14px; text-align: left; font-weight: 600; }
+  .api-table td { padding: 8px 14px; border-bottom: 1px solid #e2e8f0; }
+  .api-table tr:nth-child(even) { background: #f8fafc; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 12px; }
+  .badge-new { background: #dcfce7; color: #166534; }
+  .badge-modified { background: #dbeafe; color: #1e40af; }
+  .badge-api { background: #fef3c7; color: #92400e; }
+  .toc { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 32px; margin: 24px 0; }
+  .toc ol { padding-left: 24px; }
+  .toc li { padding: 4px 0; }
+  .toc a { color: #0EA5E9; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .divider { border: 0; height: 1px; background: #e2e8f0; margin: 48px 0; }
+  @media print { body { background: white; } .container { padding: 20px; } .module-card { break-inside: avoid; } .screenshot { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Illume CRM — RFP Module Implementation Report</h1>
+<p class="subtitle">Complete implementation of all 12 modules from the CRM Development Notes (RFP-based assessment)<br>Date: July 6, 2026</p>
+
+<div class="stats-row">
+  <div class="stat-box"><div class="number">12</div><div class="label">Modules Implemented</div></div>
+  <div class="stat-box"><div class="number">82</div><div class="label">Files Changed</div></div>
+  <div class="stat-box"><div class="number">39</div><div class="label">New Files</div></div>
+  <div class="stat-box"><div class="number">35+</div><div class="label">New API Endpoints</div></div>
+  <div class="stat-box"><div class="number">6</div><div class="label">New Pages</div></div>
+  <div class="stat-box"><div class="number">0</div><div class="label">TypeScript Errors</div></div>
+</div>
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#m1">Client Management</a></li>
+    <li><a href="#m2">Market Management</a></li>
+    <li><a href="#m3">Stakeholder Management</a></li>
+    <li><a href="#m4">Activity Management</a></li>
+    <li><a href="#m5">Travel Management</a></li>
+    <li><a href="#m6">KPI Management</a></li>
+    <li><a href="#m7">Reporting Engine</a></li>
+    <li><a href="#m8">Tasks &amp; Accountability</a></li>
+    <li><a href="#m9">Risk &amp; Compliance</a></li>
+    <li><a href="#m10">HR Module Enhancements</a></li>
+    <li><a href="#m11">Knowledge Management</a></li>
+    <li><a href="#m12">Executive Command Centre</a></li>
+  </ol>
+</div>
+
+<hr class="divider">
+
+<!-- ───────────── MODULE 1 ───────────── -->
+<div class="module-card highlight" id="m1">
+  <span class="module-number">MODULE 1</span>
+  <h2 style="margin-top:8px; border:0;">Client Management</h2>
+  <p>Fixed institution PATCH API and added full CRUD for ClientKPIs, Deliverables, and Documents.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>PATCH API fixed</strong> — Now accepts contractValue, renewalDate, budgetTotal, budgetUsed, strategicObjectives, overview, accountManagerId</li>
+    <li><strong>ClientKPI CRUD API</strong> — GET/POST at <code>/api/institutions/[id]/kpis</code>, PATCH/DELETE at <code>/api/institutions/[id]/kpis/[kpiId]</code></li>
+    <li><strong>Deliverable CRUD API</strong> — GET/POST at <code>/api/institutions/[id]/deliverables</code>, PATCH/DELETE at <code>/api/institutions/[id]/deliverables/[deliverableId]</code></li>
+    <li><strong>Document API</strong> — GET/POST at <code>/api/institutions/[id]/documents</code></li>
+    <li><strong>KPI Manager UI</strong> — New component added to institution detail tabs with category grouping, progress bars, inline updates</li>
+  </ul>
+
+  <h3>Files</h3>
+  <p><span class="badge badge-modified">Modified</span> <code>app/api/institutions/[id]/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/api/institutions/[id]/kpis/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/api/institutions/[id]/kpis/[kpiId]/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/api/institutions/[id]/deliverables/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/api/institutions/[id]/deliverables/[deliverableId]/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/api/institutions/[id]/documents/route.ts</code></p>
+  <p><span class="badge badge-new">New</span> <code>app/(dashboard)/institutions/[id]/_components/kpi-manager.tsx</code></p>
+</div>
+
+<!-- ───────────── MODULE 2 ───────────── -->
+<div class="module-card highlight" id="m2">
+  <span class="module-number">MODULE 2</span>
+  <h2 style="margin-top:8px; border:0;">Market Management</h2>
+  <p>Full CRUD API, market detail page with 5 tabs, intelligence editing, and clickable market cards.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Market CRUD API</strong> — GET with search/POST, PATCH, soft DELETE</li>
+    <li><strong>Market Detail Page</strong> — 5 tabs: Overview, Intelligence, Schools, Activities, Risks</li>
+    <li><strong>Intelligence Tab</strong> — 7 editable text areas for market data (student mobility, competitors, visa/currency trends, govt stakeholders, industry associations)</li>
+    <li><strong>Markets Listing Updated</strong> — Cards now clickable, "Create Market" button added</li>
+    <li><strong>Schema</strong> — Added govtStakeholders and industryAssociations fields to Market model</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="02-markets-listing.png" alt="Markets listing page">
+    <div class="screenshot-caption">Markets listing page — "Create Market" button visible, cards are clickable links to detail pages</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 3 ───────────── -->
+<div class="module-card highlight" id="m3">
+  <span class="module-number">MODULE 3</span>
+  <h2 style="margin-top:8px; border:0;">Stakeholder Management</h2>
+  <p>Full CRUD APIs for Schools, Counsellors, and Agents. Agent performance dashboard with tier distribution and yield ranking.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Schools CRUD API</strong> — with search, market filter, computed relationship score</li>
+    <li><strong>Counsellors CRUD API</strong> — with school filter, influence score tracking</li>
+    <li><strong>Agent Profiles CRUD API</strong> — with tier filter, upsert support, performance data (offers, deposits, enrolments, visa approvals, yield rate)</li>
+    <li><strong>4-Tab Stakeholders Page</strong> — Schools, Agents, Counsellors, Performance tabs with create forms</li>
+    <li><strong>Agent Performance Dashboard</strong> — Tier distribution, top performers, visa approval chart, yield ranking</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="03-stakeholders.png" alt="Stakeholders page">
+    <div class="screenshot-caption">Stakeholders page — 4 tabs (Schools, Agents, Counsellors, Performance), stat cards, "Add School" button, table with columns for status, counsellors, activities</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 4 ───────────── -->
+<div class="module-card highlight" id="m4">
+  <span class="module-number">MODULE 4</span>
+  <h2 style="margin-top:8px; border:0;">Activity Management</h2>
+  <p>Full CRUD API with ROI auto-calculation and per-type creation forms for all 5 activity types.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Activity CRUD API</strong> — GET with type/search filters, POST with nested attendees and action items</li>
+    <li><strong>ROI Auto-Calculation</strong> — For FAIR type: roi = leadsGenerated / cost</li>
+    <li><strong>Per-Type Forms</strong> — School Visit (blue), Agent Meeting (amber), Student Event (cyan), Fair (violet), Partner Meeting (green)</li>
+    <li><strong>Action Items</strong> — Structured JSON field with dynamic add/remove UI for agent meetings</li>
+    <li><strong>Schema</strong> — Added roi, actionItems (Json), and topics fields to Activity model</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="04-activities.png" alt="Activities page">
+    <div class="screenshot-caption">Activities page — Stat cards, "Log Activity" button, table with type badges, attendees, and leads columns</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 5 ───────────── -->
+<div class="module-card highlight" id="m5">
+  <span class="module-number">MODULE 5</span>
+  <h2 style="margin-top:8px; border:0;">Travel Management</h2>
+  <p>Entirely new module — full CRUD API, reporting endpoint, travel plans page with itinerary builder.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Travel CRUD API</strong> — GET with status/employee filters, POST with nested itinerary items and meetings</li>
+    <li><strong>Travel Reporting API</strong> — Aggregated stats: total trips, cost, schools/agents visited, cost per trip, destination breakdown</li>
+    <li><strong>Travel Page</strong> — Stats row (Total Trips, Total Cost, Avg Cost/Trip, Schools Visited), Travel Plans tab with table, Travel Reporting tab</li>
+    <li><strong>Create Travel Plan Dialog</strong> — Basic fields + dynamic itinerary builder (flights, hotels, transfers) + dynamic meetings builder</li>
+    <li><strong>Sidebar</strong> — "Travel" nav item with Plane icon added</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="05-travel.png" alt="Travel Management page">
+    <div class="screenshot-caption">Travel Management page — 4 stat cards, Travel Plans / Travel Reporting tabs, "Create Travel Plan" button, table with status badges</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 6 ───────────── -->
+<div class="module-card highlight" id="m6">
+  <span class="module-number">MODULE 6</span>
+  <h2 style="margin-top:8px; border:0;">KPI Management</h2>
+  <p>ClientKPI CRUD UI on institution pages with category grouping, progress bars, and inline updates.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>KPI Manager Component</strong> — Year selector, KPIs grouped by 4 categories (Recruitment, Market Development, Relationship, Engagement)</li>
+    <li><strong>Category Visualization</strong> — Distinct icons and colors per category, progress bars with percentage indicators</li>
+    <li><strong>Inline Updates</strong> — Quick currentValue input on each KPI card</li>
+    <li><strong>Add/Edit/Delete Dialogs</strong> — Full form with category, name, target, unit, period fields</li>
+    <li><strong>Institution Tabs</strong> — "KPIs" tab added to institution detail page</li>
+  </ul>
+
+  <h3>Files</h3>
+  <p><span class="badge badge-new">New</span> <code>app/(dashboard)/institutions/[id]/_components/kpi-manager.tsx</code></p>
+  <p><span class="badge badge-modified">Modified</span> <code>app/(dashboard)/institutions/[id]/_components/institution-tabs-client.tsx</code></p>
+</div>
+
+<!-- ───────────── MODULE 7 ───────────── -->
+<div class="module-card highlight" id="m7">
+  <span class="module-number">MODULE 7</span>
+  <h2 style="margin-top:8px; border:0;">Reporting Engine</h2>
+  <p>Weekly report generator, QBR auto-generation with narrative text, PDF export, and all report sections exposed.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Report Editor Enhanced</strong> — 5 report sections now editable: Engagement Notes, Challenges &amp; Opportunities, Success Stories, Market Insights, Next Month Plan</li>
+    <li><strong>Weekly Report Generator API</strong> — Auto-generates weekly summary from activities and pipeline data</li>
+    <li><strong>QBR Auto-Generator</strong> — Aggregates MonthlyReports, ClientKPIs, Activities, and Leads to produce executive summary, market performance, ROI analysis, strategic recommendations</li>
+    <li><strong>QBR Page</strong> — Table listing, "Generate QBR" dialog, view/edit/delete QBRs</li>
+    <li><strong>PDF Export</strong> — Print-ready HTML endpoint with @media print styling</li>
+    <li><strong>QBR Tab</strong> — Added to Reports page for HQ and RM roles</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="06-reports.png" alt="Reports page with QBR tab">
+    <div class="screenshot-caption">Reports page — "Monthly Reports", "Weekly Activities", and new "QBR" tab visible at top. Status badges, approval actions, and report table</div>
+  </div>
+
+  <div class="screenshot">
+    <img src="07-qbr.png" alt="QBR page">
+    <div class="screenshot-caption">Quarterly Business Reviews page — "Generate QBR" button, breadcrumb navigation (Home > Reports > QBR)</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 8 ───────────── -->
+<div class="module-card highlight" id="m8">
+  <span class="module-number">MODULE 8</span>
+  <h2 style="margin-top:8px; border:0;">Tasks &amp; Accountability</h2>
+  <p>Standalone task management page with activity linking, filters, quick status toggle, and auto-task generation utility.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Task-Activity Link</strong> — sourceActivityId FK on Task model, tasks can now be linked to the activity that created them</li>
+    <li><strong>Activity Tasks API</strong> — GET/POST tasks linked to a specific activity</li>
+    <li><strong>Tasks Page</strong> — Summary cards (Total, To Do, In Progress, Done), filter row (status, priority, activity-linked toggle), table with quick status dropdown</li>
+    <li><strong>Auto-Task Utility</strong> — Generates 3 follow-up task suggestions per activity type (e.g., School Visit → "Send follow-up materials")</li>
+    <li><strong>Sidebar</strong> — "Tasks" nav item with CheckSquare icon</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="08-tasks.png" alt="Tasks page">
+    <div class="screenshot-caption">Tasks page — 4 summary cards, status/priority/activity-linked filters, "Create Task" button, table with Source Activity column</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 9 ───────────── -->
+<div class="module-card highlight" id="m9">
+  <span class="module-number">MODULE 9</span>
+  <h2 style="margin-top:8px; border:0;">Risk &amp; Compliance</h2>
+  <p>Full CRUD APIs for risk register and compliance items with management UI, color-coded risk scores, and type-specific badges.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Risk Register CRUD</strong> — Auto-calculated riskScore (likelihood × impact), type/status/institution filters</li>
+    <li><strong>Compliance CRUD</strong> — ComplianceType enum (GDPR, FOIPOP, CASL, Agent Compliance, Training), auto completedAt on status change</li>
+    <li><strong>Risk & Compliance Page</strong> — Stats row (Open Risks, Critical Risks, Pending Compliance, Overdue Compliance), two tabs with filter dropdowns</li>
+    <li><strong>Risk Score Visualization</strong> — Color-coded: green ≤6, amber 7-14, red ≥15, purple ≥20</li>
+    <li><strong>Sidebar</strong> — "Risk & Compliance" nav item with ShieldAlert icon</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="09-risk-compliance.png" alt="Risk & Compliance page">
+    <div class="screenshot-caption">Risk & Compliance page — 4 stat cards (Open Risks, Critical, Pending Compliance, Overdue), Risk Register / Compliance Tracker tabs, type and status filters, "Add Risk" button</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 10 ───────────── -->
+<div class="module-card highlight" id="m10">
+  <span class="module-number">MODULE 10</span>
+  <h2 style="margin-top:8px; border:0;">HR Module Enhancements</h2>
+  <p>Performance reviews and succession planning with full CRUD, integrated into HR tabs and employee detail pages.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Performance Review CRUD</strong> — List/create/update/delete reviews with employee and reviewer details, auto completedAt</li>
+    <li><strong>Succession Plan CRUD</strong> — Backup personnel, cross-training, emergency coverage, readiness level (Developing/Ready/At Risk)</li>
+    <li><strong>HR Page Tabs</strong> — "Performance Reviews" and "Succession Planning" tabs added alongside existing tabs</li>
+    <li><strong>Employee Detail</strong> — Performance reviews section added to employee profile</li>
+    <li><strong>Schema</strong> — SuccessionPlan model, contractUrl and jobDescription fields on Employee</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="10-hr.png" alt="HR page with new tabs">
+    <div class="screenshot-caption">HR & ERP page — Shows existing tabs plus new "Succession Planning" and "Performance Reviews" tabs. Employee table with department, job title, manager columns</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 11 ───────────── -->
+<div class="module-card highlight" id="m11">
+  <span class="module-number">MODULE 11</span>
+  <h2 style="margin-top:8px; border:0;">Knowledge Management</h2>
+  <p>4-type knowledge base: General, Institution-specific (programs/scholarships), Market-specific (country reports), and Proposal Library (tagged reusable sections).</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>KnowledgeBase Model Updated</strong> — Added knowledgeType (GENERAL/INSTITUTION/MARKET/PROPOSAL), institutionId, marketId</li>
+    <li><strong>Institution KB API</strong> — Scoped entries per institution (programs, selling points, scholarships, admissions)</li>
+    <li><strong>Market KB API</strong> — Scoped entries per market (country reports, competitor analysis, regulatory updates)</li>
+    <li><strong>Proposal Library API</strong> — Tagged sections from past proposals (GCU, Cardiff, TAFE, etc.) with search</li>
+    <li><strong>Knowledge Page</strong> — 4 tabs: General KB, Institution KB (with institution selector), Market KB (with market selector), Proposal Library (with category filter + search)</li>
+    <li><strong>Sidebar</strong> — "Knowledge Base" nav item with BookOpen icon</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="11-knowledge.png" alt="Knowledge Base page">
+    <div class="screenshot-caption">Knowledge Base page — 4 tabs (General KB, Institution KB, Market KB, Proposal Library), "Create Article" button, articles grouped by category with tag badges</div>
+  </div>
+</div>
+
+<!-- ───────────── MODULE 12 ───────────── -->
+<div class="module-card highlight" id="m12">
+  <span class="module-number">MODULE 12</span>
+  <h2 style="margin-top:8px; border:0;">Executive Command Centre</h2>
+  <p>5 new CEO/COO dashboard widgets added to the analytics page: Revenue, Delivery & SLA, Market Coverage, Team Performance, Risk & Compliance.</p>
+
+  <h3>Changes Made</h3>
+  <ul class="feature-list">
+    <li><strong>Executive API</strong> — Single endpoint returning data for all 6 CEO widgets (parallel queries for performance)</li>
+    <li><strong>Revenue Widget</strong> (emerald) — Total contract value, active contracts, renewal pipeline count + value</li>
+    <li><strong>Delivery & SLA Widget</strong> (blue) — SVG donut ring for deliverable completion rate, activities this month/quarter, overdue count</li>
+    <li><strong>Market Coverage Widget</strong> (violet) — 4 mini stat boxes: schools, agents, counsellors, markets</li>
+    <li><strong>Team Performance Widget</strong> (amber) — KPI achievement %, top 5 ICR leaderboard with progress bars</li>
+    <li><strong>Risk & Compliance Widget</strong> (rose) — Risk breakdown by type, critical risk count, overdue compliance</li>
+  </ul>
+
+  <div class="screenshot">
+    <img src="12-analytics-executive.png" alt="Analytics page with executive widgets">
+    <div class="screenshot-caption">Analytics page — Existing charts (Lead Volume Trend, Enrollment Funnel, Top Markets, Top Sources) plus new executive widgets at bottom: Revenue, Delivery & SLA, Market Coverage</div>
+  </div>
+
+  <div class="screenshot">
+    <img src="16-executive-widgets-scrolled.png" alt="Executive widgets scrolled view">
+    <div class="screenshot-caption">Scrolled view showing Revenue ($0 total contract value, 7 active contracts, 0 renewal pipeline), Delivery & SLA (0% completion), Market Coverage (0 schools, 7 agents)</div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ───────────── SIDEBAR ───────────── -->
+<h2>Updated Sidebar Navigation</h2>
+<p>4 new navigation items have been added to the sidebar, visible based on role permissions:</p>
+
+<div class="screenshot">
+  <img src="01-sidebar-new-items.png" alt="Updated sidebar">
+  <div class="screenshot-caption">Full application sidebar showing all navigation items including new additions: Tasks, Travel, Risk & Compliance, Knowledge Base</div>
+</div>
+
+<hr class="divider">
+
+<!-- ───────────── API SUMMARY ───────────── -->
+<h2>New API Endpoints</h2>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Endpoint</th><th>Module</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GET/POST</td><td>/api/institutions/[id]/kpis</td><td>1 - Client Management</td></tr>
+    <tr><td>PATCH/DELETE</td><td>/api/institutions/[id]/kpis/[kpiId]</td><td>1 - Client Management</td></tr>
+    <tr><td>GET/POST</td><td>/api/institutions/[id]/deliverables</td><td>1 - Client Management</td></tr>
+    <tr><td>PATCH/DELETE</td><td>/api/institutions/[id]/deliverables/[id]</td><td>1 - Client Management</td></tr>
+    <tr><td>GET/POST</td><td>/api/institutions/[id]/documents</td><td>1 - Client Management</td></tr>
+    <tr><td>GET/POST</td><td>/api/markets</td><td>2 - Market Management</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/markets/[id]</td><td>2 - Market Management</td></tr>
+    <tr><td>GET/POST</td><td>/api/stakeholders/schools</td><td>3 - Stakeholders</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/stakeholders/schools/[id]</td><td>3 - Stakeholders</td></tr>
+    <tr><td>GET/POST</td><td>/api/stakeholders/counsellors</td><td>3 - Stakeholders</td></tr>
+    <tr><td>PATCH/DELETE</td><td>/api/stakeholders/counsellors/[id]</td><td>3 - Stakeholders</td></tr>
+    <tr><td>GET/POST</td><td>/api/stakeholders/agents</td><td>3 - Stakeholders</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/stakeholders/agents/[id]</td><td>3 - Stakeholders</td></tr>
+    <tr><td>GET/POST</td><td>/api/activities</td><td>4 - Activities</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/activities/[id]</td><td>4 - Activities</td></tr>
+    <tr><td>GET/POST</td><td>/api/activities/[id]/tasks</td><td>8 - Tasks</td></tr>
+    <tr><td>GET/POST</td><td>/api/travel</td><td>5 - Travel</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/travel/[id]</td><td>5 - Travel</td></tr>
+    <tr><td>GET</td><td>/api/travel/report</td><td>5 - Travel</td></tr>
+    <tr><td>GET</td><td>/api/reports/weekly-report</td><td>7 - Reporting</td></tr>
+    <tr><td>GET/POST</td><td>/api/reports/qbr</td><td>7 - Reporting</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/reports/qbr/[id]</td><td>7 - Reporting</td></tr>
+    <tr><td>GET</td><td>/api/reports/[id]/pdf</td><td>7 - Reporting</td></tr>
+    <tr><td>GET/POST</td><td>/api/risks</td><td>9 - Risk & Compliance</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/risks/[id]</td><td>9 - Risk & Compliance</td></tr>
+    <tr><td>GET/POST</td><td>/api/compliance</td><td>9 - Risk & Compliance</td></tr>
+    <tr><td>PATCH/DELETE</td><td>/api/compliance/[id]</td><td>9 - Risk & Compliance</td></tr>
+    <tr><td>GET/POST</td><td>/api/hr/performance-reviews</td><td>10 - HR</td></tr>
+    <tr><td>GET/PATCH/DELETE</td><td>/api/hr/performance-reviews/[id]</td><td>10 - HR</td></tr>
+    <tr><td>GET/POST</td><td>/api/hr/succession-plans</td><td>10 - HR</td></tr>
+    <tr><td>PATCH/DELETE</td><td>/api/hr/succession-plans/[id]</td><td>10 - HR</td></tr>
+    <tr><td>GET/POST</td><td>/api/institutions/[id]/knowledge</td><td>11 - Knowledge</td></tr>
+    <tr><td>GET/POST</td><td>/api/markets/[id]/knowledge</td><td>11 - Knowledge</td></tr>
+    <tr><td>GET/POST</td><td>/api/knowledge/proposals</td><td>11 - Knowledge</td></tr>
+    <tr><td>GET</td><td>/api/analytics/executive</td><td>12 - Executive</td></tr>
+  </tbody>
+</table>
+
+<hr class="divider">
+
+<!-- ───────────── DEPLOYMENT NOTES ───────────── -->
+<h2>Deployment Notes</h2>
+<div class="module-card">
+  <ul class="feature-list">
+    <li><strong>Database migration required</strong> — Run <code>npx prisma migrate dev</code> (or <code>npx prisma db push</code>) to apply schema changes</li>
+    <li><strong>No new dependencies</strong> — All features built with existing stack (no new npm packages required)</li>
+    <li><strong>PDF export</strong> — Uses browser print dialog (window.print), no server-side PDF library needed</li>
+    <li><strong>Backward compatible</strong> — All new fields are optional; existing data is unaffected</li>
+    <li><strong>New Prisma enums</strong> — ComplianceType, QBRStatus, KnowledgeType added</li>
+    <li><strong>New Prisma models</strong> — SuccessionPlan, QuarterlyBusinessReview added</li>
+  </ul>
+</div>
+
+<p style="text-align: center; margin-top: 48px; color: #94a3b8; font-size: 13px;">Generated by Claude Code — Illume CRM RFP Implementation, July 2026</p>
+
+</div>
+</body>
+</html>

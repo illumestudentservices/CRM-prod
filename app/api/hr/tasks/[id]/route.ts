@@ -10,6 +10,7 @@ const patchTaskSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
   assigneeId: z.string().min(1).optional().nullable(),
+  sourceActivityId: z.string().min(1).optional().nullable(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
   status: z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]).optional(),
   dueDate: z.string().transform((v) => new Date(v)).optional().nullable(),
@@ -82,6 +83,12 @@ export async function PATCH(
     include: {
       assignee: {
         include: { user: { select: { id: true, name: true, image: true } } },
+      },
+      createdBy: {
+        include: { user: { select: { id: true, name: true } } },
+      },
+      sourceActivity: {
+        select: { id: true, title: true, type: true },
       },
     },
   });

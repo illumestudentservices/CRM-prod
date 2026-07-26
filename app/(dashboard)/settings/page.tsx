@@ -23,7 +23,7 @@ export default async function SettingsPage() {
         title="Settings"
         description="System administration and configuration"
       />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { label: "Total Users", value: userCount },
           { label: "Regions", value: regionCount },

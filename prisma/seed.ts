@@ -1,4 +1,4 @@
-import { PrismaClient, Role, LeadStage, StudyLevel, SourceType, AccountStatus, EventType, EventStatus, ReportStatus, ConfidenceLevel, EmploymentType, LeaveType, InteractionType } from "@prisma/client";
+import { PrismaClient, Role, LeadStage, StudyLevel, SourceType, AccountStatus, EventType, EventStatus, ReportStatus, ConfidenceLevel, EmploymentType, LeaveType, InteractionType, ActivityType, SchoolType, AgentTier, RelationshipStatus, MarketRiskLevel, KPICategory, KPIPeriod, RiskType, RiskStatus, ComplianceType, TaskPriority, TaskStatus, TravelStatus, KnowledgeType, QBRStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
@@ -462,6 +462,232 @@ async function main() {
     });
   }
   console.log("✅ Knowledge base, assets, announcements, forecast entries created");
+
+  // ─── PHASE 1: MARKETS ─────────────────────────────────────────────────
+  const markets = await Promise.all([
+    db.market.upsert({ where: { code: "MY" }, update: {}, create: { name: "Malaysia", code: "MY", countryCode: "MY", studentMobilityNotes: "Malaysia is a key feeder market with strong demand for UK and Australian universities. English-medium instruction common in private schools.", competitorInstitutions: "Monash Malaysia, Nottingham Malaysia, Sunway, Taylor's University", visaTrends: "UK visa approval rate ~90% for Malaysian students. Australia slightly lower at 85%.", currencyTrends: "MYR stable against GBP. Favorable exchange for AUD programs.", politicalRiskLevel: MarketRiskLevel.LOW, recruitmentOpportunities: "Growing middle class. Government scholarship programs (MARA, JPA) still active.", healthScore: 85, isActive: true, createdById: adminUser.id, govtStakeholders: "Ministry of Education Malaysia, MARA, JPA", industryAssociations: "NAPEI (National Association of Private Educational Institutions)" } }),
+    db.market.upsert({ where: { code: "IN" }, update: {}, create: { name: "India", code: "IN", countryCode: "IN", studentMobilityNotes: "Largest outbound student market globally. Strong demand for STEM and business programs. Price-sensitive market.", competitorInstitutions: "Manipal UK, BITS Pilani Dubai, Amity London", visaTrends: "UK visa refusal rate increased to 15% in 2024. Canada tightening post-study work.", currencyTrends: "INR weakening against GBP. Students increasingly looking at value propositions.", politicalRiskLevel: MarketRiskLevel.LOW, recruitmentOpportunities: "Tier 2 and Tier 3 cities underserved. Online pre-arrival programs attractive.", healthScore: 78, isActive: true, createdById: adminUser.id, govtStakeholders: "UGC, AICTE, Ministry of Education India", industryAssociations: "FICCI Higher Education Committee" } }),
+    db.market.upsert({ where: { code: "AE" }, update: {}, create: { name: "UAE & Gulf", code: "AE", countryCode: "AE", studentMobilityNotes: "Wealthy market with high willingness to pay. Strong preference for ranked universities. Parents heavily involved in decision-making.", competitorInstitutions: "NYU Abu Dhabi, Heriot-Watt Dubai, Birmingham Dubai", visaTrends: "UAE students have high UK visa success rate (~95%). Minimal issues.", currencyTrends: "AED pegged to USD. Stable purchasing power.", politicalRiskLevel: MarketRiskLevel.LOW, recruitmentOpportunities: "School counsellor channel very effective. Agent relationships critical.", healthScore: 82, isActive: true, createdById: adminUser.id, govtStakeholders: "KHDA, ADEK, Ministry of Education UAE", industryAssociations: "ICEF Middle East" } }),
+    db.market.upsert({ where: { code: "NG" }, update: {}, create: { name: "Nigeria", code: "NG", countryCode: "NG", studentMobilityNotes: "Growing outbound market, primarily for UK and Canada. Currency volatility is a major concern. Strong demand for scholarships.", competitorInstitutions: "Coventry, Hertfordshire, De Montfort, Sheffield Hallam", visaTrends: "UK visa refusal rate for Nigeria at 25-30%. Documentation quality key.", currencyTrends: "NGN extremely volatile. Significant devaluation in 2024. Affordability concerns.", politicalRiskLevel: MarketRiskLevel.HIGH_RISK, recruitmentOpportunities: "Lagos and Abuja are primary markets. Growing demand from Port Harcourt.", healthScore: 55, isActive: true, createdById: adminUser.id, govtStakeholders: "NUC (National Universities Commission)", industryAssociations: "NECA, ANIE" } }),
+    db.market.upsert({ where: { code: "VN" }, update: {}, create: { name: "Vietnam", code: "VN", countryCode: "VN", studentMobilityNotes: "Fast-growing market. Strong interest in Australia and Canada. English proficiency improving.", competitorInstitutions: "RMIT Vietnam, Swinburne Vietnam, BUV (British University Vietnam)", visaTrends: "Australian visa success rate improving. UK still relatively new market.", currencyTrends: "VND stable. Government subsidies available for overseas study.", politicalRiskLevel: MarketRiskLevel.LOW, recruitmentOpportunities: "Ho Chi Minh City and Hanoi primary markets. Agent network well established.", healthScore: 72, isActive: true, createdById: adminUser.id, govtStakeholders: "MOET (Ministry of Education and Training)", industryAssociations: "VCCI Education Committee" } }),
+  ]);
+  const [mktMalaysia, mktIndia, mktUAE, mktNigeria, mktVietnam] = markets;
+  console.log("✅ Markets created");
+
+  // ─── PHASE 1: SCHOOLS ─────────────────────────────────────────────────
+  const schools = await Promise.all([
+    db.school.upsert({ where: { id: "sch-001" }, update: {}, create: { id: "sch-001", name: "INTI International School", country: "Malaysia", city: "Kuala Lumpur", type: SchoolType.PRIVATE, principalName: "Dr. Mei Ling Tan", principalEmail: "meiling@inti.edu.my", phone: "+60-3-78062000", relationshipStatus: RelationshipStatus.STRATEGIC, studentVolume: 1200, relationshipScore: 92, marketId: mktMalaysia.id, createdById: adminUser.id, lastVisitDate: new Date("2025-06-15") } }),
+    db.school.upsert({ where: { id: "sch-002" }, update: {}, create: { id: "sch-002", name: "Taylor's International School", country: "Malaysia", city: "Kuala Lumpur", type: SchoolType.INTERNATIONAL, principalName: "Mr. James Wong", principalEmail: "jwong@taylors.edu.my", phone: "+60-3-56290000", relationshipStatus: RelationshipStatus.ESTABLISHED, studentVolume: 800, relationshipScore: 78, marketId: mktMalaysia.id, createdById: adminUser.id, lastVisitDate: new Date("2025-05-20") } }),
+    db.school.upsert({ where: { id: "sch-003" }, update: {}, create: { id: "sch-003", name: "Delhi Public School R.K. Puram", country: "India", city: "New Delhi", type: SchoolType.PRIVATE, principalName: "Dr. Asha Sharma", principalEmail: "principal@dpsrkp.net", phone: "+91-11-26172637", relationshipStatus: RelationshipStatus.ESTABLISHED, studentVolume: 3000, relationshipScore: 70, marketId: mktIndia.id, createdById: adminUser.id, lastVisitDate: new Date("2025-04-10") } }),
+    db.school.upsert({ where: { id: "sch-004" }, update: {}, create: { id: "sch-004", name: "GEMS Wellington International", country: "UAE", city: "Dubai", type: SchoolType.INTERNATIONAL, principalName: "Mrs. Sarah Mitchell", principalEmail: "smitchell@gemswis.com", phone: "+971-4-3480111", relationshipStatus: RelationshipStatus.STRATEGIC, studentVolume: 2500, relationshipScore: 88, marketId: mktUAE.id, createdById: adminUser.id, lastVisitDate: new Date("2025-06-01") } }),
+    db.school.upsert({ where: { id: "sch-005" }, update: {}, create: { id: "sch-005", name: "Greensprings School", country: "Nigeria", city: "Lagos", type: SchoolType.PRIVATE, principalName: "Mr. Chukwu Eze", principalEmail: "ceze@greensprings.ng", phone: "+234-1-4700950", relationshipStatus: RelationshipStatus.DEVELOPING, studentVolume: 600, relationshipScore: 55, marketId: mktNigeria.id, createdById: adminUser.id } }),
+    db.school.upsert({ where: { id: "sch-006" }, update: {}, create: { id: "sch-006", name: "Vinschool Central Park", country: "Vietnam", city: "Ho Chi Minh City", type: SchoolType.PRIVATE, principalName: "Ms. Nguyen Thi Ha", principalEmail: "ha.nguyen@vinschool.edu.vn", phone: "+84-28-39000000", relationshipStatus: RelationshipStatus.NEW, studentVolume: 1500, relationshipScore: 40, marketId: mktVietnam.id, createdById: adminUser.id } }),
+    db.school.upsert({ where: { id: "sch-007" }, update: {}, create: { id: "sch-007", name: "The Indian High School", country: "UAE", city: "Dubai", type: SchoolType.PRIVATE, principalName: "Dr. Rajesh Nair", principalEmail: "rnair@theindianhs.com", phone: "+971-4-3371112", relationshipStatus: RelationshipStatus.ESTABLISHED, studentVolume: 4000, relationshipScore: 75, marketId: mktUAE.id, createdById: adminUser.id, lastVisitDate: new Date("2025-05-15") } }),
+    db.school.upsert({ where: { id: "sch-008" }, update: {}, create: { id: "sch-008", name: "Sunway International School", country: "Malaysia", city: "Petaling Jaya", type: SchoolType.INTERNATIONAL, principalName: "Ms. Anita Kumar", principalEmail: "akumar@sunway.edu.my", phone: "+60-3-56315000", relationshipStatus: RelationshipStatus.DEVELOPING, studentVolume: 950, relationshipScore: 60, marketId: mktMalaysia.id, createdById: adminUser.id } }),
+  ]);
+  console.log("✅ Schools created");
+
+  // ─── PHASE 1: COUNSELLORS ─────────────────────────────────────────────
+  await db.counsellor.createMany({
+    data: [
+      { schoolId: "sch-001", name: "Sophia Lim", email: "sophia.lim@inti.edu.my", phone: "+60-12-3456789", position: "Head of University Guidance", influenceScore: 9, notes: "Very supportive of UK universities. Has sent 15+ students to UCL in past 3 years." },
+      { schoolId: "sch-001", name: "David Tan", email: "david.tan@inti.edu.my", position: "Career Counsellor", influenceScore: 7 },
+      { schoolId: "sch-002", name: "Rachel Goh", email: "rachel.goh@taylors.edu.my", position: "University Placement Officer", influenceScore: 8, notes: "Focuses on Russell Group universities. Responds well to campus visit invites." },
+      { schoolId: "sch-003", name: "Preethi Rao", email: "preethi.rao@dpsrkp.net", position: "International Counsellor", influenceScore: 7, notes: "Strong UK focus. Organizes annual UK university fair." },
+      { schoolId: "sch-004", name: "Emma Johnson", email: "ejohnson@gemswis.com", position: "Head of Sixth Form", influenceScore: 9, notes: "Key influencer. Parents trust her recommendations. Prefers Russell Group." },
+      { schoolId: "sch-004", name: "Ahmed Khalil", email: "akhalil@gemswis.com", position: "University Counsellor", influenceScore: 6 },
+      { schoolId: "sch-005", name: "Blessing Okafor", email: "bokafor@greensprings.ng", position: "Careers Advisor", influenceScore: 5, notes: "New to role. Interested in UK scholarship opportunities." },
+      { schoolId: "sch-007", name: "Sunita Patel", email: "spatel@theindianhs.com", position: "Career Guidance Head", influenceScore: 8, notes: "Extensive network in Dubai's Indian school community." },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Counsellors created");
+
+  // ─── PHASE 1: AGENT PROFILES ──────────────────────────────────────────
+  await db.agentProfile.createMany({
+    data: [
+      { sourceId: srcEduBridge.id, certificationStatus: "ICEF Certified", icefMembership: true, countryCoverage: ["Malaysia", "Singapore", "Brunei"], tier: AgentTier.PLATINUM, contractExpiryDate: new Date("2026-12-31"), offers: 45, deposits: 32, enrolments: 28, visaApprovals: 26, yieldRate: 62.2 },
+      { sourceId: srcGlobalPath.id, certificationStatus: "British Council Certified", icefMembership: true, countryCoverage: ["India", "Nepal", "Bangladesh"], tier: AgentTier.GOLD, contractExpiryDate: new Date("2026-06-30"), offers: 35, deposits: 22, enrolments: 18, visaApprovals: 16, yieldRate: 51.4 },
+      { sourceId: srcStudyUAE.id, certificationStatus: "ICEF Certified", icefMembership: true, countryCoverage: ["UAE", "Saudi Arabia", "Oman", "Bahrain", "Kuwait"], tier: AgentTier.GOLD, contractExpiryDate: new Date("2026-03-31"), offers: 28, deposits: 20, enrolments: 17, visaApprovals: 17, yieldRate: 60.7 },
+      { sourceId: srcNigeria.id, certificationStatus: "Pending", icefMembership: false, countryCoverage: ["Nigeria", "Ghana"], tier: AgentTier.SILVER, contractExpiryDate: new Date("2025-12-31"), offers: 12, deposits: 6, enrolments: 4, visaApprovals: 3, yieldRate: 33.3 },
+      { sourceId: srcVietnam.id, certificationStatus: "ICEF Certified", icefMembership: true, countryCoverage: ["Vietnam", "Cambodia", "Laos"], tier: AgentTier.SILVER, contractExpiryDate: new Date("2026-09-30"), offers: 18, deposits: 12, enrolments: 10, visaApprovals: 9, yieldRate: 55.6 },
+      { sourceId: srcIndonesia.id, certificationStatus: "British Council Certified", icefMembership: false, countryCoverage: ["Indonesia"], tier: AgentTier.EMERGING, contractExpiryDate: new Date("2026-01-31"), offers: 8, deposits: 4, enrolments: 3, visaApprovals: 2, yieldRate: 37.5 },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Agent profiles created");
+
+  // ─── PHASE 1: ACTIVITIES ──────────────────────────────────────────────
+  const activities = await Promise.all([
+    db.activity.upsert({ where: { id: "act-001" }, update: {}, create: { id: "act-001", type: ActivityType.SCHOOL_VISIT, title: "INTI School Presentation – UCL Programs", description: "Presented UCL undergraduate programs to Year 12 and Year 13 students at INTI International School. Covered entry requirements, scholarship opportunities, and campus life.", date: new Date("2025-06-15"), location: "INTI International School KL", city: "Kuala Lumpur", country: "Malaysia", studentsEngaged: 45, counsellorsEngaged: 3, leadsGenerated: 8, applicationsGenerated: 3, cost: 150, outcomes: "Strong interest in Engineering and Computer Science programs. 3 students started applications on the spot.", followUp: "Send program brochures to counsellor Sophia Lim. Follow up with 8 leads within 48 hours.", actionItems: [{ task: "Send brochures", due: "2025-06-17" }, { task: "Follow up leads", due: "2025-06-17" }], topics: "UCL undergraduate programs, scholarships, student visa", userId: icrUser.id, institutionId: instUCL.id, marketId: mktMalaysia.id, schoolId: "sch-001" } }),
+    db.activity.upsert({ where: { id: "act-002" }, update: {}, create: { id: "act-002", type: ActivityType.AGENT_MEETING, title: "EduBridge Quarterly Review", description: "Quarterly performance review with EduBridge Malaysia. Reviewed conversion rates, discussed 2025 targets, and addressed pending applications.", date: new Date("2025-06-10"), location: "EduBridge Office, Bangsar South", city: "Kuala Lumpur", country: "Malaysia", studentsEngaged: 0, counsellorsEngaged: 0, leadsGenerated: 0, cost: 50, roi: 320, outcomes: "EduBridge committed to 15 more referrals by Q3. Agreed on enhanced commission for STEM programs.", followUp: "Send updated commission structure. Share new program catalog.", topics: "Agent performance, commission structure, STEM programs", userId: icrUser.id, sourceId: srcEduBridge.id, marketId: mktMalaysia.id } }),
+    db.activity.upsert({ where: { id: "act-003" }, update: {}, create: { id: "act-003", type: ActivityType.STUDENT_EVENT, title: "UCL Virtual Open Day – SEA Students", description: "Online open day for Southeast Asian prospective students. Featured live campus tour, Q&A with current students, and application workshop.", date: new Date("2025-05-20"), location: "Online (Zoom)", studentsEngaged: 120, counsellorsEngaged: 8, leadsGenerated: 25, applicationsGenerated: 10, cost: 200, roi: 1250, outcomes: "120 attendees from 5 countries. 25 new leads generated. Highest engagement from Malaysian and Vietnamese students.", followUp: "Send recording to registered attendees. Follow up with 25 new leads.", topics: "UCL open day, campus tour, application process", userId: icrUser.id, institutionId: instUCL.id, marketId: mktMalaysia.id } }),
+    db.activity.upsert({ where: { id: "act-004" }, update: {}, create: { id: "act-004", type: ActivityType.FAIR, title: "India Higher Education Forum – Mumbai", description: "Major education fair in Mumbai. Represented UCL, UOM, and Melbourne. Spoke with 200+ students and parents.", date: new Date("2025-05-22"), location: "Jio Convention Centre, BKC", city: "Mumbai", country: "India", studentsEngaged: 220, counsellorsEngaged: 12, leadsGenerated: 45, applicationsGenerated: 15, cost: 6000, roi: 750, outcomes: "Strong interest in postgraduate STEM programs. 45 qualified leads collected. 15 applications started.", followUp: "Distribute leads to ICRs. Schedule follow-up calls within 1 week.", topics: "UK and Australian universities, STEM, business programs", userId: icr2User.id, institutionId: instUCL.id, marketId: mktIndia.id } }),
+    db.activity.upsert({ where: { id: "act-005" }, update: {}, create: { id: "act-005", type: ActivityType.SCHOOL_VISIT, title: "GEMS Wellington School Visit", description: "Presented to IB Year 2 students at GEMS Wellington. Focused on UK university pathways and scholarship opportunities.", date: new Date("2025-06-01"), location: "GEMS Wellington International School", city: "Dubai", country: "UAE", studentsEngaged: 60, counsellorsEngaged: 4, leadsGenerated: 12, applicationsGenerated: 5, cost: 100, outcomes: "12 high-quality leads from affluent families. 5 students interested in Russell Group universities.", followUp: "Send detailed program information. Schedule parent information evening.", actionItems: [{ task: "Send info packs to parents", due: "2025-06-03" }, { task: "Organize parent evening", due: "2025-06-15" }], topics: "UK pathways, IB recognition, scholarships", userId: icr3User.id, institutionId: instUCL.id, marketId: mktUAE.id, schoolId: "sch-004" } }),
+    db.activity.upsert({ where: { id: "act-006" }, update: {}, create: { id: "act-006", type: ActivityType.PARTNER_MEETING, title: "UOM Strategic Partnership Review", description: "Annual strategic review with University of Manchester partnership team. Discussed enrollment targets, new program launches, and marketing budget.", date: new Date("2025-04-15"), location: "UOM International Office (Virtual)", studentsEngaged: 0, counsellorsEngaged: 0, leadsGenerated: 0, cost: 0, outcomes: "UOM increasing scholarship budget by 20% for SEA students. New MSc AI program launching Sep 2026.", followUp: "Update marketing materials with new scholarship info. Brief all ICRs on new AI program.", topics: "Partnership review, scholarships, new programs, targets", userId: managerUser.id, institutionId: instUOM.id } }),
+  ]);
+  console.log("✅ Activities created");
+
+  // ─── PHASE 1: TRAVEL REQUESTS ─────────────────────────────────────────
+  const travelReqs = await Promise.all([
+    db.travelRequest.upsert({ where: { id: "trv-001" }, update: {}, create: { id: "trv-001", employeeId: empICR.id, destination: "Kuala Lumpur → Mumbai → New Delhi", purpose: "India Higher Education Forum in Mumbai + school visits in Delhi. Meeting 3 agents and 4 schools over 5 days.", departDate: new Date("2025-05-20"), returnDate: new Date("2025-05-25"), estimatedCost: 3500, actualCost: 3200, status: TravelStatus.COMPLETED, approvedById: managerUser.id, approvedAt: new Date("2025-05-10"), notes: "Combined fair attendance with agent visits for efficiency." } }),
+    db.travelRequest.upsert({ where: { id: "trv-002" }, update: {}, create: { id: "trv-002", employeeId: empICR3.id, destination: "Dubai → Abu Dhabi", purpose: "Middle East Education Summit in Abu Dhabi + agent training in Dubai. 3-day trip.", departDate: new Date("2025-03-06"), returnDate: new Date("2025-03-09"), estimatedCost: 2000, actualCost: 1850, status: TravelStatus.COMPLETED, approvedById: manager2User.id, approvedAt: new Date("2025-02-25") } }),
+    db.travelRequest.upsert({ where: { id: "trv-003" }, update: {}, create: { id: "trv-003", employeeId: empICR.id, destination: "Kuala Lumpur → Melbourne", purpose: "University of Melbourne campus visit + agent meetings. Annual institutional review.", departDate: new Date("2025-06-15"), returnDate: new Date("2025-06-19"), estimatedCost: 4500, status: TravelStatus.APPROVED, approvedById: managerUser.id, approvedAt: new Date("2025-06-01") } }),
+    db.travelRequest.upsert({ where: { id: "trv-004" }, update: {}, create: { id: "trv-004", employeeId: empICR2.id, destination: "New Delhi → London", purpose: "UCL partnership annual meeting + training at UCL campus. 4-day trip.", departDate: new Date("2025-07-10"), returnDate: new Date("2025-07-14"), estimatedCost: 5000, status: TravelStatus.PENDING } }),
+  ]);
+  console.log("✅ Travel requests created");
+
+  // Travel itineraries
+  await db.travelItinerary.createMany({
+    data: [
+      { travelRequestId: "trv-001", type: "FLIGHT", description: "KL → Mumbai", departureLocation: "Kuala Lumpur (KUL)", arrivalLocation: "Mumbai (BOM)", date: new Date("2025-05-20"), cost: 450, confirmationRef: "MH2045" },
+      { travelRequestId: "trv-001", type: "HOTEL", description: "The Oberoi Mumbai (3 nights)", departureLocation: "Mumbai", date: new Date("2025-05-20"), cost: 600, confirmationRef: "OBR-78234" },
+      { travelRequestId: "trv-001", type: "FLIGHT", description: "Mumbai → Delhi", departureLocation: "Mumbai (BOM)", arrivalLocation: "New Delhi (DEL)", date: new Date("2025-05-23"), cost: 120, confirmationRef: "AI506" },
+      { travelRequestId: "trv-001", type: "HOTEL", description: "ITC Maurya Delhi (2 nights)", departureLocation: "New Delhi", date: new Date("2025-05-23"), cost: 400, confirmationRef: "ITC-44521" },
+      { travelRequestId: "trv-001", type: "FLIGHT", description: "Delhi → KL", departureLocation: "New Delhi (DEL)", arrivalLocation: "Kuala Lumpur (KUL)", date: new Date("2025-05-25"), cost: 380, confirmationRef: "MH181" },
+    ],
+    skipDuplicates: true,
+  });
+
+  // Travel meetings
+  await db.travelMeeting.createMany({
+    data: [
+      { travelRequestId: "trv-001", title: "India Higher Education Forum", location: "Jio Convention Centre, BKC, Mumbai", date: new Date("2025-05-22"), notes: "Main education fair. Booth #42." },
+      { travelRequestId: "trv-001", title: "Global Path India – Agent Review", location: "Global Path Office, Andheri East", date: new Date("2025-05-21"), notes: "Q2 performance review with agent Ravi Patel." },
+      { travelRequestId: "trv-001", title: "DPS R.K. Puram School Visit", location: "DPS R.K. Puram, New Delhi", date: new Date("2025-05-24"), notes: "School presentation to Year 12 students. Meeting with counsellor Preethi Rao." },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Travel itineraries and meetings created");
+
+  // ─── PHASE 1: CLIENT KPIs ────────────────────────────────────────────
+  await db.clientKPI.createMany({
+    data: [
+      { institutionId: instUCL.id, category: KPICategory.RECRUITMENT, name: "Total Applications", targetValue: 100, currentValue: 68, unit: "students", period: KPIPeriod.ANNUAL, year: 2025, description: "Total applications submitted for Sep 2025 intake" },
+      { institutionId: instUCL.id, category: KPICategory.RECRUITMENT, name: "Enrollment Conversions", targetValue: 50, currentValue: 28, unit: "students", period: KPIPeriod.ANNUAL, year: 2025, description: "Students who accepted offers and enrolled" },
+      { institutionId: instUCL.id, category: KPICategory.RECRUITMENT, name: "Conversion Rate", targetValue: 50, currentValue: 41.2, unit: "%", period: KPIPeriod.QUARTERLY, year: 2025, quarter: 2, description: "Application to enrollment conversion rate" },
+      { institutionId: instUCL.id, category: KPICategory.ENGAGEMENT, name: "Counsellor Meetings", targetValue: 20, currentValue: 14, unit: "meetings", period: KPIPeriod.QUARTERLY, year: 2025, quarter: 2, description: "Meetings with school counsellors" },
+      { institutionId: instUCL.id, category: KPICategory.MARKET_DEVELOPMENT, name: "New Agent Partners", targetValue: 5, currentValue: 3, unit: "agents", period: KPIPeriod.ANNUAL, year: 2025, description: "New agent partnerships established" },
+      { institutionId: instUCL.id, category: KPICategory.RELATIONSHIP, name: "Client Satisfaction Score", targetValue: 90, currentValue: 87, unit: "%", period: KPIPeriod.QUARTERLY, year: 2025, quarter: 2, description: "Based on quarterly client feedback survey" },
+      { institutionId: instUOM.id, category: KPICategory.RECRUITMENT, name: "Total Applications", targetValue: 80, currentValue: 52, unit: "students", period: KPIPeriod.ANNUAL, year: 2025 },
+      { institutionId: instUOM.id, category: KPICategory.RECRUITMENT, name: "Enrollment Conversions", targetValue: 40, currentValue: 22, unit: "students", period: KPIPeriod.ANNUAL, year: 2025 },
+      { institutionId: instUOM.id, category: KPICategory.ENGAGEMENT, name: "Events Attended", targetValue: 12, currentValue: 8, unit: "events", period: KPIPeriod.ANNUAL, year: 2025 },
+      { institutionId: instMelb.id, category: KPICategory.RECRUITMENT, name: "Total Applications", targetValue: 60, currentValue: 35, unit: "students", period: KPIPeriod.ANNUAL, year: 2025 },
+      { institutionId: instMelb.id, category: KPICategory.RECRUITMENT, name: "Enrollment Conversions", targetValue: 30, currentValue: 15, unit: "students", period: KPIPeriod.ANNUAL, year: 2025 },
+      { institutionId: instMelb.id, category: KPICategory.MARKET_DEVELOPMENT, name: "Market Expansion Score", targetValue: 80, currentValue: 65, unit: "%", period: KPIPeriod.QUARTERLY, year: 2025, quarter: 2 },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Client KPIs created");
+
+  // ─── PHASE 1: RISKS ──────────────────────────────────────────────────
+  await db.riskRegister.createMany({
+    data: [
+      { type: RiskType.MARKET, title: "Nigeria Currency Volatility", description: "Naira devaluation making UK study unaffordable for many Nigerian families. Could reduce applications by 30-40% in 2025.", likelihood: 4, impact: 5, riskScore: 20, mitigationPlan: "1. Promote scholarship opportunities\n2. Offer payment plans\n3. Focus on families with USD/GBP income\n4. Partner with education loan providers", status: RiskStatus.OPEN, ownerId: icrUser.id, marketId: mktNigeria.id },
+      { type: RiskType.CLIENT, title: "UOM Contract Renewal Risk", description: "University of Manchester contract expires in 45 days. Competitor agencies (IDP, SI-UK) actively courting UOM.", likelihood: 3, impact: 4, riskScore: 12, mitigationPlan: "1. Schedule urgent meeting with UOM partnership team\n2. Present 2024 performance data\n3. Propose enhanced service package\n4. Offer multi-year contract discount", status: RiskStatus.ESCALATED, ownerId: managerUser.id, institutionId: instUOM.id },
+      { type: RiskType.STAFF, title: "ICR Capacity in Middle East", description: "Only 1 ICR (Fatima) covering entire Middle East region. Risk of burnout and underservicing key markets.", likelihood: 4, impact: 3, riskScore: 12, mitigationPlan: "1. Approve hiring for second ME ICR\n2. Interim support from SEA ICR for virtual events\n3. Increase agent self-service capabilities", status: RiskStatus.OPEN, ownerId: manager2User.id },
+      { type: RiskType.OPERATIONAL, title: "UK Visa Policy Changes", description: "UK government signaling tighter student visa policies for 2026. Could impact recruitment from India and Nigeria.", likelihood: 3, impact: 4, riskScore: 12, mitigationPlan: "1. Monitor policy announcements closely\n2. Diversify to include more Canada/Australia programs\n3. Brief agents on documentation best practices\n4. Build stronger pre-departure support", status: RiskStatus.OPEN, ownerId: hqUser.id },
+      { type: RiskType.MARKET, title: "Vietnam Agent Dispute", description: "Vietnam Study Abroad agent contract dispute over commission rates. Risk of losing key pipeline in HCMC market.", likelihood: 2, impact: 3, riskScore: 6, mitigationPlan: "Negotiate revised commission structure. Offer volume bonuses. Explore alternative agents as backup.", status: RiskStatus.MITIGATED, ownerId: icrUser.id, marketId: mktVietnam.id },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Risk register created");
+
+  // ─── PHASE 1: COMPLIANCE ──────────────────────────────────────────────
+  await db.complianceItem.createMany({
+    data: [
+      { complianceType: ComplianceType.GDPR, title: "Annual GDPR Data Audit", description: "Conduct annual audit of all student personal data storage and processing. Ensure consent forms are up to date.", status: "PENDING", dueDate: new Date("2025-09-30"), assignedToId: adminUser.id, institutionId: instUCL.id },
+      { complianceType: ComplianceType.AGENT_COMPLIANCE, title: "Agent Agreement Renewal – EduBridge", description: "EduBridge Malaysia agent agreement expires Dec 2026. Start renewal process by Q3 2026.", status: "COMPLETED", dueDate: new Date("2025-06-30"), completedAt: new Date("2025-06-15"), assignedToId: managerUser.id },
+      { complianceType: ComplianceType.CASL, title: "Canada Anti-Spam Compliance", description: "Review all email marketing campaigns targeting Canadian students for CASL compliance.", status: "PENDING", dueDate: new Date("2025-08-15"), assignedToId: emp1User.id },
+      { complianceType: ComplianceType.TRAINING, title: "ICR Annual Compliance Training", description: "All ICRs must complete annual compliance training covering GDPR, FOIPOP, and agent management best practices.", status: "IN_PROGRESS", dueDate: new Date("2025-07-31"), assignedToId: hrUser.id },
+      { complianceType: ComplianceType.FOIPOP, title: "Nova Scotia FOIPOP Compliance Review", description: "Review data handling practices for Nova Scotia institution partners under FOIPOP regulations.", status: "PENDING", dueDate: new Date("2025-10-31"), assignedToId: adminUser.id },
+      { complianceType: ComplianceType.GDPR, title: "Student Data Retention Policy Update", description: "Update data retention policy to align with new GDPR guidance on educational data. Maximum 3-year retention for inactive leads.", status: "PENDING", dueDate: new Date("2025-08-31"), assignedToId: adminUser.id },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Compliance items created");
+
+  // ─── PHASE 1: TASKS ───────────────────────────────────────────────────
+  await db.task.createMany({
+    data: [
+      { title: "Send UCL brochures to INTI counsellor", description: "Email updated UCL undergraduate program brochures to Sophia Lim at INTI International School.", assigneeId: empICR.id, createdById: empICR.id, sourceActivityId: "act-001", priority: TaskPriority.HIGH, status: TaskStatus.DONE, dueDate: new Date("2025-06-17"), completedAt: new Date("2025-06-16") },
+      { title: "Follow up 8 leads from INTI visit", description: "Call/email 8 new leads from the INTI school visit. Send application links and scholarship info.", assigneeId: empICR.id, createdById: empICR.id, sourceActivityId: "act-001", priority: TaskPriority.HIGH, status: TaskStatus.IN_PROGRESS, dueDate: new Date("2025-06-17") },
+      { title: "Update EduBridge commission structure", description: "Send updated commission structure document to EduBridge following quarterly review.", assigneeId: empICR.id, createdById: empICR.id, sourceActivityId: "act-002", priority: TaskPriority.MEDIUM, status: TaskStatus.TODO, dueDate: new Date("2025-06-15") },
+      { title: "Send virtual open day recording", description: "Distribute recorded UCL virtual open day video to all 120 registered attendees.", assigneeId: empICR.id, createdById: empICR.id, sourceActivityId: "act-003", priority: TaskPriority.MEDIUM, status: TaskStatus.DONE, dueDate: new Date("2025-05-22"), completedAt: new Date("2025-05-21") },
+      { title: "Distribute India fair leads to ICRs", description: "Sort and distribute 45 leads from India Higher Education Forum to appropriate ICRs by region.", assigneeId: empICR2.id, createdById: empICR2.id, sourceActivityId: "act-004", priority: TaskPriority.URGENT, status: TaskStatus.DONE, dueDate: new Date("2025-05-23"), completedAt: new Date("2025-05-23") },
+      { title: "Organize parent info evening at GEMS", description: "Coordinate with GEMS Wellington to schedule a parent information evening about UK university pathways.", assigneeId: empICR3.id, createdById: empICR3.id, sourceActivityId: "act-005", priority: TaskPriority.HIGH, status: TaskStatus.TODO, dueDate: new Date("2025-06-15") },
+      { title: "Prepare UOM contract renewal proposal", description: "Draft contract renewal proposal for University of Manchester. Include 2024 performance data and 2026 projections.", assigneeId: empManager.id, createdById: empManager.id, priority: TaskPriority.URGENT, status: TaskStatus.IN_PROGRESS, dueDate: new Date("2025-07-01") },
+      { title: "Complete compliance training module", description: "All ICRs to complete the online compliance training module covering GDPR, FOIPOP, and agent management.", assigneeId: empICR.id, createdById: empHR.id, priority: TaskPriority.MEDIUM, status: TaskStatus.TODO, dueDate: new Date("2025-07-31") },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Tasks created");
+
+  // ─── PHASE 1: PERFORMANCE REVIEWS ─────────────────────────────────────
+  await db.performanceReview.createMany({
+    data: [
+      { employeeId: empICR.id, reviewerId: managerUser.id, period: "Q1 2025", score: 4.2, strengths: "Excellent stakeholder relationships in Malaysia. Consistently exceeds lead generation targets. Strong event management skills.", improvements: "Needs to improve report submission timeliness. Should delegate more admin tasks to focus on high-value activities.", goals: "1. Achieve 50 enrollments for UCL by Dec 2025\n2. Develop 3 new agent partnerships\n3. Complete advanced CRM training", status: "COMPLETED", completedAt: new Date("2025-04-10") },
+      { employeeId: empICR2.id, reviewerId: managerUser.id, period: "Q1 2025", score: 3.8, strengths: "Strong knowledge of Indian education market. Good relationship with DPS school network. Reliable and consistent.", improvements: "Needs to increase conversion rates from application to enrollment. Should attend more school visits in Tier 2 cities.", goals: "1. Increase conversion rate to 45%\n2. Expand to Pune and Bangalore markets\n3. Develop scholarship awareness campaigns", status: "COMPLETED", completedAt: new Date("2025-04-12") },
+      { employeeId: empICR3.id, reviewerId: manager2User.id, period: "Q1 2025", score: 4.0, strengths: "Excellent Arabic and English communication. Strong relationships with GEMS school network. Good understanding of Gulf family dynamics.", improvements: "Coverage of Saudi market needs expansion. Should develop more agent partnerships in Oman and Bahrain.", goals: "1. Open 2 new school relationships in Saudi Arabia\n2. Increase agent referrals by 25%\n3. Organize 2 parent information evenings per quarter", status: "COMPLETED", completedAt: new Date("2025-04-15") },
+      { employeeId: empEmp1.id, reviewerId: empHR.id, period: "Q1 2025", score: 3.5, strengths: "Creative campaign designs. Good social media engagement metrics. Team player.", improvements: "Content planning could be more strategic. Needs to align campaigns more closely with ICR field activities.", goals: "1. Launch 5 targeted campaigns per quarter\n2. Increase social media follower growth by 30%\n3. Develop video content series", status: "COMPLETED", completedAt: new Date("2025-04-08") },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Performance reviews created");
+
+  // ─── PHASE 1: SUCCESSION PLANS ────────────────────────────────────────
+  await db.successionPlan.createMany({
+    data: [
+      { employeeId: empICR.id, backupPersonnel: "Deepak Sharma (ICR – South Asia)", crossTraining: "Deepak has been cross-trained on Malaysia market dynamics, key agent relationships, and INTI school network.", emergencyCoverage: "Regional Manager Sarah Chen can cover urgent matters. EduBridge agent has self-service capability for basic queries.", readinessLevel: "READY", notes: "Aisha has built strong personal relationships with counsellors. Need to ensure Deepak meets key contacts before any transition." },
+      { employeeId: empManager.id, backupPersonnel: "Omar Al-Rashidi (Regional Manager – ME)", crossTraining: "Omar familiar with SEA market from cross-regional projects. Needs deep-dive on Malaysia agent ecosystem.", emergencyCoverage: "James Whitfield (CEO) can provide strategic cover. Aisha Rahman can handle operational queries.", readinessLevel: "DEVELOPING", notes: "Sarah holds institutional knowledge about SEA market. Succession plan should include 3-month knowledge transfer period." },
+      { employeeId: empHR.id, backupPersonnel: "James Whitfield (CEO) – interim only", crossTraining: "No dedicated backup. Marcus Thompson has basic HR operations training.", emergencyCoverage: "Outsource payroll to external provider. Employee queries routed to CEO.", readinessLevel: "DEVELOPING", notes: "High risk position. Should hire HR assistant in 2025 to build redundancy." },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Succession plans created");
+
+  // ─── PHASE 1: KNOWLEDGE BASE (typed) ──────────────────────────────────
+  await db.knowledgeBase.createMany({
+    data: [
+      { title: "UCL Application Process & Requirements", content: "Comprehensive guide to UCL's application process for international students. Covers UCAS deadlines, required documents (transcripts, IELTS scores, personal statement), and faculty-specific requirements.\n\nKey deadlines:\n- UCAS deadline: January 31\n- International deadline: June 30\n- IELTS minimum: 6.5 overall (6.0 in each component)\n\nRequired documents:\n1. Academic transcripts\n2. IELTS/TOEFL certificate\n3. Personal statement\n4. Two academic references\n5. Portfolio (for Architecture and Art programs)", category: "Application Guide", knowledgeType: KnowledgeType.INSTITUTION, tags: ["UCL", "applications", "requirements"], authorId: icrUser.id, institutionId: instUCL.id },
+      { title: "University of Manchester Scholarship Guide 2025", content: "Complete list of scholarships available for international students at UOM for 2025-26 intake.\n\n1. President's Doctoral Scholar Award: Full fees + stipend\n2. Global Futures Scholarship: 25% tuition discount\n3. Faculty of Engineering Excellence Award: £5,000\n4. Developing Solutions Scholarship: 50-100% tuition\n5. SEA Excellence Award: £3,000 (new for 2025)", category: "Scholarships", knowledgeType: KnowledgeType.INSTITUTION, tags: ["UOM", "scholarships", "2025"], authorId: icrUser.id, institutionId: instUOM.id },
+      { title: "Malaysia Market Intelligence Report Q2 2025", content: "Quarterly market intelligence update for Malaysia.\n\nStudent mobility trends:\n- 15% increase in UK-bound students vs Q2 2024\n- Australian programs seeing 8% decline due to visa changes\n- Canada gaining popularity (+22%)\n\nCompetitor activity:\n- IDP opened new office in Johor Bahru\n- SI-UK launched online application platform\n- Kaplan increasing agent commission by 2%\n\nRegulatory updates:\n- MARA scholarship applications now open\n- JPA focusing on STEM scholarships for 2026", category: "Market Intelligence", knowledgeType: KnowledgeType.MARKET, tags: ["Malaysia", "market", "Q2 2025"], authorId: icrUser.id, marketId: mktMalaysia.id },
+      { title: "Standard RFP Response Template", content: "Template for responding to institutional RFPs (Requests for Proposal) for recruitment partnerships.\n\nSections:\n1. Executive Summary\n2. Company Profile & Track Record\n3. Market Coverage & Strategy\n4. Service Delivery Model\n5. Technology & Reporting Capabilities\n6. Compliance & Quality Assurance\n7. Pricing & Commercial Terms\n8. References & Case Studies\n\nKey differentiators to highlight:\n- Regional ICR model (feet on the ground)\n- Real-time CRM reporting\n- Multi-channel recruitment approach\n- Compliance certifications (ICEF, BC)", category: "Proposals", knowledgeType: KnowledgeType.PROPOSAL, tags: ["RFP", "template", "proposals"], authorId: hqUser.id },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Typed knowledge base articles created");
+
+  // ─── PHASE 1: QBR ────────────────────────────────────────────────────
+  await db.quarterlyBusinessReview.createMany({
+    data: [
+      { institutionId: instUCL.id, year: 2025, quarter: 1, executiveSummary: "Strong Q1 performance for UCL recruitment. 28 enrollments against 50 annual target (56% at end of Q1). Malaysian market performing well. India and Middle East markets showing growth. Key challenge: increasing visa approval rates for Nigerian applicants.", marketPerformance: { Malaysia: { applications: 22, enrollments: 12, conversion: 54.5 }, India: { applications: 15, enrollments: 8, conversion: 53.3 }, UAE: { applications: 10, enrollments: 5, conversion: 50.0 }, Nigeria: { applications: 8, enrollments: 3, conversion: 37.5 } }, roiAnalysis: { totalInvestment: 25000, enrollments: 28, costPerEnrollment: 892.86, revenuePerStudent: 3200, totalRevenue: 89600, roi: 258.4 }, strategicRecommendations: "1. Increase investment in India Tier 2 cities\n2. Develop Nigeria scholarship program to improve conversion\n3. Launch UAE parent engagement events\n4. Explore Vietnam as emerging market", kpiSummary: { applications: 55, enrollments: 28, conversionRate: 50.9, agentPartners: 8, schoolVisits: 12, events: 4 }, status: QBRStatus.APPROVED },
+      { institutionId: instUOM.id, year: 2025, quarter: 1, executiveSummary: "UOM Q1 recruitment on track. 22 enrollments against 40 annual target. Contract renewal due in 45 days — critical priority. New MSc AI program generating strong interest.", marketPerformance: { Malaysia: { applications: 18, enrollments: 10, conversion: 55.6 }, India: { applications: 12, enrollments: 6, conversion: 50.0 }, UAE: { applications: 8, enrollments: 4, conversion: 50.0 }, Africa: { applications: 6, enrollments: 2, conversion: 33.3 } }, roiAnalysis: { totalInvestment: 18000, enrollments: 22, costPerEnrollment: 818.18, revenuePerStudent: 2800, totalRevenue: 61600, roi: 242.2 }, strategicRecommendations: "1. URGENT: Secure contract renewal before expiry\n2. Promote new MSc AI program heavily in India\n3. Increase scholarship communications\n4. Consider dedicated Nigeria recruitment plan", kpiSummary: { applications: 44, enrollments: 22, conversionRate: 50.0, agentPartners: 6, schoolVisits: 8, events: 3 }, status: QBRStatus.SUBMITTED },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ QBRs created");
+
+  // ─── UPDATE INSTITUTIONS WITH PHASE 1 FIELDS ─────────────────────────
+  await db.institution.update({ where: { id: instUCL.id }, data: { contractValue: 15000, renewalDate: new Date("2026-12-31"), budgetTotal: 30000, budgetUsed: 18500, strategicObjectives: "1. Achieve 50 enrollments for Sep 2025 intake\n2. Develop 3 new agent partnerships in underserved markets\n3. Increase Malaysia market share by 15%\n4. Launch parent engagement program in UAE\n5. Improve Nigeria conversion rate to 45%", overview: "UCL is our flagship institutional partner. Ranked #8 globally (QS 2025), it is the most sought-after university in our portfolio. We manage recruitment across 5 regions with 3 dedicated ICRs. The partnership has been active since 2020 with consistent growth.", accountManagerId: managerUser.id } });
+  await db.institution.update({ where: { id: instUOM.id }, data: { contractValue: 12000, renewalDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), budgetTotal: 22000, budgetUsed: 14200, strategicObjectives: "1. Renew partnership agreement (URGENT)\n2. Achieve 40 enrollments for 2025\n3. Promote new MSc AI program\n4. Expand Africa recruitment pipeline", overview: "University of Manchester is a key Russell Group partner. Strong brand recognition especially in STEM programs. Contract renewal is critical priority — competitor agencies actively approaching UOM.", accountManagerId: managerUser.id } });
+  await db.institution.update({ where: { id: instMelb.id }, data: { contractValue: 18000, renewalDate: new Date("2026-02-28"), budgetTotal: 25000, budgetUsed: 12000, strategicObjectives: "1. Achieve 30 enrollments for 2025\n2. Increase India market penetration\n3. Develop Vietnam recruitment channel\n4. Improve post-offer conversion rate", overview: "University of Melbourne is our top Australian partner. Strong appeal for STEM and health sciences students from South and Southeast Asia.", accountManagerId: managerUser.id } });
+  await db.institution.update({ where: { id: instUCD.id }, data: { contractValue: 8000, renewalDate: new Date("2025-12-31"), budgetTotal: 12000, budgetUsed: 5000, strategicObjectives: "1. Establish presence in Africa market\n2. 20 enrollments for 2025\n3. Develop pathway programs", overview: "University College Dublin — key Irish partner. Growing interest from Middle East and African students.", accountManagerId: managerUser.id } });
+  console.log("✅ Institution details updated");
+
+  // ─── INSTITUTION CONTACTS ─────────────────────────────────────────────
+  await db.institutionContact.createMany({
+    data: [
+      { institutionId: instUCL.id, name: "Dr. Patricia Hargrove", title: "Director of International Recruitment", email: "p.hargrove@ucl.ac.uk", phone: "+44-20-76791234", isPrimary: true },
+      { institutionId: instUCL.id, name: "Mark Stevens", title: "Regional Manager – Asia Pacific", email: "m.stevens@ucl.ac.uk", phone: "+44-20-76795678" },
+      { institutionId: instUOM.id, name: "Dr. Angela Liu", title: "Head of International Partnerships", email: "angela.liu@manchester.ac.uk", phone: "+44-161-3064321", isPrimary: true },
+      { institutionId: instUOM.id, name: "James Murphy", title: "Agent Relations Coordinator", email: "j.murphy@manchester.ac.uk", phone: "+44-161-3065432" },
+      { institutionId: instMelb.id, name: "Prof. David Chen", title: "Pro Vice-Chancellor (International)", email: "d.chen@unimelb.edu.au", phone: "+61-3-83447890", isPrimary: true },
+      { institutionId: instUCD.id, name: "Sinead O'Brien", title: "International Office Manager", email: "sinead.obrien@ucd.ie", phone: "+353-1-7168765", isPrimary: true },
+    ],
+    skipDuplicates: true,
+  });
+  console.log("✅ Institution contacts created");
 
   // ─── NOTIFICATIONS ─────────────────────────────────────────────────────
   await db.notification.createMany({

@@ -6,7 +6,7 @@ import { PERMISSION_MATRIX } from "@/lib/permissions";
 type PermMatrix = Record<string, Record<string, Record<string, boolean>>>;
 
 const ALL_ROLES    = ["SUPER_ADMIN","HQ_EXECUTIVE","HQ_ANALYTICS","REGIONAL_MANAGER","ICR","INSTITUTION_CLIENT","HR_MANAGER","EMPLOYEE"] as const;
-const ALL_RESOURCES = ["leads","sources","institutions","events","reports","analytics","erp","erp_hr","users","settings","announcements","knowledge_base"] as const;
+const ALL_RESOURCES = ["leads","sources","institutions","events","reports","analytics","executive_dashboard","erp","erp_hr","users","settings","announcements","knowledge_base"] as const;
 const ALL_ACTIONS   = ["read","write","delete","approve","export"] as const;
 
 function buildDefaultMatrix(): PermMatrix {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 // ─── GET /api/campaigns ────────────────────────────────────────────────────
 
@@ -8,6 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!(await effectiveHasPermission(session.user.role, "sources", "read"))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const sourceId = searchParams.get("sourceId");
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!(await effectiveHasPermission(session.user.role, "sources", "write"))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json();
     const { name, channel, startDate, endDate, budget, actualSpend, notes, sourceId } = body;

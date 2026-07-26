@@ -6,29 +6,33 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ApprovalActions } from "./_components/approval-actions";
-import { ForecastSection } from "./_components/forecast-section";
 import {
   Edit,
   Download,
+  Printer,
   Users,
   BookOpen,
   Globe,
   Calendar,
+  CalendarRange,
   MessageSquare,
-  TrendingUp,
-  AlertTriangle,
-  ClipboardList,
 } from "lucide-react";
 import type { Role } from "@/lib/permissions";
+import {
+  WEEKLY_ACTIVITY_DEFS,
+  WEEKLY_ACTIVITY_TYPES,
+  type WeeklyActivityType,
+} from "@/lib/weekly-activities";
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200" },
-  PENDING_REVIEW: { label: "Pending Review", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  REGIONAL_APPROVED: { label: "Regionally Approved", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  HQ_REVIEW: { label: "HQ Review", className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
-  FINAL_APPROVED: { label: "Final Approved", className: "bg-green-100 text-green-800 border-green-200" },
+  PENDING_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  // Legacy statuses kept for any historical reports.
+  REGIONAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800 border-green-200" },
+  HQ_REVIEW: { label: "Awaiting Approval", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  FINAL_APPROVED: { label: "Approved", className: "bg-green-100 text-green-800 border-green-200" },
   RETURNED: { label: "Returned", className: "bg-red-100 text-red-800 border-red-200" },
 };
 
@@ -101,6 +105,26 @@ export default async function ReportViewPage({
   const events = Array.isArray(report.eventActivities) ? (report.eventActivities as Array<{ id: string; name: string; type: string; date: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>) : [];
   const kpi = report.kpiSummary as { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
 
+  const weeklyActivities = await db.weeklyActivity.findMany({
+    where: {
+      icrId: report.icrId,
+      year: report.reportingYear,
+      month: report.reportingMonth,
+    },
+    orderBy: [{ type: "asc" }, { weekOfMonth: "asc" }],
+  });
+
+  const weeklyByType = new Map<string, { weeks: Record<number, number>; totalTarget: number }>();
+  for (const wa of weeklyActivities) {
+    let entry = weeklyByType.get(wa.type);
+    if (!entry) {
+      entry = { weeks: {}, totalTarget: 0 };
+      weeklyByType.set(wa.type, entry);
+    }
+    entry.weeks[wa.weekOfMonth] = (entry.weeks[wa.weekOfMonth] ?? 0) + wa.completed;
+    entry.totalTarget += wa.target;
+  }
+
   const statusCfg = STATUS_CONFIG[report.status] ?? STATUS_CONFIG["DRAFT"];
 
   return (
@@ -123,6 +147,12 @@ export default async function ReportViewPage({
                 </Link>
               </Button>
             )}
+            <Button variant="outline" asChild>
+              <a href={`/api/reports/${id}/pdf`} target="_blank" rel="noopener noreferrer">
+                <Printer className="h-4 w-4 mr-2" />
+                Print / PDF
+              </a>
+            </Button>
             {report.pdfUrl && (
               <Button variant="outline" asChild>
                 <a href={report.pdfUrl} target="_blank" rel="noopener noreferrer">
@@ -365,73 +395,102 @@ export default async function ReportViewPage({
         </CardContent>
       </Card>
 
-      {/* Section 6: Engagement Notes */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-[#0EA5E9]" />
-            Section 6: Engagement & BD Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.engagementNotes ? (
-            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.engagementNotes}</p>
-          ) : (
-            <p className="text-sm text-slate-400 italic">No engagement notes provided.</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Weekly Activities Summary */}
+      {weeklyByType.size > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CalendarRange className="h-4 w-4 text-[#0EA5E9]" />
+              Weekly Activities Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left text-xs font-semibold text-slate-500 py-2 px-4">Activity</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-3">Wk 1</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-3">Wk 2</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-3">Wk 3</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-3">Wk 4</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-3">Total</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-4">Target</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {WEEKLY_ACTIVITY_TYPES.map((type) => {
+                    const entry = weeklyByType.get(type);
+                    if (!entry) return null;
+                    const def = WEEKLY_ACTIVITY_DEFS[type as WeeklyActivityType];
+                    const w1 = entry.weeks[1] ?? 0;
+                    const w2 = entry.weeks[2] ?? 0;
+                    const w3 = entry.weeks[3] ?? 0;
+                    const w4 = entry.weeks[4] ?? 0;
+                    const total = w1 + w2 + w3 + w4;
+                    const met = total >= entry.totalTarget;
+                    return (
+                      <tr key={type} className="border-b border-slate-50 last:border-0">
+                        <td className="py-2.5 px-4 font-medium text-slate-800">{def.label}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600">{w1}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600">{w2}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600">{w3}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600">{w4}</td>
+                        <td className={`py-2.5 px-3 text-right font-bold ${met ? "text-[#22C55E]" : "text-[#EF4444]"}`}>{total}</td>
+                        <td className="py-2.5 px-4 text-right text-slate-500">{entry.totalTarget}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Section 7: Forecast */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[#0EA5E9]" />
-            Section 7: Forecast Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ForecastSection
-            reportId={report.id}
-            institutionId={report.institutionId}
-            readOnly={true}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Section 8: Challenges */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-[#F59E0B]" />
-            Section 8: Challenges & Opportunities
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.challengesOpportunities ? (
-            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.challengesOpportunities}</p>
-          ) : (
-            <p className="text-sm text-slate-400 italic">No challenges & opportunities noted.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 9: Next Month Plan */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <ClipboardList className="h-4 w-4 text-[#0EA5E9]" />
-            Section 9: Next Month Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {report.nextMonthPlan ? (
-            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.nextMonthPlan}</p>
-          ) : (
-            <p className="text-sm text-slate-400 italic">No next month plan provided.</p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Report Sections */}
+      {(report.engagementNotes || report.challengesOpportunities || report.successStories || report.marketInsights || report.nextMonthPlan) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-[#0EA5E9]" />
+              Report Sections
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {report.engagementNotes && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Engagement Notes</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.engagementNotes}</p>
+              </div>
+            )}
+            {report.challengesOpportunities && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Challenges &amp; Opportunities</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.challengesOpportunities}</p>
+              </div>
+            )}
+            {report.successStories && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Success Stories</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.successStories}</p>
+              </div>
+            )}
+            {report.marketInsights && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Market Insights</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.marketInsights}</p>
+              </div>
+            )}
+            {report.nextMonthPlan && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 mb-1">Next Month Plan</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{report.nextMonthPlan}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Summary */}
       {kpi && (

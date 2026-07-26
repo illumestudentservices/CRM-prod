@@ -93,6 +93,16 @@ enum ConfidenceLevel {
   LOW
 }
 
+// Mandatory weekly activities tracked per ICR (Weekly Activity Planner)
+enum WeeklyActivityType {
+  AGENT_TRAINING_VISIT   // Agent training or visits (3-4 / week)
+  HIGH_SCHOOL_ENGAGEMENT // Engagement with high schools (2 / week)
+  ENQUIRIES              // Gather enquiries (5 / week)
+  MONTHLY_WEBINAR        // Monthly webinar (1 / month)
+  PIPELINE_CALLS         // Conversion calls to prospects (weekly)
+  LIVE_SESSION           // Application day / live session (1 / month)
+}
+
 enum EmploymentType {
   FULL_TIME
   PART_TIME
@@ -146,6 +156,109 @@ enum InteractionType {
   OTHER
 }
 
+// ─── PHASE 1 ENUMS ────────────────────────────────────────────────────────
+
+enum ActivityType {
+  SCHOOL_VISIT
+  AGENT_MEETING
+  STUDENT_EVENT
+  FAIR
+  PARTNER_MEETING
+}
+
+enum SchoolType {
+  PUBLIC
+  PRIVATE
+  INTERNATIONAL
+  BOARDING
+}
+
+enum AgentTier {
+  PLATINUM
+  GOLD
+  SILVER
+  EMERGING
+}
+
+enum RelationshipStatus {
+  NEW
+  DEVELOPING
+  ESTABLISHED
+  STRATEGIC
+  AT_RISK
+  DORMANT
+}
+
+enum MarketRiskLevel {
+  LOW
+  MEDIUM_RISK
+  HIGH_RISK
+  CRITICAL
+}
+
+enum KPICategory {
+  RECRUITMENT
+  MARKET_DEVELOPMENT
+  RELATIONSHIP
+  ENGAGEMENT
+}
+
+enum KPIPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum RiskType {
+  MARKET
+  STAFF
+  CLIENT
+  OPERATIONAL
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATED
+  CLOSED
+  ESCALATED
+}
+
+enum ComplianceType {
+  GDPR
+  FOIPOP
+  CASL
+  AGENT_COMPLIANCE
+  TRAINING
+  OTHER
+}
+
+enum QBRStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+enum ReportType {
+  MONTHLY
+  WEEKLY
+  QUARTERLY
+}
+
+enum KnowledgeType {
+  GENERAL
+  INSTITUTION
+  MARKET
+  PROPOSAL
+}
+
+enum TravelItemType {
+  FLIGHT
+  HOTEL
+  TRANSFER
+  OTHER_TRAVEL
+}
+
 // ─── AUTH MODELS ───────────────────────────────────────────────────────────
 
 model User {
@@ -179,11 +292,19 @@ model User {
   leadActivities       LeadActivity[]
   assignedEvents       Event[]
   monthlyReports       MonthlyReport[]  @relation("ICRReports")
+  weeklyActivities     WeeklyActivity[] @relation("ICRWeeklyActivities")
   reportApprovals      ReportApproval[]
   engagementLogs       EngagementLog[]
   notifications        Notification[]
   auditLogs            AuditLog[]
   institutionAccess    InstitutionUser[]
+  whatsappMessages     WhatsAppMessage[]
+
+  // Phase 1 relations
+  managedInstitutions  Institution[]    @relation("AccountManager")
+  activities           Activity[]
+  ownedRisks           RiskRegister[]
+  assignedCompliance   ComplianceItem[]
 
   @@map("users")
 }
@@ -255,6 +376,7 @@ model Region {
   events         Event[]
   institutions   Institution[]
   monthlyReports MonthlyReport[]
+  weeklyActivities WeeklyActivity[]
   holidays       Holiday[]
 
   @@map("regions")
@@ -297,10 +419,11 @@ model Lead {
   eventId        String?
   event          Event?       @relation(fields: [eventId], references: [id])
 
-  activities      LeadActivity[]
-  notesLog        LeadNote[]
-  documents       LeadDocument[]
-  forecastEntries ForecastEntry[]
+  activities           LeadActivity[]
+  notesLog             LeadNote[]
+  documents            LeadDocument[]
+  forecastEntries      ForecastEntry[]
+  whatsappConversations WhatsAppConversation[]
 
   @@index([email])
   @@index([stage])
@@ -375,6 +498,10 @@ model Source {
   leads     Lead[]
   campaigns Campaign[]
 
+  // Phase 1
+  agentProfile AgentProfile?
+  activities   Activity[]     @relation("ActivitySource")
+
   @@map("sources")
 }
 
@@ -417,8 +544,18 @@ model Institution {
   deletedAt      DateTime?
   createdById    String
 
-  regionId String?
-  region   Region? @relation(fields: [regionId], references: [id])
+  // Phase 1: Client Management fields
+  contractValue       Float?
+  renewalDate         DateTime?
+  budgetTotal         Float?
+  budgetUsed          Float?    @default(0)
+  strategicObjectives String?   @db.Text
+  overview            String?   @db.Text
+
+  regionId         String?
+  region           Region? @relation(fields: [regionId], references: [id])
+  accountManagerId String?
+  accountManager   User?   @relation("AccountManager", fields: [accountManagerId], references: [id])
 
   leads             Lead[]
   contacts          InstitutionContact[]
@@ -430,6 +567,14 @@ model Institution {
   monthlyReports    MonthlyReport[]
   users             InstitutionUser[]
   enrollmentTargets EnrollmentTarget[]
+
+  // Phase 1 relations
+  activities      Activity[]
+  clientKPIs      ClientKPI[]
+  riskRegisters   RiskRegister[]
+  complianceItems ComplianceItem[]
+  knowledgeBases  KnowledgeBase[]
+  qbrs            QuarterlyBusinessReview[]
 
   @@map("institutions")
 }
@@ -473,8 +618,23 @@ model Contract {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   createdById   String
+  attachments   ContractAttachment[]
 
   @@map("contracts")
+}
+
+model ContractAttachment {
+  id         String   @id @default(uuid())
+  contractId String
+  name       String
+  mimeType   String
+  size       Int
+  data       Bytes
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@map("contract_attachments")
 }
 
 model EngagementLog {
@@ -611,6 +771,8 @@ model MonthlyReport {
   engagementNotes         String? @db.Text
   challengesOpportunities String? @db.Text
   nextMonthPlan           String? @db.Text
+  successStories          String? @db.Text
+  marketInsights          String? @db.Text
 
   submittedAt     DateTime?
   finalApprovedAt DateTime?
@@ -661,6 +823,30 @@ model ForecastEntry {
   @@map("forecast_entries")
 }
 
+// Weekly Activity Planner — one row per ICR per week per mandatory activity.
+// Tracked & viewed (no approval workflow); rolls up into the monthly report.
+model WeeklyActivity {
+  id          String             @id @default(uuid())
+  icrId       String
+  icr         User               @relation("ICRWeeklyActivities", fields: [icrId], references: [id])
+  regionId    String?
+  region      Region?            @relation(fields: [regionId], references: [id])
+  year        Int
+  month       Int                // 1-12
+  weekOfMonth Int                // 1-4
+  type        WeeklyActivityType
+  target      Int                // expected count for the week
+  completed   Int                @default(0)
+  detail      String?            @db.Text // free-text: agency / school names, notes
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([icrId, year, month, weekOfMonth, type])
+  @@index([icrId, year, month])
+  @@index([regionId, year, month])
+  @@map("weekly_activities")
+}
+
 // ─── ERP MODULE ────────────────────────────────────────────────────────────
 
 model Department {
@@ -697,11 +883,14 @@ model Employee {
   emergencyContact String?
   emergencyPhone   String?
   address          String?        @db.Text
+  contractUrl      String?
+  jobDescription   String?        @db.Text
   isActive         Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
   leaveBalances      LeaveBalance[]
+  successionPlans    SuccessionPlan[] @relation("SuccessionEmployee")
   leaveRequests      LeaveRequest[]
   worklogs           Worklog[]
   travelRequests     TravelRequest[]
@@ -803,6 +992,10 @@ model TravelRequest {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
+  // Phase 1
+  itineraryItems  TravelItinerary[]
+  travelMeetings  TravelMeeting[]
+
   @@map("travel_requests")
 }
 
@@ -859,21 +1052,24 @@ model TrainingRecord {
 }
 
 model Task {
-  id          String       @id @default(uuid())
-  title       String
-  description String?      @db.Text
-  assigneeId  String?
-  assignee    Employee?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  createdById String
-  createdBy   Employee     @relation("TaskCreator", fields: [createdById], references: [id])
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(TODO)
-  dueDate     DateTime?
-  completedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  id               String       @id @default(uuid())
+  title            String
+  description      String?      @db.Text
+  assigneeId       String?
+  assignee         Employee?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdById      String
+  createdBy        Employee     @relation("TaskCreator", fields: [createdById], references: [id])
+  sourceActivityId String?
+  sourceActivity   Activity?    @relation(fields: [sourceActivityId], references: [id])
+  priority         TaskPriority @default(MEDIUM)
+  status           TaskStatus   @default(TODO)
+  dueDate          DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
 
+  @@index([sourceActivityId])
   @@map("tasks")
 }
 
@@ -970,20 +1166,28 @@ model AnnouncementRead {
 }
 
 model KnowledgeBase {
-  id          String    @id @default(uuid())
-  title       String
-  content     String    @db.Text
-  category    String
-  tags        String[]
-  authorId    String
-  isPublished Boolean   @default(true)
-  views       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id              String        @id @default(uuid())
+  title           String
+  content         String        @db.Text
+  category        String
+  knowledgeType   KnowledgeType @default(GENERAL)
+  tags            String[]
+  authorId        String
+  isPublished     Boolean       @default(true)
+  views           Int           @default(0)
+  institutionId   String?
+  institution     Institution?  @relation(fields: [institutionId], references: [id])
+  marketId        String?
+  market          Market?       @relation(fields: [marketId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
 
   attachments KnowledgeBaseAttachment[]
 
+  @@index([knowledgeType])
+  @@index([institutionId])
+  @@index([marketId])
   @@map("knowledge_base")
 }
 
@@ -1060,4 +1264,369 @@ model Holiday {
   updatedAt   DateTime  @updatedAt
 
   @@map("holidays")
+}
+
+// ─── WHATSAPP MESSAGING ────────────────────────────────────────────────────
+
+enum WhatsAppMessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum WhatsAppMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model WhatsAppConversation {
+  id            String    @id @default(uuid())
+  phone         String    @unique
+  displayName   String?
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id])
+  lastMessage   String?   @db.Text
+  lastMessageAt DateTime?
+  unreadCount   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  messages WhatsAppMessage[]
+
+  @@index([leadId])
+  @@map("whatsapp_conversations")
+}
+
+model WhatsAppMessage {
+  id             String                   @id @default(uuid())
+  conversationId String
+  conversation   WhatsAppConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  twilioSid      String?                  @unique
+  direction      WhatsAppMessageDirection
+  body           String                   @db.Text
+  status         WhatsAppMessageStatus    @default(QUEUED)
+  sentById       String?
+  sentBy         User?                    @relation(fields: [sentById], references: [id])
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([conversationId])
+  @@map("whatsapp_messages")
+}
+
+// ─── PHASE 1: MARKET MANAGEMENT ───────────────────────────────────────────
+
+model Market {
+  id                       String          @id @default(uuid())
+  name                     String          @unique
+  code                     String          @unique
+  countryCode              String?
+  studentMobilityNotes     String?         @db.Text
+  competitorInstitutions   String?         @db.Text
+  visaTrends               String?         @db.Text
+  currencyTrends           String?         @db.Text
+  politicalRiskLevel       MarketRiskLevel @default(LOW)
+  recruitmentOpportunities String?         @db.Text
+  healthScore              Int?
+  isActive                 Boolean         @default(true)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+  deletedAt                DateTime?
+  createdById              String
+
+  govtStakeholders     String?   @db.Text
+  industryAssociations String?   @db.Text
+
+  schools        School[]
+  activities     Activity[]
+  riskRegisters  RiskRegister[]
+  knowledgeBases KnowledgeBase[]
+
+  @@map("markets")
+}
+
+// ─── PHASE 1: STAKEHOLDER MANAGEMENT ──────────────────────────────────────
+
+model School {
+  id                 String             @id @default(uuid())
+  name               String
+  country            String
+  city               String?
+  address            String?
+  website            String?
+  type               SchoolType         @default(PUBLIC)
+  principalName      String?
+  principalEmail     String?
+  phone              String?
+  relationshipStatus RelationshipStatus @default(NEW)
+  studentVolume      Int?
+  lastVisitDate      DateTime?
+  relationshipScore  Int?
+  notes              String?            @db.Text
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  createdById        String
+
+  marketId String?
+  market   Market? @relation(fields: [marketId], references: [id])
+
+  counsellors Counsellor[]
+  activities  Activity[]   @relation("ActivitySchool")
+
+  @@index([marketId])
+  @@index([country])
+  @@map("schools")
+}
+
+model Counsellor {
+  id                 String    @id @default(uuid())
+  name               String
+  email              String?
+  phone              String?
+  position           String?
+  influenceScore     Int?
+  institutionAffinity Json?
+  lastEngagementDate DateTime?
+  notes              String?   @db.Text
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("counsellors")
+}
+
+model AgentProfile {
+  id                  String    @id @default(uuid())
+  sourceId            String    @unique
+  source              Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  certificationStatus String?
+  icefMembership      Boolean   @default(false)
+  countryCoverage     String[]
+  tier                AgentTier @default(EMERGING)
+  contractUrl         String?
+  contractExpiryDate  DateTime?
+  offers              Int       @default(0)
+  deposits            Int       @default(0)
+  enrolments          Int       @default(0)
+  visaApprovals       Int       @default(0)
+  yieldRate           Float?
+  notes               String?   @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("agent_profiles")
+}
+
+// ─── PHASE 1: ACTIVITY MANAGEMENT ─────────────────────────────────────────
+
+model Activity {
+  id                    String       @id @default(uuid())
+  type                  ActivityType
+  title                 String
+  description           String?      @db.Text
+  date                  DateTime
+  endDate               DateTime?
+  location              String?
+  city                  String?
+  country               String?
+  studentsEngaged       Int?
+  counsellorsEngaged    Int?
+  leadsGenerated        Int?
+  applicationsGenerated Int?
+  cost                  Float?
+  roi                   Float?
+  outcomes              String?      @db.Text
+  followUp              String?      @db.Text
+  actionItems           Json?
+  topics                String?      @db.Text
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  deletedAt             DateTime?
+
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  marketId      String?
+  market        Market?      @relation(fields: [marketId], references: [id])
+  schoolId      String?
+  school        School?      @relation("ActivitySchool", fields: [schoolId], references: [id])
+  sourceId      String?
+  source        Source?      @relation("ActivitySource", fields: [sourceId], references: [id])
+
+  attendees ActivityAttendee[]
+  tasks     Task[]
+
+  @@index([userId])
+  @@index([institutionId])
+  @@index([date])
+  @@index([type])
+  @@map("activities")
+}
+
+model ActivityAttendee {
+  id           String   @id @default(uuid())
+  activityId   String
+  activity     Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  name         String
+  email        String?
+  organization String?
+  role         String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@map("activity_attendees")
+}
+
+// ─── PHASE 1: TRAVEL MANAGEMENT (extensions) ──────────────────────────────
+
+model TravelItinerary {
+  id                String         @id @default(uuid())
+  travelRequestId   String
+  travelRequest     TravelRequest  @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
+  type              TravelItemType
+  description       String
+  departureLocation String?
+  arrivalLocation   String?
+  date              DateTime
+  cost              Float?
+  confirmationRef   String?
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@map("travel_itineraries")
+}
+
+model TravelMeeting {
+  id              String        @id @default(uuid())
+  travelRequestId String
+  travelRequest   TravelRequest @relation(fields: [travelRequestId], references: [id], onDelete: Cascade)
+  activityId      String?
+  title           String
+  location        String?
+  date            DateTime
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("travel_meetings")
+}
+
+// ─── PHASE 1: KPI MANAGEMENT ──────────────────────────────────────────────
+
+model ClientKPI {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  category      KPICategory
+  name          String
+  description   String?
+  targetValue   Float
+  currentValue  Float       @default(0)
+  unit          String
+  period        KPIPeriod
+  year          Int
+  month         Int?
+  quarter       Int?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([institutionId, year])
+  @@map("client_kpis")
+}
+
+// ─── PHASE 1: RISK & COMPLIANCE ───────────────────────────────────────────
+
+model RiskRegister {
+  id             String      @id @default(uuid())
+  type           RiskType
+  title          String
+  description    String?     @db.Text
+  likelihood     Int
+  impact         Int
+  riskScore      Int
+  mitigationPlan String?     @db.Text
+  status         RiskStatus  @default(OPEN)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  ownerId       String
+  owner         User         @relation(fields: [ownerId], references: [id])
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  marketId      String?
+  market        Market?      @relation(fields: [marketId], references: [id])
+
+  @@index([status])
+  @@index([institutionId])
+  @@map("risk_registers")
+}
+
+model ComplianceItem {
+  id            String         @id @default(uuid())
+  complianceType ComplianceType @default(OTHER)
+  title         String
+  description   String?     @db.Text
+  status        String      @default("PENDING")
+  dueDate       DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  assignedToId  String?
+  assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+  @@map("compliance_items")
+}
+
+// ─── SUCCESSION PLANNING ──────────────────────────────────────────────────
+
+model SuccessionPlan {
+  id               String    @id @default(uuid())
+  employeeId       String
+  employee         Employee  @relation("SuccessionEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  backupPersonnel  String
+  crossTraining    String?   @db.Text
+  emergencyCoverage String?  @db.Text
+  readinessLevel   String    @default("DEVELOPING")
+  notes            String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([employeeId])
+  @@map("succession_plans")
+}
+
+// ─── QUARTERLY BUSINESS REVIEW ────────────────────────────────────────────
+
+model QuarterlyBusinessReview {
+  id                       String    @id @default(uuid())
+  institutionId            String
+  institution              Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  year                     Int
+  quarter                  Int
+  executiveSummary         String?   @db.Text
+  marketPerformance        Json?
+  roiAnalysis              Json?
+  strategicRecommendations String?   @db.Text
+  kpiSummary               Json?
+  status                   QBRStatus @default(DRAFT)
+  pdfUrl                   String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@unique([institutionId, year, quarter])
+  @@map("quarterly_business_reviews")
 }

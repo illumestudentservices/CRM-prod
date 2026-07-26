@@ -482,7 +482,7 @@ export function SecurityTab() {
       </div>
 
       {/* ── Role descriptions ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {ROLES.map((role) => {
           const meta  = ROLE_META[role];
           const score = privilegeScore(role);

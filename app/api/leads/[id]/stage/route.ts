@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { sendLeadStageChangeEmail } from "@/lib/email";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 const stageSchema = z.object({
   stage: z.enum([
@@ -34,8 +35,7 @@ export async function PATCH(
 
     const { role, id: userId, regionId } = session.user;
 
-    const allowedRoles: Role[] = ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR"];
-    if (!allowedRoles.includes(role)) {
+    if (!(await effectiveHasPermission(role as Role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

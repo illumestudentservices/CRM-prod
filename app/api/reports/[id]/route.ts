@@ -8,6 +8,8 @@ const updateReportSchema = z.object({
   engagementNotes: z.string().optional(),
   challengesOpportunities: z.string().optional(),
   nextMonthPlan: z.string().optional(),
+  successStories: z.string().optional(),
+  marketInsights: z.string().optional(),
   status: z.enum(["DRAFT", "PENDING_REVIEW"]).optional(),
 });
 
@@ -52,9 +54,6 @@ export async function GET(
         approvals: {
           orderBy: { createdAt: "desc" },
           include: { user: { select: { id: true, name: true, role: true } } },
-        },
-        forecastEntries: {
-          orderBy: { createdAt: "desc" },
         },
       },
     });
@@ -119,6 +118,8 @@ export async function PATCH(
     if (parsed.data.engagementNotes !== undefined) updateData.engagementNotes = parsed.data.engagementNotes;
     if (parsed.data.challengesOpportunities !== undefined) updateData.challengesOpportunities = parsed.data.challengesOpportunities;
     if (parsed.data.nextMonthPlan !== undefined) updateData.nextMonthPlan = parsed.data.nextMonthPlan;
+    if (parsed.data.successStories !== undefined) updateData.successStories = parsed.data.successStories;
+    if (parsed.data.marketInsights !== undefined) updateData.marketInsights = parsed.data.marketInsights;
     if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
 
     const updated = await db.monthlyReport.update({

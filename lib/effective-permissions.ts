@@ -5,7 +5,10 @@ import type { Role, Resource, Action } from "@/lib/permissions";
 
 const ALL_RESOURCES: Resource[] = [
   "leads", "sources", "institutions", "events", "reports", "analytics",
+  "executive_dashboard",
   "erp", "erp_hr", "users", "settings", "announcements", "knowledge_base",
+  "whatsapp", "markets", "stakeholders", "activities", "travel", "risk_compliance",
+  "knowledge", "tasks",
 ];
 const ALL_ACTIONS: Action[] = ["read", "write", "delete", "approve", "export"];
 
@@ -63,16 +66,25 @@ export async function effectiveHasPermission(
 // Maps each sidebar nav key to the resource + action that gates it.
 // null = always visible to any authenticated user.
 const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | "super_admin_only" | null> = {
-  dashboard:    null,
-  students:     { resource: "leads",        action: "read" },
-  sources:      { resource: "sources",      action: "read" },
-  institutions: { resource: "institutions", action: "read" },
-  analytics:    { resource: "analytics",    action: "read" },
-  events:       { resource: "events",       action: "read" },
-  reports:      { resource: "reports",      action: "read" },
-  hr:           { resource: "erp",          action: "read" },
-  settings:     { resource: "settings",     action: "read" },
-  activity_log: "super_admin_only",
+  dashboard:           null,
+  students:            { resource: "leads",               action: "read" },
+  sources:             { resource: "sources",             action: "read" },
+  institutions:        { resource: "institutions",        action: "read" },
+  analytics:           { resource: "analytics",           action: "read" },
+  events:              { resource: "events",              action: "read" },
+  reports:             { resource: "reports",             action: "read" },
+  executive_dashboard: { resource: "executive_dashboard", action: "read" },
+  hr:                  { resource: "erp",                 action: "read" },
+  markets:             { resource: "markets",             action: "read" },
+  stakeholders:        { resource: "stakeholders",        action: "read" },
+  activities_field:    { resource: "activities",           action: "read" },
+  tasks:               { resource: "tasks",               action: "read" },
+  travel:              { resource: "travel",              action: "read" },
+  risk_compliance:     { resource: "risk_compliance",     action: "read" },
+  knowledge:           { resource: "knowledge",           action: "read" },
+  whatsapp:            { resource: "whatsapp",            action: "read" },
+  settings:            { resource: "settings",            action: "read" },
+  activity_log:        "super_admin_only",
 };
 
 /**
