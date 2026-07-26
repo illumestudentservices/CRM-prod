@@ -1,20 +1,36 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.EMAIL_FROM ?? "Illume Student Advisory Services <noreply@illumestudentservices.ca>";
+const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
+const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS ?? "noreply@illumestudentservices.cloud";
+const FROM_NAME = process.env.EMAIL_FROM_NAME ?? "Illume Student Advisory Services";
 const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-// ─── Safe send wrapper ─────────────────────────────────────────────────────────
+// ─── Safe send wrapper (Brevo Transactional API) ──────────────────────────────
 
 export async function safeSend(opts: { to: string | string[]; subject: string; html: string }) {
-  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "re_placeholder") {
-    console.log(`[email] Skipped (no API key) — to: ${opts.to}, subject: ${opts.subject}`);
+  if (!BREVO_API_KEY) {
+    console.log(`[email] Skipped (no BREVO_API_KEY) — to: ${opts.to}, subject: ${opts.subject}`);
     return;
   }
   try {
     const toArr = Array.isArray(opts.to) ? opts.to : [opts.to];
     for (const recipient of toArr) {
-      await resend.emails.send({ from: FROM, ...opts, to: recipient });
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": BREVO_API_KEY,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: FROM_NAME, email: FROM_EMAIL },
+          to: [{ email: recipient }],
+          subject: opts.subject,
+          htmlContent: opts.html,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        console.error(`[email] Brevo error (${res.status}):`, err);
+      }
     }
   } catch (err) {
     console.error("[email] Send failed:", err);
