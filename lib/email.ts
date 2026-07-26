@@ -5,7 +5,12 @@ const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 // ─── Safe send wrapper (Brevo Transactional API) ──────────────────────────────
 
-export async function safeSend(opts: { to: string | string[]; subject: string; html: string }) {
+export async function safeSend(opts: {
+  to: string | string[];
+  subject: string;
+  html: string;
+  attachments?: Array<{ name: string; content: string }>;
+}) {
   if (!BREVO_API_KEY) {
     console.log(`[email] Skipped (no BREVO_API_KEY) — to: ${opts.to}, subject: ${opts.subject}`);
     return;
@@ -13,6 +18,18 @@ export async function safeSend(opts: { to: string | string[]; subject: string; h
   try {
     const toArr = Array.isArray(opts.to) ? opts.to : [opts.to];
     for (const recipient of toArr) {
+      const payload: Record<string, unknown> = {
+        sender: { name: FROM_NAME, email: FROM_EMAIL },
+        to: [{ email: recipient }],
+        subject: opts.subject,
+        htmlContent: opts.html,
+      };
+      if (opts.attachments?.length) {
+        payload.attachment = opts.attachments.map((a) => ({
+          name: a.name,
+          content: a.content,
+        }));
+      }
       const res = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
@@ -20,12 +37,7 @@ export async function safeSend(opts: { to: string | string[]; subject: string; h
           "Content-Type": "application/json",
           "Accept": "application/json",
         },
-        body: JSON.stringify({
-          sender: { name: FROM_NAME, email: FROM_EMAIL },
-          to: [{ email: recipient }],
-          subject: opts.subject,
-          htmlContent: opts.html,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.text();

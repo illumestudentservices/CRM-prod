@@ -52,7 +52,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["bcryptjs"],
+  serverExternalPackages: ["bcryptjs", "puppeteer-core"],
   images: {
     remotePatterns: [
       // Restrict to HTTPS only; wildcard hostname needed for external avatars/logos
