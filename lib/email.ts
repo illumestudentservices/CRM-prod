@@ -6,7 +6,7 @@ const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 // ─── Safe send wrapper ─────────────────────────────────────────────────────────
 
-async function safeSend(opts: { to: string | string[]; subject: string; html: string }) {
+export async function safeSend(opts: { to: string | string[]; subject: string; html: string }) {
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === "re_placeholder") {
     console.log(`[email] Skipped (no API key) — to: ${opts.to}, subject: ${opts.subject}`);
     return;
@@ -23,24 +23,24 @@ async function safeSend(opts: { to: string | string[]; subject: string; html: st
 
 // ─── Shared primitives ─────────────────────────────────────────────────────────
 
-function badge(text: string, color: string) {
+export function badge(text: string, color: string) {
   return `<span style="display:inline-block;background:${color}20;color:${color};font-size:12px;font-weight:600;padding:3px 10px;border-radius:100px;border:1px solid ${color}40;">${text}</span>`;
 }
 
-function infoRow(label: string, value: string) {
+export function infoRow(label: string, value: string) {
   return `<tr>
     <td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:500;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${label}</td>
     <td style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;">${value}</td>
   </tr>`;
 }
 
-function infoTable(rows: [string, string][]) {
+export function infoTable(rows: [string, string][]) {
   return `<table cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;width:100%;margin:16px 0 24px;border:1px solid #e2e8f0;overflow:hidden;">
     <tbody>${rows.map(([l, v]) => infoRow(l, v)).join("")}</tbody>
   </table>`;
 }
 
-function ctaButton(text: string, href: string, color = "#1E3A5F") {
+export function ctaButton(text: string, href: string, color = "#1E3A5F") {
   return `<div style="margin:28px 0 8px;">
     <a href="${href}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:9px;letter-spacing:0.01em;">${text}</a>
   </div>`;
@@ -48,7 +48,7 @@ function ctaButton(text: string, href: string, color = "#1E3A5F") {
 
 // ─── Standard branded wrapper ──────────────────────────────────────────────────
 
-function wrapEmail(title: string, body: string): string {
+export function wrapEmail(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -690,6 +690,141 @@ export async function sendMagicLinkEmail(opts: {
       <div style="padding:12px 16px;background:#fef9ec;border-radius:8px;border-left:3px solid #f59e0b;font-size:12px;color:#78350f;line-height:1.6;">
         ⚠️ &nbsp;This link expires in ${expiry} hours and can only be used once. If you did not expect this email, contact your administrator.
       </div>
+    `),
+  });
+}
+
+// ─── SEND SECTION EMAIL ──────────────────────────────────────────────────────
+
+export async function sendSectionEmail(opts: {
+  to: string;
+  subject: string;
+  sectionTitle: string;
+  sectionHtml: string;
+  message?: string;
+  senderName?: string;
+}) {
+  const messageBlock = opts.message
+    ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${opts.senderName}</strong> says: ` : ""}${opts.message.replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
+
+  await safeSend({
+    to: opts.to,
+    subject: opts.subject,
+    html: wrapEmail(opts.subject, `
+      <h2 style="color:#1E3A5F;font-size:20px;font-weight:700;margin:0 0 16px;">${opts.sectionTitle}</h2>
+      ${messageBlock}
+      ${opts.sectionHtml}
+    `),
+  });
+}
+
+// ─── SEND FULL REPORT EMAIL ─────────────────────────────────────────────────
+
+export async function sendFullReportEmail(opts: {
+  to: string | string[];
+  senderName?: string;
+  icrName: string;
+  institutionName: string;
+  period: string;
+  regionName: string;
+  kpi: {
+    totalLeads: number;
+    enrolled: number;
+    conversionRate: number;
+    contactRate: number;
+    eventsCount: number;
+    totalEventCost: number;
+  } | null;
+  engagementSummary?: string;
+  successHighlight?: string;
+  reportUrl: string;
+  message?: string;
+}) {
+  const kpiGrid = opts.kpi
+    ? `<table cellpadding="0" cellspacing="0" style="width:100%;margin:20px 0 24px;">
+        <tr>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${opts.kpi.totalLeads}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Total Leads</div>
+            </div>
+          </td>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#22C55E;">${opts.kpi.enrolled}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Enrolled</div>
+            </div>
+          </td>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#0369A1;">${opts.kpi.conversionRate}%</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Conversion</div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${opts.kpi.contactRate}%</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Contact Rate</div>
+            </div>
+          </td>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#F59E0B;">${opts.kpi.eventsCount}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Events</div>
+            </div>
+          </td>
+          <td style="width:33%;padding:8px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">$${opts.kpi.totalEventCost.toLocaleString()}</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Event Cost</div>
+            </div>
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  const messageBlock = opts.message
+    ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${opts.senderName}</strong> says: ` : ""}${opts.message.replace(/\n/g, "<br>")}</p>
+      </div>`
+    : "";
+
+  const excerpts: string[] = [];
+  if (opts.engagementSummary) {
+    const text = opts.engagementSummary.length > 200 ? opts.engagementSummary.slice(0, 200) + "..." : opts.engagementSummary;
+    excerpts.push(`<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">Engagement Highlights</div><p style="margin:0;font-size:13px;color:#475569;line-height:1.6;">${text}</p></div>`);
+  }
+  if (opts.successHighlight) {
+    const text = opts.successHighlight.length > 200 ? opts.successHighlight.slice(0, 200) + "..." : opts.successHighlight;
+    excerpts.push(`<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;">Success Stories</div><p style="margin:0;font-size:13px;color:#475569;line-height:1.6;">${text}</p></div>`);
+  }
+
+  await safeSend({
+    to: opts.to,
+    subject: `Monthly Report — ${opts.institutionName} — ${opts.period}`,
+    html: wrapEmail(`Monthly Report — ${opts.period}`, `
+      <div style="background:linear-gradient(135deg,#1E3A5F 0%,#0369A1 100%);border-radius:12px;padding:28px 32px;margin-bottom:28px;">
+        <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:800;">${opts.institutionName}</h1>
+        <p style="margin:0;color:rgba(255,255,255,0.7);font-size:14px;">${opts.period} Monthly Report</p>
+        <p style="margin:8px 0 0;color:rgba(255,255,255,0.5);font-size:12px;">ICR: ${opts.icrName} &middot; Region: ${opts.regionName}</p>
+      </div>
+
+      ${messageBlock}
+
+      ${kpiGrid}
+
+      ${excerpts.length > 0 ? `<div style="border-top:1px solid #e2e8f0;padding-top:20px;margin-top:8px;">${excerpts.join("")}</div>` : ""}
+
+      ${ctaButton("View Full Report", opts.reportUrl)}
+
+      <p style="margin:20px 0 0;font-size:11px;color:#94a3b8;text-align:center;">
+        This report was shared from the Illume CRM platform.
+      </p>
     `),
   });
 }
