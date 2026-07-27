@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PasswordResetSection } from "./password-reset-section";
+import { MfaStatusCard } from "./mfa-status-card";
 
 // ─── Meta ─────────────────────────────────────────────────────────────────────
 
@@ -475,6 +476,9 @@ export function SecurityTab() {
           </tbody>
         </table>
       </div>
+
+      {/* ── Two-Factor Authentication ── */}
+      <MfaStatusCard />
 
       {/* ── Password Reset ── */}
       <div className="border rounded-xl p-5">

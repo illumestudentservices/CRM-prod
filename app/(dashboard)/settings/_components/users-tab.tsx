@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials, formatDate } from "@/lib/utils";
-import { Pencil, ShieldOff } from "lucide-react";
+import { Pencil, ShieldOff, ShieldCheck } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -150,6 +150,19 @@ export function UsersSettingsTab() {
       ),
     },
     {
+      header: "MFA",
+      cell: ({ row }) =>
+        row.original.twoFactorEnabled ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+            <ShieldCheck className="h-3.5 w-3.5" /> On
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
+            <ShieldOff className="h-3.5 w-3.5" /> Off
+          </span>
+        ),
+    },
+    {
       header: "Joined",
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
     },
@@ -173,6 +186,7 @@ export function UsersSettingsTab() {
             email: u.email,
             role: u.role.replace(/_/g, " "),
             isActive: u.isActive ? "Active" : "Inactive",
+            mfa: u.twoFactorEnabled ? "Enabled" : "Disabled",
             createdAt: formatDate(u.createdAt),
           }))}
           columns={[
@@ -180,6 +194,7 @@ export function UsersSettingsTab() {
             { key: "email", header: "Email" },
             { key: "role", header: "Role" },
             { key: "isActive", header: "Status" },
+            { key: "mfa", header: "MFA" },
             { key: "createdAt", header: "Joined" },
           ]}
           filename="users"
