@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { IllumeMark } from "@/app/(auth)/_components/illume-mark";
 
@@ -8,8 +9,11 @@ import { IllumeMark } from "@/app/(auth)/_components/illume-mark";
  * Brief hand-off between signing in and the dashboard.
  *
  * Deliberately understated: staff sign in every morning, so this is a moment of
- * orientation rather than a celebration. Rendered inline rather than through a
- * portal so it inherits --font-display from the auth layout.
+ * orientation rather than a celebration.
+ *
+ * Portalled to document.body because the sign-in card sets backdrop-filter,
+ * which makes it a containing block for fixed-position descendants — rendered
+ * inline, this covers the card instead of the viewport.
  */
 
 interface Props {
@@ -92,7 +96,7 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
+  return createPortal(
     <div
       ref={rootRef}
       onClick={() => {
@@ -152,6 +156,7 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
       >
         {today}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
