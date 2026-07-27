@@ -23,7 +23,16 @@ export function AuthContent({ children }: { children: React.ReactNode }) {
 
       <div className="w-full max-w-6xl grid lg:grid-cols-[1.05fr_minmax(0,420px)] gap-12 lg:gap-20 items-center">
         {/* ── Brand / mission ── */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block relative">
+          {/* Scrim so the headline stays legible over the globe's upper limb */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-x-16 -inset-y-20 -z-10"
+            style={{
+              background:
+                "radial-gradient(60% 55% at 30% 45%, rgba(4,8,15,0.82), rgba(4,8,15,0.35) 55%, transparent 78%)",
+            }}
+          />
           <div className="rise" style={{ animationDelay: "80ms" }}>
             <div className="flex items-center gap-3.5">
               <IllumeMark size={52} />

@@ -93,10 +93,17 @@ export function AuthBackground() {
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // Globe sits left-of-centre on wide screens, centred when stacked.
-      cx = w >= 1024 ? w * 0.3 : w * 0.5;
-      cy = h * 0.5;
-      R = Math.min(w * (w >= 1024 ? 0.26 : 0.42), h * 0.38);
+      // On wide screens the globe sits low and left, cropped by the viewport,
+      // so the headline above it stays on clean ground. Centred when stacked.
+      if (w >= 1024) {
+        cx = w * 0.2;
+        cy = h * 0.82;
+        R = Math.min(w * 0.24, h * 0.46);
+      } else {
+        cx = w * 0.5;
+        cy = h * 0.42;
+        R = Math.min(w * 0.44, h * 0.3);
+      }
     };
 
     resize();
