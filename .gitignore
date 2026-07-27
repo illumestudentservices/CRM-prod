@@ -56,3 +56,6 @@ verify-mfa-gate.mjs
 confirm-reset.mjs
 verify-session-ip.mjs
 verify-log-ui.mjs
+shot-login.mjs
+check-mark.mjs
+check-auth-pages.mjs
