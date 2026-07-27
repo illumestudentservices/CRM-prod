@@ -9,9 +9,18 @@ import { logActivity } from "@/lib/activity-logger";
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
 
+/** Hard ceiling on a browser session: 48 hours from sign-in. */
+const SESSION_MAX_AGE_SECONDS = 48 * 60 * 60;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db) as never,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    // Re-issue the cookie at most hourly rather than on every request.
+    updateAge: 60 * 60,
+  },
+  jwt: { maxAge: SESSION_MAX_AGE_SECONDS },
   trustHost: true,
   pages: {
     signIn: "/login",
@@ -126,6 +135,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        // Stamped once at sign-in and never refreshed, so the ceiling below is
+        // absolute. maxAge on its own is a rolling window that continued
+        // activity would keep pushing out indefinitely.
+        token.loginAt = Date.now();
         token.id = user.id;
         token.role = (user as { role: Role }).role;
         token.regionId = (user as { regionId: string | null }).regionId;
@@ -145,6 +158,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.twoFactorEnabled = true;
         token.twoFactorPending = false;
       }
+
+      // Absolute session ceiling. Returning null invalidates the token, so the
+      // next request is treated as unauthenticated and lands on /login.
+      const loginAt = token.loginAt as number | undefined;
+      if (loginAt && Date.now() - loginAt > SESSION_MAX_AGE_SECONDS * 1000) {
+        return null;
+      }
+
       return token;
     },
     async session({ session, token }) {

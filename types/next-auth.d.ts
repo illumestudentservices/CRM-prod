@@ -33,5 +33,7 @@ declare module "next-auth/jwt" {
     mustChangePassword?: boolean;
     twoFactorPending?: boolean;
     twoFactorEnabled?: boolean;
+    /** Epoch ms of sign-in, used to enforce an absolute session ceiling. */
+    loginAt?: number;
   }
 }
