@@ -96,9 +96,9 @@ export function AuthBackground() {
       // On wide screens the globe sits low and left, cropped by the viewport,
       // so the headline above it stays on clean ground. Centred when stacked.
       if (w >= 1024) {
-        cx = w * 0.2;
-        cy = h * 0.82;
-        R = Math.min(w * 0.24, h * 0.46);
+        cx = w * 0.23;
+        cy = h * 0.70;
+        R = Math.min(w * 0.235, h * 0.44);
       } else {
         cx = w * 0.5;
         cy = h * 0.42;
@@ -145,7 +145,7 @@ export function AuthBackground() {
             started = true;
           } else ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = "rgba(120,170,220,0.10)";
+        ctx.strokeStyle = "rgba(125,180,230,0.16)";
         ctx.stroke();
       }
       // Meridians
@@ -163,7 +163,7 @@ export function AuthBackground() {
             started = true;
           } else ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = "rgba(120,170,220,0.08)";
+        ctx.strokeStyle = "rgba(125,180,230,0.12)";
         ctx.stroke();
       }
     };
@@ -171,7 +171,7 @@ export function AuthBackground() {
     const drawLimb = () => {
       // Atmospheric halo
       const g = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.35);
-      g.addColorStop(0, "rgba(56,189,248,0.10)");
+      g.addColorStop(0, "rgba(56,189,248,0.14)");
       g.addColorStop(1, "rgba(56,189,248,0)");
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -180,7 +180,7 @@ export function AuthBackground() {
 
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(140,190,240,0.22)";
+      ctx.strokeStyle = "rgba(150,200,245,0.30)";
       ctx.lineWidth = 1;
       ctx.stroke();
     };
@@ -211,7 +211,7 @@ export function AuthBackground() {
           ctx.beginPath();
           ctx.moveTo(p0.x, p0.y);
           ctx.lineTo(p1.x, p1.y);
-          ctx.strokeStyle = rgba(col, 0.30 * depth);
+          ctx.strokeStyle = rgba(col, 0.42 * depth);
           ctx.lineWidth = 1.1;
           ctx.stroke();
         }
