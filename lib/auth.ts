@@ -103,6 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             regionId: user.regionId,
             mustChangePassword: user.mustChangePassword,
             twoFactorPending: true,
+            twoFactorEnabled: true,
           };
         }
 
@@ -117,6 +118,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           regionId: user.regionId,
           mustChangePassword: user.mustChangePassword,
           twoFactorPending: false,
+          twoFactorEnabled: false,
         };
       },
     }),
@@ -131,9 +133,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
         token.twoFactorPending =
           (user as { twoFactorPending?: boolean }).twoFactorPending ?? false;
+        token.twoFactorEnabled =
+          (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
       }
       // Client calls useSession().update({ twoFactorVerified: true }) after TOTP passes
       if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorVerified === true) {
+        token.twoFactorPending = false;
+      }
+      // Enrolment completed — clear the gate without forcing a re-login.
+      if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorEnrolled === true) {
+        token.twoFactorEnabled = true;
         token.twoFactorPending = false;
       }
       return token;
@@ -145,6 +154,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.regionId = token.regionId as string | null;
         session.user.mustChangePassword = (token.mustChangePassword as boolean) ?? false;
         session.user.twoFactorPending = (token.twoFactorPending as boolean) ?? false;
+        session.user.twoFactorEnabled = (token.twoFactorEnabled as boolean) ?? false;
       }
       return session;
     },

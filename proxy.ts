@@ -51,6 +51,30 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  // MFA is mandatory for every role. Anyone without it enrolled is held on the
+  // setup page — they can still reach the 2FA endpoints (to enrol) and sign out,
+  // but nothing else.
+  if (!req.auth.user?.twoFactorEnabled) {
+    const allowed =
+      pathname === "/setup-2fa" ||
+      pathname.startsWith("/api/auth/2fa/");
+    if (!allowed) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Two-factor authentication setup required" },
+          { status: 403 }
+        );
+      }
+      return NextResponse.redirect(new URL("/setup-2fa", req.url));
+    }
+    return NextResponse.next({ request: { headers } });
+  }
+
+  // Already enrolled — no reason to sit on the setup page
+  if (pathname === "/setup-2fa") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
   return NextResponse.next({ request: { headers } });
 });
 

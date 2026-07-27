@@ -12,6 +12,7 @@ declare module "next-auth" {
       regionId: string | null;
       mustChangePassword: boolean;
       twoFactorPending?: boolean;
+      twoFactorEnabled?: boolean;
     };
   }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
     regionId: string | null;
     mustChangePassword?: boolean;
     twoFactorPending?: boolean;
+    twoFactorEnabled?: boolean;
   }
 }
 
@@ -30,5 +32,6 @@ declare module "next-auth/jwt" {
     regionId: string | null;
     mustChangePassword?: boolean;
     twoFactorPending?: boolean;
+    twoFactorEnabled?: boolean;
   }
 }

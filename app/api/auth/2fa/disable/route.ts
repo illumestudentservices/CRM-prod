@@ -1,58 +1,27 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { NextRequest, NextResponse } from "next/server";
-import { totpVerify } from "@/lib/totp";
-import { z } from "zod";
-import { logActivity } from "@/lib/activity-logger";
-
-const disableSchema = z.object({
-  code: z.string().length(6).regex(/^\d{6}$/),
-});
+import { NextResponse } from "next/server";
 
 /**
  * POST /api/auth/2fa/disable
- * Disables 2FA for the current user. Requires a valid TOTP code to confirm.
- * User must be fully authenticated (not twoFactorPending).
+ *
+ * Self-service disable is intentionally closed off. 2FA is mandatory for every
+ * role (enforced in proxy.ts), so turning it off would only bounce the user to
+ * /setup-2fa on their next request.
+ *
+ * A SUPER_ADMIN resets it instead — PATCH /api/settings/users with resetMfa —
+ * which clears the secret and forces re-enrolment at next login.
  */
-export async function POST(req: NextRequest) {
+export async function POST() {
   const session = await auth();
   if (!session?.user || session.user.twoFactorPending) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
-  try { body = await req.json(); } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const parsed = disableSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 422 });
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { twoFactorEnabled: true, twoFactorSecret: true },
-  });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
-    return NextResponse.json({ error: "2FA is not enabled" }, { status: 400 });
-  }
-
-  const isValid = await totpVerify(user.twoFactorSecret, parsed.data.code);
-  if (!isValid) {
-    return NextResponse.json({ error: "Invalid code" }, { status: 400 });
-  }
-
-  await db.user.update({
-    where: { id: session.user.id },
-    data: {
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      twoFactorBackupCodes: [],
+  return NextResponse.json(
+    {
+      error:
+        "Two-factor authentication is required on all accounts and cannot be disabled. Contact an administrator if you need it reset.",
     },
-  });
-
-  void logActivity(session.user.id, "2FA_DISABLED", "USER", session.user.id, {});
-  return NextResponse.json({ success: true });
+    { status: 403 }
+  );
 }

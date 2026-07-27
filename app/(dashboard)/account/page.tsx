@@ -146,7 +146,7 @@ export default function AccountPage() {
                 Two-Factor Authentication
               </CardTitle>
               <CardDescription className="mt-1">
-                Add an extra layer of security using Microsoft Authenticator or any TOTP app.
+                Required on all accounts. Uses Microsoft Authenticator or any TOTP app.
               </CardDescription>
             </div>
             {twoFactorEnabled !== null && (
@@ -192,10 +192,11 @@ export default function AccountPage() {
                       2FA is active. You&apos;ll be prompted for a code from your authenticator app each time you sign in.
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => setStep("disable-confirm")} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
-                    <ShieldOff className="h-4 w-4" />
-                    Disable two-factor authentication
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    2FA is mandatory for all accounts and can&apos;t be turned off.
+                    If you&apos;ve lost access to your authenticator, ask a system
+                    administrator to reset it for you.
+                  </p>
                 </div>
               )}
             </>
