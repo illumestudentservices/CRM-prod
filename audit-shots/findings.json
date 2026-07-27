@@ -1,0 +1,16 @@
+{
+  "findings": [
+    {
+      "sev": "MEDIUM",
+      "area": "auth",
+      "msg": "Login is slow: 22.7s to redirect"
+    },
+    {
+      "sev": "BLOCKER",
+      "area": "auth",
+      "msg": "Login failed for admin@illumestudentservices.cloud. Still at https://illumestudentservices.cloud/login"
+    }
+  ],
+  "consoleErrors": [],
+  "netFails": []
+}

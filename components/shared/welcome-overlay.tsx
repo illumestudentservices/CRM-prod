@@ -17,11 +17,27 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
   const glowRef     = useRef<HTMLDivElement>(null);
   const lineRef     = useRef<HTMLDivElement>(null);
   const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const goRef       = useRef<(() => void) | null>(null);
+  const failsafeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const firstName = name.split(" ")[0];
 
   useEffect(() => {
     const chars = nameRowRef.current?.querySelectorAll<HTMLElement>(".ch") ?? [];
+
+    // Navigation must happen exactly once, even if the animation stalls.
+    // GSAP is driven by requestAnimationFrame, which browsers throttle to ~1fps
+    // in background tabs — without this guard a user who switches tabs mid-login
+    // would never be redirected.
+    let navigated = false;
+    const go = () => {
+      if (navigated) return;
+      navigated = true;
+      onComplete();
+    };
+    goRef.current = go;
+    const failsafe = setTimeout(go, 4000);
+    failsafeRef.current = failsafe;
 
     // Sparkle burst
     function burst() {
@@ -65,41 +81,40 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
     tl
       .fromTo(rootRef.current,
         { clipPath: "circle(12% at 50% 48%)" },
-        { clipPath: "circle(150% at 50% 48%)", duration: 0.7, ease: "power3.inOut" }
+        { clipPath: "circle(150% at 50% 48%)", duration: 0.45, ease: "power3.inOut" }
       )
       .fromTo(lineRef.current,
-        { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.5, ease: "power2.inOut" }, "-=0.1"
+        { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.3, ease: "power2.inOut" }, "-=0.1"
       )
       .fromTo(subtitleRef.current,
-        { y: 16, opacity: 0, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.5 }, "-=0.15"
+        { y: 16, opacity: 0, filter: "blur(8px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.3 }, "-=0.15"
       )
       .fromTo(chars,
         { y: 55, opacity: 0, filter: "blur(14px)" },
-        { y: 0,  opacity: 1, filter: "blur(0px)", duration: 0.55, stagger: 0.048 }, "-=0.25"
+        { y: 0,  opacity: 1, filter: "blur(0px)", duration: 0.4, stagger: 0.03 }, "-=0.2"
       )
       .fromTo(glowRef.current,
-        { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.65, ease: "power2.out" }, "-=0.5"
+        { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "power2.out" }, "-=0.35"
       )
       .fromTo(shimmerRef.current,
-        { x: "-115%" }, { x: "120%", duration: 0.85, ease: "power2.inOut" }, "-=0.2"
+        { x: "-115%" }, { x: "120%", duration: 0.6, ease: "power2.inOut" }, "-=0.25"
       )
-      .call(() => burst(), undefined, "-=0.6")
-      .to(glowRef.current,
-        { scale: 1.1, opacity: 0.75, duration: 1.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, "-=0.2"
-      )
-      .to({}, { duration: 0.6 })
+      .call(() => burst(), undefined, "-=0.45")
+      .to({}, { duration: 0.25 })
       // Fade everything out, then navigate
-      .to(rootRef.current, { opacity: 0, duration: 0.6, ease: "power2.inOut", onComplete });
+      .to(rootRef.current, { opacity: 0, duration: 0.35, ease: "power2.inOut", onComplete: go });
 
-    return () => { tl.kill(); };
+    return () => { clearTimeout(failsafe); tl.kill(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return createPortal(
     <div
       ref={rootRef}
-      className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
+      onClick={() => { clearTimeout(failsafeRef.current); goRef.current?.(); }}
+      className="fixed inset-0 z-[999] flex flex-col items-center justify-center cursor-pointer"
       style={{ background: "#020202", clipPath: "circle(12% at 50% 48%)" }}
+      title="Click to continue"
     >
       {/* Ambient glow */}
       <div ref={glowRef} className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ opacity: 0 }}>

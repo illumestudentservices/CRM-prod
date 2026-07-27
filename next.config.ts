@@ -52,6 +52,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Don't advertise the framework — reduces fingerprinting for targeted attacks.
+  poweredByHeader: false,
   serverExternalPackages: ["bcryptjs", "puppeteer-core"],
   images: {
     remotePatterns: [

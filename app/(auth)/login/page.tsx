@@ -152,7 +152,7 @@ export default function LoginPage() {
   return (
     <div>
       {welcomeName && (
-        <WelcomeOverlay name={welcomeName} onComplete={() => { router.push("/"); router.refresh(); }} />
+        <WelcomeOverlay name={welcomeName} onComplete={() => { router.push("/dashboard"); router.refresh(); }} />
       )}
 
       {/* Error / lockout banner */}
