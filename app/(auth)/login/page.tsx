@@ -21,10 +21,10 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const inputClass = [
-  "w-full rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25",
-  "bg-white/5 border border-white/10",
-  "focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20",
-  "transition-colors duration-200",
+  "w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20",
+  "bg-white/[0.04] border border-white/10",
+  "focus:outline-none focus:border-sky-400/55 focus:bg-white/[0.06] focus:ring-2 focus:ring-sky-400/15",
+  "transition-all duration-200",
   "disabled:opacity-50",
 ].join(" ");
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
     const els = [headingRef.current, emailRef.current, passwordRef.current, btnRef.current, footerRef.current];
     gsap.fromTo(els, { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, ease: "power3.out", delay: 0.55 });
     const glowTween = gsap.to(btnRef.current, {
-      boxShadow: "0 0 42px rgba(59,130,246,0.6), 0 2px 10px rgba(0,0,0,0.5)",
+      boxShadow: "0 0 44px rgba(14,165,233,0.55), 0 2px 10px rgba(0,0,0,0.5)",
       duration: 1.4, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 1.2,
     });
     return () => { glowTween.kill(); };
@@ -200,8 +200,17 @@ export default function LoginPage() {
 
       {/* Heading */}
       <div ref={headingRef} className="mb-7" style={{ opacity: 0 }}>
-        <h1 className="text-xl font-semibold text-white mb-1">Welcome back</h1>
-        <p className="text-sm text-white/40">Sign in to your account to continue</p>
+        <h1
+          className="text-[1.6rem] leading-tight text-white mb-1.5"
+          style={{
+            fontFamily: "var(--font-display), Georgia, serif",
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          Welcome back
+        </h1>
+        <p className="text-sm text-white/35">Sign in to continue to your workspace</p>
       </div>
 
       {/* method="post" matters: if this form ever submits before hydration, a
@@ -259,13 +268,13 @@ export default function LoginPage() {
           onMouseLeave={handleBtnLeave}
           onMouseDown={handleBtnDown}
           onMouseUp={handleBtnUp}
-          className="w-full mt-2 py-2.5 px-4 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full mt-3 py-3 px-4 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-shadow"
           style={{
             opacity: 0,
             background: isLoading || isLocked || !hydrated
-              ? "rgba(59,130,246,0.35)"
-              : "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)",
-            boxShadow: "0 0 24px rgba(59,130,246,0.35), 0 2px 8px rgba(0,0,0,0.4)",
+              ? "rgba(56,189,248,0.22)"
+              : "linear-gradient(135deg, #0369A1 0%, #0EA5E9 55%, #38BDF8 100%)",
+            boxShadow: "0 0 28px rgba(14,165,233,0.30), 0 2px 10px rgba(0,0,0,0.45)",
           }}
         >
           {isLoading ? (
