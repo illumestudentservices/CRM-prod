@@ -76,35 +76,16 @@ export function AuthContent({ children }: { children: React.ReactNode }) {
             .
           </h1>
 
-          <p
-            className="rise mt-5 text-sm leading-relaxed text-white/40 max-w-[46ch]"
-            style={{ animationDelay: "320ms" }}
-          >
-            Every arc on the globe is a recruitment corridor we work — origin
-            market to partner institution.
-          </p>
-
-          {/* Legend ties the visual back to the business */}
+          {/* A short rule instead of explanatory copy — the globe and the
+              headline already carry the meaning. */}
           <div
-            className="rise mt-9 flex items-center gap-7 text-[11px] text-white/35"
-            style={{ animationDelay: "430ms" }}
-          >
-            <span className="inline-flex items-center gap-2">
-              <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: "#F5A524", boxShadow: "0 0 9px rgba(245,165,36,.85)" }}
-              />
-              Origin market
-            </span>
-            <span className="h-px w-14 bg-gradient-to-r from-amber-400/45 to-sky-400/45" />
-            <span className="inline-flex items-center gap-2">
-              <span
-                className="h-1.5 w-1.5 rounded-full"
-                style={{ background: "#38BDF8", boxShadow: "0 0 9px rgba(56,189,248,.85)" }}
-              />
-              Partner institution
-            </span>
-          </div>
+            className="rise mt-8 h-px w-24"
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(245,165,36,.55), rgba(56,189,248,.35), transparent)",
+              animationDelay: "330ms",
+            }}
+          />
         </div>
 
         {/* ── Form panel ── */}
