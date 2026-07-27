@@ -52,3 +52,5 @@ debug-login.mjs
 .ssh-helper.py
 check-2fa.mjs
 verify-mfa.mjs
+verify-mfa-gate.mjs
+confirm-reset.mjs
