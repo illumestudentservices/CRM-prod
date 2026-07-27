@@ -83,12 +83,12 @@ function ArticleCard({
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow border-slate-200 dark:border-slate-700"
+      className="cursor-pointer hover:shadow-md transition-shadow border-slate-200"
       onClick={onClick}
     >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
+          <h3 className="font-semibold text-sm text-slate-900 line-clamp-2">
             {article.title}
           </h3>
           <Badge
@@ -98,7 +98,7 @@ function ArticleCard({
             {article.category}
           </Badge>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3">
+        <p className="text-xs text-slate-500 line-clamp-3">
           {excerpt}
         </p>
         {article.tags.length > 0 && (
@@ -185,7 +185,7 @@ function ArticleDialog({
               {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
           </div>
-          <div className="prose prose-sm max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+          <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
             {article.content}
           </div>
         </div>
@@ -386,7 +386,7 @@ function ArticlesGrid({
     <div className="space-y-6">
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat}>
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]" />
             {cat}
             <Badge variant="secondary" className="text-[10px] ml-1">
@@ -622,7 +622,7 @@ export function KnowledgeClient({
     <>
       <Tabs defaultValue="general" className="space-y-4">
         <div className="flex items-center justify-between">
-        <TabsList className="bg-slate-100 dark:bg-slate-800">
+        <TabsList className="bg-slate-100">
           <TabsTrigger value="general" className="gap-1.5">
             <BookOpen className="h-4 w-4" />
             General KB
