@@ -7,8 +7,23 @@
 const otplib = require("otplib") as {
   generateSecret: () => string;
   generate: (opts: { secret: string }) => Promise<string>;
-  verify: (opts: { secret: string; token: string }) => Promise<{ valid: boolean }>;
+  verify: (opts: {
+    secret: string;
+    token: string;
+    epochTolerance?: number | [number, number];
+  }) => Promise<{ valid: boolean }>;
 };
+
+/**
+ * Clock-skew allowance, in seconds, either side of the current 30s step.
+ *
+ * otplib defaults this to 0, which rejects a code the moment it crosses a step
+ * boundary — so a user reading six digits off their phone and typing them in
+ * fails routinely, and any drift on the phone's clock fails always. RFC 6238
+ * §5.2 recommends allowing at least one time step; one step each way is the
+ * usual compromise between usability and keeping the window tight.
+ */
+const EPOCH_TOLERANCE_SECONDS = 30;
 
 export function totpGenerateSecret(): string {
   return otplib.generateSecret();
@@ -27,6 +42,10 @@ export async function totpGenerate(secret: string): Promise<string> {
 }
 
 export async function totpVerify(secret: string, token: string): Promise<boolean> {
-  const result = await otplib.verify({ secret, token });
+  const result = await otplib.verify({
+    secret,
+    token,
+    epochTolerance: EPOCH_TOLERANCE_SECONDS,
+  });
   return result?.valid === true;
 }

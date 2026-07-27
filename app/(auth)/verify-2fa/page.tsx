@@ -67,9 +67,12 @@ export default function Verify2FAPage() {
         setCodesRemaining(data.codesRemaining ?? null);
       }
 
-      // Tell NextAuth to clear twoFactorPending from the JWT
+      // Clear twoFactorPending from the JWT, then navigate. Relying only on the
+      // session-watching effect leaves the user staring at the form if the
+      // update resolves without triggering a re-render.
       await update({ twoFactorVerified: true });
-      // useEffect above will redirect once session updates
+      router.replace("/dashboard");
+      router.refresh();
     } catch {
       setError("Unable to verify. Please try again.");
     } finally {

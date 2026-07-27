@@ -22,8 +22,12 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Already past the challenge — a double submit, a stale tab, or the session
+  // update landing before this request. Treating that as an error strands the
+  // user on the verify page behind a message that reads like a rejected code,
+  // so report success and let the client move on.
   if (!session.user.twoFactorPending) {
-    return NextResponse.json({ error: "No pending 2FA verification" }, { status: 400 });
+    return NextResponse.json({ success: true, alreadyVerified: true });
   }
 
   let body: unknown;
