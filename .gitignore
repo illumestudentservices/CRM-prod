@@ -44,3 +44,9 @@ next-env.d.ts
 
 # Claude Code local files
 .claude/
+
+# local audit / ops artifacts
+audit-shots/
+audit-e2e.mjs
+debug-login.mjs
+.ssh-helper.py
