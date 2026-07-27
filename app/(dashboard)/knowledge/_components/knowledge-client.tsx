@@ -122,15 +122,18 @@ function ArticleCard({
             )}
           </div>
         )}
-        <div className="flex items-center gap-3 text-[10px] text-slate-400">
-          <span className="flex items-center gap-1">
-            <Eye className="h-3 w-3" />
-            {article.views}
-          </span>
+        <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-0.5">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
           </span>
+          {/* An unread article reading "0 views" on every card is just noise */}
+          {article.views > 0 && (
+            <span className="flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              {article.views} {article.views === 1 ? "view" : "views"}
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -310,6 +313,46 @@ function CreateArticleDialog({
 
 // ─── Articles Grid ───────────────────────────────────────────────────────────
 
+/**
+ * Matches a query against everything a reader might reasonably search for —
+ * title, body, category and tags — rather than title alone. A knowledge base
+ * is only as useful as its retrieval.
+ */
+function filterArticles(articles: Article[], query: string): Article[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return articles;
+  const terms = q.split(/\s+/);
+  return articles.filter((a) => {
+    const haystack = [a.title, a.content, a.category, ...a.tags]
+      .join(" ")
+      .toLowerCase();
+    return terms.every((t) => haystack.includes(t));
+  });
+}
+
+/** Search field shared by every tab's toolbar. */
+function KbSearch({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="relative flex-1 max-w-sm">
+      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="pl-8 h-9"
+      />
+    </div>
+  );
+}
+
 function ArticlesGrid({
   articles,
   onArticleClick,
@@ -429,6 +472,9 @@ export function KnowledgeClient({
   // Proposal Library
   const [proposalArticles, setProposalArticles] = React.useState<Article[]>(initialProposals);
   const [proposalSearch, setProposalSearch] = React.useState("");
+  const [generalSearch, setGeneralSearch] = React.useState("");
+  const [institutionSearch, setInstitutionSearch] = React.useState("");
+  const [marketSearch, setMarketSearch] = React.useState("");
   const [proposalCategory, setProposalCategory] = React.useState("");
 
   // ─── Fetch institution articles ────────────────────────────────────────────
@@ -639,10 +685,15 @@ export function KnowledgeClient({
 
         {/* ─── General KB ─────────────────────────────────────────────────── */}
         <TabsContent value="general" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3">
+            <KbSearch
+              value={generalSearch}
+              onChange={setGeneralSearch}
+              placeholder="Search articles, tags, categories..."
+            />
             <Button
               size="sm"
-              className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5"
+              className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5 shrink-0"
               onClick={() =>
                 openCreate("general", GENERAL_CATEGORIES, "Create Article")
               }
@@ -652,9 +703,13 @@ export function KnowledgeClient({
             </Button>
           </div>
           <ArticlesGrid
-            articles={generalArticles}
+            articles={filterArticles(generalArticles, generalSearch)}
             onArticleClick={setViewArticle}
-            emptyMessage="No general knowledge base articles yet"
+            emptyMessage={
+              generalSearch
+                ? `No articles match "${generalSearch}"`
+                : "No general knowledge base articles yet"
+            }
           />
         </TabsContent>
 
@@ -679,20 +734,27 @@ export function KnowledgeClient({
               </Select>
             </div>
             {selectedInstitution && (
-              <Button
-                size="sm"
-                className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5"
-                onClick={() =>
-                  openCreate(
-                    "institution",
-                    INSTITUTION_CATEGORIES,
-                    "Add Institution Entry"
-                  )
-                }
-              >
-                <Plus className="h-4 w-4" />
-                Add Entry
-              </Button>
+              <>
+                <KbSearch
+                  value={institutionSearch}
+                  onChange={setInstitutionSearch}
+                  placeholder="Search this institution's entries..."
+                />
+                <Button
+                  size="sm"
+                  className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5 shrink-0"
+                  onClick={() =>
+                    openCreate(
+                      "institution",
+                      INSTITUTION_CATEGORIES,
+                      "Add Institution Entry"
+                    )
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Entry
+                </Button>
+              </>
             )}
           </div>
           {!selectedInstitution ? (
@@ -708,9 +770,13 @@ export function KnowledgeClient({
             </div>
           ) : (
             <ArticlesGrid
-              articles={institutionArticles}
+              articles={filterArticles(institutionArticles, institutionSearch)}
               onArticleClick={setViewArticle}
-              emptyMessage="No entries for this institution yet"
+              emptyMessage={
+                institutionSearch
+                  ? `No entries match "${institutionSearch}"`
+                  : "No entries for this institution yet"
+              }
             />
           )}
         </TabsContent>
@@ -733,16 +799,23 @@ export function KnowledgeClient({
               </Select>
             </div>
             {selectedMarket && (
-              <Button
-                size="sm"
-                className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5"
-                onClick={() =>
-                  openCreate("market", MARKET_CATEGORIES, "Add Market Entry")
-                }
-              >
-                <Plus className="h-4 w-4" />
-                Add Entry
-              </Button>
+              <>
+                <KbSearch
+                  value={marketSearch}
+                  onChange={setMarketSearch}
+                  placeholder="Search this market's entries..."
+                />
+                <Button
+                  size="sm"
+                  className="bg-[#0EA5E9] hover:bg-[#0EA5E9]/90 gap-1.5 shrink-0"
+                  onClick={() =>
+                    openCreate("market", MARKET_CATEGORIES, "Add Market Entry")
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Entry
+                </Button>
+              </>
             )}
           </div>
           {!selectedMarket ? (
@@ -758,9 +831,13 @@ export function KnowledgeClient({
             </div>
           ) : (
             <ArticlesGrid
-              articles={marketArticles}
+              articles={filterArticles(marketArticles, marketSearch)}
               onArticleClick={setViewArticle}
-              emptyMessage="No entries for this market yet"
+              emptyMessage={
+                marketSearch
+                  ? `No entries match "${marketSearch}"`
+                  : "No entries for this market yet"
+              }
             />
           )}
         </TabsContent>
