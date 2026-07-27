@@ -50,7 +50,7 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
       onComplete();
     };
     goRef.current = go;
-    const failsafe = setTimeout(go, 3000);
+    const failsafe = setTimeout(go, 5000);
     failsafeRef.current = failsafe;
 
     const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
@@ -86,8 +86,9 @@ export function WelcomeOverlay({ name, onComplete }: Props) {
         { opacity: 1, duration: 0.32 },
         "-=0.32"
       )
-      .to({}, { duration: 0.34 })
-      .to(rootRef.current, { opacity: 0, duration: 0.3, onComplete: go });
+      // Hold long enough to actually register the name and date before moving on
+      .to({}, { duration: 1.3 })
+      .to(rootRef.current, { opacity: 0, duration: 0.45, onComplete: go });
 
     return () => {
       clearTimeout(failsafe);

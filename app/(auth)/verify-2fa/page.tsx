@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
 import { Loader2, ShieldCheck, AlertCircle, KeyRound } from "lucide-react";
+import { WelcomeOverlay } from "@/components/shared/welcome-overlay";
 
 export default function Verify2FAPage() {
   const { data: session, update } = useSession();
@@ -15,6 +16,7 @@ export default function Verify2FAPage() {
   const [error, setError] = useState<string | null>(null);
   const [usedBackupCode, setUsedBackupCode] = useState(false);
   const [codesRemaining, setCodesRemaining] = useState<number | null>(null);
+  const [welcomeName, setWelcomeName] = useState<string | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,12 +31,15 @@ export default function Verify2FAPage() {
     inputRef.current?.focus();
   }, []);
 
-  // If 2FA is no longer pending (update() cleared it), redirect
+  // Someone landing here with nothing to verify — e.g. a stale tab — gets moved
+  // on. Skipped while the greeting is playing, since that clears the pending
+  // flag itself and would otherwise cut the overlay short.
   useEffect(() => {
+    if (welcomeName) return;
     if (session && !session.user.twoFactorPending) {
       router.replace("/dashboard");
     }
-  }, [session, router]);
+  }, [session, router, welcomeName]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,12 +72,10 @@ export default function Verify2FAPage() {
         setCodesRemaining(data.codesRemaining ?? null);
       }
 
-      // Clear twoFactorPending from the JWT, then navigate. Relying only on the
-      // session-watching effect leaves the user staring at the form if the
-      // update resolves without triggering a re-render.
+      // Clear twoFactorPending from the JWT, then greet — this is the point the
+      // sign-in is actually complete. The overlay navigates when it finishes.
       await update({ twoFactorVerified: true });
-      router.replace("/dashboard");
-      router.refresh();
+      setWelcomeName(session?.user?.name ?? "there");
     } catch {
       setError("Unable to verify. Please try again.");
     } finally {
@@ -84,6 +87,13 @@ export default function Verify2FAPage() {
 
   return (
     <div ref={cardRef} style={{ opacity: 0 }}>
+      {welcomeName && (
+        <WelcomeOverlay
+          name={welcomeName}
+          onComplete={() => { router.replace("/dashboard"); router.refresh(); }}
+        />
+      )}
+
       <div className="mb-7 flex flex-col items-center text-center">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"

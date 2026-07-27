@@ -8,6 +8,7 @@ import {
   ShieldCheck, Loader2, Copy, Check, AlertTriangle, LogOut, ArrowRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { WelcomeOverlay } from "@/components/shared/welcome-overlay";
 
 /**
  * Mandatory 2FA enrolment.
@@ -18,8 +19,9 @@ import { useToast } from "@/hooks/use-toast";
  */
 export default function Setup2FAPage() {
   const router = useRouter();
-  const { update } = useSession();
+  const { data: session, update } = useSession();
   const { toast } = useToast();
+  const [welcomeName, setWelcomeName] = useState<string | null>(null);
 
   const [step, setStep] = useState<"intro" | "qr" | "done">("intro");
   const [loading, setLoading] = useState(false);
@@ -73,10 +75,10 @@ export default function Setup2FAPage() {
   }
 
   async function finish() {
-    // Refresh the JWT so the proxy stops gating this session.
+    // Refresh the JWT so the proxy stops gating this session, then greet —
+    // enrolment is the last step of a first sign-in.
     await update({ twoFactorEnrolled: true });
-    router.push("/dashboard");
-    router.refresh();
+    setWelcomeName(session?.user?.name ?? "there");
   }
 
   function copyCodes() {
@@ -87,6 +89,13 @@ export default function Setup2FAPage() {
 
   return (
     <div>
+      {welcomeName && (
+        <WelcomeOverlay
+          name={welcomeName}
+          onComplete={() => { router.push("/dashboard"); router.refresh(); }}
+        />
+      )}
+
       {/* Header */}
       <div className="mb-7">
         <div className="flex items-center gap-2.5 mb-3">

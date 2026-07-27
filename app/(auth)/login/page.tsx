@@ -144,8 +144,16 @@ export default function LoginPage() {
         return;
       }
 
-      // Login succeeded
-      setWelcomeName(session.user.name ?? "there");
+      // Password accepted, but MFA is mandatory so this isn't a completed
+      // sign-in yet. Send the user straight to whichever step is outstanding;
+      // the greeting belongs at the end of the journey, not the middle of it.
+      if (session.user.twoFactorPending) {
+        router.push("/verify-2fa");
+      } else if (!session.user.twoFactorEnabled) {
+        router.push("/setup-2fa");
+      } else {
+        setWelcomeName(session.user.name ?? "there");
+      }
     } catch {
       setErrorMsg("Unable to connect. Please try again.");
     } finally {
