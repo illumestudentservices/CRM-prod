@@ -54,3 +54,5 @@ check-2fa.mjs
 verify-mfa.mjs
 verify-mfa-gate.mjs
 confirm-reset.mjs
+verify-session-ip.mjs
+verify-log-ui.mjs
