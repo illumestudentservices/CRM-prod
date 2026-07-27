@@ -59,3 +59,4 @@ verify-log-ui.mjs
 shot-login.mjs
 check-mark.mjs
 check-auth-pages.mjs
+repro-verify.mjs
