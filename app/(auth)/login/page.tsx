@@ -51,6 +51,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
+  // Until React hydrates, the form would submit natively. The form is POST so
+  // credentials never reach the URL, but we also hold the button until the JS
+  // handler is live so submits always go through signIn().
+  const [hydrated, setHydrated] = useState(false);
 
   // Simple error state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -75,6 +79,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (lockedUntil && countdown === 0) setLockedUntil(null);
   }, [countdown, lockedUntil]);
+
+  useEffect(() => { setHydrated(true); }, []);
 
   // Staggered entry animation
   useEffect(() => {
@@ -198,7 +204,9 @@ export default function LoginPage() {
         <p className="text-sm text-white/40">Sign in to your account to continue</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      {/* method="post" matters: if this form ever submits before hydration, a
+          GET would put the password in the URL (and into access logs). */}
+      <form onSubmit={handleSubmit(onSubmit)} method="post" noValidate className="space-y-5">
         {/* Email */}
         <div ref={emailRef} className="space-y-1.5" style={{ opacity: 0 }}>
           <label className="text-sm font-medium text-white/60">Email address</label>
@@ -246,7 +254,7 @@ export default function LoginPage() {
         <button
           ref={btnRef}
           type="submit"
-          disabled={isLoading || isLocked}
+          disabled={isLoading || isLocked || !hydrated}
           onMouseEnter={handleBtnEnter}
           onMouseLeave={handleBtnLeave}
           onMouseDown={handleBtnDown}
@@ -254,7 +262,7 @@ export default function LoginPage() {
           className="w-full mt-2 py-2.5 px-4 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
             opacity: 0,
-            background: isLoading || isLocked
+            background: isLoading || isLocked || !hydrated
               ? "rgba(59,130,246,0.35)"
               : "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)",
             boxShadow: "0 0 24px rgba(59,130,246,0.35), 0 2px 8px rgba(0,0,0,0.4)",
