@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, Search, ChevronRight, User, Settings, LogOut } from "lucide-react";
+import { Bell, Search, ChevronRight, User, Settings, LogOut, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ interface TopbarProps {
   onLogout?: () => void;
   onSearch?: (query: string) => void;
   sidebarCollapsed?: boolean;
+  onMenuClick?: () => void;
 }
 
 export function Topbar({
@@ -41,6 +42,7 @@ export function Topbar({
   onLogout,
   onSearch,
   sidebarCollapsed = false,
+  onMenuClick,
 }: TopbarProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -58,13 +60,24 @@ export function Topbar({
     <header
       className={cn(
         "fixed top-0 right-0 z-30 h-16 bg-white border-b border-slate-200",
-        "flex items-center justify-between gap-4 px-6",
+        "flex items-center justify-between gap-4 px-4 sm:px-6",
         "transition-all duration-300 ease-in-out",
-        sidebarCollapsed ? "left-16" : "left-64"
+        // The sidebar is off-canvas below lg, so the bar spans the full width there.
+        "left-0",
+        sidebarCollapsed ? "lg:left-16" : "lg:left-64"
       )}
     >
+      {/* Mobile menu toggle — sidebar is a drawer below lg */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden -ml-1 p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
+        aria-label="Open navigation menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Left: Breadcrumbs */}
-      <nav className="flex items-center gap-1 min-w-0 flex-shrink">
+      <nav className="hidden sm:flex items-center gap-1 min-w-0 flex-shrink">
         {breadcrumbs.length > 0 ? (
           <ol className="flex items-center gap-1">
             {breadcrumbs.map((crumb, index) => {

@@ -94,6 +94,9 @@ interface SidebarInnerProps {
   collapsed: boolean;
   onCollapsedChange: (v: boolean) => void;
   allowedNavKeys?: string[];
+  /** Drawer state for viewports below lg, where the sidebar is off-canvas. */
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
 function SidebarInner({
@@ -106,6 +109,8 @@ function SidebarInner({
   collapsed,
   onCollapsedChange,
   allowedNavKeys,
+  mobileOpen,
+  onMobileClose,
 }: SidebarInnerProps) {
   const allowedItems = NAV_ITEMS.filter((item) => {
     if (allowedNavKeys) return allowedNavKeys.includes(item.key);
@@ -122,11 +127,22 @@ function SidebarInner({
 
   return (
     <TooltipProvider delayDuration={0}>
+      {/* Backdrop — only rendered while the mobile drawer is open */}
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+          aria-hidden="true"
+        />
+      )}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen flex flex-col transition-all duration-300 ease-in-out",
+          "fixed left-0 top-0 z-50 h-screen flex flex-col transition-transform duration-300 ease-in-out lg:transition-all",
           "bg-[#1E3A5F] border-r border-[#2a4a73]",
-          collapsed ? "w-16" : "w-64"
+          // Below lg the sidebar is a drawer: full 64 width, slid off-screen unless open.
+          mobileOpen ? "translate-x-0 w-64" : "-translate-x-full w-64",
+          collapsed ? "lg:w-16" : "lg:w-64",
+          "lg:translate-x-0"
         )}
       >
         {/* Logo */}
@@ -198,8 +214,8 @@ function SidebarInner({
           })}
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="px-2 py-2 border-t border-[#2a4a73]">
+        {/* Collapse Toggle — desktop only; on mobile the drawer is full width */}
+        <div className="hidden lg:block px-2 py-2 border-t border-[#2a4a73]">
           <button
             onClick={() => onCollapsedChange(!collapsed)}
             className="flex items-center justify-center h-8 w-full rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150"
@@ -298,8 +314,13 @@ export function AppShellClient({
   allowedNavKeys,
 }: AppShellClientProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Close the mobile drawer whenever navigation happens, otherwise it stays
+  // open on top of the page the user just navigated to.
+  React.useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
@@ -323,8 +344,11 @@ export function AppShellClient({
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
         allowedNavKeys={allowedNavKeys}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
       />
       <Topbar
+        onMenuClick={() => setMobileOpen(true)}
         breadcrumbs={breadcrumbs}
         notificationCount={notificationCount}
         userName={userName}
@@ -337,10 +361,12 @@ export function AppShellClient({
       <main
         className={cn(
           "pt-16 min-h-screen transition-all duration-300 ease-in-out",
-          sidebarCollapsed ? "pl-16" : "pl-64"
+          // No left offset below lg — the sidebar is off-canvas there.
+          "pl-0",
+          sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"
         )}
       >
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
     </div>
   );

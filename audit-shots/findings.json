@@ -3,14 +3,34 @@
     {
       "sev": "MEDIUM",
       "area": "auth",
-      "msg": "Login is slow: 22.8s to redirect"
+      "msg": "Login is slow: 5.2s to redirect"
     },
     {
-      "sev": "BLOCKER",
-      "area": "auth",
-      "msg": "Login failed for admin@illumestudentservices.cloud. Still at https://illumestudentservices.cloud/login?email=admin%40illumestudentservices.cloud&password=Illume%40Admin2026%21"
+      "sev": "HIGH",
+      "area": "knowledge",
+      "msg": "1 console error(s)"
+    },
+    {
+      "sev": "MEDIUM",
+      "area": "responsive",
+      "msg": "/dashboard overflows horizontally by 103px on mobile"
+    },
+    {
+      "sev": "MEDIUM",
+      "area": "responsive",
+      "msg": "/students overflows horizontally by 90px on mobile"
+    },
+    {
+      "sev": "MEDIUM",
+      "area": "responsive",
+      "msg": "/reports overflows horizontally by 242px on mobile"
     }
   ],
-  "consoleErrors": [],
+  "consoleErrors": [
+    {
+      "url": "https://illumestudentservices.cloud/knowledge",
+      "text": "PAGEERROR: Error: Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    }
+  ],
   "netFails": []
 }

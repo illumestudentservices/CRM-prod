@@ -129,7 +129,7 @@ function ArticleCard({
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            {new Date(article.createdAt).toLocaleDateString()}
+            {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
           </span>
         </div>
       </CardContent>
@@ -179,7 +179,7 @@ function ArticleDialog({
             </span>
             <span className="flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(article.createdAt).toLocaleDateString()}
+              {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
           </div>
           <div className="prose prose-sm max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
@@ -603,7 +603,7 @@ export function KnowledgeClient({
                 category: a.category,
                 tags: a.tags.join(", ") || "—",
                 views: a.views,
-                createdAt: new Date(a.createdAt).toLocaleDateString(),
+                createdAt: new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
               })),
               columns: [
                 { key: "title", header: "Title" },
@@ -621,7 +621,7 @@ export function KnowledgeClient({
                 category: a.category,
                 tags: a.tags.join(", ") || "—",
                 views: a.views,
-                createdAt: new Date(a.createdAt).toLocaleDateString(),
+                createdAt: new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
               })),
               columns: [
                 { key: "title", header: "Title" },

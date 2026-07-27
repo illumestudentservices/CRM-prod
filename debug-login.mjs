@@ -33,7 +33,7 @@ console.log("BUTTONS:", JSON.stringify(buttons, null, 2));
 
 console.log("\n--- Filling form ---");
 await page.fill('input[type="email"]', "admin@illumestudentservices.cloud");
-await page.fill('input[type="password"]', "Illume@Admin2026!");
+await page.fill('input[type="password"]', "Ilm-Fw35HO0aXRBk");
 await page.screenshot({ path: join(OUT, "dbg-1-filled.png") });
 
 console.log("--- Submitting ---");

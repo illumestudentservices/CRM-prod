@@ -4,7 +4,7 @@ import { join } from "path";
 
 const BASE = "https://illumestudentservices.cloud";
 const EMAIL = "admin@illumestudentservices.cloud";
-const PASSWORD = "Illume@Admin2026!";
+const PASSWORD = "Ilm-Fw35HO0aXRBk";
 const OUT = join(import.meta.dirname, "audit-shots");
 mkdirSync(OUT, { recursive: true });
 
@@ -57,15 +57,17 @@ page.on("response", (r) => {
 });
 
 console.log("=== LOGIN ===");
-await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded", timeout: 60000 });
+await page.goto(`${BASE}/login`, { waitUntil: "networkidle", timeout: 60000 });
 await page.screenshot({ path: join(OUT, "00-login.png") });
 
 await page.fill('input[type="email"]', EMAIL);
 await page.fill('input[type="password"]', PASSWORD);
+// Button stays disabled until React hydrates; wait for it so we don't race.
+await page.waitForSelector('button[type="submit"]:not([disabled])', { timeout: 30000 });
 const tLogin = Date.now();
 await page.click('button[type="submit"]');
-for (let i = 0; i < 15; i++) {
-  await page.waitForTimeout(1500);
+for (let i = 0; i < 20; i++) {
+  await page.waitForTimeout(1000);
   if (!page.url().includes("/login")) break;
 }
 const loginMs = Date.now() - tLogin;
