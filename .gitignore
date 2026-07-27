@@ -50,3 +50,5 @@ audit-shots/
 audit-e2e.mjs
 debug-login.mjs
 .ssh-helper.py
+check-2fa.mjs
+verify-mfa.mjs
