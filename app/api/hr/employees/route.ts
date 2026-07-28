@@ -199,25 +199,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Seed default leave balances for current year
-      const year = new Date().getFullYear();
-      await tx.leaveBalance.createMany({
-        data: [
-          { leaveType: "ANNUAL" as const, totalDays: 20 },
-          { leaveType: "SICK" as const, totalDays: 10 },
-          { leaveType: "MATERNITY" as const, totalDays: 90 },
-          { leaveType: "PATERNITY" as const, totalDays: 5 },
-          { leaveType: "UNPAID" as const, totalDays: 30 },
-          { leaveType: "COMP_OFF" as const, totalDays: 0 },
-        ].map((l) => ({
-          employeeId: emp.id,
-          leaveType: l.leaveType,
-          year,
-          totalDays: l.totalDays,
-          usedDays: 0,
-          pendingDays: 0,
-        })),
-      });
+      // No leave balances are seeded. Entitlement is derived from startDate and
+      // the policy in lib/leave-policy.ts, so seeding a flat allocation here
+      // would both ignore the joining date and leave a row that expires at year
+      // end. Consumption rows are created on first use.
 
       return emp;
     });

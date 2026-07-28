@@ -907,17 +907,23 @@ model Employee {
   @@map("employees")
 }
 
+/// Records only what has been *consumed*. Entitlement itself is derived from the
+/// employee's joining date and the policy in lib/leave-policy.ts, so there is no
+/// allocation row to expire at year end and mid-year joiners pro-rate naturally.
+/// totalDays is retained for historical rows; adjustmentDays is the supported
+/// way for HR to grant or dock days on top of the computed entitlement.
 model LeaveBalance {
-  id          String    @id @default(uuid())
-  employeeId  String
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType
-  year        Int
-  totalDays   Float     @default(0)
-  usedDays    Float     @default(0)
-  pendingDays Float     @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType     LeaveType
+  year          Int
+  totalDays     Float     @default(0)
+  adjustmentDays Float    @default(0)
+  usedDays      Float     @default(0)
+  pendingDays   Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([employeeId, leaveType, year])
   @@map("leave_balances")

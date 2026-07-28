@@ -19,9 +19,19 @@ interface Balance {
   employeeId: string;
   leaveType: string;
   year: number;
+  /** Accrued entitlement plus any HR adjustment. */
   totalDays: number;
   usedDays: number;
   pendingDays: number;
+  /** Days granted or docked by HR on top of the accrued figure. */
+  adjustmentDays: number;
+  availableDays: number;
+  accruedDays: number;
+  inWaitingPeriod: boolean;
+  eligibleFrom: string | null;
+  nextAccrualOn: string | null;
+  tracksBalance: boolean;
+  policySummary: string;
   employee: {
     employeeId: string;
     user: { name: string | null };
@@ -80,15 +90,18 @@ export function LeaveBalances() {
 
   function openEdit(b: Balance) {
     setEditTarget(b);
-    setNewTotal(String(b.totalDays));
+    setNewTotal(String(b.adjustmentDays ?? 0));
     setReason("");
   }
 
   async function saveEdit() {
     if (!editTarget) return;
-    const total = parseFloat(newTotal);
-    if (isNaN(total) || total < 0) {
-      toast({ title: "Invalid value", variant: "destructive" });
+    // An adjustment sits on top of the accrued figure and may be negative, so
+    // overwriting the entitlement outright is no longer offered — accrual would
+    // simply recompute over it.
+    const adjustment = parseFloat(newTotal);
+    if (isNaN(adjustment)) {
+      toast({ title: "Enter a number of days", variant: "destructive" });
       return;
     }
     if (!reason.trim()) {
@@ -103,7 +116,7 @@ export function LeaveBalances() {
         employeeId: editTarget.employeeId,
         leaveType: editTarget.leaveType,
         year: editTarget.year,
-        totalDays: total,
+        adjustmentDays: adjustment,
         reason: reason.trim(),
       }),
     });
@@ -194,7 +207,9 @@ export function LeaveBalances() {
               </TableRow>
             ) : (
               filtered.map((b) => {
-                const remaining = b.totalDays - b.usedDays - b.pendingDays;
+                // Server already nets off used and pending against the accrued
+                // figure — recomputing here would drift from what's enforced.
+                const remaining = b.availableDays;
                 const usedPct = b.totalDays > 0 ? Math.round((b.usedDays / b.totalDays) * 100) : 0;
                 return (
                   <TableRow key={b.id} className="hover:bg-slate-50">
@@ -213,7 +228,34 @@ export function LeaveBalances() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="text-sm font-semibold text-slate-900">{b.totalDays}d</span>
+                      {!b.tracksBalance ? (
+                        <span className="text-xs text-slate-400">Not tracked</span>
+                      ) : b.inWaitingPeriod ? (
+                        <span
+                          className="text-xs text-amber-600"
+                          title={
+                            b.eligibleFrom
+                              ? `Eligible from ${new Date(b.eligibleFrom).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                              : undefined
+                          }
+                        >
+                          Not yet eligible
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold text-slate-900">{b.totalDays}d</span>
+                          {b.adjustmentDays !== 0 && (
+                            <span
+                              className="text-[10px] text-slate-400 ml-1"
+                              title="Includes an HR adjustment"
+                            >
+                              ({b.accruedDays}
+                              {b.adjustmentDays > 0 ? "+" : ""}
+                              {b.adjustmentDays})
+                            </span>
+                          )}
+                        </>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <span className="text-sm text-slate-700">{b.usedDays}d</span>
@@ -255,32 +297,45 @@ export function LeaveBalances() {
       <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit Leave Balance</DialogTitle>
+            <DialogTitle>Adjust Leave Balance</DialogTitle>
           </DialogHeader>
           {editTarget && (
             <div className="space-y-4">
               <div className="bg-slate-50 rounded-lg p-3 space-y-1 text-sm">
                 <p className="font-medium">{editTarget.employee.user.name}</p>
                 <p className="text-slate-500">{LEAVE_LABELS[editTarget.leaveType]} · {editTarget.year}</p>
-                <div className="flex gap-4 text-xs text-slate-400 pt-1">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1">
+                  <span>Accrued: <strong className="text-slate-700">{editTarget.accruedDays}d</strong></span>
                   <span>Used: <strong className="text-slate-700">{editTarget.usedDays}d</strong></span>
                   <span>Pending: <strong className="text-slate-700">{editTarget.pendingDays}d</strong></span>
-                  <span>Current: <strong className="text-slate-700">{editTarget.totalDays}d</strong></span>
+                  <span>Available: <strong className="text-slate-700">{editTarget.availableDays}d</strong></span>
                 </div>
               </div>
 
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Policy</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{editTarget.policySummary}</p>
+              </div>
+
               <div className="space-y-2">
-                <Label>New Allocated Days</Label>
+                <Label>Adjustment (days)</Label>
                 <Input
                   type="number"
-                  min={0}
+                  step="0.5"
+                  min={-365}
                   max={365}
                   value={newTotal}
                   onChange={(e) => setNewTotal(e.target.value)}
                   className="w-full"
                 />
+                {/* The entitlement itself is recomputed from the policy, so an
+                    override would be overwritten — an adjustment layers on top. */}
                 <p className="text-xs text-slate-400">
-                  Min cannot go below used ({editTarget.usedDays}d) + pending ({editTarget.pendingDays}d) = {editTarget.usedDays + editTarget.pendingDays}d
+                  Added on top of the accrued {editTarget.accruedDays}d. Use a negative
+                  number to dock days. Entitlement becomes{" "}
+                  <strong className="text-slate-600">
+                    {Math.round((editTarget.accruedDays + (parseFloat(newTotal) || 0)) * 100) / 100}d
+                  </strong>.
                 </p>
               </div>
 
