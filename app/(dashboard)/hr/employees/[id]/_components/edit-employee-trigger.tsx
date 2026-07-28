@@ -15,6 +15,7 @@ interface EditEmployeeTriggerProps {
   initial: {
     jobTitle: string;
     employmentType: string;
+    startDate: string;
     phone: string | null;
     emergencyContact: string | null;
     emergencyPhone: string | null;

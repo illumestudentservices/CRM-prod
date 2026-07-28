@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -18,6 +19,10 @@ const patchEmployeeSchema = z.object({
   address: z.string().optional().nullable(),
   photoUrl: z.string().url().optional().nullable(),
   isActive: z.boolean().optional(),
+  // Leave entitlement is derived from startDate (see lib/leave-policy.ts), so
+  // correcting a wrong joining date immediately reprices every accrual. HR-only,
+  // and audited below, because it silently moves someone's balance.
+  startDate: z.string().transform((v) => new Date(v)).optional(),
   endDate: z.string().transform((v) => new Date(v)).optional().nullable(),
   // User account fields (SUPER_ADMIN only)
   name: z.string().min(2).optional(),
@@ -147,7 +152,7 @@ export async function PATCH(
 
   // Split fields by permission level
   const superAdminUserFields = ["name", "email", "role", "regionId"];
-  const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "endDate"];
+  const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "startDate", "endDate"];
   const selfFields = ["phone", "emergencyContact", "emergencyPhone", "address", "photoUrl"];
 
   const employeeUpdate: Record<string, unknown> = {};
@@ -190,6 +195,21 @@ export async function PATCH(
         )]
       : []),
   ]);
+
+  // A joining-date change reprices every leave accrual for that employee, with
+  // no other trace that anything happened — so record the before and after.
+  if (employeeUpdate.startDate) {
+    const before = employee.startDate.toISOString().slice(0, 10);
+    const after = (employeeUpdate.startDate as Date).toISOString().slice(0, 10);
+    if (before !== after) {
+      void logActivity(session.user.id, "UPDATE", "EMPLOYEE", id, {
+        field: "startDate",
+        from: before,
+        to: after,
+        note: "Joining date changed — leave entitlement recalculated",
+      });
+    }
+  }
 
   return NextResponse.json({ employee: updated });
 }

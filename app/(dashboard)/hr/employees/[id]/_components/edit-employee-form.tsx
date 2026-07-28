@@ -21,6 +21,8 @@ interface EditEmployeeFormProps {
   initial: {
     jobTitle: string;
     employmentType: string;
+    /** ISO date. Drives leave accrual, so editing it reprices entitlement. */
+    startDate: string;
     phone: string | null;
     emergencyContact: string | null;
     emergencyPhone: string | null;
@@ -64,6 +66,7 @@ export function EditEmployeeForm({
     // HR fields
     jobTitle: initial.jobTitle,
     employmentType: initial.employmentType,
+    startDate: initial.startDate?.slice(0, 10) ?? "",
     isActive: initial.isActive,
     departmentId: initial.departmentId ?? "none",
     managerId: initial.managerId ?? "none",
@@ -87,6 +90,7 @@ export function EditEmployeeForm({
     if (isHR) {
       payload.jobTitle = form.jobTitle;
       payload.employmentType = form.employmentType;
+      if (form.startDate) payload.startDate = form.startDate;
       payload.isActive = form.isActive;
       payload.departmentId = form.departmentId === "none" ? null : form.departmentId;
       payload.managerId = form.managerId === "none" ? null : form.managerId;
@@ -168,6 +172,20 @@ export function EditEmployeeForm({
               <div className="space-y-1.5">
                 <Label>Job Title</Label>
                 <Input value={form.jobTitle} onChange={(e) => set("jobTitle", e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Date of Joining</Label>
+                <Input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => set("startDate", e.target.value)}
+                />
+                {form.startDate !== (initial.startDate?.slice(0, 10) ?? "") && (
+                  <p className="text-xs text-amber-600">
+                    Changing this recalculates leave entitlement immediately, including
+                    days already accrued. The change is recorded in the activity log.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

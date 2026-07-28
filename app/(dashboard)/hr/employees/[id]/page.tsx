@@ -96,6 +96,7 @@ export default async function EmployeeDetailPage({
                 initial={{
                   jobTitle: employee.jobTitle,
                   employmentType: employee.employmentType,
+                  startDate: employee.startDate.toISOString(),
                   phone: employee.phone,
                   emergencyContact: employee.emergencyContact,
                   emergencyPhone: employee.emergencyPhone,
