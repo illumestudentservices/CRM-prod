@@ -38,8 +38,7 @@ console.log("SCHEMA STRICTNESS");
   check("unknown fields are refused, not silently dropped", bad.status() === 422);
 }
 
-console.log("
-STAGE 1 — New Lead");
+console.log("\nSTAGE 1 — New Lead");
 let r = await p.request.patch(`${L}/stage`, { headers: J, data: { stage: "CONTACTED" } });
 let j = await r.json();
 check("blocked while incomplete", r.status() === 422, `${msgs(j).length} blockers`);

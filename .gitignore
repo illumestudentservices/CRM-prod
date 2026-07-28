@@ -76,3 +76,5 @@ verify-bugs.mjs
 verify-p1.mjs
 check-accts.mjs
 enrol-icr.mjs
+verify-gate.mjs
+dbg.mjs
