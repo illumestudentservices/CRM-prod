@@ -25,7 +25,31 @@ const updateLeadSchema = z.object({
   sourceId: z.string().min(1).optional().nullable(),
   eventId: z.string().min(1).optional().nullable(),
   lastContactedAt: z.string().datetime().optional().nullable(),
-});
+
+  // ─── Pipeline capture fields ──────────────────────────────────────────
+  // The gate blocks progression on these, so they must be writable. Omitting
+  // them meant the API accepted them, returned 200, and silently discarded
+  // them — the caller believed the data was saved and the gate kept blocking.
+  intendedDestination: z.string().min(1).optional().nullable(),
+  preferredCountry: z.string().min(1).optional().nullable(),
+  budgetRange: z
+    .enum(["UNDER_10K", "FROM_10K_TO_20K", "FROM_20K_TO_35K", "FROM_35K_TO_50K", "OVER_50K", "UNDECIDED"])
+    .optional()
+    .nullable(),
+  currentQualification: z.string().min(1).optional().nullable(),
+  counsellingOutcome: z.string().min(1).optional().nullable(),
+  academicQualification: z.string().min(1).optional().nullable(),
+  englishStatus: z
+    .enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"])
+    .optional()
+    .nullable(),
+  eligibilityConfirmedAt: z.string().datetime().optional().nullable(),
+  enrolmentDate: z.string().datetime().optional().nullable(),
+})
+  // Reject unknown keys rather than dropping them. Silently discarding a field
+  // while returning 200 is worse than refusing it: the caller has no way to
+  // know the write did not happen.
+  .strict();
 
 // ─── Access control helper ────────────────────────────────────────────────────
 
