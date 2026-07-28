@@ -23,6 +23,7 @@ import { StageSelector } from "./_components/stage-selector";
 import { ActivityTimeline, type ActivityItem } from "./_components/activity-timeline";
 import { ActivitiesPanel } from "./_components/activities-panel";
 import { ChecklistPanel } from "./_components/checklist-panel";
+import { ApplicationPanel } from "./_components/application-panel";
 import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
 
@@ -233,6 +234,20 @@ export default async function LeadDetailPage({
             </CardHeader>
             <CardContent>
               <ActivitiesPanel leadId={lead.id} />
+            </CardContent>
+          </Card>
+
+          {/* Applications — Stages 4, 6 and 7 read their required fields here */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-slate-800">Applications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ApplicationPanel
+                leadId={lead.id}
+                institutions={institutions}
+                defaultProgram={lead.interestedProgram}
+              />
             </CardContent>
           </Card>
 
