@@ -70,3 +70,5 @@ kb-dark.mjs
 leave-live.mjs
 leave-apply.mjs
 doj-test.mjs
+verify-p1.mjs
+verify-bugs.mjs
