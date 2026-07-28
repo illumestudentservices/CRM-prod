@@ -7,6 +7,7 @@ import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS, CLOSED_STAGES } from "@/lib/lead-pipeline";
 import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
 import { canAccessLead, loadLeadForGate } from "@/lib/lead-access";
+import { CHECKLIST_TRIGGERS, resolveChecklist } from "@/lib/lead-checklists";
 import { sendLeadStageChangeEmail } from "@/lib/email";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 
@@ -161,6 +162,29 @@ export async function PATCH(
         { error: "This lead was moved by someone else. Reload and try again." },
         { status: 409 }
       );
+    }
+
+    // Checklists are generated on *entering* a stage, so the document list is
+    // already there by the time the gate asks for it on the way out.
+    // createMany + skipDuplicates leans on the unique constraint, so a repeat
+    // advance cannot produce a second copy.
+    const categories = CHECKLIST_TRIGGERS[newStage];
+    if (categories?.length) {
+      const rows = categories.flatMap((category) =>
+        resolveChecklist(category, {
+          destination: lead.intendedDestination ?? lead.preferredCountry,
+          studyLevel: lead.studyLevel,
+        }).map((item) => ({
+          leadId: id,
+          category,
+          label: item.label,
+          isRequired: item.isRequired,
+          order: item.order,
+        }))
+      );
+      if (rows.length) {
+        await db.leadChecklistItem.createMany({ data: rows, skipDuplicates: true });
+      }
     }
 
     const updatedLead = await db.lead.findUniqueOrThrow({

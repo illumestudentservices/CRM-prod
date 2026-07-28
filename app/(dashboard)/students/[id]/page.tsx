@@ -21,9 +21,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StageSelector } from "./_components/stage-selector";
 import { ActivityTimeline, type ActivityItem } from "./_components/activity-timeline";
+import { ActivitiesPanel } from "./_components/activities-panel";
+import { ChecklistPanel } from "./_components/checklist-panel";
 import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
-import type { LeadStage } from "@prisma/client";
+
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
 
@@ -214,14 +216,40 @@ export default async function LeadDetailPage({
               <CardTitle className="text-sm font-semibold text-slate-800">Pipeline Stage</CardTitle>
             </CardHeader>
             <CardContent>
-              <StageSelector leadId={lead.id} currentStage={lead.stage} />
+              <StageSelector
+                leadId={lead.id}
+                currentStage={lead.stage}
+                stageEnteredAt={lead.stageEnteredAt.toISOString()}
+              />
             </CardContent>
           </Card>
 
-          {/* Activity timeline */}
+          {/* Engagements — these are what satisfy the pipeline gates */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Activity</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800">
+                Activities &amp; Follow-ups
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivitiesPanel leadId={lead.id} />
+            </CardContent>
+          </Card>
+
+          {/* Checklists, generated on reaching Qualified and Deposit Paid */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-slate-800">Checklists</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChecklistPanel leadId={lead.id} />
+            </CardContent>
+          </Card>
+
+          {/* Audit trail */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-slate-800">History</CardTitle>
             </CardHeader>
             <CardContent>
               <ActivityTimeline activities={activities} />
