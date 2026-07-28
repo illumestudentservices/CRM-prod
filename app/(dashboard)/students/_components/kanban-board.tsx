@@ -21,109 +21,32 @@ import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { LeadCard, type LeadWithRelations } from "./lead-card";
 import type { LeadStage } from "@prisma/client";
+import { ALL_STAGES, STAGE_LABELS as PIPELINE_STAGE_LABELS } from "@/lib/lead-pipeline";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const STAGE_LABELS: Record<LeadStage, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "Application Sent",
-  DOCUMENTS_RECEIVED: "Documents Received",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-  DEFERRED: "Deferred",
-  REJECTED: "Rejected",
-  LOST: "Lost",
-};
+// Stage order and labels come from lib/lead-pipeline.ts. Local copies are what
+// let a previous rename compile cleanly while rendering nothing.
+export { STAGE_LABELS } from "@/lib/lead-pipeline";
 
-const STAGE_ORDER: LeadStage[] = [
-  "NEW",
-  "CONTACTED",
-  "APPLICATION_SENT",
-  "DOCUMENTS_RECEIVED",
-  "OFFER_ISSUED",
-  "ENROLLED",
-  "DEFERRED",
-  "REJECTED",
-  "LOST",
-];
+const STAGE_ORDER: readonly LeadStage[] = ALL_STAGES;
 
 const COLUMN_CONFIG: Record<
   LeadStage,
-  { label: string; headerBg: string; headerText: string; countBg: string; countText: string; borderColor: string }
+  { headerBg: string; headerText: string; countBg: string; countText: string; borderColor: string }
 > = {
-  NEW: {
-    label: "New",
-    headerBg: "bg-slate-50",
-    headerText: "text-slate-700",
-    countBg: "bg-slate-200",
-    countText: "text-slate-700",
-    borderColor: "border-slate-200",
-  },
-  CONTACTED: {
-    label: "Contacted",
-    headerBg: "bg-blue-50",
-    headerText: "text-blue-700",
-    countBg: "bg-blue-200",
-    countText: "text-blue-800",
-    borderColor: "border-blue-200",
-  },
-  APPLICATION_SENT: {
-    label: "Application Sent",
-    headerBg: "bg-indigo-50",
-    headerText: "text-indigo-700",
-    countBg: "bg-indigo-200",
-    countText: "text-indigo-800",
-    borderColor: "border-indigo-200",
-  },
-  DOCUMENTS_RECEIVED: {
-    label: "Docs Received",
-    headerBg: "bg-violet-50",
-    headerText: "text-violet-700",
-    countBg: "bg-violet-200",
-    countText: "text-violet-800",
-    borderColor: "border-violet-200",
-  },
-  OFFER_ISSUED: {
-    label: "Offer Issued",
-    headerBg: "bg-amber-50",
-    headerText: "text-amber-700",
-    countBg: "bg-amber-200",
-    countText: "text-amber-800",
-    borderColor: "border-amber-200",
-  },
-  ENROLLED: {
-    label: "Enrolled",
-    headerBg: "bg-green-50",
-    headerText: "text-green-700",
-    countBg: "bg-green-200",
-    countText: "text-green-800",
-    borderColor: "border-green-200",
-  },
-  DEFERRED: {
-    label: "Deferred",
-    headerBg: "bg-orange-50",
-    headerText: "text-orange-700",
-    countBg: "bg-orange-200",
-    countText: "text-orange-800",
-    borderColor: "border-orange-200",
-  },
-  REJECTED: {
-    label: "Rejected",
-    headerBg: "bg-red-50",
-    headerText: "text-red-700",
-    countBg: "bg-red-200",
-    countText: "text-red-800",
-    borderColor: "border-red-200",
-  },
-  LOST: {
-    label: "Lost",
-    headerBg: "bg-gray-50",
-    headerText: "text-gray-600",
-    countBg: "bg-gray-200",
-    countText: "text-gray-700",
-    borderColor: "border-gray-200",
-  },
+  NEW_LEAD:              { headerBg: "bg-slate-50",   headerText: "text-slate-700",   countBg: "bg-slate-200",   countText: "text-slate-700",   borderColor: "border-slate-200" },
+  CONTACTED:             { headerBg: "bg-sky-50",     headerText: "text-sky-700",     countBg: "bg-sky-200",     countText: "text-sky-800",     borderColor: "border-sky-200" },
+  QUALIFIED:             { headerBg: "bg-cyan-50",    headerText: "text-cyan-700",    countBg: "bg-cyan-200",    countText: "text-cyan-800",    borderColor: "border-cyan-200" },
+  APPLICATION_SUBMITTED: { headerBg: "bg-indigo-50",  headerText: "text-indigo-700",  countBg: "bg-indigo-200",  countText: "text-indigo-800",  borderColor: "border-indigo-200" },
+  AWAITING_DECISION:     { headerBg: "bg-violet-50",  headerText: "text-violet-700",  countBg: "bg-violet-200",  countText: "text-violet-800",  borderColor: "border-violet-200" },
+  OFFER_RECEIVED:        { headerBg: "bg-blue-50",    headerText: "text-blue-700",    countBg: "bg-blue-200",    countText: "text-blue-800",    borderColor: "border-blue-200" },
+  DEPOSIT_PAID:          { headerBg: "bg-teal-50",    headerText: "text-teal-700",    countBg: "bg-teal-200",    countText: "text-teal-800",    borderColor: "border-teal-200" },
+  ENROLLED:              { headerBg: "bg-green-50",   headerText: "text-green-700",   countBg: "bg-green-200",   countText: "text-green-800",   borderColor: "border-green-200" },
+  LOST:                  { headerBg: "bg-gray-50",    headerText: "text-gray-600",    countBg: "bg-gray-200",    countText: "text-gray-700",    borderColor: "border-gray-200" },
+  DEFERRED:              { headerBg: "bg-orange-50",  headerText: "text-orange-700",  countBg: "bg-orange-200",  countText: "text-orange-800",  borderColor: "border-orange-200" },
+  APPLICATION_REJECTED:  { headerBg: "bg-red-50",     headerText: "text-red-700",     countBg: "bg-red-200",     countText: "text-red-800",     borderColor: "border-red-200" },
 };
 
 // ─── Column component ─────────────────────────────────────────────────────────
@@ -157,7 +80,7 @@ function KanbanColumn({ stage, leads, isOver }: KanbanColumnProps) {
         )}
       >
         <span className={cn("text-xs font-semibold uppercase tracking-wide", config.headerText)}>
-          {config.label}
+          {PIPELINE_STAGE_LABELS[stage]}
         </span>
         <span
           className={cn(
@@ -206,7 +129,11 @@ type LeadsByStage = Record<LeadStage, LeadWithRelations[]>;
 function groupByStage(leads: LeadWithRelations[]): LeadsByStage {
   const result = Object.fromEntries(STAGE_ORDER.map((s) => [s, []])) as unknown as LeadsByStage;
   for (const lead of leads) {
-    result[lead.stage].push(lead);
+    // Defensive: a lead carrying a stage the board doesn't know about would
+    // otherwise throw and blank the entire page.
+    const bucket = result[lead.stage];
+    if (bucket) bucket.push(lead);
+    else console.warn(`[kanban] unknown stage "${lead.stage}" on lead ${lead.id}`);
   }
   return result;
 }
@@ -217,6 +144,7 @@ export function KanbanBoard({ initialLeads }: KanbanBoardProps) {
   );
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [overColumnId, setOverColumnId] = React.useState<LeadStage | null>(null);
+  const { toast } = useToast();
 
   // Sync board when filtered leads change (filter/search applied in parent)
   React.useEffect(() => {
@@ -322,13 +250,12 @@ export function KanbanBoard({ initialLeads }: KanbanBoardProps) {
       return { ...prev, [fromStage]: newFrom, [toStage]: toItems };
     });
 
-    // Persist to API
-    fetch(`/api/leads/${activeLeadId}/stage`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: toStage }),
-    }).catch(() => {
-      // Revert on error
+    // Persist to API.
+    //
+    // `fetch` only rejects on network failure, so a 4xx from the stage gate
+    // resolves normally. Checking `res.ok` is what makes a refused move
+    // actually snap back instead of silently appearing to succeed.
+    const revert = () =>
       setLeadsByStage((prev) => {
         const revertedLead = { ...lead, stage: fromStage };
         const newTo = prev[toStage].filter((l) => l.id !== activeLeadId);
@@ -336,7 +263,31 @@ export function KanbanBoard({ initialLeads }: KanbanBoardProps) {
         fromItems.push(revertedLead);
         return { ...prev, [fromStage]: fromItems, [toStage]: newTo };
       });
-    });
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/leads/${activeLeadId}/stage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: toStage }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          revert();
+          toast({
+            title: `Can't move to ${PIPELINE_STAGE_LABELS[toStage]}`,
+            description:
+              (Array.isArray(data.blockers) && data.blockers.length
+                ? data.blockers.map((b: { message: string }) => b.message).join(" · ")
+                : data.error) ?? "The move was rejected.",
+            variant: "destructive",
+          });
+        }
+      } catch {
+        revert();
+        toast({ title: "Connection lost", description: "The move was not saved.", variant: "destructive" });
+      }
+    })();
   }
 
   return (

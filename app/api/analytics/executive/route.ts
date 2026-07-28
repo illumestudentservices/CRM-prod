@@ -100,8 +100,8 @@ export async function GET() {
       }),
 
       // Recruitment
-      db.lead.count({ where: { stage: "APPLICATION_SENT", deletedAt: null } }),
-      db.lead.count({ where: { stage: "OFFER_ISSUED", deletedAt: null } }),
+      db.lead.count({ where: { stage: "APPLICATION_SUBMITTED", deletedAt: null } }),
+      db.lead.count({ where: { stage: "OFFER_RECEIVED", deletedAt: null } }),
       db.lead.count({ where: { stage: "ENROLLED", deletedAt: null } }),
       db.lead.count({ where: { deletedAt: null } }),
 

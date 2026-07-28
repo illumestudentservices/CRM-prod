@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 interface Lead {
   id: string;
   fullName: string;
-  phone: string;
+  phone: string | null;
 }
 
 interface Conversation {

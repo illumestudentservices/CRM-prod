@@ -3,21 +3,13 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import type { LeadStage } from "@prisma/client";
+import { ALL_STAGES } from "@/lib/lead-pipeline";
 import { sendLeadStageChangeEmail } from "@/lib/email";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 const stageSchema = z.object({
-  stage: z.enum([
-    "NEW",
-    "CONTACTED",
-    "APPLICATION_SENT",
-    "DOCUMENTS_RECEIVED",
-    "OFFER_ISSUED",
-    "ENROLLED",
-    "DEFERRED",
-    "REJECTED",
-    "LOST",
-  ]),
+  stage: z.enum(ALL_STAGES as unknown as [LeadStage, ...LeadStage[]]),
   note: z.string().optional(),
 });
 

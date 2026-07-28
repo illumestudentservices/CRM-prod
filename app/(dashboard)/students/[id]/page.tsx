@@ -27,29 +27,8 @@ import type { LeadStage } from "@prisma/client";
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
 
-export const STAGE_COLORS: Record<LeadStage, string> = {
-  NEW: "bg-slate-100 text-slate-700",
-  CONTACTED: "bg-blue-100 text-blue-700",
-  APPLICATION_SENT: "bg-indigo-100 text-indigo-700",
-  DOCUMENTS_RECEIVED: "bg-violet-100 text-violet-700",
-  OFFER_ISSUED: "bg-amber-100 text-amber-700",
-  ENROLLED: "bg-green-100 text-green-700",
-  DEFERRED: "bg-orange-100 text-orange-700",
-  REJECTED: "bg-red-100 text-red-700",
-  LOST: "bg-gray-100 text-gray-600",
-};
-
-export const STAGE_LABELS: Record<LeadStage, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "Application Sent",
-  DOCUMENTS_RECEIVED: "Documents Received",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-  DEFERRED: "Deferred",
-  REJECTED: "Rejected",
-  LOST: "Lost",
-};
+import { STAGE_BADGE_CLASSES as STAGE_COLORS, STAGE_LABELS } from "@/lib/lead-pipeline";
+export { STAGE_COLORS, STAGE_LABELS };
 
 // ─── Detail row ───────────────────────────────────────────────────────────────
 
@@ -162,11 +141,10 @@ export default async function LeadDetailPage({
     type: a.type,
     description: a.description,
     createdAt: a.createdAt,
-    user: {
-      id: a.user.id,
-      name: a.user.name,
-      image: a.user.image,
-    },
+    // Null for automated entries written by the pipeline cron.
+    user: a.user
+      ? { id: a.user.id, name: a.user.name, image: a.user.image }
+      : { id: "system", name: "Automation", image: null },
   }));
 
   const currentUser = {

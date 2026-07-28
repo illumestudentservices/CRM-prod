@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
         intakeYear: data.intakeYear,
         intakeMonth: data.intakeMonth,
         notes: data.notes,
-        stage: "NEW",
+        stage: "NEW_LEAD",
         createdById: userId,
         regionId: effectiveRegionId,
         assignedICRId: data.assignedICRId ?? (role === "ICR" ? userId : undefined),
@@ -248,8 +248,8 @@ export async function POST(req: NextRequest) {
         leadId: lead.id,
         userId,
         type: "STAGE_CHANGE",
-        description: `Lead created and placed in NEW stage`,
-        metadata: { from: null, to: "NEW" },
+        description: `Lead created and placed in New Lead stage`,
+        metadata: { from: null, to: "NEW_LEAD" },
       },
     });
 
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
         action: "CREATE",
         entity: "Lead",
         entityId: lead.id,
-        changes: { stage: "NEW", email: data.email },
+        changes: { stage: "NEW_LEAD", email: data.email },
       },
     });
 

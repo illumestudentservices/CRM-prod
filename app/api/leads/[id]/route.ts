@@ -19,7 +19,6 @@ const updateLeadSchema = z.object({
   intakeYear: z.number().int().min(2020).max(2035).optional(),
   intakeMonth: z.number().int().min(1).max(12).optional(),
   notes: z.string().optional().nullable(),
-  stage: z.enum(["NEW", "CONTACTED", "APPLICATION_SENT", "DOCUMENTS_RECEIVED", "OFFER_ISSUED", "ENROLLED", "DEFERRED", "REJECTED", "LOST"]).optional(),
   regionId: z.string().min(1).optional().nullable(),
   assignedICRId: z.string().min(1).optional().nullable(),
   institutionId: z.string().min(1).optional().nullable(),
@@ -152,6 +151,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    // Stage moves must go through PATCH /api/leads/[id]/stage, which enforces
+    // the pipeline gate. Accepting `stage` here would bypass every requirement
+    // in the pipeline spec, so refuse it loudly rather than ignoring it.
+    if (body && typeof body === "object" && "stage" in body) {
+      return NextResponse.json(
+        {
+          error:
+            "Stage cannot be changed here. Use PATCH /api/leads/[id]/stage, which enforces the pipeline requirements.",
+        },
+        { status: 400 }
+      );
+    }
+
     const parsed = updateLeadSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -161,34 +173,16 @@ export async function PATCH(
     }
 
     const updates = parsed.data;
-    const stageChanged = updates.stage && updates.stage !== lead.stage;
-    const previousStage = lead.stage;
 
     const updatedLead = await db.lead.update({
       where: { id },
-      data: {
-        ...updates,
-        ...(stageChanged && { lastProgressedAt: new Date() }),
-      },
+      data: updates,
       include: {
         region: { select: { id: true, name: true } },
         assignedICR: { select: { id: true, name: true, email: true } },
         institution: { select: { id: true, name: true } },
       },
     });
-
-    // Create stage change activity
-    if (stageChanged && updates.stage) {
-      await db.leadActivity.create({
-        data: {
-          leadId: id,
-          userId,
-          type: "STAGE_CHANGE",
-          description: `Stage changed from ${previousStage} to ${updates.stage}`,
-          metadata: { from: previousStage, to: updates.stage },
-        },
-      });
-    }
 
     // Audit log
     await db.auditLog.create({

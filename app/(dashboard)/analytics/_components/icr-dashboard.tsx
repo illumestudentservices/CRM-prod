@@ -1,5 +1,7 @@
 "use client";
 
+import { PIPELINE_STAGES, isInactiveStage, isClosedStage, stageHex } from "@/lib/lead-pipeline";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, TrendingUp, GraduationCap, ListChecks } from "lucide-react";
@@ -48,17 +50,6 @@ interface SourceRow {
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW: "#1E3A5F",
-  CONTACTED: "#0EA5E9",
-  APPLICATION_SENT: "#0369A1",
-  DOCUMENTS_RECEIVED: "#38BDF8",
-  OFFER_ISSUED: "#F59E0B",
-  ENROLLED: "#22C55E",
-  DEFERRED: "#94A3B8",
-  REJECTED: "#EF4444",
-  LOST: "#CBD5E1",
-};
 
 interface DrillDown {
   open: boolean;
@@ -108,7 +99,7 @@ export function ICRDashboard() {
             const lastProgress = lead.lastProgressedAt ? new Date(lead.lastProgressedAt).getTime() : 0;
             const notContacted48h = lastContact < now48h;
             const noProgress7d = lastProgress < now7d;
-            return (notContacted48h || noProgress7d) && !["ENROLLED", "REJECTED", "LOST"].includes(lead.stage);
+            return (notContacted48h || noProgress7d) && !isInactiveStage(lead.stage);
           });
           setAttentionLeads(needsAttention.slice(0, 10));
 
@@ -140,13 +131,14 @@ export function ICRDashboard() {
   }, []);
 
   const stages = overview?.stageBreakdown ?? {};
-  const newLeads = stages["NEW"] ?? 0;
-  const inProgress = (stages["CONTACTED"] ?? 0) + (stages["APPLICATION_SENT"] ?? 0) + (stages["DOCUMENTS_RECEIVED"] ?? 0) + (stages["OFFER_ISSUED"] ?? 0);
+  const newLeads = stages["NEW_LEAD"] ?? 0;
+  // Everything actively being worked: past New Lead, not yet Enrolled.
+  const inProgress = PIPELINE_STAGES.slice(1, -1).reduce((n, s) => n + (stages[s] ?? 0), 0);
   const enrolled = stages["ENROLLED"] ?? 0;
   const totalLeads = overview?.totalLeadsYTD ?? 0;
 
   const pipelineData = Object.entries(stages)
-    .filter(([stage]) => !["REJECTED", "LOST"].includes(stage))
+    .filter(([stage]) => !isClosedStage(stage))
     .map(([stage, count]) => ({
       stage: stage.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       key: stage,
@@ -258,7 +250,7 @@ export function ICRDashboard() {
                     }
                   >
                     {pipelineData.map((entry) => (
-                      <Cell key={entry.key} fill={STAGE_COLORS[entry.key] ?? "#0EA5E9"} />
+                      <Cell key={entry.key} fill={stageHex(entry.key)} />
                     ))}
                   </Bar>
                 </BarChart>

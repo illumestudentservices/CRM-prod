@@ -1,4 +1,8 @@
 import { auth } from "@/lib/auth";
+import { ALL_STAGES, stageBadgeClass, stageLabel, PIPELINE_STAGES } from "@/lib/lead-pipeline";
+
+/** Live stages where a student is actively being worked. */
+const IN_PROGRESS_STAGES = PIPELINE_STAGES.slice(1, -1);
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
@@ -48,33 +52,9 @@ function calcChange(current: number, previous: number): number {
 
 // ─── Stage helpers ────────────────────────────────────────────────────────────
 
-const stageColors: Record<string, string> = {
-  NEW: "bg-slate-100 text-slate-700",
-  CONTACTED: "bg-blue-100 text-blue-700",
-  APPLICATION_SENT: "bg-violet-100 text-violet-700",
-  DOCUMENTS_RECEIVED: "bg-amber-100 text-amber-700",
-  OFFER_ISSUED: "bg-orange-100 text-orange-700",
-  ENROLLED: "bg-emerald-100 text-emerald-700",
-  DEFERRED: "bg-yellow-100 text-yellow-700",
-  REJECTED: "bg-red-100 text-red-700",
-  LOST: "bg-gray-100 text-gray-600",
-};
-
-const stageOrder = [
-  "NEW",
-  "CONTACTED",
-  "APPLICATION_SENT",
-  "DOCUMENTS_RECEIVED",
-  "OFFER_ISSUED",
-  "ENROLLED",
-  "DEFERRED",
-  "REJECTED",
-  "LOST",
-];
-
-function stageLabel(stage: string) {
-  return stage.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
+// Stage presentation and ordering come from lib/lead-pipeline.ts so a future
+// enum change fails the build here rather than silently rendering nothing.
+const stageOrder = ALL_STAGES;
 
 const accountStatusColors: Record<string, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-700",
@@ -268,7 +248,7 @@ async function getICRDashboardData(userId: string) {
     db.lead.count({
       where: {
         ...where,
-        stage: { in: ["CONTACTED", "APPLICATION_SENT", "DOCUMENTS_RECEIVED", "OFFER_ISSUED"] },
+        stage: { in: IN_PROGRESS_STAGES },
       },
     }),
     db.event.count({
@@ -496,7 +476,7 @@ function RecentLeadsCard({
                 <span
                   className={[
                     "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                    stageColors[lead.stage] ?? "bg-slate-100 text-slate-700",
+                    stageBadgeClass(lead.stage) ?? "bg-slate-100 text-slate-700",
                   ].join(" ")}
                 >
                   {stageLabel(lead.stage)}
@@ -540,7 +520,7 @@ function PipelineCard({ pipeline, total }: { pipeline: Record<string, number>; t
                 <span
                   className={[
                     "inline-flex items-center rounded-full px-2 py-0.5 font-medium",
-                    stageColors[stage] ?? "bg-slate-100 text-slate-700",
+                    stageBadgeClass(stage) ?? "bg-slate-100 text-slate-700",
                   ].join(" ")}
                 >
                   {stageLabel(stage)}

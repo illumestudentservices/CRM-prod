@@ -1,31 +1,13 @@
 "use client";
 
-const STAGE_ORDER = [
-  "NEW",
-  "CONTACTED",
-  "APPLICATION_SENT",
-  "DOCUMENTS_RECEIVED",
-  "OFFER_ISSUED",
-  "ENROLLED",
-];
+import { PIPELINE_STAGES, STAGE_LABELS, STAGE_HEX } from "@/lib/lead-pipeline";
 
-const STAGE_LABELS: Record<string, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "Application Sent",
-  DOCUMENTS_RECEIVED: "Docs Received",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-};
+// The funnel shows only the live pipeline; closed outcomes aren't funnel steps.
+// Derived rather than duplicated: the previous local copies were untyped, so a
+// stage rename left this rendering all zeros with no compile error.
+const STAGE_ORDER = PIPELINE_STAGES;
+const STAGE_COLORS = PIPELINE_STAGES.map((s) => STAGE_HEX[s]);
 
-const STAGE_COLORS = [
-  "#1E3A5F",
-  "#0E4F8A",
-  "#0369A1",
-  "#0EA5E9",
-  "#38BDF8",
-  "#22C55E",
-];
 
 interface ConversionFunnelProps {
   stageBreakdown: Record<string, number>;

@@ -20,16 +20,125 @@ enum Role {
   EMPLOYEE
 }
 
+/// Recruitment pipeline position.
+///
+/// Declared in pipeline order deliberately: `GET /api/leads?sortBy=stage` sorts
+/// by enum ordinal, so the declaration order IS the funnel order. The three
+/// closed outcomes come last so they sort below the live pipeline.
 enum LeadStage {
-  NEW
+  NEW_LEAD
   CONTACTED
-  APPLICATION_SENT
-  DOCUMENTS_RECEIVED
-  OFFER_ISSUED
+  QUALIFIED
+  APPLICATION_SUBMITTED
+  AWAITING_DECISION
+  OFFER_RECEIVED
+  DEPOSIT_PAID
   ENROLLED
-  DEFERRED
-  REJECTED
+  // Closed outcomes — reachable from any stage. The stage the lead was closed
+  // from is preserved in Lead.stageBeforeClose.
   LOST
+  DEFERRED
+  APPLICATION_REJECTED
+}
+
+/// Distinguishes audit rows from schedulable work.
+///
+/// Only ENGAGEMENT rows satisfy the pipeline's universal rule. If SYSTEM rows
+/// counted, a stage change would satisfy its own gate and the inactivity
+/// reminder would reset the very clock it is measuring.
+enum LeadActivityKind {
+  SYSTEM
+  ENGAGEMENT
+}
+
+/// The per-stage "Required Tasks" from the pipeline spec, made enforceable.
+/// Without types, "complete initial counselling" is satisfied by logging
+/// anything at all.
+enum LeadEngagementType {
+  COUNSELLING
+  ELIGIBILITY_REVIEW
+  OFFER_REVIEW
+  ENROLMENT_CONFIRMATION
+  POST_OFFER_SUPPORT
+  CALL
+  MEETING
+  EMAIL
+  WHATSAPP
+  FOLLOW_UP
+  OTHER
+}
+
+enum LeadLostReason {
+  NO_RESPONSE
+  FINANCIAL
+  COMPETITOR
+  ACADEMIC
+  VISA
+  PERSONAL
+  OTHER
+}
+
+enum ApplicationSubmissionMethod {
+  ONLINE_PORTAL
+  EMAIL
+  AGENT
+  DIRECT
+  OTHER
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  AWAITING_DECISION
+  OFFER_RECEIVED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum OfferType {
+  UNCONDITIONAL
+  CONDITIONAL
+  SCHOLARSHIP
+  REJECTED
+}
+
+enum StudentDecision {
+  ACCEPTED
+  DECLINED
+  UNDECIDED
+}
+
+enum AcceptanceStatus {
+  ACCEPTED
+  DEFERRED
+  WITHDRAWN
+}
+
+enum EnglishStatus {
+  IELTS
+  TOEFL
+  PTE
+  DUOLINGO
+  MOI
+  NATIVE_SPEAKER
+  NOT_TAKEN
+  EXEMPT
+}
+
+enum BudgetRange {
+  UNDER_10K
+  FROM_10K_TO_20K
+  FROM_20K_TO_35K
+  FROM_35K_TO_50K
+  OVER_50K
+  UNDECIDED
+}
+
+enum LeadChecklistCategory {
+  DOCUMENT
+  VISA
+  PRE_DEPARTURE
+  ACCOMMODATION
 }
 
 enum StudyLevel {
@@ -387,8 +496,11 @@ model Region {
 model Lead {
   id                 String     @id @default(uuid())
   fullName           String
-  email              String
-  phone              String
+  /// Nullable because the pipeline requires "Email OR Phone", not both.
+  /// Dedup must skip blank values or every phoneless lead matches every other.
+  email              String?
+  phone              String?
+  /// Citizenship, in pipeline terms. Distinct from countryOfResidence.
   nationality        String
   countryOfResidence String
   interestedProgram  String
@@ -397,7 +509,7 @@ model Lead {
   intakeYear         Int
   intakeMonth        Int
   notes              String?    @db.Text
-  stage              LeadStage  @default(NEW)
+  stage              LeadStage  @default(NEW_LEAD)
   isDuplicate        Boolean    @default(false)
   duplicateOfId      String?
   createdAt          DateTime   @default(now())
@@ -406,6 +518,53 @@ model Lead {
   createdById        String
   lastContactedAt    DateTime?
   lastProgressedAt   DateTime?
+
+  // ─── Pipeline mechanics ─────────────────────────────────────────────────
+  /// When the lead entered its current stage. Load-bearing for correctness,
+  /// not just the "Days in Current Stage" badge: the gate only counts
+  /// activities completed at or after this instant, which is what stops a
+  /// re-entered, reopened or reversed stage from being satisfied by stale work.
+  stageEnteredAt         DateTime  @default(now())
+  /// Stage the lead occupied before being closed. Preserves "where do we lose
+  /// students" even though closed outcomes overwrite `stage`.
+  stageBeforeClose       LeadStage?
+  inactivity14NotifiedAt DateTime?
+  inactivity21NotifiedAt DateTime?
+
+  // ─── Stage 1: New Lead ──────────────────────────────────────────────────
+  intendedDestination String?
+  /// Response-time SLA, started at capture and closed at first contact.
+  firstResponseDueAt  DateTime?
+  firstContactAt      DateTime?
+  responseTimeMinutes Int?
+
+  // ─── Stage 2: Contacted ─────────────────────────────────────────────────
+  preferredCountry     String?
+  budgetRange          BudgetRange?
+  currentQualification String?
+  counsellingOutcome   String?      @db.Text
+
+  // ─── Stage 3: Qualified ─────────────────────────────────────────────────
+  academicQualification String?
+  englishStatus         EnglishStatus?
+  eligibilityConfirmedAt DateTime?
+
+  // ─── Stage 8: Enrolled ──────────────────────────────────────────────────
+  enrolmentDate      DateTime?
+  isConverted        Boolean   @default(false)
+  commissionEligible Boolean   @default(false)
+  convertedAt        DateTime?
+
+  // ─── Closed outcomes ────────────────────────────────────────────────────
+  lostReason          LeadLostReason?
+  lostDate            DateTime?
+  lostNotes           String?         @db.Text
+  deferredIntakeYear  Int?
+  deferredIntakeMonth Int?
+  deferredReason      String?         @db.Text
+  deferredFollowUpAt  DateTime?
+  /// Stored at close rather than recomputed, so the reopen date is inspectable.
+  deferredReopenAt    DateTime?
 
   regionId       String?
   region         Region?      @relation(fields: [regionId], references: [id])
@@ -419,31 +578,141 @@ model Lead {
   eventId        String?
   event          Event?       @relation(fields: [eventId], references: [id])
 
+  /// Denormalised pointer to the application currently in play. A lead can
+  /// hold several over its lifetime — rejected by one institution, then
+  /// offered by another.
+  activeApplicationId String?
+
   activities           LeadActivity[]
   notesLog             LeadNote[]
   documents            LeadDocument[]
   forecastEntries      ForecastEntry[]
   whatsappConversations WhatsAppConversation[]
+  applications         LeadApplication[]
+  checklistItems       LeadChecklistItem[]
 
   @@index([email])
   @@index([stage])
   @@index([assignedICRId])
   @@index([institutionId])
+  /// Supports the inactivity cron and the "days in stage" sort.
+  @@index([stage, deletedAt])
+  @@index([stageEnteredAt])
   @@map("leads")
 }
 
+/// Two things in one table, separated by `kind`:
+///   SYSTEM     — immutable audit (stage changes, assignment, cron actions)
+///   ENGAGEMENT — schedulable, completable work that satisfies pipeline gates
+///
+/// Keeping them together means one timeline for the user; the discriminator
+/// keeps the gate honest.
 model LeadActivity {
   id          String   @id @default(uuid())
   leadId      String
   lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  /// Nullable so the automation cron can write SYSTEM rows without a phantom
+  /// service user appearing in ICR dashboards.
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
   type        String
   description String   @db.Text
   metadata    Json?
   createdAt   DateTime @default(now())
 
+  kind           LeadActivityKind    @default(SYSTEM)
+  engagementType LeadEngagementType?
+  /// Stage when scheduled, and when completed. The gate asks about completion,
+  /// and an activity booked in one stage is often completed in the next.
+  stageAtCreation   LeadStage?
+  stageAtCompletion LeadStage?
+  scheduledFor      DateTime?
+  completedAt       DateTime?
+  outcome           String?   @db.Text
+  /// Open future engagements are cancelled when a lead is closed, so they stop
+  /// appearing in task lists and triggering reminders.
+  cancelledAt     DateTime?
+  cancelledReason String?
+
+  @@index([leadId, createdAt])
+  @@index([leadId, kind, stageAtCompletion])
+  @@index([scheduledFor])
+  @@index([completedAt])
   @@map("lead_activities")
+}
+
+/// One row per application attempt. Modelling this as columns on Lead would
+/// mean creating an alternative application silently overwrites the rejected
+/// one — destroying exactly the history the rejection workflow exists to keep.
+model LeadApplication {
+  id            String      @id @default(uuid())
+  leadId        String
+  lead          Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  program       String
+
+  // Stage 4 — submission. The spec asks for both a user-entered date and a
+  // system timestamp; they answer different questions.
+  applicationNumber   String?
+  submissionMethod    ApplicationSubmissionMethod?
+  submissionDate      DateTime?
+  submissionRecordedAt DateTime?
+
+  status ApplicationStatus @default(SUBMITTED)
+
+  // Stage 6 — offer
+  offerType       OfferType?
+  offerReceivedAt DateTime?
+  offerExpiryDate DateTime?
+  offerConditions String?    @db.Text
+  studentDecision StudentDecision?
+
+  // Stage 7 — deposit / acceptance
+  depositDeadline            DateTime?
+  /// Distinguishes "deliberately not applicable" from "not filled in yet".
+  depositDeadlineNotApplicable Boolean @default(false)
+  depositPaid      Boolean   @default(false)
+  depositDate      DateTime?
+  acceptanceStatus AcceptanceStatus?
+
+  // Rejection — kept per application, not on the lead
+  rejectionReason String? @db.Text
+  rejectionNotes  String? @db.Text
+
+  /// False once superseded by an alternative application.
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId, isActive])
+  @@index([institutionId])
+  @@map("lead_applications")
+}
+
+/// Checklist items generated on entering Qualified (documents) and
+/// Deposit Paid (visa, pre-departure, accommodation).
+model LeadChecklistItem {
+  id       String                @id @default(uuid())
+  leadId   String
+  lead     Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  category LeadChecklistCategory
+  label    String
+  isRequired Boolean @default(true)
+  order      Int     @default(0)
+
+  completedAt   DateTime?
+  completedById String?
+  /// Links a satisfied document requirement to the file that satisfied it.
+  documentId    String?
+  document      LeadDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  /// Stops a double-advance generating the checklist twice.
+  @@unique([leadId, category, label])
+  @@index([leadId, category])
+  @@map("lead_checklist_items")
 }
 
 model LeadNote {
@@ -468,6 +737,8 @@ model LeadDocument {
   size       Int?
   uploadedAt DateTime @default(now())
   uploadedBy String
+
+  checklistItems LeadChecklistItem[]
 
   @@map("lead_documents")
 }
@@ -558,6 +829,7 @@ model Institution {
   accountManager   User?   @relation("AccountManager", fields: [accountManagerId], references: [id])
 
   leads             Lead[]
+  leadApplications  LeadApplication[]
   contacts          InstitutionContact[]
   contracts         Contract[]
   engagementLogs    EngagementLog[]

@@ -6,42 +6,15 @@ import { Check, ChevronRight, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { LeadStage } from "@prisma/client";
+import { PIPELINE_STAGES, CLOSED_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
 
-const STAGE_ORDER: LeadStage[] = [
-  "NEW",
-  "CONTACTED",
-  "APPLICATION_SENT",
-  "DOCUMENTS_RECEIVED",
-  "OFFER_ISSUED",
-  "ENROLLED",
-];
-
-const TERMINAL_STAGES: LeadStage[] = ["DEFERRED", "REJECTED", "LOST"];
-
-const ALL_STAGES: LeadStage[] = [...STAGE_ORDER, ...TERMINAL_STAGES];
-
-const STAGE_LABELS: Record<LeadStage, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "Application Sent",
-  DOCUMENTS_RECEIVED: "Documents Received",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-  DEFERRED: "Deferred",
-  REJECTED: "Rejected",
-  LOST: "Lost",
-};
-
-const TERMINAL_COLORS: Record<LeadStage, string> = {
+// Ordering, labels and colours come from lib/lead-pipeline.ts.
+const STAGE_ORDER: readonly LeadStage[] = PIPELINE_STAGES;
+const TERMINAL_STAGES: readonly LeadStage[] = CLOSED_STAGES;
+const TERMINAL_COLORS: Record<string, string> = {
   DEFERRED: "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200",
-  REJECTED: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
+  APPLICATION_REJECTED: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200",
   LOST: "bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200",
-  NEW: "",
-  CONTACTED: "",
-  APPLICATION_SENT: "",
-  DOCUMENTS_RECEIVED: "",
-  OFFER_ISSUED: "",
-  ENROLLED: "",
 };
 
 interface StageSelectorProps {

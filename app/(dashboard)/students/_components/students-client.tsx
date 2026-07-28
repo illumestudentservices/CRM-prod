@@ -19,6 +19,7 @@ import { LeadForm } from "./lead-form";
 import type { LeadWithRelations } from "./lead-card";
 import type { Source, Institution, User } from "@prisma/client";
 import type { LeadStage } from "@prisma/client";
+import { ALL_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
 import { ExportButton } from "@/components/shared/export-button";
 
 const LEAD_EXPORT_COLUMNS = [
@@ -39,16 +40,8 @@ const LEAD_EXPORT_COLUMNS = [
 
 const STAGE_OPTIONS: { value: LeadStage | "ALL"; label: string }[] = [
   { value: "ALL", label: "All Stages" },
-  { value: "NEW", label: "New" },
-  { value: "CONTACTED", label: "Contacted" },
-  { value: "APPLICATION_SENT", label: "Application Sent" },
-  { value: "DOCUMENTS_RECEIVED", label: "Documents Received" },
-  { value: "OFFER_ISSUED", label: "Offer Issued" },
-  { value: "ENROLLED", label: "Enrolled" },
-  { value: "DEFERRED", label: "Deferred" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "LOST", label: "Lost" },
-];
+  ...ALL_STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] })),
+]
 
 type Tab = "kanban" | "list";
 
@@ -82,7 +75,7 @@ export function StudentsClientPage({
         const q = search.toLowerCase();
         const matches =
           lead.fullName.toLowerCase().includes(q) ||
-          lead.email.toLowerCase().includes(q) ||
+          (lead.email?.toLowerCase().includes(q) ?? false) ||
           lead.interestedProgram.toLowerCase().includes(q) ||
           lead.nationality.toLowerCase().includes(q) ||
           lead.countryOfResidence.toLowerCase().includes(q) ||

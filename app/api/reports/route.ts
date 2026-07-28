@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
     const typedLeads = leads as LeadRow[];
     const totalLeads = typedLeads.length;
     const enrolled = typedLeads.filter((l) => l.stage === "ENROLLED").length;
-    const contacted = typedLeads.filter((l) => l.stage !== "NEW").length;
+    const contacted = typedLeads.filter((l) => l.stage !== "NEW_LEAD").length;
 
     const kpiSummary = {
       totalLeads,
