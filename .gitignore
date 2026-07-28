@@ -78,3 +78,6 @@ check-accts.mjs
 enrol-icr.mjs
 verify-gate.mjs
 dbg.mjs
+verify-p3.mjs
+verify-journey.mjs
+dbg2.mjs

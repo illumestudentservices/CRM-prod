@@ -100,9 +100,15 @@ check("regenerating does not duplicate", (cl.items ?? []).filter((i) => i.catego
 await p.request.patch(L, { headers: J, data: { institutionId, academicQualification: "BSc 2:1", englishStatus: "IELTS" } });
 await p.request.post(`${L}/activities`, { headers: J, data: { engagementType: "ELIGIBILITY_REVIEW", description: "Eligibility", completed: true } });
 await p.request.post(`${L}/activities`, { headers: J, data: { engagementType: "FOLLOW_UP", description: "Next", scheduledFor: soon(6) } });
+// Entering Application Submitted only needs Qualified's requirements; the
+// application number is required to *leave* it.
 r = await p.request.patch(`${L}/stage`, { headers: J, data: { stage: "APPLICATION_SUBMITTED" } });
+check("-> Application Submitted", r.status() === 200);
+await p.request.post(`${L}/activities`, { headers: J, data: { engagementType: "FOLLOW_UP", description: "chase", scheduledFor: soon(8) } });
+await p.request.post(`${L}/activities`, { headers: J, data: { engagementType: "CALL", description: "did", completed: true } });
+r = await p.request.patch(`${L}/stage`, { headers: J, data: { stage: "AWAITING_DECISION" } });
 const j = await r.json();
-check("Application Submitted blocked without an application record", r.status() === 422, (j.blockers ?? [])[0]?.message ?? "");
+check("blocked leaving without an application record", r.status() === 422, (j.blockers ?? [])[0]?.message ?? "");
 
 // ── UI: checklist panel renders ─────────────────────────────────────────
 console.log("\nUI — checklist panel");
