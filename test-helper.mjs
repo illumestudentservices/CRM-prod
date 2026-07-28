@@ -45,9 +45,22 @@ export function totp(secret) {
   return String(n % 1e6).padStart(6, "0");
 }
 
-/** Launches a browser, signs in through password + TOTP, returns { browser, page }. */
-export async function signIn({ headless = true, viewport = { width: 1440, height: 950 } } = {}) {
-  const env = loadEnv();
+/**
+ * Launches a browser and signs in.
+ *
+ * `as` selects which disposable account: "admin" (SUPER_ADMIN, can override
+ * stage gates) or "icr" (hard-blocked by them). Both are needed to prove the
+ * gate behaves differently by role.
+ */
+export async function signIn({ as = "admin", headless = true, viewport = { width: 1440, height: 950 } } = {}) {
+  const all = loadEnv();
+  const prefix = as === "icr" ? "ICR_" : "";
+  const env = {
+    TEST_EMAIL: all[`${prefix}TEST_EMAIL`],
+    TEST_PASSWORD: all[`${prefix}TEST_PASSWORD`],
+    TEST_TOTP_SECRET: all[`${prefix}TEST_TOTP_SECRET`],
+  };
+  if (!env.TEST_EMAIL) throw new Error(`no credentials for account "${as}" in .env.test.local`);
   const browser = await chromium.launch({ headless });
   const page = await browser.newPage({ viewport });
 
@@ -71,10 +84,13 @@ export async function signIn({ headless = true, viewport = { width: 1440, height
     }
   }
 
+  if (page.url().includes("/setup-2fa")) {
+    throw new Error(`account "${as}" has not completed MFA enrolment yet`);
+  }
   if (!page.url().includes("/dashboard")) {
     throw new Error(`sign-in did not reach dashboard, stuck at ${page.url()}`);
   }
-  return { browser, page, BASE };
+  return { browser, page, BASE, email: env.TEST_EMAIL };
 }
 
 export { BASE };
