@@ -128,6 +128,15 @@ interface StageConfig {
   requireFutureActivity?: boolean;
   /** Checklist category that must have been generated before leaving. */
   requiresChecklist?: string;
+  /**
+   * Check this stage's own requirements when *entering* it, not when leaving.
+   *
+   * Needed for terminal stages: Enrolled has no onward transition, so its
+   * required fields would never be evaluated at all — a student could be marked
+   * Enrolled, and therefore converted and commission-eligible, with no
+   * enrolment date recorded.
+   */
+  validateOnEntry?: boolean;
 }
 
 export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
@@ -231,6 +240,8 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
     // Final stage — nothing further to schedule.
     requireFutureActivity: false,
     allowedNext: [],
+    // Terminal, so these are entry conditions rather than exit conditions.
+    validateOnEntry: true,
   },
 
   // Closed outcomes are entered through the close endpoint, which enforces its
@@ -341,31 +352,40 @@ export function evaluateStageGate(
   }
 
   // ── Required fields ────────────────────────────────────────────────────
-  for (const req of config.requiredFields) {
-    if (req.kind === "field") {
-      const src = pick(req, lead, application);
-      if (!src || !hasValue(src[req.key])) {
-        blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.key });
-      }
-    } else if (req.kind === "anyOf") {
-      const src = pick(req, lead, application);
-      if (!src || !req.keys.some((k) => hasValue(src[k]))) {
-        blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.keys[0] });
-      }
-    } else {
-      const src = pick(req, lead, application);
-      const dismissed = req.naKey ? src?.[req.naKey] === true : false;
-      if (!dismissed && (!src || !hasValue(src[req.key]))) {
-        blockers.push({
-          kind: "FIELD",
-          message: req.naKey
-            ? `${req.label} is required, or mark it not applicable.`
-            : `${req.label} is required — record it, or note that it is not yet known.`,
-          field: req.key,
-        });
+  const checkFields = (reqs: FieldReq[]) => {
+    for (const req of reqs) {
+      if (req.kind === "field") {
+        const src = pick(req, lead, application);
+        if (!src || !hasValue(src[req.key])) {
+          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.key });
+        }
+      } else if (req.kind === "anyOf") {
+        const src = pick(req, lead, application);
+        if (!src || !req.keys.some((k) => hasValue(src[k]))) {
+          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.keys[0] });
+        }
+      } else {
+        const src = pick(req, lead, application);
+        const dismissed = req.naKey ? src?.[req.naKey] === true : false;
+        if (!dismissed && (!src || !hasValue(src[req.key]))) {
+          blockers.push({
+            kind: "FIELD",
+            message: req.naKey
+              ? `${req.label} is required, or mark it not applicable.`
+              : `${req.label} is required — record it, or note that it is not yet known.`,
+            field: req.key,
+          });
+        }
       }
     }
-  }
+  };
+
+  checkFields(config.requiredFields);
+
+  // A terminal stage's own requirements are checked on the way in, since there
+  // is no way out for them to be checked on.
+  const targetConfig = STAGE_CONFIG[targetStage];
+  if (targetConfig?.validateOnEntry) checkFields(targetConfig.requiredFields);
 
   // ── Activities ─────────────────────────────────────────────────────────
   const stageEnteredAt = toTime(lead.stageEnteredAt) ?? 0;
@@ -392,7 +412,13 @@ export function evaluateStageGate(
   const requireFuture = config.requireFutureActivity ?? true;
 
   // Typed Required Tasks — a specific kind of work, not merely any activity.
-  for (const type of config.requiredCompletedTypes) {
+  // A terminal target's tasks are checked here too; the work is necessarily
+  // done while the student is still in the preceding stage.
+  const requiredTypes = [
+    ...config.requiredCompletedTypes,
+    ...(targetConfig?.validateOnEntry ? targetConfig.requiredCompletedTypes : []),
+  ];
+  for (const type of new Set(requiredTypes)) {
     if (!completedThisStage.some((a) => a.engagementType === type)) {
       blockers.push({
         kind: "ACTIVITY_COMPLETED",
