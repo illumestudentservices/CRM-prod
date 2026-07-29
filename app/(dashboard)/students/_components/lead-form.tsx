@@ -44,9 +44,45 @@ const leadSchema = z.object({
   institutionId: z.string().optional(),
   assignedICRId: z.string().optional(),
   notes: z.string().optional(),
+
+  // Pipeline capture. Optional here on purpose: the stage gate decides when
+  // each one becomes mandatory, so requiring them at creation would block a
+  // lead being captured at all. Without these inputs the gate can ask for a
+  // field the user has no way to fill in.
+  intendedDestination: z.string().optional(),
+  preferredCountry: z.string().optional(),
+  budgetRange: z.string().optional(),
+  currentQualification: z.string().optional(),
+  counsellingOutcome: z.string().optional(),
+  academicQualification: z.string().optional(),
+  englishStatus: z.string().optional(),
+  enrolmentDate: z.string().optional(),
 });
 
 type LeadFormValues = z.infer<typeof leadSchema>;
+
+// Mirrors the BudgetRange and EnglishStatus enums. Values must match exactly —
+// the API validates against the same enums and silently rejecting a typo here
+// would look like the field simply not saving.
+const BUDGET_RANGES = [
+  { value: "UNDER_10K", label: "Under $10,000" },
+  { value: "FROM_10K_TO_20K", label: "$10,000 - $20,000" },
+  { value: "FROM_20K_TO_35K", label: "$20,000 - $35,000" },
+  { value: "FROM_35K_TO_50K", label: "$35,000 - $50,000" },
+  { value: "OVER_50K", label: "Over $50,000" },
+  { value: "UNDECIDED", label: "Undecided" },
+] as const;
+
+const ENGLISH_STATUSES = [
+  { value: "IELTS", label: "IELTS" },
+  { value: "TOEFL", label: "TOEFL" },
+  { value: "PTE", label: "PTE" },
+  { value: "DUOLINGO", label: "Duolingo" },
+  { value: "MOI", label: "Medium of Instruction letter" },
+  { value: "NATIVE_SPEAKER", label: "Native speaker" },
+  { value: "NOT_TAKEN", label: "Not taken yet" },
+  { value: "EXEMPT", label: "Exempt" },
+] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -148,6 +184,16 @@ export function LeadForm({
       institutionId: lead?.institutionId ?? undefined,
       assignedICRId: lead?.assignedICRId ?? undefined,
       notes: lead?.notes ?? "",
+      intendedDestination: lead?.intendedDestination ?? "",
+      preferredCountry: lead?.preferredCountry ?? "",
+      budgetRange: lead?.budgetRange ?? undefined,
+      currentQualification: lead?.currentQualification ?? "",
+      counsellingOutcome: lead?.counsellingOutcome ?? "",
+      academicQualification: lead?.academicQualification ?? "",
+      englishStatus: lead?.englishStatus ?? undefined,
+      enrolmentDate: lead?.enrolmentDate
+        ? new Date(lead.enrolmentDate).toISOString().slice(0, 10)
+        : "",
     },
   });
 
@@ -169,6 +215,16 @@ export function LeadForm({
         institutionId: lead?.institutionId ?? undefined,
         assignedICRId: lead?.assignedICRId ?? undefined,
         notes: lead?.notes ?? "",
+        intendedDestination: lead?.intendedDestination ?? "",
+        preferredCountry: lead?.preferredCountry ?? "",
+        budgetRange: lead?.budgetRange ?? undefined,
+        currentQualification: lead?.currentQualification ?? "",
+        counsellingOutcome: lead?.counsellingOutcome ?? "",
+        academicQualification: lead?.academicQualification ?? "",
+        englishStatus: lead?.englishStatus ?? undefined,
+        enrolmentDate: lead?.enrolmentDate
+          ? new Date(lead.enrolmentDate).toISOString().slice(0, 10)
+          : "",
       });
       setIsDuplicateWarning(false);
     }
@@ -181,11 +237,32 @@ export function LeadForm({
 
       // Strip empty/"none" optional UUID fields so they don't fail uuid() validation
       const cleanId = (v?: string) => (v && v !== "none" ? v : undefined);
+
+      // An untouched optional field arrives as "", which the API rejects: those
+      // columns are min(1).optional().nullable(), so an empty string is not the
+      // same as "not provided". Send null to clear it instead.
+      const orNull = (v?: string) => (v && v.trim() !== "" ? v.trim() : null);
+      // Enums must be omitted rather than nulled to "": the API validates
+      // against a literal set and anything else is a 422.
+      const orUndefined = (v?: string) => (v && v !== "none" ? v : undefined);
+
       const payload = {
         ...values,
         sourceId: cleanId(values.sourceId),
         institutionId: cleanId(values.institutionId),
         assignedICRId: cleanId(values.assignedICRId),
+
+        intendedDestination: orNull(values.intendedDestination),
+        preferredCountry: orNull(values.preferredCountry),
+        currentQualification: orNull(values.currentQualification),
+        counsellingOutcome: orNull(values.counsellingOutcome),
+        academicQualification: orNull(values.academicQualification),
+        budgetRange: orUndefined(values.budgetRange),
+        englishStatus: orUndefined(values.englishStatus),
+        // The date input yields "YYYY-MM-DD"; the API wants a full ISO datetime.
+        enrolmentDate: values.enrolmentDate
+          ? new Date(`${values.enrolmentDate}T00:00:00.000Z`).toISOString()
+          : null,
       };
 
       const response = await fetch(url, {
@@ -360,6 +437,94 @@ export function LeadForm({
                   placeholder="2025"
                 />
               </FormField>
+            </div>
+          </div>
+
+          {/* Pipeline capture — every field the stage gate can ask for */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+              Pipeline Details
+            </h3>
+            <p className="text-xs text-slate-400 -mt-2 mb-3">
+              Filled in as the student progresses. Each stage asks only for what
+              it needs.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="Intended Destination">
+                <Input
+                  {...register("intendedDestination")}
+                  placeholder="e.g. United Kingdom"
+                />
+              </FormField>
+
+              <FormField label="Preferred Country">
+                <Input
+                  {...register("preferredCountry")}
+                  placeholder="Confirmed after counselling"
+                />
+              </FormField>
+
+              <FormField label="Budget Range">
+                <Select
+                  value={watch("budgetRange") ?? "none"}
+                  onValueChange={(v) =>
+                    setValue("budgetRange", v === "none" ? undefined : v)
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Not discussed yet" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not discussed yet</SelectItem>
+                    {BUDGET_RANGES.map((b) => (
+                      <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <FormField label="Current Qualification">
+                <Input
+                  {...register("currentQualification")}
+                  placeholder="e.g. BSc Computer Science"
+                />
+              </FormField>
+
+              <FormField label="Highest Academic Qualification">
+                <Input
+                  {...register("academicQualification")}
+                  placeholder="e.g. BSc 2:1"
+                />
+              </FormField>
+
+              <FormField label="English Proficiency">
+                <Select
+                  value={watch("englishStatus") ?? "none"}
+                  onValueChange={(v) =>
+                    setValue("englishStatus", v === "none" ? undefined : v)
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not recorded</SelectItem>
+                    {ENGLISH_STATUSES.map((e) => (
+                      <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <FormField label="Enrolment Date">
+                <Input type="date" {...register("enrolmentDate")} />
+              </FormField>
+
+              <div className="sm:col-span-2">
+                <FormField label="Counselling Outcome">
+                  <Textarea
+                    rows={2}
+                    {...register("counsellingOutcome")}
+                    placeholder="What was agreed on the counselling call?"
+                  />
+                </FormField>
+              </div>
             </div>
           </div>
 

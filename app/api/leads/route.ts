@@ -7,6 +7,14 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
+/**
+ * An untouched optional input arrives as "" or null. The rules below use
+ * min(1), so a blank has to become "not provided" rather than be validated as
+ * a too-short string.
+ */
+const blankToUndefined = (v: unknown) =>
+  v === "" || v === null || v === "none" ? undefined : v;
+
 const createLeadSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -24,6 +32,24 @@ const createLeadSchema = z.object({
   institutionId: z.preprocess(v => (!v || v === "none") ? undefined : v, z.string().min(1).optional()),
   sourceId: z.preprocess(v => (!v || v === "none") ? undefined : v, z.string().min(1).optional()),
   eventId: z.preprocess(v => (!v || v === "none") ? undefined : v, z.string().min(1).optional()),
+
+  // Pipeline capture, accepted at creation as well as on update. A lead
+  // captured with its destination already known should not have to be saved
+  // and then immediately edited just to satisfy the first stage gate.
+  intendedDestination: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  preferredCountry: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  currentQualification: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  counsellingOutcome: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  academicQualification: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  budgetRange: z.preprocess(
+    blankToUndefined,
+    z.enum(["UNDER_10K", "FROM_10K_TO_20K", "FROM_20K_TO_35K", "FROM_35K_TO_50K", "OVER_50K", "UNDECIDED"]).optional()
+  ),
+  englishStatus: z.preprocess(
+    blankToUndefined,
+    z.enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"]).optional()
+  ),
+  enrolmentDate: z.preprocess(blankToUndefined, z.string().datetime().optional()),
 });
 
 const listLeadsQuerySchema = z.object({
@@ -233,6 +259,17 @@ export async function POST(req: NextRequest) {
         eventId: data.eventId,
         isDuplicate: !!duplicate,
         duplicateOfId: duplicate?.id,
+
+        // Mapped explicitly like everything else above; spreading `data` here
+        // would quietly widen what a caller can set on creation.
+        intendedDestination: data.intendedDestination,
+        preferredCountry: data.preferredCountry,
+        currentQualification: data.currentQualification,
+        counsellingOutcome: data.counsellingOutcome,
+        academicQualification: data.academicQualification,
+        budgetRange: data.budgetRange,
+        englishStatus: data.englishStatus,
+        enrolmentDate: data.enrolmentDate ? new Date(data.enrolmentDate) : undefined,
       },
       include: {
         region: { select: { id: true, name: true } },
