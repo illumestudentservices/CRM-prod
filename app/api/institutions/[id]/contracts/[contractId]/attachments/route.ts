@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { checkUploadSize } from "@/lib/uploads";
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 type Params = { params: Promise<{ id: string; contractId: string }> };
 
@@ -47,8 +47,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   const file = formData.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 413 });
+  // The real control. The client checks too, but only so the user finds out
+  // instantly — a direct request would skip it entirely.
+  const sizeCheck = checkUploadSize(file);
+  if (!sizeCheck.ok) {
+    return NextResponse.json({ error: sizeCheck.message }, { status: 413 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

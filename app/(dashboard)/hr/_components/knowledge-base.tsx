@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { checkUploadSizes, checkUploadSize, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, formatBytes } from "@/lib/uploads";
 import { Search, BookOpen, Plus, Eye, Paperclip, Download, Trash2, X, Upload } from "lucide-react";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
 
 interface Attachment {
   id: string;
@@ -33,11 +33,6 @@ interface Article {
   attachments: Attachment[];
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export function KnowledgeBaseView({ isHR }: { isHR: boolean }) {
   const { toast } = useToast();
@@ -72,11 +67,12 @@ export function KnowledgeBaseView({ isHR }: { isHR: boolean }) {
 
   function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    const tooBig = files.filter((f) => f.size > MAX_FILE_SIZE);
-    if (tooBig.length) {
-      toast({ title: "File too large", description: `${tooBig.map(f => f.name).join(", ")} exceed 2 MB`, variant: "destructive" });
+    // Reports every oversized file at once rather than one per attempt.
+    const check = checkUploadSizes(files);
+    if (!check.ok) {
+      toast({ title: "File too large", description: check.message, variant: "destructive" });
     }
-    setPendingFiles((prev) => [...prev, ...files.filter((f) => f.size <= MAX_FILE_SIZE)]);
+    setPendingFiles((prev) => [...prev, ...files.filter((f) => f.size <= MAX_UPLOAD_BYTES)]);
     e.target.value = "";
   }
 
@@ -137,8 +133,9 @@ export function KnowledgeBaseView({ isHR }: { isHR: boolean }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      toast({ title: "File too large", description: "Maximum size is 2 MB", variant: "destructive" });
+    const check = checkUploadSize(file);
+    if (!check.ok) {
+      toast({ title: "File too large", description: check.message, variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -248,7 +245,7 @@ export function KnowledgeBaseView({ isHR }: { isHR: boolean }) {
 
             {/* File attachments */}
             <div className="space-y-2">
-              <Label>Attachments <span className="text-xs text-muted-foreground font-normal">(max 2 MB each)</span></Label>
+              <Label>Attachments <span className="text-xs text-muted-foreground font-normal">(max {MAX_UPLOAD_MB} MB each)</span></Label>
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={pickFiles} />
               <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
                 <Upload className="h-4 w-4 mr-2" /> Choose files

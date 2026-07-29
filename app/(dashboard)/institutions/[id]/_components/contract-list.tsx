@@ -36,6 +36,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { checkUploadSize, MAX_UPLOAD_MB } from "@/lib/uploads";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -281,14 +283,16 @@ function AttachmentSection({
 }) {
   const [attachments, setAttachments] = React.useState<Attachment[]>(initialAttachments);
   const [uploading, setUploading] = React.useState(false);
+  const { toast } = useToast();
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File exceeds 5 MB limit");
+    const check = checkUploadSize(file);
+    if (!check.ok) {
+      toast({ title: "File too large", description: check.message, variant: "destructive" });
       return;
     }
 
@@ -307,7 +311,7 @@ function AttachmentSection({
       const newAtt: Attachment = await res.json();
       setAttachments((prev) => [newAtt, ...prev]);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Upload failed");
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -325,7 +329,7 @@ function AttachmentSection({
         setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
       }
     } catch {
-      alert("Failed to delete attachment");
+      toast({ title: "Could not delete attachment", variant: "destructive" });
     }
   };
 

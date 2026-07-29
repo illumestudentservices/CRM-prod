@@ -3,9 +3,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { checkUploadSize } from "@/lib/uploads";
 
 const KB_WRITE_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"];
-const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
 
 // POST /api/hr/knowledge-base/attachments?articleId=xxx
 export async function POST(req: NextRequest) {
@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "File exceeds 2 MB limit" }, { status: 413 });
+  // The real control. The client checks too, but only so the user finds out
+  // instantly — a direct request would skip it entirely.
+  const sizeCheck = checkUploadSize(file);
+  if (!sizeCheck.ok) {
+    return NextResponse.json({ error: sizeCheck.message }, { status: 413 });
   }
 
   try {
