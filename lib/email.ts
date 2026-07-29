@@ -1,3 +1,5 @@
+import { stageHex, stageLabel } from "@/lib/lead-pipeline";
+
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
 const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS ?? "noreply@illumestudentservices.cloud";
 const FROM_NAME = process.env.EMAIL_FROM_NAME ?? "Illume Student Advisory Services";
@@ -437,12 +439,8 @@ export async function sendLeadStageChangeEmail(opts: {
   note?: string;
   leadUrl: string;
 }) {
-  const stageLabel = (s: string) => s.replace(/_/g, " ");
-  const stageColors: Record<string, string> = {
-    ENROLLED: "#22c55e", OFFER_ISSUED: "#3b82f6",
-    REJECTED: "#ef4444", LOST: "#94a3b8", DEFERRED: "#f59e0b",
-  };
-  const color = stageColors[opts.newStage] ?? "#1E3A5F";
+  // Labels and colours come from lib/lead-pipeline.ts.
+  const color = stageHex(opts.newStage);
 
   await safeSend({
     to: opts.to,

@@ -50,18 +50,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { stageHex } from "@/lib/lead-pipeline";
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW: "#64748b",
-  CONTACTED: "#0EA5E9",
-  APPLICATION_SENT: "#8B5CF6",
-  DOCUMENTS_RECEIVED: "#F59E0B",
-  OFFER_ISSUED: "#3B82F6",
-  ENROLLED: "#22C55E",
-  DEFERRED: "#F97316",
-  REJECTED: "#EF4444",
-  LOST: "#94A3B8",
-};
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600" },
@@ -167,7 +157,7 @@ export function ReportDetailClient({
   const stageChartData = Object.entries(stageData).map(([stage, count]) => ({
     name: stage.replace(/_/g, " "),
     value: count,
-    fill: STAGE_COLORS[stage] ?? "#64748b",
+    fill: stageHex(stage),
   }));
 
   const sourceChartData = sources.slice(0, 8).map((s) => ({
@@ -370,7 +360,7 @@ export function ReportDetailClient({
                       <td className="py-2 px-3 text-slate-600 max-w-[140px] truncate">{lead.interestedProgram}</td>
                       <td className="py-2 px-3 text-slate-500">{lead.studyLevel}</td>
                       <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${STAGE_COLORS[lead.stage] ?? "#64748b"}15`, color: STAGE_COLORS[lead.stage] ?? "#64748b" }}>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${stageHex(lead.stage)}15`, color: stageHex(lead.stage) }}>
                           {lead.stage.replace(/_/g, " ")}
                         </span>
                       </td>

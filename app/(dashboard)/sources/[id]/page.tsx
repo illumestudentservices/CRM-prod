@@ -16,18 +16,8 @@ import {
 } from "@/components/ui/table";
 import { cn, formatDate } from "@/lib/utils";
 import { SourceForm } from "../_components/source-form";
+import { stageBadgeClass } from "@/lib/lead-pipeline";
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW: "bg-slate-100 text-slate-700",
-  CONTACTED: "bg-blue-100 text-blue-700",
-  APPLICATION_SENT: "bg-violet-100 text-violet-700",
-  DOCUMENTS_RECEIVED: "bg-amber-100 text-amber-700",
-  OFFER_ISSUED: "bg-sky-100 text-sky-700",
-  ENROLLED: "bg-green-100 text-green-700",
-  DEFERRED: "bg-amber-100 text-amber-700",
-  REJECTED: "bg-red-100 text-red-700",
-  LOST: "bg-slate-100 text-slate-400",
-};
 
 function stageLabel(stage: string) {
   return stage.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -290,7 +280,7 @@ export default async function SourceDetailPage({
                       <TableRow key={lead.id} className="hover:bg-slate-50">
                         <TableCell className="font-medium text-slate-800">{lead.fullName}</TableCell>
                         <TableCell>
-                          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-700")}>
+                          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", stageBadgeClass(lead.stage))}>
                             {stageLabel(lead.stage)}
                           </span>
                         </TableCell>

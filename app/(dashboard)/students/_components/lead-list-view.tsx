@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { type ColumnDef } from "@tanstack/react-table";
-import { UserCheck } from "lucide-react";
+import { UserCheck, Clock } from "lucide-react";
 import { cn, formatDate, getInitials, getMonthName } from "@/lib/utils";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -24,44 +24,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import {
+  daysSince,
+  isInactiveStage,
+  INACTIVITY_REMINDER_DAYS,
+  INACTIVITY_ESCALATION_DAYS,
+  stageBadgeClass,
+  stageLabel,
+} from "@/lib/lead-pipeline";
 import type { LeadWithRelations } from "./lead-card";
 import type { User } from "@prisma/client";
 
 // ─── Stage helpers ─────────────────────────────────────────────────────────────
 
-export const STAGE_LABELS: Record<string, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "Application Sent",
-  DOCUMENTS_RECEIVED: "Documents Received",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-  DEFERRED: "Deferred",
-  REJECTED: "Rejected",
-  LOST: "Lost",
-};
 
-export const STAGE_COLORS: Record<string, string> = {
-  NEW: "bg-slate-100 text-slate-700",
-  CONTACTED: "bg-blue-100 text-blue-700",
-  APPLICATION_SENT: "bg-indigo-100 text-indigo-700",
-  DOCUMENTS_RECEIVED: "bg-violet-100 text-violet-700",
-  OFFER_ISSUED: "bg-amber-100 text-amber-700",
-  ENROLLED: "bg-green-100 text-green-700",
-  DEFERRED: "bg-orange-100 text-orange-700",
-  REJECTED: "bg-red-100 text-red-700",
-  LOST: "bg-gray-100 text-gray-600",
-};
 
 function StageBadge({ stage }: { stage: string }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        STAGE_COLORS[stage] ?? "bg-slate-100 text-slate-700"
+        stageBadgeClass(stage)
       )}
     >
-      {STAGE_LABELS[stage] ?? stage}
+      {stageLabel(stage)}
     </span>
   );
 }
@@ -221,6 +207,45 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
         if (!filterValue) return true;
         return row.original.stage === filterValue;
       },
+    },
+    {
+      id: "daysInStage",
+      header: "Days in stage",
+      // Sorted on the raw number so managers can bring the most stalled
+      // students to the top; closed and enrolled records sort last.
+      accessorFn: (row) =>
+        isInactiveStage(row.stage) ? -1 : (daysSince(row.stageEnteredAt) ?? 0),
+      cell: ({ row }) => {
+        const lead = row.original;
+        if (isInactiveStage(lead.stage)) return <span className="text-slate-300">—</span>;
+        const d = daysSince(lead.stageEnteredAt);
+        if (d === null) return <span className="text-slate-300">—</span>;
+        const escalated = d >= INACTIVITY_ESCALATION_DAYS;
+        const overdue = d >= INACTIVITY_REMINDER_DAYS;
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium tabular-nums",
+              escalated
+                ? "bg-red-100 text-red-700"
+                : overdue
+                  ? "bg-amber-100 text-amber-700"
+                  : "text-slate-500"
+            )}
+            title={
+              escalated
+                ? "Escalated to management"
+                : overdue
+                  ? "Overdue — no progress for two weeks"
+                  : undefined
+            }
+          >
+            {(escalated || overdue) && <Clock className="h-3 w-3" />}
+            {d}d
+          </span>
+        );
+      },
+      size: 120,
     },
     {
       id: "source",

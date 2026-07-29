@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
+import { stageLabel, stageHex } from "@/lib/lead-pipeline";
 import {
   PieChart,
   Pie,
@@ -28,29 +29,7 @@ interface RegionalData {
   pendingReports: Array<{ id: string; icrName: string | null; institutionName: string; reportingMonth: number; reportingYear: number; status: string; submittedAt: string | null }>;
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW: "#1E3A5F",
-  CONTACTED: "#0E4F8A",
-  APPLICATION_SENT: "#0369A1",
-  DOCUMENTS_RECEIVED: "#0EA5E9",
-  OFFER_ISSUED: "#38BDF8",
-  ENROLLED: "#22C55E",
-  DEFERRED: "#F59E0B",
-  REJECTED: "#EF4444",
-  LOST: "#94A3B8",
-};
 
-const STAGE_LABELS: Record<string, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  APPLICATION_SENT: "App Sent",
-  DOCUMENTS_RECEIVED: "Docs Recv.",
-  OFFER_ISSUED: "Offer Issued",
-  ENROLLED: "Enrolled",
-  DEFERRED: "Deferred",
-  REJECTED: "Rejected",
-  LOST: "Lost",
-};
 
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -96,9 +75,9 @@ export function RegionalDashboard() {
   }, []);
 
   const pieData = (data?.pipelineByStage ?? []).map((s) => ({
-    name: STAGE_LABELS[s.stage] ?? s.stage,
+    name: stageLabel(s.stage),
     value: s.count,
-    color: STAGE_COLORS[s.stage] ?? "#94A3B8",
+    color: stageHex(s.stage),
     stage: s.stage,
   }));
 
@@ -110,7 +89,7 @@ export function RegionalDashboard() {
     conversionRate: `${i.conversionRate}%`,
   }));
   const pipelineExportData = (data?.pipelineByStage ?? []).map((s) => ({
-    stage: STAGE_LABELS[s.stage] ?? s.stage,
+    stage: stageLabel(s.stage),
     count: s.count,
   }));
   const sourceExportData = (data?.sourcePerformance ?? []).map((s) => ({
@@ -189,7 +168,7 @@ export function RegionalDashboard() {
                       const stage = entry.stage as string;
                       setDrill({
                         open: true,
-                        title: `Leads — ${STAGE_LABELS[stage] ?? stage}`,
+                        title: `Leads — ${stageLabel(stage)}`,
                         description: "Students currently at this pipeline stage in your region",
                         filters: { stage },
                       });

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink } from "lucide-react";
+import { stageBadgeClass } from "@/lib/lead-pipeline";
 
 interface LeadRow {
   id: string;
@@ -33,17 +34,6 @@ interface DrillDownSheetProps {
   filters: Record<string, string>;
 }
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW: "bg-slate-100 text-slate-700",
-  CONTACTED: "bg-blue-100 text-blue-700",
-  APPLICATION_SENT: "bg-indigo-100 text-indigo-700",
-  DOCUMENTS_RECEIVED: "bg-violet-100 text-violet-700",
-  OFFER_ISSUED: "bg-sky-100 text-sky-700",
-  ENROLLED: "bg-green-100 text-green-700",
-  DEFERRED: "bg-amber-100 text-amber-700",
-  REJECTED: "bg-red-100 text-red-700",
-  LOST: "bg-slate-100 text-slate-400",
-};
 
 export function DrillDownSheet({
   open,
@@ -126,7 +116,7 @@ export function DrillDownSheet({
                     </div>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                        STAGE_COLORS[lead.stage] ?? "bg-slate-100 text-slate-600"
+                        stageBadgeClass(lead.stage)
                       }`}
                     >
                       {lead.stage.replace(/_/g, " ")}

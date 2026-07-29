@@ -4,9 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, GripVertical } from "lucide-react";
+import { AlertTriangle, GripVertical, Clock } from "lucide-react";
 import { cn, getInitials, getMonthName } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  daysSince,
+  isInactiveStage,
+  INACTIVITY_REMINDER_DAYS,
+  INACTIVITY_ESCALATION_DAYS,
+} from "@/lib/lead-pipeline";
 import type { Lead, User, Institution, Source } from "@prisma/client";
 
 export type LeadWithRelations = Lead & {
@@ -91,6 +97,12 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
     opacity: isSortableDragging ? 0.4 : 1,
   };
 
+  // How long this student has sat in their current stage. Closed and enrolled
+  // records are excluded — they are meant to stop moving.
+  const daysInStage = daysSince(lead.stageEnteredAt);
+  const overdue = daysInStage !== null && daysInStage >= INACTIVITY_REMINDER_DAYS;
+  const escalated = daysInStage !== null && daysInStage >= INACTIVITY_ESCALATION_DAYS;
+
   return (
     <div
       ref={setNodeRef}
@@ -156,12 +168,34 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
           </span>
         </div>
 
-        {/* Meta row: intake + source */}
+        {/* Meta row: intake + source, and how long this card has sat here */}
         <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
           <span className="truncate">
             {lead.source?.name ?? "—"} · {getMonthName(lead.intakeMonth).slice(0, 3)}{" "}
             {lead.intakeYear}
           </span>
+          {daysInStage !== null && !isInactiveStage(lead.stage) && (
+            <span
+              className={cn(
+                "shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium tabular-nums",
+                escalated
+                  ? "bg-red-100 text-red-700"
+                  : overdue
+                    ? "bg-amber-100 text-amber-700"
+                    : "text-slate-400"
+              )}
+              title={
+                escalated
+                  ? `No progress for ${daysInStage} days — escalated to management`
+                  : overdue
+                    ? `No progress for ${daysInStage} days`
+                    : `${daysInStage} days in this stage`
+              }
+            >
+              <Clock className="h-3 w-3" />
+              {daysInStage}d
+            </span>
+          )}
         </div>
 
         {/* Footer: institution + ICR avatar */}
