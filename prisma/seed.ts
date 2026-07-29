@@ -121,9 +121,9 @@ async function main() {
   const currentYear = new Date().getFullYear();
   for (const emp of [empICR, empICR2, empICR3, empManager, empHR, empEmp1]) {
     await db.leaveBalance.upsert({
-      where: { employeeId_leaveType_year: { employeeId: emp.id, leaveType: LeaveType.ANNUAL, year: currentYear } },
+      where: { employeeId_leaveType_year: { employeeId: emp.id, leaveType: LeaveType.VACATION_PAID, year: currentYear } },
       update: {},
-      create: { employeeId: emp.id, leaveType: LeaveType.ANNUAL, year: currentYear, totalDays: 18, usedDays: 5, pendingDays: 0 },
+      create: { employeeId: emp.id, leaveType: LeaveType.VACATION_PAID, year: currentYear, totalDays: 18, usedDays: 5, pendingDays: 0 },
     });
     await db.leaveBalance.upsert({
       where: { employeeId_leaveType_year: { employeeId: emp.id, leaveType: LeaveType.SICK, year: currentYear } },

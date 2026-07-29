@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
 
 const updateSchema = z.object({
   employeeId: z.string().min(1),
-  leaveType: z.enum(["ANNUAL", "SICK", "MATERNITY", "PATERNITY", "UNPAID", "COMP_OFF"]),
+  leaveType: z.enum(["VACATION_PAID", "SICK", "MATERNITY", "PATERNITY"]),
   year: z.number().int(),
   /** Days granted (positive) or docked (negative) on top of computed entitlement. */
   adjustmentDays: z.number().min(-365).max(365),

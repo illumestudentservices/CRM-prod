@@ -13,15 +13,32 @@
  *
  * All arithmetic is UTC. Local-time date maths shifts day boundaries for
  * anyone west of UTC and would move which days count as weekend.
+ *
+ * The four policies below are transcribed from the configuration screens
+ * supplied by the business on 2026-07-29.
  */
 
-export type LeaveTypeKey =
-  | "ANNUAL"
-  | "SICK"
-  | "MATERNITY"
-  | "PATERNITY"
-  | "UNPAID"
-  | "COMP_OFF";
+export type LeaveTypeKey = "VACATION_PAID" | "SICK" | "MATERNITY" | "PATERNITY";
+
+export type Gender = "MALE" | "FEMALE" | "OTHER";
+
+/** Two shapes of accrual, because the four policies genuinely use both. */
+export type Accrual =
+  /** Credited every month on the joining-date anniversary. */
+  | { mode: "MONTHLY_ON_JOINING"; days: number }
+  /**
+   * Credited once a year on a fixed calendar date. `prorateFirstPeriod`
+   * reflects the "Prorate accrual: start of policy" setting — someone who
+   * becomes eligible in August gets the portion of the year that remains,
+   * not a full year's grant.
+   */
+  | {
+      mode: "YEARLY_ON_DATE";
+      days: number;
+      month: number;
+      day: number;
+      prorateFirstPeriod: boolean;
+    };
 
 export interface LeavePolicy {
   leaveType: LeaveTypeKey;
@@ -29,121 +46,143 @@ export interface LeavePolicy {
   /** Whether a balance is enforced when applying. */
   tracksBalance: boolean;
   /** Waiting period from date of joining before any entitlement exists. */
-  waitingPeriodMonths: number;
-  /** Days credited each accrual period. null = not accrued, use fixedAnnualDays. */
-  accrualDays: number | null;
-  /** Accrual falls on the joining-date anniversary each month. */
-  accrualFrequency: "MONTHLY" | null;
-  /** Flat annual entitlement for types that aren't accrued. */
-  fixedAnnualDays: number | null;
+  waitingPeriod: { value: number; unit: "days" | "months" };
+  accrual: Accrual;
   /** Ceiling on accrued balance. null = uncapped. */
   maxBalance: number | null;
   /** Balance returns to zero at the end of the calendar year. */
   resetYearly: boolean;
   carryForward: boolean;
   encash: boolean;
+  /**
+   * Genders eligible to request this type. null = everyone.
+   *
+   * OTHER is eligible for both parental types by decision of the business:
+   * nobody should be shut out of parental leave by their gender marker, and
+   * every request still goes through HR approval.
+   */
+  eligibleGenders: readonly Gender[] | null;
   /** Shown in the UI so staff can see the rule rather than just a number. */
   summary: string;
 }
 
-/**
- * Vacation / paid leave, per the configured policy:
- * effective after 3 months from joining, 1.75 days credited monthly on the
- * joining date, reset yearly on 31 December, no carry-forward, no encashment,
- * maximum balance 21 days. 1.75 x 12 = 21, so a full year exactly reaches
- * the cap.
- *
- * The remaining types keep their previous flat allocation until their policies
- * are supplied — they are marked so the UI can say as much rather than implying
- * a rule that doesn't exist.
- */
 export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
-  ANNUAL: {
-    leaveType: "ANNUAL",
-    label: "Vacation / Paid Leave",
+  // Effective after 3 months from joining; 1.75 days credited monthly on the
+  // joining date; reset yearly on 31 December; max balance 21.
+  // 1.75 x 12 = 21, so a full year reaches the cap exactly.
+  VACATION_PAID: {
+    leaveType: "VACATION_PAID",
+    label: "Vacation (Paid)",
     tracksBalance: true,
-    waitingPeriodMonths: 3,
-    accrualDays: 1.75,
-    accrualFrequency: "MONTHLY",
-    fixedAnnualDays: null,
+    waitingPeriod: { value: 3, unit: "months" },
+    accrual: { mode: "MONTHLY_ON_JOINING", days: 1.75 },
     maxBalance: 21,
     resetYearly: true,
     carryForward: false,
     encash: false,
+    eligibleGenders: null,
     summary:
       "1.75 days credited monthly on your joining date, starting 3 months after you join. Caps at 21 days and resets on 31 December. Unused days are not carried forward or encashed.",
   },
+
+  // Effective after 5 days from joining; 5 days credited yearly on 1 January,
+  // prorated from the start of the policy; reset yearly on 31 December.
   SICK: {
     leaveType: "SICK",
     label: "Sick Leave",
     tracksBalance: true,
-    waitingPeriodMonths: 0,
-    accrualDays: null,
-    accrualFrequency: null,
-    fixedAnnualDays: 10,
+    waitingPeriod: { value: 5, unit: "days" },
+    accrual: { mode: "YEARLY_ON_DATE", days: 5, month: 1, day: 1, prorateFirstPeriod: true },
     maxBalance: null,
     resetYearly: true,
     carryForward: false,
     encash: false,
-    summary: "10 days per calendar year. Policy not yet configured.",
+    eligibleGenders: null,
+    summary:
+      "5 days credited on 1 January each year, available 5 days after you join. Your first year is prorated for the months remaining. Resets on 31 December; not carried forward or encashed.",
   },
+
+  // Effective after 1 month from joining; 22 days credited yearly on 1 January.
+  // No proration — the configuration screen has no prorate rule, and a
+  // maternity entitlement that shrank because of a joining date would be a
+  // real policy change rather than a rounding detail.
   MATERNITY: {
     leaveType: "MATERNITY",
     label: "Maternity Leave",
     tracksBalance: true,
-    waitingPeriodMonths: 0,
-    accrualDays: null,
-    accrualFrequency: null,
-    fixedAnnualDays: 90,
+    waitingPeriod: { value: 1, unit: "months" },
+    accrual: { mode: "YEARLY_ON_DATE", days: 22, month: 1, day: 1, prorateFirstPeriod: false },
     maxBalance: null,
     resetYearly: true,
     carryForward: false,
     encash: false,
-    summary: "90 days. Policy not yet configured.",
+    eligibleGenders: ["FEMALE", "OTHER"],
+    summary:
+      "22 days per calendar year, available 1 month after you join. Not prorated. Resets on 31 December; not carried forward or encashed.",
   },
+
+  // Effective after 1 month from joining; 10 days credited yearly on
+  // 1 January, prorated from the start of the policy.
   PATERNITY: {
     leaveType: "PATERNITY",
     label: "Paternity Leave",
     tracksBalance: true,
-    waitingPeriodMonths: 0,
-    accrualDays: null,
-    accrualFrequency: null,
-    fixedAnnualDays: 5,
+    waitingPeriod: { value: 1, unit: "months" },
+    accrual: { mode: "YEARLY_ON_DATE", days: 10, month: 1, day: 1, prorateFirstPeriod: true },
     maxBalance: null,
     resetYearly: true,
     carryForward: false,
     encash: false,
-    summary: "5 days. Policy not yet configured.",
-  },
-  UNPAID: {
-    leaveType: "UNPAID",
-    label: "Unpaid Leave",
-    tracksBalance: false,
-    waitingPeriodMonths: 0,
-    accrualDays: null,
-    accrualFrequency: null,
-    fixedAnnualDays: null,
-    maxBalance: null,
-    resetYearly: false,
-    carryForward: false,
-    encash: false,
-    summary: "No balance is deducted. Subject to approval.",
-  },
-  COMP_OFF: {
-    leaveType: "COMP_OFF",
-    label: "Compensatory Off",
-    tracksBalance: true,
-    waitingPeriodMonths: 0,
-    accrualDays: null,
-    accrualFrequency: null,
-    fixedAnnualDays: 0,
-    maxBalance: null,
-    resetYearly: true,
-    carryForward: false,
-    encash: false,
-    summary: "Granted by HR against approved overtime. Policy not yet configured.",
+    eligibleGenders: ["MALE", "OTHER"],
+    summary:
+      "10 days credited on 1 January each year, available 1 month after you join. Your first year is prorated for the months remaining. Resets on 31 December; not carried forward or encashed.",
   },
 };
+
+export const LEAVE_TYPES = Object.keys(LEAVE_POLICIES) as LeaveTypeKey[];
+
+// ─── Gender eligibility ──────────────────────────────────────────────────────
+
+export interface EligibilityResult {
+  eligible: boolean;
+  /** Why not, phrased for the person reading it. */
+  reason?: string;
+}
+
+/**
+ * Whether an employee may request a leave type.
+ *
+ * A missing gender blocks the parental types, by decision of the business.
+ * Failing closed is the deliberate choice: the alternative lets anyone request
+ * either type for as long as HR has not filled the field in, which makes the
+ * rule decorative.
+ */
+export function checkGenderEligibility(
+  leaveType: LeaveTypeKey,
+  gender: Gender | null | undefined
+): EligibilityResult {
+  const allowed = LEAVE_POLICIES[leaveType].eligibleGenders;
+  if (!allowed) return { eligible: true };
+
+  if (!gender) {
+    return {
+      eligible: false,
+      reason: `${LEAVE_POLICIES[leaveType].label} depends on the gender recorded on the employee profile, which is not set. Ask HR to add it.`,
+    };
+  }
+  if (!allowed.includes(gender)) {
+    return {
+      eligible: false,
+      reason: `${LEAVE_POLICIES[leaveType].label} is not available for the gender recorded on this profile.`,
+    };
+  }
+  return { eligible: true };
+}
+
+/** The types this employee can actually request. */
+export function leaveTypesForGender(gender: Gender | null | undefined): LeaveTypeKey[] {
+  return LEAVE_TYPES.filter((t) => checkGenderEligibility(t, gender).eligible);
+}
 
 // ─── Date helpers (UTC) ──────────────────────────────────────────────────────
 
@@ -154,9 +193,7 @@ export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
  */
 export function addMonthsUTC(base: Date, months: number): Date {
   const targetDom = base.getUTCDate();
-  const d = new Date(
-    Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + months, 1)
-  );
+  const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + months, 1));
   const daysInTarget = new Date(
     Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)
   ).getUTCDate();
@@ -164,9 +201,31 @@ export function addMonthsUTC(base: Date, months: number): Date {
   return d;
 }
 
+export function addDaysUTC(base: Date, days: number): Date {
+  const d = new Date(base.getTime());
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 /** Midnight UTC on the same calendar day, so comparisons ignore time of day. */
 export function startOfDayUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/** The date entitlement first becomes available. */
+export function eligibleFromDate(policy: LeavePolicy, joiningDate: Date): Date {
+  const doj = startOfDayUTC(joiningDate);
+  return policy.waitingPeriod.unit === "days"
+    ? addDaysUTC(doj, policy.waitingPeriod.value)
+    : addMonthsUTC(doj, policy.waitingPeriod.value);
+}
+
+/**
+ * Half-day granularity. Prorating 5 days across 5 of 12 months gives 2.083...,
+ * which is not a number anyone wants to see on a leave balance.
+ */
+function roundToHalfDay(n: number): number {
+  return Math.round(n * 2) / 2;
 }
 
 // ─── Accrual ─────────────────────────────────────────────────────────────────
@@ -182,18 +241,10 @@ export interface AccrualResult {
   nextAccrualOn: Date | null;
   /** True while the waiting period is still running. */
   inWaitingPeriod: boolean;
+  /** True when the current year's grant was reduced for a mid-year start. */
+  prorated: boolean;
 }
 
-/**
- * Entitlement earned as of a given date.
- *
- * The first credit lands on the waiting-period anniversary itself — joining
- * 15 March with a 3-month wait means the first 1.75 days arrive on 15 June,
- * not 15 July.
- *
- * With resetYearly, only credits falling inside the current calendar year
- * count, which is what makes a mid-year joiner correctly pro-rated.
- */
 export function computeAccrual(
   policy: LeavePolicy,
   joiningDate: Date,
@@ -201,19 +252,7 @@ export function computeAccrual(
 ): AccrualResult {
   const doj = startOfDayUTC(joiningDate);
   const today = startOfDayUTC(asOf);
-  const eligibleFrom = addMonthsUTC(doj, policy.waitingPeriodMonths);
-
-  // Non-accrual types: flat grant, available once the waiting period passes.
-  if (policy.accrualDays === null || policy.accrualFrequency === null) {
-    const inWaiting = today < eligibleFrom;
-    return {
-      accruedDays: inWaiting ? 0 : policy.fixedAnnualDays ?? 0,
-      creditsToDate: 0,
-      eligibleFrom,
-      nextAccrualOn: null,
-      inWaitingPeriod: inWaiting,
-    };
-  }
+  const eligibleFrom = eligibleFromDate(policy, joiningDate);
 
   if (today < eligibleFrom) {
     return {
@@ -222,43 +261,78 @@ export function computeAccrual(
       eligibleFrom,
       nextAccrualOn: eligibleFrom,
       inWaitingPeriod: true,
+      prorated: false,
     };
   }
 
-  // Credits only count from the start of the current reset window.
-  const windowStart = policy.resetYearly
-    ? new Date(Date.UTC(today.getUTCFullYear(), 0, 1))
-    : doj;
+  if (policy.accrual.mode === "MONTHLY_ON_JOINING") {
+    const { days } = policy.accrual;
+    // Credits only count from the start of the current reset window, which is
+    // what makes a mid-year joiner correctly pro-rated without extra maths.
+    const windowStart = policy.resetYearly
+      ? new Date(Date.UTC(today.getUTCFullYear(), 0, 1))
+      : doj;
 
-  let credits = 0;
-  let nextAccrualOn: Date | null = null;
+    let credits = 0;
+    let nextAccrualOn: Date | null = null;
+    const waitMonths =
+      policy.waitingPeriod.unit === "months" ? policy.waitingPeriod.value : 0;
 
-  for (let i = 0; i < 2400; i++) {
-    const creditDate = addMonthsUTC(doj, policy.waitingPeriodMonths + i);
-    if (creditDate > today) {
-      nextAccrualOn = creditDate;
-      break;
+    for (let i = 0; i < 2400; i++) {
+      const creditDate = addMonthsUTC(doj, waitMonths + i);
+      if (creditDate > today) {
+        nextAccrualOn = creditDate;
+        break;
+      }
+      if (creditDate >= windowStart) credits++;
     }
-    if (creditDate >= windowStart) credits++;
+
+    const raw = credits * days;
+    const accrued = policy.maxBalance !== null ? Math.min(raw, policy.maxBalance) : raw;
+    return {
+      accruedDays: Number(accrued.toFixed(2)),
+      creditsToDate: credits,
+      eligibleFrom,
+      nextAccrualOn:
+        policy.maxBalance !== null && raw >= policy.maxBalance ? null : nextAccrualOn,
+      inWaitingPeriod: false,
+      prorated: false,
+    };
   }
 
-  const raw = credits * policy.accrualDays;
-  const accruedDays =
-    policy.maxBalance !== null ? Math.min(raw, policy.maxBalance) : raw;
+  // YEARLY_ON_DATE — the grant lands on a fixed calendar date.
+  const { days, month, day, prorateFirstPeriod } = policy.accrual;
+  const year = today.getUTCFullYear();
+  const thisYearsCredit = new Date(Date.UTC(year, month - 1, day));
+  const nextCredit = new Date(Date.UTC(year + 1, month - 1, day));
 
-  // Once capped there is nothing further to credit this window.
-  if (policy.maxBalance !== null && raw >= policy.maxBalance) {
-    nextAccrualOn = null;
+  // The first partial period is the year eligibility begins in, when the fixed
+  // credit date has already passed by the time they qualify.
+  const isFirstPeriod =
+    eligibleFrom.getUTCFullYear() === year && eligibleFrom > thisYearsCredit;
+
+  let accrued = days;
+  let prorated = false;
+  if (isFirstPeriod && prorateFirstPeriod) {
+    // Whole months remaining in the year from the month eligibility starts,
+    // inclusive — becoming eligible in August leaves Aug-Dec, so 5 of 12.
+    const monthsRemaining = 12 - eligibleFrom.getUTCMonth();
+    accrued = roundToHalfDay((days * monthsRemaining) / 12);
+    prorated = true;
   }
 
+  const capped = policy.maxBalance !== null ? Math.min(accrued, policy.maxBalance) : accrued;
   return {
-    accruedDays: Math.round(accruedDays * 100) / 100,
-    creditsToDate: credits,
+    accruedDays: Number(capped.toFixed(2)),
+    creditsToDate: 1,
     eligibleFrom,
-    nextAccrualOn,
+    nextAccrualOn: nextCredit,
     inWaitingPeriod: false,
+    prorated,
   };
 }
+
+// ─── Entitlement ─────────────────────────────────────────────────────────────
 
 export interface LeaveEntitlement extends AccrualResult {
   leaveType: LeaveTypeKey;
@@ -280,10 +354,8 @@ export function computeEntitlement(
 ): LeaveEntitlement {
   const policy = LEAVE_POLICIES[leaveType];
   const accrual = computeAccrual(policy, joiningDate, asOf);
-  const adjustment = consumed.adjustmentDays ?? 0;
-  const entitlementDays = Math.round((accrual.accruedDays + adjustment) * 100) / 100;
-  const availableDays =
-    Math.round((entitlementDays - consumed.usedDays - consumed.pendingDays) * 100) / 100;
+
+  const entitlementDays = accrual.accruedDays + (consumed.adjustmentDays ?? 0);
 
   return {
     ...accrual,
@@ -291,7 +363,11 @@ export function computeEntitlement(
     policy,
     usedDays: consumed.usedDays,
     pendingDays: consumed.pendingDays,
-    entitlementDays,
-    availableDays,
+    entitlementDays: Number(entitlementDays.toFixed(2)),
+    // Pending requests are held against the balance so two overlapping
+    // requests cannot both be approved into an overdraft.
+    availableDays: Number(
+      Math.max(0, entitlementDays - consumed.usedDays - consumed.pendingDays).toFixed(2)
+    ),
   };
 }

@@ -26,6 +26,7 @@ const schema = z.object({
   jobTitle: z.string().min(2),
   departmentId: z.string().optional(),
   employmentType: z.string(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   startDate: z.string(),
   managerId: z.string().optional(),
   phone: z.string().optional(),
@@ -204,9 +205,27 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
                   <Input {...register("startDate")} type="date" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input {...register("phone")} placeholder="+60 12 345 6789" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Gender</Label>
+                  <Select onValueChange={(v) => setValue("gender", v as FormValues["gender"])}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {/* Says why it is being collected, rather than asking without
+                      explanation. */}
+                  <p className="text-xs text-slate-400">
+                    Determines maternity and paternity leave eligibility.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input {...register("phone")} placeholder="+60 12 345 6789" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

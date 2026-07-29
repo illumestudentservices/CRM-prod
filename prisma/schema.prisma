@@ -219,13 +219,19 @@ enum EmploymentType {
   INTERN
 }
 
+/// The four leave types the business operates. The parental types are gated
+/// by Employee.gender — see lib/leave-policy.ts.
 enum LeaveType {
-  ANNUAL
+  VACATION_PAID
   SICK
   MATERNITY
   PATERNITY
-  UNPAID
-  COMP_OFF
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
 }
 
 enum LeaveStatus {
@@ -1170,6 +1176,10 @@ model Employee {
   directReports    Employee[]     @relation("EmployeeManager")
   startDate        DateTime
   endDate          DateTime?
+  /// Determines eligibility for maternity and paternity leave. Nullable
+  /// because it is unknown for employees created before this field existed;
+  /// a null blocks the parental types until HR fills it in.
+  gender           Gender?
   phone            String?
   emergencyContact String?
   emergencyPhone   String?

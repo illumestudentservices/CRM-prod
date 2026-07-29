@@ -9,6 +9,8 @@ import {
   computeEntitlement,
   startOfDayUTC,
   type LeaveTypeKey,
+  LEAVE_TYPES,
+  checkGenderEligibility,
 } from "@/lib/leave-policy";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
@@ -18,7 +20,8 @@ class LeaveError extends Error {}
 
 const createLeaveSchema = z.object({
   employeeId: z.string().min(1),
-  leaveType: z.enum(["ANNUAL", "SICK", "MATERNITY", "PATERNITY", "UNPAID", "COMP_OFF"]),
+  // Derived from LEAVE_TYPES so a policy change cannot leave this list stale.
+  leaveType: z.enum(LEAVE_TYPES as [LeaveTypeKey, ...LeaveTypeKey[]]),
   startDate: z.string().transform((v) => new Date(v)),
   endDate: z.string().transform((v) => new Date(v)),
   reason: z.string().optional(),
@@ -142,8 +145,16 @@ export async function POST(req: NextRequest) {
   }
 
   const year = data.startDate.getUTCFullYear();
-  const leaveType = data.leaveType as LeaveTypeKey;
+  const leaveType = data.leaveType;
   const policy = LEAVE_POLICIES[leaveType];
+
+  // Maternity and paternity depend on the gender recorded on the employee
+  // profile. Enforced here rather than only in the UI, since the request body
+  // decides the type and a hidden dropdown option is not a control.
+  const eligibility = checkGenderEligibility(leaveType, employee.gender);
+  if (!eligibility.eligible) {
+    return NextResponse.json({ error: eligibility.reason }, { status: 422 });
+  }
 
   // Public holidays that apply to this employee — global ones plus their region's
   const holidayRows = await db.holiday.findMany({
@@ -207,7 +218,7 @@ export async function POST(req: NextRequest) {
 
         if (entitlement.inWaitingPeriod) {
           throw new LeaveError(
-            `${policy.label} becomes available on ${entitlement.eligibleFrom.toISOString().slice(0, 10)}, ${policy.waitingPeriodMonths} months after joining.`
+            `${policy.label} becomes available on ${entitlement.eligibleFrom.toISOString().slice(0, 10)}, ${policy.waitingPeriod.value} ${policy.waitingPeriod.unit} after joining.`
           );
         }
 

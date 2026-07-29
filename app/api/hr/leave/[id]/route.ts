@@ -95,8 +95,9 @@ export async function PATCH(
       },
     });
 
-    // Update leave balance
-    if (leaveRequest.leaveType !== "UNPAID") {
+    // Update leave balance. Every remaining type tracks one — the unpaid type
+    // this used to exempt no longer exists.
+    {
       const balanceWhere = {
         employeeId_leaveType_year: {
           employeeId: leaveRequest.employeeId,

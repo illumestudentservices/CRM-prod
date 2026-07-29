@@ -41,6 +41,9 @@ const createEmployeeSchema = z
     emergencyPhone: z.string().optional().nullable(),
     address: z.string().optional().nullable(),
     photoUrl: z.string().url().optional().nullable(),
+    // Drives maternity/paternity eligibility. Optional so an incomplete
+    // onboarding is still possible; a null blocks the parental types.
+    gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.role !== "SUPER_ADMIN" && !data.managerId) {
@@ -199,6 +202,7 @@ export async function POST(req: NextRequest) {
           emergencyPhone: data.emergencyPhone ?? null,
           address: data.address ?? null,
           photoUrl: data.photoUrl ?? null,
+          gender: data.gender ?? null,
           isActive: true,
         },
         include: {

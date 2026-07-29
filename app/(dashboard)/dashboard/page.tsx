@@ -1161,7 +1161,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
   const data = await getERPDashboardData(userId, regionId);
   const { employee, stats, leaveBalances, leaveRequests, holidays, assets } = data;
 
-  const annualLeave = leaveBalances.find((lb) => lb.leaveType === "ANNUAL");
+  const annualLeave = leaveBalances.find((lb) => lb.leaveType === "VACATION_PAID");
   const sickLeave = leaveBalances.find((lb) => lb.leaveType === "SICK");
   const annualRemaining = annualLeave ? annualLeave.totalDays - annualLeave.usedDays : 0;
   const sickRemaining = sickLeave ? sickLeave.totalDays - sickLeave.usedDays : 0;
