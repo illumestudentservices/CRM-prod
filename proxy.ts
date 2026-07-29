@@ -16,6 +16,7 @@ export default auth((req) => {
   const headers = new Headers(req.headers);
   headers.set("x-pathname", pathname);
 
+
   // Public routes — no auth required
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     // Redirect fully-authenticated users away from the login page

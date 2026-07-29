@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { STAGE_LABELS, INACTIVITY_REMINDER_DAYS, INACTIVITY_ESCALATION_DAYS } from "@/lib/lead-pipeline";
+import {
+  STAGE_LABELS,
+  INACTIVITY_REMINDER_DAYS,
+  INACTIVITY_ESCALATION_DAYS,
+} from "@/lib/lead-pipeline";
 import type { Prisma } from "@prisma/client";
 
 /**
  * Scheduled pipeline automation.
  *
- * Driven by a VPS crontab, authenticated with CRON_SECRET. Handles the spec's
- * time-based rules: inactivity chasing, offer and deposit deadlines, and
- * reopening deferred students ahead of their intake.
+ * Deliberately *not* an HTTP route. A cron job has no session, so exposing this
+ * over HTTP would mean either punching a hole in the auth proxy or guarding an
+ * internet-reachable endpoint with a shared secret. Invoked as a local script
+ * from the VPS crontab instead, there is nothing reachable from outside to
+ * brute-force, rate-limit or leak a secret to.
  *
  * Three things matter here and each is easy to get subtly wrong:
  *
@@ -16,13 +21,13 @@ import type { Prisma } from "@prisma/client";
  *    counted, the reminder this job writes would reset the very clock it is
  *    measuring and the 21-day escalation would never fire.
  *
- *  - The notified-at flags make it idempotent. Running twice in a minute, or
- *    a cron firing twice, must not double-notify. They are cleared whenever a
- *    real engagement completes, so the next cycle can chase again.
+ *  - The notified-at flags make it idempotent. Running twice must not
+ *    double-notify. They are cleared whenever a real engagement completes, so
+ *    the next cycle can chase again.
  *
  *  - Closed, deferred and enrolled students are excluded. Deferred students in
- *    particular are *supposed* to be dormant; nagging about them for six months
- *    would be exactly wrong.
+ *    particular are *supposed* to be dormant; chasing them for six months would
+ *    be exactly wrong.
  */
 
 /** Bounded so a slow run cannot overlap the next one. */
@@ -31,6 +36,17 @@ const DAY_MS = 86_400_000;
 
 /** Days before an offer expires or a deposit falls due to start warning. */
 const DEADLINE_WARNING_DAYS = 7;
+
+export interface AutomationSummary {
+  dryRun: boolean;
+  ranAt: string;
+  inactivityReminders: number;
+  inactivityEscalations: number;
+  offerExpiryWarnings: number;
+  depositDeadlineWarnings: number;
+  deferredReopened: number;
+  unassigned: string[];
+}
 
 function daysAgo(n: number): Date {
   return new Date(Date.now() - n * DAY_MS);
@@ -73,31 +89,19 @@ async function resolveEscalationTargets(lead: {
   return admins.map((u) => u.id);
 }
 
-export async function POST(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
-  }
-  const provided =
-    req.headers.get("x-cron-secret") ??
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (provided !== secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Lets a first production run report what it *would* do without sending.
-  const dryRun =
-    req.nextUrl.searchParams.get("dryRun") === "true" || process.env.CRON_DRY_RUN === "true";
-
+export async function runLeadAutomation(
+  { dryRun = false }: { dryRun?: boolean } = {}
+): Promise<AutomationSummary> {
   const now = new Date();
-  const summary = {
+  const summary: AutomationSummary = {
     dryRun,
+    ranAt: now.toISOString(),
     inactivityReminders: 0,
     inactivityEscalations: 0,
     offerExpiryWarnings: 0,
     depositDeadlineWarnings: 0,
     deferredReopened: 0,
-    unassigned: [] as string[],
+    unassigned: [],
   };
 
   // Only students actively being worked. Closed outcomes and Enrolled are done.
@@ -147,37 +151,36 @@ export async function POST(req: NextRequest) {
     if (dueReminder) {
       summary.inactivityReminders++;
       if (!lead.assignedICRId) summary.unassigned.push(lead.id);
+      if (dryRun) continue;
 
-      if (!dryRun) {
-        await db.$transaction([
-          ...(lead.assignedICRId
-            ? [
-                db.notification.create({
-                  data: {
-                    userId: lead.assignedICRId,
-                    title: "Student needs attention",
-                    message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
-                    type: "LEAD_INACTIVITY",
-                    link: `/students/${lead.id}`,
-                  },
-                }),
-              ]
-            : []),
-          db.lead.update({
-            where: { id: lead.id },
-            data: { inactivity14NotifiedAt: now },
-          }),
-          db.leadActivity.create({
-            data: {
-              leadId: lead.id,
-              kind: "SYSTEM",
-              type: "INACTIVITY_REMINDER",
-              description: `Automated reminder — no activity for ${idleDays} days.`,
-              stageAtCreation: lead.stage,
-            },
-          }),
-        ]);
-      }
+      await db.$transaction([
+        ...(lead.assignedICRId
+          ? [
+              db.notification.create({
+                data: {
+                  userId: lead.assignedICRId,
+                  title: "Student needs attention",
+                  message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+                  type: "LEAD_INACTIVITY",
+                  link: `/students/${lead.id}`,
+                },
+              }),
+            ]
+          : []),
+        db.lead.update({
+          where: { id: lead.id },
+          data: { inactivity14NotifiedAt: now },
+        }),
+        db.leadActivity.create({
+          data: {
+            leadId: lead.id,
+            kind: "SYSTEM",
+            type: "INACTIVITY_REMINDER",
+            description: `Automated reminder — no activity for ${idleDays} days.`,
+            stageAtCreation: lead.stage,
+          },
+        }),
+      ]);
       continue;
     }
 
@@ -185,37 +188,36 @@ export async function POST(req: NextRequest) {
     summary.inactivityEscalations++;
     const targets = await resolveEscalationTargets(lead);
     if (!targets.length) summary.unassigned.push(lead.id);
+    if (dryRun) continue;
 
-    if (!dryRun) {
-      await db.$transaction([
-        ...targets.map((userId) =>
-          db.notification.create({
-            data: {
-              userId,
-              title: "Stalled student",
-              message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
-              type: "LEAD_ESCALATION",
-              link: `/students/${lead.id}`,
-            },
-          })
-        ),
-        db.lead.update({
-          where: { id: lead.id },
-          // Both flags set: a student escalated to a manager should not then
-          // generate a first-level reminder as well.
-          data: { inactivity14NotifiedAt: now, inactivity21NotifiedAt: now },
-        }),
-        db.leadActivity.create({
+    await db.$transaction([
+      ...targets.map((userId) =>
+        db.notification.create({
           data: {
-            leadId: lead.id,
-            kind: "SYSTEM",
-            type: "INACTIVITY_ESCALATION",
-            description: `Escalated to management — no activity for ${idleDays} days.`,
-            stageAtCreation: lead.stage,
+            userId,
+            title: "Stalled student",
+            message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+            type: "LEAD_ESCALATION",
+            link: `/students/${lead.id}`,
           },
-        }),
-      ]);
-    }
+        })
+      ),
+      db.lead.update({
+        where: { id: lead.id },
+        // Both flags set: a student escalated to a manager should not then
+        // generate a first-level reminder as well.
+        data: { inactivity14NotifiedAt: now, inactivity21NotifiedAt: now },
+      }),
+      db.leadActivity.create({
+        data: {
+          leadId: lead.id,
+          kind: "SYSTEM",
+          type: "INACTIVITY_ESCALATION",
+          description: `Escalated to management — no activity for ${idleDays} days.`,
+          stageAtCreation: lead.stage,
+        },
+      }),
+    ]);
   }
 
   // ── Offer expiry and deposit deadlines ─────────────────────────────────
@@ -330,17 +332,5 @@ export async function POST(req: NextRequest) {
     ]);
   }
 
-  return NextResponse.json({ ok: true, ranAt: now.toISOString(), ...summary });
-}
-
-/** Lightweight health check, so the schedule can be verified without side effects. */
-export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  const provided =
-    req.headers.get("x-cron-secret") ??
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!secret || provided !== secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return NextResponse.json({ ok: true, configured: true });
+  return summary;
 }
