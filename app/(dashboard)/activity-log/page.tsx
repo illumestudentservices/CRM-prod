@@ -16,7 +16,9 @@ export default async function ActivityLogPage() {
     db.auditLog.count(),
     db.auditLog.count({ where: { createdAt: { gte: today } } }),
     db.auditLog.findMany({
-      where:  { createdAt: { gte: today } },
+      // Entries whose author has been deleted share a null userId, which would
+      // otherwise count as one extra "active user".
+      where:  { createdAt: { gte: today }, userId: { not: null } },
       select: { userId: true },
       distinct: ["userId"],
     }),

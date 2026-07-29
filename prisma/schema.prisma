@@ -1401,8 +1401,12 @@ model Notification {
 
 model AuditLog {
   id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  // Nullable so an audit trail outlives the account that created it. With a
+  // required author, deleting a departing employee either fails on the foreign
+  // key or takes their entire history with it — and losing the record of who
+  // did what is precisely what an audit log exists to prevent.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String
   entity    String
   entityId  String

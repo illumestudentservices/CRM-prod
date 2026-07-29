@@ -41,7 +41,8 @@ interface LogEntry {
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
-  user: LogUser;
+  // Null once the account that acted has been deleted; the entry survives.
+  user: LogUser | null;
   geoLocation: GeoLocation | null;
 }
 
@@ -267,7 +268,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
               data={logs.map((log) => ({
                 action: log.action,
                 entity: formatLabel(log.entity),
-                user: log.user.name ?? log.user.email,
+                user: log.user?.name ?? log.user?.email ?? "Deleted user",
                 timestamp: fullTime(log.createdAt),
                 details: log.changes ? JSON.stringify(log.changes) : "—",
               }))}
@@ -336,13 +337,27 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                       {/* User */}
                       <TableCell>
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-7 w-7 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center text-[10px] font-semibold shrink-0">
-                            {getInitials(log.user.name, log.user.email)}
+                          <div
+                            className={cn(
+                              "h-7 w-7 rounded-full text-white flex items-center justify-center text-[10px] font-semibold shrink-0",
+                              log.user ? "bg-[#1E3A5F]" : "bg-slate-300"
+                            )}
+                          >
+                            {log.user ? getInitials(log.user.name, log.user.email) : "—"}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-medium truncate">{log.user.name ?? log.user.email}</p>
-                            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", ROLE_STYLES[log.user.role] ?? "bg-slate-100 text-slate-600")}>
-                              {formatLabel(log.user.role)}
+                            <p className="text-xs font-medium truncate">
+                              {log.user?.name ?? log.user?.email ?? "Deleted user"}
+                            </p>
+                            <span
+                              className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                                log.user
+                                  ? ROLE_STYLES[log.user.role] ?? "bg-slate-100 text-slate-600"
+                                  : "bg-slate-100 text-slate-400"
+                              )}
+                            >
+                              {log.user ? formatLabel(log.user.role) : "Account removed"}
                             </span>
                           </div>
                         </div>
