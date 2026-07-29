@@ -17,6 +17,9 @@ export default function Verify2FAPage() {
   const [usedBackupCode, setUsedBackupCode] = useState(false);
   const [codesRemaining, setCodesRemaining] = useState<number | null>(null);
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
+  // Explicit, because the field has to behave differently: backup codes are
+  // hex with a hyphen, so a numeric keypad cannot type them.
+  const [backupMode, setBackupMode] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +55,11 @@ export default function Verify2FAPage() {
       const res = await fetch("/api/auth/2fa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.replace(/\D/g, "").trim() || code.trim() }),
+        // Send what the user typed. Stripping non-digits here silently
+        // destroyed backup codes, which are hex — "3A7F2-9C1E4" arrived as
+        // "372914" and could never match. The route already normalises
+        // whitespace and case for both code types.
+        body: JSON.stringify({ code: code.trim() }),
       });
       const data = await res.json();
 
@@ -83,7 +90,8 @@ export default function Verify2FAPage() {
     }
   }
 
-  const isBackupCode = code.replace(/\d/g, "").length > 0 || code.length > 6;
+  // Also detect a pasted backup code from someone who never hit the toggle.
+  const isBackupCode = backupMode || /[A-Za-z-]/.test(code) || code.length > 6;
 
   return (
     <div ref={cardRef} style={{ opacity: 0 }}>
@@ -152,9 +160,10 @@ export default function Verify2FAPage() {
             <input
               ref={inputRef}
               type="text"
-              inputMode="numeric"
+              inputMode={isBackupCode ? "text" : "numeric"}
+              autoCapitalize={isBackupCode ? "characters" : "off"}
               autoComplete="one-time-code"
-              placeholder="000000"
+              placeholder={isBackupCode ? "XXXXX-XXXXX" : "000000"}
               maxLength={20}
               value={code}
               onChange={(e) => { setCode(e.target.value); setError(null); }}
@@ -169,14 +178,40 @@ export default function Verify2FAPage() {
             />
           </div>
           <p className="text-xs text-white/30">
-            Can&apos;t access your authenticator?{" "}
-            <button
-              type="button"
-              className="text-blue-400/70 hover:text-blue-300 transition-colors underline underline-offset-2"
-              onClick={() => { setCode(""); inputRef.current?.focus(); }}
-            >
-              Use a backup code
-            </button>
+            {isBackupCode ? (
+              <>
+                Enter one of the backup codes saved when you set up
+                authentication.{" "}
+                <button
+                  type="button"
+                  className="text-blue-400/70 hover:text-blue-300 transition-colors underline underline-offset-2"
+                  onClick={() => {
+                    setBackupMode(false);
+                    setCode("");
+                    setError(null);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  Use your authenticator instead
+                </button>
+              </>
+            ) : (
+              <>
+                Can&apos;t access your authenticator?{" "}
+                <button
+                  type="button"
+                  className="text-blue-400/70 hover:text-blue-300 transition-colors underline underline-offset-2"
+                  onClick={() => {
+                    setBackupMode(true);
+                    setCode("");
+                    setError(null);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  Use a backup code
+                </button>
+              </>
+            )}
           </p>
         </div>
 
