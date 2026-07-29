@@ -7,6 +7,9 @@
  * expose, no secret to rotate, and nothing for the auth proxy to make an
  * exception for.
  */
+// Next.js loads .env itself; a standalone script does not, and without this
+// DATABASE_URL is undefined and Prisma fails on an empty password.
+import "dotenv/config";
 import { runLeadAutomation } from "@/lib/lead-automation";
 
 const dryRun = process.argv.includes("--dry-run");
