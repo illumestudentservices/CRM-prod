@@ -81,3 +81,6 @@ dbg.mjs
 verify-p3.mjs
 verify-journey.mjs
 dbg2.mjs
+mkaccount.ts
+rmaccount.ts
+verify-hr.mjs
