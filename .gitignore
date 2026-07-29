@@ -84,3 +84,4 @@ dbg2.mjs
 mkaccount.ts
 rmaccount.ts
 verify-hr.mjs
+verify-refresh.mjs
