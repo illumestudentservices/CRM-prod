@@ -21,6 +21,7 @@ interface EditEmployeeFormProps {
   initial: {
     jobTitle: string;
     employmentType: string;
+    gender?: string | null;
     /** ISO date. Drives leave accrual, so editing it reprices entitlement. */
     startDate: string;
     phone: string | null;
@@ -66,6 +67,7 @@ export function EditEmployeeForm({
     // HR fields
     jobTitle: initial.jobTitle,
     employmentType: initial.employmentType,
+    gender: initial.gender ?? "none",
     startDate: initial.startDate?.slice(0, 10) ?? "",
     isActive: initial.isActive,
     departmentId: initial.departmentId ?? "none",
@@ -90,6 +92,7 @@ export function EditEmployeeForm({
     if (isHR) {
       payload.jobTitle = form.jobTitle;
       payload.employmentType = form.employmentType;
+      payload.gender = form.gender === "none" ? null : form.gender;
       if (form.startDate) payload.startDate = form.startDate;
       payload.isActive = form.isActive;
       payload.departmentId = form.departmentId === "none" ? null : form.departmentId;
@@ -199,6 +202,23 @@ export function EditEmployeeForm({
                       <SelectItem value="INTERN">Intern</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Gender</Label>
+                  <Select value={form.gender} onValueChange={(v) => set("gender", v)}>
+                    <SelectTrigger><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not recorded</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {form.gender === "none" && (
+                    <p className="text-xs text-amber-600">
+                      Maternity and paternity leave stay blocked until this is set.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Department</Label>

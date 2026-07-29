@@ -19,6 +19,10 @@ const patchEmployeeSchema = z.object({
   address: z.string().optional().nullable(),
   photoUrl: z.string().url().optional().nullable(),
   isActive: z.boolean().optional(),
+  // Editable, not just settable at onboarding. Every employee hired before this
+  // field existed has it null, and a null blocks maternity and paternity — so
+  // without an edit path the block would have had no way to be lifted.
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
   // Leave entitlement is derived from startDate (see lib/leave-policy.ts), so
   // correcting a wrong joining date immediately reprices every accrual. HR-only,
   // and audited below, because it silently moves someone's balance.
@@ -152,7 +156,9 @@ export async function PATCH(
 
   // Split fields by permission level
   const superAdminUserFields = ["name", "email", "role", "regionId"];
-  const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "startDate", "endDate"];
+  // HR-only, like the other employment-record fields: gender decides parental
+  // leave eligibility, so it is not something an employee sets on themselves.
+  const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "startDate", "endDate", "gender"];
   const selfFields = ["phone", "emergencyContact", "emergencyPhone", "address", "photoUrl"];
 
   const employeeUpdate: Record<string, unknown> = {};
