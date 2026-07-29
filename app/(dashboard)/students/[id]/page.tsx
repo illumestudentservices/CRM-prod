@@ -30,7 +30,14 @@ import { LeadDetailClient } from "./_components/lead-detail-client";
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
 
-import { STAGE_BADGE_CLASSES as STAGE_COLORS, STAGE_LABELS } from "@/lib/lead-pipeline";
+import {
+  STAGE_BADGE_CLASSES as STAGE_COLORS,
+  STAGE_LABELS,
+  ALL_STAGES,
+  CLOSED_STAGES,
+} from "@/lib/lead-pipeline";
+import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
+import { loadLeadForGate } from "@/lib/lead-access";
 export { STAGE_COLORS, STAGE_LABELS };
 
 // ─── Detail row ───────────────────────────────────────────────────────────────
@@ -139,6 +146,26 @@ export default async function LeadDetailPage({
     }),
   ]);
 
+  // Stage gates, evaluated here rather than fetched by the client.
+  //
+  // It has to be per-request: the "a future activity is scheduled" rule depends
+  // on the current time, so a cached answer goes wrong on its own. Computing it
+  // in the server component also means every router.refresh() — after an edit,
+  // a logged activity, a ticked checklist item — delivers a fresh blocker list,
+  // which is what stops a warning lingering until the page is reloaded.
+  const gateLead = await loadLeadForGate(id);
+  const gates = gateLead
+    ? ALL_STAGES.filter(
+        (s) => s !== gateLead.stage && !(CLOSED_STAGES as readonly string[]).includes(s)
+      ).map((s) => {
+        const result = evaluateStageGate(gateLead, s, gateLead.activities, {
+          application: gateLead.applications[0] ?? null,
+          checklist: gateLead.checklistItems,
+        });
+        return { stage: s, canProgress: result.canProgress, blockers: result.blockers };
+      })
+    : [];
+
   const activities: ActivityItem[] = lead.activities.map((a) => ({
     id: a.id,
     type: a.type,
@@ -221,6 +248,8 @@ export default async function LeadDetailPage({
                 leadId={lead.id}
                 currentStage={lead.stage}
                 stageEnteredAt={lead.stageEnteredAt.toISOString()}
+                gates={gates}
+                canOverride={canOverrideGate(session.user.role)}
               />
             </CardContent>
           </Card>

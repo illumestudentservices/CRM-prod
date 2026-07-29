@@ -51,6 +51,18 @@ interface StageSelectorProps {
   leadId: string;
   currentStage: LeadStage;
   stageEnteredAt: string;
+  /**
+   * Evaluated on the server for this request.
+   *
+   * Passed in rather than fetched here so that editing a field, logging an
+   * activity or ticking a checklist item clears its own blocker immediately:
+   * every one of those calls router.refresh(), which re-runs the server
+   * component and delivers new props. Held in client state instead, the list
+   * stayed frozen at whatever it was on mount and only a full page reload
+   * would update it.
+   */
+  gates: GateEntry[];
+  canOverride: boolean;
 }
 
 const CLOSED_STYLES: Record<string, string> = {
@@ -59,12 +71,16 @@ const CLOSED_STYLES: Record<string, string> = {
   LOST: "border-gray-200 text-gray-600 hover:bg-gray-50",
 };
 
-export function StageSelector({ leadId, currentStage, stageEnteredAt }: StageSelectorProps) {
+export function StageSelector({
+  leadId,
+  currentStage,
+  stageEnteredAt,
+  gates,
+  canOverride,
+}: StageSelectorProps) {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [gates, setGates] = React.useState<GateEntry[] | null>(null);
-  const [canOverride, setCanOverride] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [pending, setPending] = React.useState<LeadStage | null>(null);
   const [overrideOpen, setOverrideOpen] = React.useState(false);
@@ -75,25 +91,8 @@ export function StageSelector({ leadId, currentStage, stageEnteredAt }: StageSel
   const currentIndex = stageIndex(currentStage);
   const daysInStage = daysSince(stageEnteredAt) ?? 0;
 
-  // Fetched rather than computed client-side: the "future activity" test
-  // depends on the current time, so a stale result would show the wrong answer.
-  const loadGates = React.useCallback(async () => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}/stage`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setGates(data.gates ?? []);
-      setCanOverride(!!data.canOverride);
-    } catch {
-      /* leave the stepper usable if this fails */
-    }
-  }, [leadId]);
 
-  React.useEffect(() => {
-    loadGates();
-  }, [loadGates]);
-
-  const gateFor = (stage: LeadStage) => gates?.find((g) => g.stage === stage);
+  const gateFor = (stage: LeadStage) => gates.find((g) => g.stage === stage);
 
   async function move(stage: LeadStage, override?: string) {
     setLoading(true);
@@ -115,7 +114,7 @@ export function StageSelector({ leadId, currentStage, stageEnteredAt }: StageSel
             (data.blockers ?? []).map((b: Blocker) => b.message).join(" · ") || undefined,
           variant: "destructive",
         });
-        await loadGates();
+        router.refresh();
         return;
       }
 
@@ -126,7 +125,6 @@ export function StageSelector({ leadId, currentStage, stageEnteredAt }: StageSel
       setOverrideOpen(false);
       setOverrideReason("");
       router.refresh();
-      await loadGates();
     } finally {
       setLoading(false);
       setPending(null);
