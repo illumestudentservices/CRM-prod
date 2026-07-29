@@ -55,3 +55,53 @@ export function generateTempPassword(): string {
   }
   return arr.join("");
 }
+
+// ─── Rotation policy ──────────────────────────────────────────────────────────
+
+/** Passwords must be rotated on this cadence. */
+export const PASSWORD_MAX_AGE_DAYS = 90;
+
+/**
+ * How many recent passwords are remembered and refused on reuse. Counts the
+ * current password, so a user cannot immediately set it back to what it was.
+ */
+export const PASSWORD_HISTORY_DEPTH = 5;
+
+/** Start warning the user this many days before expiry. */
+export const PASSWORD_EXPIRY_WARNING_DAYS = 14;
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Whole days until the password must be changed. Negative once overdue.
+ *
+ * A null `changedAt` means the account predates rotation tracking. It is
+ * treated as *not* expired: the migration stamps every existing user, so the
+ * only way to see null here is a row created outside that path, and locking
+ * someone out on a bookkeeping gap is the wrong default.
+ */
+export function daysUntilPasswordExpiry(
+  // Accepts epoch milliseconds too: the session carries the stamp as a number,
+  // since a Date does not survive JWT serialisation intact.
+  changedAt: Date | string | number | null | undefined,
+  now: Date = new Date()
+): number | null {
+  if (changedAt === null || changedAt === undefined || changedAt === "") return null;
+  const t =
+    typeof changedAt === "number"
+      ? changedAt
+      : typeof changedAt === "string"
+        ? Date.parse(changedAt)
+        : changedAt.getTime();
+  if (!Number.isFinite(t)) return null;
+  const elapsedDays = Math.floor((now.getTime() - t) / DAY_MS);
+  return PASSWORD_MAX_AGE_DAYS - elapsedDays;
+}
+
+export function isPasswordExpired(
+  changedAt: Date | string | number | null | undefined,
+  now: Date = new Date()
+): boolean {
+  const left = daysUntilPasswordExpiry(changedAt, now);
+  return left !== null && left <= 0;
+}

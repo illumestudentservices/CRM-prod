@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { validatePassword } from "@/lib/password";
+import { isPasswordReused, recordPasswordInHistory, PASSWORD_REUSED_MESSAGE } from "@/lib/password-history";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -63,23 +64,32 @@ export async function POST(req: NextRequest) {
     if (record.usedAt) return NextResponse.json({ error: "This link has already been used" }, { status: 400 });
     if (record.expiresAt < new Date()) return NextResponse.json({ error: "This link has expired" }, { status: 400 });
 
+    // The same reuse rule as the change form. Without it the forgot-password
+    // flow is a way around the policy: request a link, set the old password
+    // straight back.
+    if (await isPasswordReused(record.userId, password)) {
+      return NextResponse.json({ error: PASSWORD_REUSED_MESSAGE }, { status: 422 });
+    }
+
     const hashed = await bcrypt.hash(password, 12);
 
-    await db.$transaction([
-      db.user.update({
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
         where: { id: record.userId },
         data: {
           password: hashed,
           mustChangePassword: false,
+          passwordChangedAt: new Date(),
           loginAttempts: 0,
           lockedUntil: null,
         },
-      }),
-      db.passwordResetToken.update({
+      });
+      await tx.passwordResetToken.update({
         where: { id: record.id },
         data: { usedAt: new Date() },
-      }),
-    ]);
+      });
+      await recordPasswordInHistory(record.userId, hashed, tx);
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

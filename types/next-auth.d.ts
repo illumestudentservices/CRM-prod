@@ -11,6 +11,8 @@ declare module "next-auth" {
       role: Role;
       regionId: string | null;
       mustChangePassword: boolean;
+      /** Epoch ms the password was last set; null when untracked. */
+      passwordChangedAt: number | null;
       twoFactorPending?: boolean;
       twoFactorEnabled?: boolean;
     };
@@ -20,6 +22,7 @@ declare module "next-auth" {
     role: Role;
     regionId: string | null;
     mustChangePassword?: boolean;
+    passwordChangedAt?: number | null;
     twoFactorPending?: boolean;
     twoFactorEnabled?: boolean;
   }
@@ -31,6 +34,7 @@ declare module "next-auth/jwt" {
     role: Role;
     regionId: string | null;
     mustChangePassword?: boolean;
+    passwordChangedAt?: number | null;
     twoFactorPending?: boolean;
     twoFactorEnabled?: boolean;
     /** Epoch ms of sign-in, used to enforce an absolute session ceiling. */

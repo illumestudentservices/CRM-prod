@@ -204,12 +204,12 @@ enum ConfidenceLevel {
 
 // Mandatory weekly activities tracked per ICR (Weekly Activity Planner)
 enum WeeklyActivityType {
-  AGENT_TRAINING_VISIT   // Agent training or visits (3-4 / week)
+  AGENT_TRAINING_VISIT // Agent training or visits (3-4 / week)
   HIGH_SCHOOL_ENGAGEMENT // Engagement with high schools (2 / week)
-  ENQUIRIES              // Gather enquiries (5 / week)
-  MONTHLY_WEBINAR        // Monthly webinar (1 / month)
-  PIPELINE_CALLS         // Conversion calls to prospects (weekly)
-  LIVE_SESSION           // Application day / live session (1 / month)
+  ENQUIRIES // Gather enquiries (5 / week)
+  MONTHLY_WEBINAR // Monthly webinar (1 / month)
+  PIPELINE_CALLS // Conversion calls to prospects (weekly)
+  LIVE_SESSION // Application day / live session (1 / month)
 }
 
 enum EmploymentType {
@@ -371,17 +371,21 @@ enum TravelItemType {
 // ─── AUTH MODELS ───────────────────────────────────────────────────────────
 
 model User {
-  id                 String    @id @default(uuid())
-  email              String    @unique
-  emailVerified      DateTime?
-  name               String?
-  image              String?
-  password           String?
-  role               Role      @default(EMPLOYEE)
-  isActive           Boolean   @default(true)
-  loginAttempts      Int       @default(0)
-  lockedUntil        DateTime?
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  emailVerified        DateTime?
+  name                 String?
+  image                String?
+  password             String?
+  role                 Role      @default(EMPLOYEE)
+  isActive             Boolean   @default(true)
+  loginAttempts        Int       @default(0)
+  lockedUntil          DateTime?
   mustChangePassword   Boolean   @default(false)
+  // When the password was last set. Drives the 90-day rotation policy; null
+  // means untracked, which is deliberately treated as not-expired so a
+  // bookkeeping gap can never lock someone out.
+  passwordChangedAt    DateTime?
   twoFactorEnabled     Boolean   @default(false)
   twoFactorSecret      String?
   twoFactorBackupCodes String[]
@@ -389,31 +393,32 @@ model User {
   updatedAt            DateTime  @updatedAt
   deletedAt            DateTime?
 
-  regionId      String?
-  region        Region?   @relation(fields: [regionId], references: [id])
-  employee      Employee?
-  accounts      Account[]
-  sessions      Session[]
+  regionId            String?
+  region              Region?              @relation(fields: [regionId], references: [id])
+  employee            Employee?
+  accounts            Account[]
+  sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  passwordHistory     PasswordHistory[]
 
-  assignedLeads        Lead[]           @relation("AssignedICR")
-  createdLeads         Lead[]           @relation("LeadCreatedBy")
-  leadActivities       LeadActivity[]
-  assignedEvents       Event[]
-  monthlyReports       MonthlyReport[]  @relation("ICRReports")
-  weeklyActivities     WeeklyActivity[] @relation("ICRWeeklyActivities")
-  reportApprovals      ReportApproval[]
-  engagementLogs       EngagementLog[]
-  notifications        Notification[]
-  auditLogs            AuditLog[]
-  institutionAccess    InstitutionUser[]
-  whatsappMessages     WhatsAppMessage[]
+  assignedLeads     Lead[]            @relation("AssignedICR")
+  createdLeads      Lead[]            @relation("LeadCreatedBy")
+  leadActivities    LeadActivity[]
+  assignedEvents    Event[]
+  monthlyReports    MonthlyReport[]   @relation("ICRReports")
+  weeklyActivities  WeeklyActivity[]  @relation("ICRWeeklyActivities")
+  reportApprovals   ReportApproval[]
+  engagementLogs    EngagementLog[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  institutionAccess InstitutionUser[]
+  whatsappMessages  WhatsAppMessage[]
 
   // Phase 1 relations
-  managedInstitutions  Institution[]    @relation("AccountManager")
-  activities           Activity[]
-  ownedRisks           RiskRegister[]
-  assignedCompliance   ComplianceItem[]
+  managedInstitutions Institution[]    @relation("AccountManager")
+  activities          Activity[]
+  ownedRisks          RiskRegister[]
+  assignedCompliance  ComplianceItem[]
 
   @@map("users")
 }
@@ -456,6 +461,20 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model PasswordHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // bcrypt hash of a password this user has previously used. Never a plaintext
+  // and never reversible — this exists only to answer "have you used this
+  // before", which needs a comparison, not a lookup.
+  hash      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
 model PasswordResetToken {
   id        String    @id @default(uuid())
   userId    String
@@ -479,14 +498,14 @@ model Region {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users          User[]
-  leads          Lead[]
-  sources        Source[]
-  events         Event[]
-  institutions   Institution[]
-  monthlyReports MonthlyReport[]
+  users            User[]
+  leads            Lead[]
+  sources          Source[]
+  events           Event[]
+  institutions     Institution[]
+  monthlyReports   MonthlyReport[]
   weeklyActivities WeeklyActivity[]
-  holidays       Holiday[]
+  holidays         Holiday[]
 
   @@map("regions")
 }
@@ -524,7 +543,7 @@ model Lead {
   /// not just the "Days in Current Stage" badge: the gate only counts
   /// activities completed at or after this instant, which is what stops a
   /// re-entered, reopened or reversed stage from being satisfied by stale work.
-  stageEnteredAt         DateTime  @default(now())
+  stageEnteredAt         DateTime   @default(now())
   /// Stage the lead occupied before being closed. Preserves "where do we lose
   /// students" even though closed outcomes overwrite `stage`.
   stageBeforeClose       LeadStage?
@@ -545,8 +564,8 @@ model Lead {
   counsellingOutcome   String?      @db.Text
 
   // ─── Stage 3: Qualified ─────────────────────────────────────────────────
-  academicQualification String?
-  englishStatus         EnglishStatus?
+  academicQualification  String?
+  englishStatus          EnglishStatus?
   eligibilityConfirmedAt DateTime?
 
   // ─── Stage 8: Enrolled ──────────────────────────────────────────────────
@@ -566,30 +585,30 @@ model Lead {
   /// Stored at close rather than recomputed, so the reopen date is inspectable.
   deferredReopenAt    DateTime?
 
-  regionId       String?
-  region         Region?      @relation(fields: [regionId], references: [id])
-  assignedICRId  String?
-  assignedICR    User?        @relation("AssignedICR", fields: [assignedICRId], references: [id])
-  createdBy      User         @relation("LeadCreatedBy", fields: [createdById], references: [id])
-  institutionId  String?
-  institution    Institution? @relation(fields: [institutionId], references: [id])
-  sourceId       String?
-  source         Source?      @relation(fields: [sourceId], references: [id])
-  eventId        String?
-  event          Event?       @relation(fields: [eventId], references: [id])
+  regionId      String?
+  region        Region?      @relation(fields: [regionId], references: [id])
+  assignedICRId String?
+  assignedICR   User?        @relation("AssignedICR", fields: [assignedICRId], references: [id])
+  createdBy     User         @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  institutionId String?
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  sourceId      String?
+  source        Source?      @relation(fields: [sourceId], references: [id])
+  eventId       String?
+  event         Event?       @relation(fields: [eventId], references: [id])
 
   /// Denormalised pointer to the application currently in play. A lead can
   /// hold several over its lifetime — rejected by one institution, then
   /// offered by another.
   activeApplicationId String?
 
-  activities           LeadActivity[]
-  notesLog             LeadNote[]
-  documents            LeadDocument[]
-  forecastEntries      ForecastEntry[]
+  activities            LeadActivity[]
+  notesLog              LeadNote[]
+  documents             LeadDocument[]
+  forecastEntries       ForecastEntry[]
   whatsappConversations WhatsAppConversation[]
-  applications         LeadApplication[]
-  checklistItems       LeadChecklistItem[]
+  applications          LeadApplication[]
+  checklistItems        LeadChecklistItem[]
 
   @@index([email])
   @@index([stage])
@@ -620,19 +639,19 @@ model LeadActivity {
   metadata    Json?
   createdAt   DateTime @default(now())
 
-  kind           LeadActivityKind    @default(SYSTEM)
-  engagementType LeadEngagementType?
+  kind              LeadActivityKind    @default(SYSTEM)
+  engagementType    LeadEngagementType?
   /// Stage when scheduled, and when completed. The gate asks about completion,
   /// and an activity booked in one stage is often completed in the next.
   stageAtCreation   LeadStage?
   stageAtCompletion LeadStage?
   scheduledFor      DateTime?
   completedAt       DateTime?
-  outcome           String?   @db.Text
+  outcome           String?             @db.Text
   /// Open future engagements are cancelled when a lead is closed, so they stop
   /// appearing in task lists and triggering reminders.
-  cancelledAt     DateTime?
-  cancelledReason String?
+  cancelledAt       DateTime?
+  cancelledReason   String?
 
   @@index([leadId, createdAt])
   @@index([leadId, kind, stageAtCompletion])
@@ -654,9 +673,9 @@ model LeadApplication {
 
   // Stage 4 — submission. The spec asks for both a user-entered date and a
   // system timestamp; they answer different questions.
-  applicationNumber   String?
-  submissionMethod    ApplicationSubmissionMethod?
-  submissionDate      DateTime?
+  applicationNumber    String?
+  submissionMethod     ApplicationSubmissionMethod?
+  submissionDate       DateTime?
   submissionRecordedAt DateTime?
 
   status ApplicationStatus @default(SUBMITTED)
@@ -665,16 +684,16 @@ model LeadApplication {
   offerType       OfferType?
   offerReceivedAt DateTime?
   offerExpiryDate DateTime?
-  offerConditions String?    @db.Text
+  offerConditions String?          @db.Text
   studentDecision StudentDecision?
 
   // Stage 7 — deposit / acceptance
-  depositDeadline            DateTime?
+  depositDeadline              DateTime?
   /// Distinguishes "deliberately not applicable" from "not filled in yet".
-  depositDeadlineNotApplicable Boolean @default(false)
-  depositPaid      Boolean   @default(false)
-  depositDate      DateTime?
-  acceptanceStatus AcceptanceStatus?
+  depositDeadlineNotApplicable Boolean           @default(false)
+  depositPaid                  Boolean           @default(false)
+  depositDate                  DateTime?
+  acceptanceStatus             AcceptanceStatus?
 
   // Rejection — kept per application, not on the lead
   rejectionReason String? @db.Text
@@ -693,13 +712,13 @@ model LeadApplication {
 /// Checklist items generated on entering Qualified (documents) and
 /// Deposit Paid (visa, pre-departure, accommodation).
 model LeadChecklistItem {
-  id       String                @id @default(uuid())
-  leadId   String
-  lead     Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  category LeadChecklistCategory
-  label    String
-  isRequired Boolean @default(true)
-  order      Int     @default(0)
+  id         String                @id @default(uuid())
+  leadId     String
+  lead       Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  category   LeadChecklistCategory
+  label      String
+  isRequired Boolean               @default(true)
+  order      Int                   @default(0)
 
   completedAt   DateTime?
   completedById String?
@@ -771,7 +790,7 @@ model Source {
 
   // Phase 1
   agentProfile AgentProfile?
-  activities   Activity[]     @relation("ActivitySource")
+  activities   Activity[]    @relation("ActivitySource")
 
   @@map("sources")
 }
@@ -877,18 +896,18 @@ model InstitutionContact {
 }
 
 model Contract {
-  id            String      @id @default(uuid())
+  id            String               @id @default(uuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution   Institution          @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   title         String
   value         Float?
   startDate     DateTime
   endDate       DateTime
   documentUrl   String?
-  status        String      @default("ACTIVE")
-  notes         String?     @db.Text
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  status        String               @default("ACTIVE")
+  notes         String?              @db.Text
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   createdById   String
   attachments   ContractAttachment[]
 
@@ -1050,8 +1069,8 @@ model MonthlyReport {
   finalApprovedAt DateTime?
   pdfUrl          String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   approvals       ReportApproval[]
@@ -1062,35 +1081,35 @@ model MonthlyReport {
 }
 
 model ReportApproval {
-  id       String         @id @default(uuid())
-  reportId String
-  report   MonthlyReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User           @relation(fields: [userId], references: [id])
-  action   ApprovalAction
-  comment  String?        @db.Text
-  createdAt DateTime      @default(now())
+  id        String         @id @default(uuid())
+  reportId  String
+  report    MonthlyReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  action    ApprovalAction
+  comment   String?        @db.Text
+  createdAt DateTime       @default(now())
 
   @@map("report_approvals")
 }
 
 model ForecastEntry {
-  id            String          @id @default(uuid())
-  reportId      String?
-  report        MonthlyReport?  @relation(fields: [reportId], references: [id])
-  leadId        String?
-  lead          Lead?           @relation(fields: [leadId], references: [id])
-  studentName   String
-  institutionId String
-  program       String
-  stage         LeadStage
-  expectedMonth Int
-  expectedYear  Int
-  confidence    ConfidenceLevel
-  weightedProb  Float
-  actualEnrolled Boolean        @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id             String          @id @default(uuid())
+  reportId       String?
+  report         MonthlyReport?  @relation(fields: [reportId], references: [id])
+  leadId         String?
+  lead           Lead?           @relation(fields: [leadId], references: [id])
+  studentName    String
+  institutionId  String
+  program        String
+  stage          LeadStage
+  expectedMonth  Int
+  expectedYear   Int
+  confidence     ConfidenceLevel
+  weightedProb   Float
+  actualEnrolled Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@map("forecast_entries")
 }
@@ -1104,10 +1123,10 @@ model WeeklyActivity {
   regionId    String?
   region      Region?            @relation(fields: [regionId], references: [id])
   year        Int
-  month       Int                // 1-12
-  weekOfMonth Int                // 1-4
+  month       Int // 1-12
+  weekOfMonth Int // 1-4
   type        WeeklyActivityType
-  target      Int                // expected count for the week
+  target      Int // expected count for the week
   completed   Int                @default(0)
   detail      String?            @db.Text // free-text: agency / school names, notes
   createdAt   DateTime           @default(now())
@@ -1162,7 +1181,7 @@ model Employee {
   updatedAt        DateTime       @updatedAt
 
   leaveBalances      LeaveBalance[]
-  successionPlans    SuccessionPlan[] @relation("SuccessionEmployee")
+  successionPlans    SuccessionPlan[]    @relation("SuccessionEmployee")
   leaveRequests      LeaveRequest[]
   worklogs           Worklog[]
   travelRequests     TravelRequest[]
@@ -1171,8 +1190,8 @@ model Employee {
   trainingRecords    TrainingRecord[]
   assetAssignments   AssetAssignment[]
   attendances        Attendance[]
-  tasks              Task[]           @relation("TaskAssignee")
-  createdTasks       Task[]           @relation("TaskCreator")
+  tasks              Task[]              @relation("TaskAssignee")
+  createdTasks       Task[]              @relation("TaskCreator")
   documents          EmployeeDocument[]
   onboardingItems    OnboardingItem[]
 
@@ -1185,17 +1204,17 @@ model Employee {
 /// totalDays is retained for historical rows; adjustmentDays is the supported
 /// way for HR to grant or dock days on top of the computed entitlement.
 model LeaveBalance {
-  id            String    @id @default(uuid())
-  employeeId    String
-  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType     LeaveType
-  year          Int
-  totalDays     Float     @default(0)
-  adjustmentDays Float    @default(0)
-  usedDays      Float     @default(0)
-  pendingDays   Float     @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType      LeaveType
+  year           Int
+  totalDays      Float     @default(0)
+  adjustmentDays Float     @default(0)
+  usedDays       Float     @default(0)
+  pendingDays    Float     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([employeeId, leaveType, year])
   @@map("leave_balances")
@@ -1271,8 +1290,8 @@ model TravelRequest {
   updatedAt     DateTime     @updatedAt
 
   // Phase 1
-  itineraryItems  TravelItinerary[]
-  travelMeetings  TravelMeeting[]
+  itineraryItems TravelItinerary[]
+  travelMeetings TravelMeeting[]
 
   @@map("travel_requests")
 }
@@ -1352,16 +1371,16 @@ model Task {
 }
 
 model EmployeeDocument {
-  id          String    @id @default(uuid())
-  employeeId  String
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  name        String
-  type        String
-  url         String
-  size        Int?
-  expiryDate  DateTime?
-  uploadedAt  DateTime  @default(now())
-  uploadedBy  String
+  id         String    @id @default(uuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name       String
+  type       String
+  url        String
+  size       Int?
+  expiryDate DateTime?
+  uploadedAt DateTime  @default(now())
+  uploadedBy String
 
   @@map("employee_documents")
 }
@@ -1448,22 +1467,22 @@ model AnnouncementRead {
 }
 
 model KnowledgeBase {
-  id              String        @id @default(uuid())
-  title           String
-  content         String        @db.Text
-  category        String
-  knowledgeType   KnowledgeType @default(GENERAL)
-  tags            String[]
-  authorId        String
-  isPublished     Boolean       @default(true)
-  views           Int           @default(0)
-  institutionId   String?
-  institution     Institution?  @relation(fields: [institutionId], references: [id])
-  marketId        String?
-  market          Market?       @relation(fields: [marketId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  id            String        @id @default(uuid())
+  title         String
+  content       String        @db.Text
+  category      String
+  knowledgeType KnowledgeType @default(GENERAL)
+  tags          String[]
+  authorId      String
+  isPublished   Boolean       @default(true)
+  views         Int           @default(0)
+  institutionId String?
+  institution   Institution?  @relation(fields: [institutionId], references: [id])
+  marketId      String?
+  market        Market?       @relation(fields: [marketId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
 
   attachments KnowledgeBaseAttachment[]
 
@@ -1474,13 +1493,13 @@ model KnowledgeBase {
 }
 
 model KnowledgeBaseAttachment {
-  id        String        @id @default(uuid())
+  id        String   @id @default(uuid())
   articleId String
   name      String
   mimeType  String
   size      Int
   data      Bytes
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   article KnowledgeBase @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
@@ -1519,7 +1538,6 @@ model AssetAssignment {
   @@map("asset_assignments")
 }
 
-
 model PermissionOverride {
   id          String   @id @default(uuid())
   role        Role
@@ -1534,16 +1552,16 @@ model PermissionOverride {
 }
 
 model Holiday {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  date        DateTime  @db.Date
+  date        DateTime @db.Date
   description String?
   regionId    String?
-  region      Region?   @relation(fields: [regionId], references: [id])
-  isGlobal    Boolean   @default(false)
+  region      Region?  @relation(fields: [regionId], references: [id])
+  isGlobal    Boolean  @default(false)
   createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("holidays")
 }
@@ -1618,8 +1636,8 @@ model Market {
   deletedAt                DateTime?
   createdById              String
 
-  govtStakeholders     String?   @db.Text
-  industryAssociations String?   @db.Text
+  govtStakeholders     String? @db.Text
+  industryAssociations String? @db.Text
 
   schools        School[]
   activities     Activity[]
@@ -1665,18 +1683,18 @@ model School {
 }
 
 model Counsellor {
-  id                 String    @id @default(uuid())
-  name               String
-  email              String?
-  phone              String?
-  position           String?
-  influenceScore     Int?
+  id                  String    @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  position            String?
+  influenceScore      Int?
   institutionAffinity Json?
-  lastEngagementDate DateTime?
-  notes              String?   @db.Text
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  lastEngagementDate  DateTime?
+  notes               String?   @db.Text
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   schoolId String
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -1829,17 +1847,17 @@ model ClientKPI {
 // ─── PHASE 1: RISK & COMPLIANCE ───────────────────────────────────────────
 
 model RiskRegister {
-  id             String      @id @default(uuid())
+  id             String     @id @default(uuid())
   type           RiskType
   title          String
-  description    String?     @db.Text
+  description    String?    @db.Text
   likelihood     Int
   impact         Int
   riskScore      Int
-  mitigationPlan String?     @db.Text
-  status         RiskStatus  @default(OPEN)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  mitigationPlan String?    @db.Text
+  status         RiskStatus @default(OPEN)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   ownerId       String
   owner         User         @relation(fields: [ownerId], references: [id])
@@ -1854,15 +1872,15 @@ model RiskRegister {
 }
 
 model ComplianceItem {
-  id            String         @id @default(uuid())
+  id             String         @id @default(uuid())
   complianceType ComplianceType @default(OTHER)
-  title         String
-  description   String?     @db.Text
-  status        String      @default("PENDING")
-  dueDate       DateTime?
-  completedAt   DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  title          String
+  description    String?        @db.Text
+  status         String         @default("PENDING")
+  dueDate        DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   assignedToId  String?
   assignedTo    User?        @relation(fields: [assignedToId], references: [id])
@@ -1876,16 +1894,16 @@ model ComplianceItem {
 // ─── SUCCESSION PLANNING ──────────────────────────────────────────────────
 
 model SuccessionPlan {
-  id               String    @id @default(uuid())
-  employeeId       String
-  employee         Employee  @relation("SuccessionEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
-  backupPersonnel  String
-  crossTraining    String?   @db.Text
+  id                String   @id @default(uuid())
+  employeeId        String
+  employee          Employee @relation("SuccessionEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  backupPersonnel   String
+  crossTraining     String?  @db.Text
   emergencyCoverage String?  @db.Text
-  readinessLevel   String    @default("DEVELOPING")
-  notes            String?   @db.Text
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  readinessLevel    String   @default("DEVELOPING")
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@unique([employeeId])
   @@map("succession_plans")
@@ -1894,20 +1912,20 @@ model SuccessionPlan {
 // ─── QUARTERLY BUSINESS REVIEW ────────────────────────────────────────────
 
 model QuarterlyBusinessReview {
-  id                       String    @id @default(uuid())
+  id                       String      @id @default(uuid())
   institutionId            String
   institution              Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   year                     Int
   quarter                  Int
-  executiveSummary         String?   @db.Text
+  executiveSummary         String?     @db.Text
   marketPerformance        Json?
   roiAnalysis              Json?
-  strategicRecommendations String?   @db.Text
+  strategicRecommendations String?     @db.Text
   kpiSummary               Json?
-  status                   QBRStatus @default(DRAFT)
+  status                   QBRStatus   @default(DRAFT)
   pdfUrl                   String?
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
 
   @@unique([institutionId, year, quarter])
   @@map("quarterly_business_reviews")

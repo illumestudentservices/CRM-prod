@@ -7,6 +7,7 @@ import { Eye, EyeOff, ShieldCheck, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PASSWORD_MAX_AGE_DAYS, PASSWORD_HISTORY_DEPTH } from "@/lib/password";
 
 const RULES = [
   { label: "At least 12 characters", test: (p: string) => p.length >= 12 },
@@ -20,6 +21,19 @@ export default function ChangePasswordPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // Two different reasons to be here, and they need different forms. A forced
+  // change on first login has no password the user chose, so asking for the
+  // current one would be asking for a temp password they were emailed. An
+  // expiry is a rotation of a password they know, and re-entering it stops a
+  // hijacked session from silently changing the credentials.
+  // mustChangePassword is set only for an admin-issued temporary password.
+  // Anyone else landing here was sent by the rotation policy. Deriving it from
+  // the session rather than a query param keeps the page statically
+  // renderable — useSearchParams would force a Suspense boundary — and stops
+  // the form being weakened by editing the URL.
+  const isExpiry = !session?.user?.mustChangePassword;
+
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,13 +50,19 @@ export default function ChangePasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!allRulesMet || !passwordsMatch) return;
+    if (isExpiry && !currentPassword) {
+      setError("Enter your current password.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword: password }),
+        body: JSON.stringify(
+          isExpiry ? { currentPassword, newPassword: password } : { newPassword: password }
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -84,13 +104,32 @@ export default function ChangePasswordPage() {
               <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
               <span className="text-xs font-semibold text-amber-700">Action Required</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Set a New Password</h2>
+            <h2 className="text-xl font-bold text-slate-900">
+              {isExpiry ? "Time to Update Your Password" : "Set a New Password"}
+            </h2>
             <p className="text-sm text-slate-500 mt-1">
-              {session?.user?.name ? `Hi ${session.user.name.split(" ")[0]}, your` : "Your"} account requires a password change before you can continue.
+              {session?.user?.name ? `Hi ${session.user.name.split(" ")[0]}, ` : ""}
+              {isExpiry
+                ? `passwords are changed every ${PASSWORD_MAX_AGE_DAYS} days. Choose a new one to continue — it can't be one of your last ${PASSWORD_HISTORY_DEPTH}.`
+                : "your account requires a password change before you can continue."}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isExpiry && (
+              <div className="space-y-1.5">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Your existing password"
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="password">New Password</Label>
               <div className="relative">

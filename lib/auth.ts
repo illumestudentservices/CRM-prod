@@ -111,6 +111,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
             regionId: user.regionId,
             mustChangePassword: user.mustChangePassword,
+            passwordChangedAt: user.passwordChangedAt?.getTime() ?? null,
             twoFactorPending: true,
             twoFactorEnabled: true,
           };
@@ -126,6 +127,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           regionId: user.regionId,
           mustChangePassword: user.mustChangePassword,
+          passwordChangedAt: user.passwordChangedAt?.getTime() ?? null,
           twoFactorPending: false,
           twoFactorEnabled: false,
         };
@@ -144,6 +146,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.regionId = (user as { regionId: string | null }).regionId;
         token.mustChangePassword =
           (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+        // Stamped at sign-in so expiry can be evaluated on every request with
+        // no database round trip.
+        token.passwordChangedAt =
+          (user as { passwordChangedAt?: number | null }).passwordChangedAt ?? null;
         token.twoFactorPending =
           (user as { twoFactorPending?: boolean }).twoFactorPending ?? false;
         token.twoFactorEnabled =
@@ -153,6 +159,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorVerified === true) {
         token.twoFactorPending = false;
       }
+      // Password just rotated — refresh the stamp so the expiry redirect
+      // stops firing without making the user sign in again.
+      if (trigger === "update" && (session as Record<string, unknown>)?.passwordChanged === true) {
+        token.passwordChangedAt = Date.now();
+        token.mustChangePassword = false;
+      }
+
       // Enrolment completed — clear the gate without forcing a re-login.
       if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorEnrolled === true) {
         token.twoFactorEnabled = true;
@@ -174,6 +187,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as Role;
         session.user.regionId = token.regionId as string | null;
         session.user.mustChangePassword = (token.mustChangePassword as boolean) ?? false;
+        session.user.passwordChangedAt = (token.passwordChangedAt as number | null) ?? null;
         session.user.twoFactorPending = (token.twoFactorPending as boolean) ?? false;
         session.user.twoFactorEnabled = (token.twoFactorEnabled as boolean) ?? false;
       }

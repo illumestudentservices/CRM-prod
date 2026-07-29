@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { validatePassword } from "@/lib/password";
+import { isPasswordReused, recordPasswordInHistory, PASSWORD_REUSED_MESSAGE } from "@/lib/password-history";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   currentPassword: z.string().optional(),
@@ -54,11 +56,34 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Reuse check runs after complexity so an obviously invalid password is
+  // rejected without paying for five bcrypt comparisons.
+  if (await isPasswordReused(session.user.id, newPassword)) {
+    return NextResponse.json({ error: PASSWORD_REUSED_MESSAGE }, { status: 422 });
+  }
+
   const hashed = await bcrypt.hash(newPassword, 12);
-  await db.user.update({
-    where: { id: session.user.id },
-    data: { password: hashed, mustChangePassword: false, loginAttempts: 0, lockedUntil: null },
+  const changedAt = new Date();
+
+  // Atomic: a password that failed to reach its own history would be
+  // immediately reusable, defeating the policy on the very next change.
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: session.user.id },
+      data: {
+        password: hashed,
+        mustChangePassword: false,
+        passwordChangedAt: changedAt,
+        loginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+    await recordPasswordInHistory(session.user.id, hashed, tx);
   });
 
-  return NextResponse.json({ success: true });
+  void logActivity(session.user.id, "PASSWORD_CHANGED", "USER", session.user.id, {
+    forced: user.mustChangePassword,
+  });
+
+  return NextResponse.json({ success: true, passwordChangedAt: changedAt.toISOString() });
 }

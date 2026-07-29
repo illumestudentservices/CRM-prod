@@ -1,3 +1,4 @@
+import { recordPasswordInHistory } from "@/lib/password-history";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -174,8 +175,15 @@ export async function POST(req: NextRequest) {
           regionId: data.regionId ?? null,
           isActive: true,
           mustChangePassword: true,
+          // Left null deliberately. The temp password is not the user's own, so
+          // the 90-day clock starts when they choose one — otherwise slow
+          // onboarding silently eats into their first cycle.
+          passwordChangedAt: null,
         },
       });
+
+      // Remember the temp password so it cannot be kept as the real one.
+      await recordPasswordInHistory(user.id, hashedPassword, tx);
 
       const emp = await tx.employee.create({
         data: {
