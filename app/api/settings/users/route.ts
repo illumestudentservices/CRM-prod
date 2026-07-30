@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { z } from "zod";
+import { guardUserRemoval, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
 
 const patchSchema = z.object({
   id: z.string(),
@@ -41,20 +42,27 @@ const USER_SELECT = {
   region: { select: { id: true, name: true } },
 } as const;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session || session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // ?deleted=true lists the recovery bin. Without it there would be no way
+    // back from a deletion, which is the whole point of the 30-day window.
+    const showDeleted = req.nextUrl.searchParams.get("deleted") === "true";
+
     const users = await db.user.findMany({
-      where: { deletedAt: null },
-      select: USER_SELECT,
-      orderBy: { createdAt: "desc" },
+      where: showDeleted
+        ? // Anonymised rows are tombstones, not recoverable accounts.
+          { deletedAt: { not: null }, purgedAt: null }
+        : { deletedAt: null },
+      select: showDeleted ? { ...USER_SELECT, purgedAt: true } : USER_SELECT,
+      orderBy: showDeleted ? { deletedAt: "desc" } : { createdAt: "desc" },
     });
 
-    return NextResponse.json({ users });
+    return NextResponse.json({ users, recoveryWindowDays: RECOVERY_WINDOW_DAYS });
   } catch (err) {
     console.error("[GET /api/settings/users]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -85,12 +93,27 @@ export async function PATCH(req: NextRequest) {
     // Prevent demoting the last SUPER_ADMIN
     if (data.role && data.role !== "SUPER_ADMIN") {
       const [adminCount, target] = await Promise.all([
-        db.user.count({ where: { role: "SUPER_ADMIN", deletedAt: null } }),
+        db.user.count({ where: { role: "SUPER_ADMIN", isActive: true, deletedAt: null } }),
         db.user.findUnique({ where: { id }, select: { role: true } }),
       ]);
       if (adminCount <= 1 && target?.role === "SUPER_ADMIN") {
         return NextResponse.json({ error: "Cannot remove the last Super Admin" }, { status: 400 });
       }
+    }
+
+    // Deactivation is a removal of access and gets the same guards as deletion:
+    // an administrator must not be able to lock themselves — or everyone — out.
+    if (data.isActive === false) {
+      const guard = await guardUserRemoval(id, session.user.id, "DEACTIVATE");
+      if (!guard.ok) return NextResponse.json({ error: guard.reason }, { status: 400 });
+    }
+
+    // Stateless JWTs cannot be destroyed server-side, so revocation is a
+    // timestamp the session check compares against. Without this the account
+    // shows as Inactive while the person carries on working for up to 48 hours.
+    const updateData: Record<string, unknown> = { ...data };
+    if (data.isActive === false) {
+      updateData.sessionsRevokedAt = new Date();
     }
 
     // Fetch previous state for audit/alerts, then update
@@ -101,7 +124,7 @@ export async function PATCH(req: NextRequest) {
       }),
       db.user.update({
         where: { id },
-        data,
+        data: updateData,
         select: USER_SELECT,
       }),
     ]);

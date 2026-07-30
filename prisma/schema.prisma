@@ -397,7 +397,28 @@ model User {
   twoFactorBackupCodes String[]
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
-  deletedAt            DateTime?
+
+  /// Soft delete. The account is unusable immediately; the row is retained for
+  /// 30 days so it can be restored, then anonymised by the purge job.
+  deletedAt DateTime?
+
+  /// Any session issued before this instant is refused.
+  ///
+  /// Sessions are stateless JWTs, so there is nothing server-side to destroy.
+  /// Bumping this on deactivate or delete is what makes those take effect on
+  /// the user's very next request instead of whenever their token happens to
+  /// expire — which was up to 48 hours.
+  sessionsRevokedAt DateTime?
+
+  /// Set when the 30-day window has passed and personal data was stripped.
+  ///
+  /// The row itself survives on purpose: nine foreign keys point at users with
+  /// ON DELETE RESTRICT on NOT NULL columns — leads.createdById,
+  /// employees.userId, monthly_reports.icrId among them. Deleting the row would
+  /// either fail outright or, if those were relaxed, take business records with
+  /// it. Anonymising removes the person while leaving the company's history
+  /// attributable and intact.
+  purgedAt DateTime?
 
   regionId            String?
   region              Region?              @relation(fields: [regionId], references: [id])
@@ -428,6 +449,7 @@ model User {
   ownedRisks          RiskRegister[]
   assignedCompliance  ComplianceItem[]
 
+  @@index([deletedAt, purgedAt])
   @@map("users")
 }
 

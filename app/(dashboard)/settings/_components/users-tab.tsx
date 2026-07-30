@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials, formatDate } from "@/lib/utils";
-import { Pencil, ShieldOff, ShieldCheck } from "lucide-react";
+import { Pencil, ShieldOff, ShieldCheck, Trash2, Undo2, Clock } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -25,6 +25,14 @@ interface UserRow {
   regionId: string | null;
   region: { name: string } | null;
   twoFactorEnabled: boolean;
+  deletedAt?: string | null;
+}
+
+/** Mirrors RECOVERY_WINDOW_DAYS in lib/user-lifecycle.ts. */
+const RECOVERY_WINDOW_DAYS = 30;
+
+function daysLeft(deletedAt: string): number {
+  return RECOVERY_WINDOW_DAYS - Math.floor((Date.now() - Date.parse(deletedAt)) / 86400000);
 }
 
 const ROLES = [
@@ -59,21 +67,67 @@ export function UsersSettingsTab() {
   const [saving, setSaving] = useState(false);
   const [resettingMfa, setResettingMfa] = useState(false);
   const [confirmMfaReset, setConfirmMfaReset] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [deletedUsers, setDeletedUsers] = useState<UserRow[]>([]);
+  const [restoring, setRestoring] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
     fetch("/api/settings/users")
       .then((r) => r.json())
       .then((d) => { setUsers(d.users || []); setLoading(false); });
+    // Always fetched so the bin's count is visible without switching views.
+    fetch("/api/settings/users?deleted=true")
+      .then((r) => r.json())
+      .then((d) => setDeletedUsers(d.users || []))
+      .catch(() => {});
   }
 
   useEffect(() => { load(); }, []);
+
+  async function handleDelete() {
+    if (!editing) return;
+    setDeleting(true);
+    const res = await fetch(`/api/settings/users/${editing.id}`, { method: "DELETE" });
+    const data = await res.json();
+    setDeleting(false);
+    if (res.ok) {
+      toast({
+        title: "Account deleted",
+        description: `${editing.name ?? editing.email} has been signed out and can be restored for ${RECOVERY_WINDOW_DAYS} days.`,
+      });
+      setEditing(null);
+      setConfirmDelete(false);
+      load();
+    } else {
+      toast({ title: "Could not delete", description: data.error, variant: "destructive" });
+    }
+  }
+
+  async function handleRestore(u: UserRow) {
+    setRestoring(u.id);
+    const res = await fetch(`/api/settings/users/${u.id}`, { method: "POST" });
+    const data = await res.json();
+    setRestoring(null);
+    if (res.ok) {
+      toast({
+        title: "Account restored",
+        description: "Restored as inactive — switch Account Active on to give access back.",
+      });
+      load();
+    } else {
+      toast({ title: "Could not restore", description: data.error, variant: "destructive" });
+    }
+  }
 
   function openEdit(user: UserRow) {
     setEditing(user);
     setEditRole(user.role);
     setEditActive(user.isActive);
     setConfirmMfaReset(false);
+    setConfirmDelete(false);
   }
 
   async function handleResetMfa() {
@@ -201,6 +255,59 @@ export function UsersSettingsTab() {
           title="Export Users"
         />
       </div>
+      {deletedUsers.length > 0 && (
+        <div className="mb-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-slate-600"
+            onClick={() => setShowDeleted((v) => !v)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {showDeleted ? "Hide" : "Show"} deleted ({deletedUsers.length})
+          </Button>
+
+          {showDeleted && (
+            <div className="mt-3 rounded-lg border border-slate-200 divide-y">
+              {deletedUsers.map((u) => {
+                const left = u.deletedAt ? daysLeft(u.deletedAt) : 0;
+                return (
+                  <div key={u.id} className="flex items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800">{u.name ?? u.email}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className={
+                          "text-xs flex items-center gap-1 " +
+                          (left <= 7 ? "text-red-600 font-medium" : "text-slate-500")
+                        }
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                        {left > 0
+                          ? `${left} day${left === 1 ? "" : "s"} to restore`
+                          : "erasure due"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={restoring === u.id}
+                        onClick={() => handleRestore(u)}
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        {restoring === u.id ? "Restoring…" : "Restore"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <DataTable columns={columns} data={users} searchKey="" searchPlaceholder="Search users..." loading={loading} />
 
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
@@ -256,6 +363,41 @@ export function UsersSettingsTab() {
                   )}
                 </div>
               )}
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-2">
+                <p className="text-xs font-medium text-red-800 flex items-center gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" /> Delete account
+                </p>
+                {confirmDelete ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-red-700">
+                      {editing.name ?? editing.email} will be signed out immediately and
+                      hidden from this list. You can restore them for{" "}
+                      {RECOVERY_WINDOW_DAYS} days, after which their personal data is
+                      permanently erased. Their leads, reports and audit history are kept.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleting}>
+                        {deleting ? "Deleting…" : "Yes, delete account"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-red-700">
+                      Signs them out at once. Recoverable for {RECOVERY_WINDOW_DAYS} days.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-700 border-red-300 hover:bg-red-100"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete account
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
           <DialogFooter>

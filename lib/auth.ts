@@ -179,6 +179,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return null;
       }
 
+      // ── Live account check ──────────────────────────────────────────────
+      //
+      // Sessions are stateless JWTs: there is no server-side session to
+      // destroy, so without this a deactivated or deleted account keeps full
+      // access until its token happens to expire — up to 48 hours. That is the
+      // wrong behaviour for offboarding, where access must stop when the
+      // administrator says it stops.
+      //
+      // Skipped on the sign-in pass (`user` is set) because authorize() has
+      // just performed these checks against the same row.
+      //
+      // Costs one primary-key lookup per token refresh. That is the price of
+      // revocation being immediate, and it also makes role and region changes
+      // take effect without a re-login instead of silently lagging.
+      if (!user && token.id) {
+        let current;
+        try {
+          current = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              isActive: true,
+              deletedAt: true,
+              sessionsRevokedAt: true,
+              role: true,
+              regionId: true,
+            },
+          });
+        } catch (err) {
+          // Fail open on a database blip rather than signing everybody out.
+          // The absolute ceiling above still applies, so this cannot extend a
+          // session indefinitely.
+          console.error("[auth] session revocation check failed:", err);
+          return token;
+        }
+
+        if (!current || !current.isActive || current.deletedAt) return null;
+
+        // Anything issued before the revocation stamp is refused.
+        if (
+          current.sessionsRevokedAt &&
+          loginAt &&
+          loginAt < current.sessionsRevokedAt.getTime()
+        ) {
+          return null;
+        }
+
+        token.role = current.role;
+        token.regionId = current.regionId;
+      }
+
       return token;
     },
     async session({ session, token }) {
