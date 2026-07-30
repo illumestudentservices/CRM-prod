@@ -13,6 +13,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
+import {
+  LEAVE_TYPE_LABELS,
+  leaveTypeLabel,
+  DEFAULT_LEAVE_TYPE,
+  type LeaveTypeKey,
+} from "@/lib/leave-policy";
 
 interface LeaveBalance {
   leaveType: string;
@@ -31,10 +37,6 @@ interface LeaveRequest {
   reason: string | null;
 }
 
-const LEAVE_LABELS: Record<string, string> = {
-  ANNUAL: "Annual Leave", SICK: "Sick Leave", MATERNITY: "Maternity",
-  PATERNITY: "Paternity", UNPAID: "Unpaid", COMP_OFF: "Comp Off",
-};
 
 const STATUS_VARIANTS: Record<string, "default" | "success" | "destructive" | "warning" | "secondary"> = {
   PENDING: "warning", APPROVED: "success", REJECTED: "destructive", CANCELLED: "secondary",
@@ -52,7 +54,7 @@ export function LeaveSection({
   const { toast } = useToast();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ leaveType: "ANNUAL", startDate: "", endDate: "", reason: "" });
+  const [form, setForm] = useState({ leaveType: DEFAULT_LEAVE_TYPE, startDate: "", endDate: "", reason: "" });
 
   async function loadRequests() {
     const res = await fetch(`/api/hr/leave?employeeId=${employeeId}`);
@@ -94,7 +96,7 @@ export function LeaveSection({
           return (
             <Card key={b.leaveType}>
               <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm">{LEAVE_LABELS[b.leaveType] ?? b.leaveType}</CardTitle>
+                <CardTitle className="text-sm">{leaveTypeLabel(b.leaveType)}</CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 space-y-2">
                 <Progress value={usedPct} className="h-2" />
@@ -127,7 +129,7 @@ export function LeaveSection({
             : requests.map((r) => (
               <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border text-sm">
                 <div>
-                  <p className="font-medium">{LEAVE_LABELS[r.leaveType] ?? r.leaveType}</p>
+                  <p className="font-medium">{leaveTypeLabel(r.leaveType)}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(r.startDate)} — {formatDate(r.endDate)} ({r.days}d)</p>
                 </div>
                 <Badge variant={STATUS_VARIANTS[r.status] ?? "secondary"}>{r.status}</Badge>
@@ -143,10 +145,10 @@ export function LeaveSection({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Leave Type</Label>
-              <Select value={form.leaveType} onValueChange={(v) => setForm({ ...form, leaveType: v })}>
+              <Select value={form.leaveType} onValueChange={(v) => setForm({ ...form, leaveType: v as LeaveTypeKey })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(LEAVE_LABELS).map(([k, v]) => (
+                  {Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
                   ))}
                 </SelectContent>

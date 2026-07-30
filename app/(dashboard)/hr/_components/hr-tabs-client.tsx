@@ -15,10 +15,13 @@ import { AssetManager } from "./asset-manager";
 import { LeaveBalances } from "./leave-balances";
 import { PerformanceReviews } from "./performance-reviews";
 import { SuccessionPlanning } from "./succession-planning";
+import { AccountRequests } from "./account-requests";
 
 interface HRTabsClientProps {
   isHR: boolean;
   isSuperAdmin: boolean;
+  /** Regional and HR managers raise requests; Super Admins review them. */
+  canSeeAccountRequests: boolean;
   userId: string;
   totalEmployees: number;
   onLeaveToday: number;
@@ -29,6 +32,7 @@ interface HRTabsClientProps {
 export function HRTabsClient({
   isHR,
   isSuperAdmin,
+  canSeeAccountRequests,
   userId,
   totalEmployees,
   onLeaveToday,
@@ -36,6 +40,13 @@ export function HRTabsClient({
   pendingLeave,
 }: HRTabsClientProps) {
   const [activeTab, setActiveTab] = React.useState("employees");
+
+  // Notification emails link to /hr?tab=account-requests, so honour that rather
+  // than dropping the reviewer on the Employees tab and making them hunt.
+  React.useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab) setActiveTab(tab);
+  }, []);
 
   const statCards = [
     { title: "Total Employees", value: totalEmployees, icon: "Users" as const,       iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", tab: "employees" },
@@ -77,6 +88,9 @@ export function HRTabsClient({
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
           <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>
           <TabsTrigger value="succession-planning">Succession Planning</TabsTrigger>
+          {canSeeAccountRequests && (
+            <TabsTrigger value="account-requests">Account Requests</TabsTrigger>
+          )}
           {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
         </TabsList>
         <TabsContent value="employees" className="mt-4">
@@ -112,6 +126,11 @@ export function HRTabsClient({
         {isHR && (
           <TabsContent value="leave-balances" className="mt-4">
             <LeaveBalances />
+          </TabsContent>
+        )}
+        {canSeeAccountRequests && (
+          <TabsContent value="account-requests" className="mt-4">
+            <AccountRequests />
           </TabsContent>
         )}
       </Tabs>

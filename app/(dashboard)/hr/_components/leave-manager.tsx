@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle, XCircle, UserCheck } from "lucide-react";
+import { leaveTypeLabel } from "@/lib/leave-policy";
 
 interface LeaveRequest {
   id: string;
@@ -21,10 +22,6 @@ interface LeaveRequest {
   employee: { user: { name: string | null }; employeeId: string };
 }
 
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  ANNUAL: "Annual", SICK: "Sick", MATERNITY: "Maternity",
-  PATERNITY: "Paternity", UNPAID: "Unpaid", COMP_OFF: "Comp Off",
-};
 
 const STATUS_VARIANTS: Record<string, "default" | "success" | "destructive" | "warning" | "secondary"> = {
   PENDING: "warning", APPROVED: "success", REJECTED: "destructive", CANCELLED: "secondary",
@@ -94,7 +91,7 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
     }] : []),
     {
       header: "Type",
-      cell: ({ row }) => <span className="text-sm">{LEAVE_TYPE_LABELS[row.original.leaveType] ?? row.original.leaveType}</span>,
+      cell: ({ row }) => <span className="text-sm">{leaveTypeLabel(row.original.leaveType)}</span>,
     },
     {
       header: "Dates",
@@ -160,7 +157,7 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
               <div key={r.id} className="flex items-center gap-2 bg-white rounded-md border border-amber-200 px-3 py-1.5 text-sm">
                 <span className="font-medium text-slate-800">{r.employee.user.name}</span>
                 <span className="text-xs text-slate-500">·</span>
-                <span className="text-xs text-amber-700">{LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType}</span>
+                <span className="text-xs text-amber-700">{leaveTypeLabel(r.leaveType)}</span>
                 <span className="text-xs text-slate-400">{formatDate(r.startDate)} – {formatDate(r.endDate)}</span>
               </div>
             ))}

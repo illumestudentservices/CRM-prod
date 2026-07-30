@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LEAVE_TYPE_COLORS, leaveTypeLabel } from "@/lib/leave-policy";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,14 +41,6 @@ interface HRDashboardStatsProps {
 
 const COLORS = ["#1E3A5F", "#0EA5E9", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6"];
 
-const LEAVE_COLORS: Record<string, string> = {
-  ANNUAL: "#0EA5E9",
-  SICK: "#EF4444",
-  MATERNITY: "#8B5CF6",
-  PATERNITY: "#22C55E",
-  UNPAID: "#F59E0B",
-  COMP_OFF: "#1E3A5F",
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -145,7 +138,7 @@ export function HRDashboardStats({
                   {leaveUtilization
                     .filter((l) => l.total > 0)
                     .map((entry, index) => (
-                      <Cell key={entry.type} fill={LEAVE_COLORS[entry.type] ?? COLORS[index % COLORS.length]} />
+                      <Cell key={entry.type} fill={(LEAVE_TYPE_COLORS as Record<string,string>)[entry.type] ?? COLORS[index % COLORS.length]} />
                     ))}
                 </Bar>
               </BarChart>

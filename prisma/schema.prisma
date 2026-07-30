@@ -417,6 +417,8 @@ model User {
   engagementLogs    EngagementLog[]
   notifications     Notification[]
   auditLogs         AuditLog[]
+  accountRequests   AccountRequest[]  @relation("AccountRequestRequester")
+  reviewedRequests  AccountRequest[]  @relation("AccountRequestReviewer")
   institutionAccess InstitutionUser[]
   whatsappMessages  WhatsAppMessage[]
 
@@ -512,6 +514,7 @@ model Region {
   monthlyReports   MonthlyReport[]
   weeklyActivities WeeklyActivity[]
   holidays         Holiday[]
+  accountRequests  AccountRequest[]
 
   @@map("regions")
 }
@@ -1156,7 +1159,8 @@ model Department {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  employees Employee[]
+  employees       Employee[]
+  accountRequests AccountRequest[]
 
   @@map("departments")
 }
@@ -1409,6 +1413,61 @@ model OnboardingItem {
   createdAt     DateTime  @default(now())
 
   @@map("onboarding_items")
+}
+
+/// A manager asking IT to create an account for a new joiner.
+///
+/// Deliberately does NOT auto-create a User on approval: the business decided
+/// IT creates the account by hand. So this is a record plus a notification,
+/// carrying enough detail that IT never has to chase the requester for basics.
+model AccountRequest {
+  id     String               @id @default(uuid())
+  status AccountRequestStatus @default(PENDING)
+
+  // Who is being onboarded. Not a relation — the person has no account yet,
+  // which is the entire point of the request.
+  fullName       String
+  email          String
+  jobTitle       String
+  requestedRole  Role
+  employmentType EmploymentType @default(FULL_TIME)
+  startDate      DateTime
+  gender         Gender?
+  phone          String?
+  /// Why the account is needed. Required, so a reviewer is never left guessing
+  /// at the business case.
+  justification  String         @db.Text
+
+  regionId     String?
+  region       Region?     @relation(fields: [regionId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  requestedById String
+  requestedBy   User   @relation("AccountRequestRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("AccountRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  /// Mandatory on rejection, so the requester learns something actionable.
+  reviewNotes  String?   @db.Text
+
+  /// Set once IT has actually created the account. Without it an approved
+  /// request looks finished while the joiner still has no login.
+  fulfilledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requestedById])
+  @@map("account_requests")
+}
+
+enum AccountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ─── CROSS-CUTTING MODELS ─────────────────────────────────────────────────

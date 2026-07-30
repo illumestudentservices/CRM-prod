@@ -141,6 +141,42 @@ export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
 
 export const LEAVE_TYPES = Object.keys(LEAVE_POLICIES) as LeaveTypeKey[];
 
+/**
+ * Display labels and colours, derived from the policies above.
+ *
+ * Every HR screen used to keep its own `Record<string, string>` of these. When
+ * the four types replaced the old six, those local copies silently kept the
+ * dead keys: TypeScript cannot check a string-keyed record, so the leave form
+ * went on offering ANNUAL, UNPAID and COMP_OFF while omitting VACATION_PAID
+ * entirely — nobody could book vacation. Deriving them here means a policy
+ * change cannot leave a screen behind.
+ */
+export const LEAVE_TYPE_LABELS: Record<LeaveTypeKey, string> = Object.fromEntries(
+  LEAVE_TYPES.map((t) => [t, LEAVE_POLICIES[t].label])
+) as Record<LeaveTypeKey, string>;
+
+export const LEAVE_TYPE_COLORS: Record<LeaveTypeKey, string> = {
+  VACATION_PAID: "#0EA5E9",
+  SICK: "#EF4444",
+  MATERNITY: "#EC4899",
+  PATERNITY: "#8B5CF6",
+};
+
+export const LEAVE_TYPE_BADGE_CLASSES: Record<LeaveTypeKey, string> = {
+  VACATION_PAID: "bg-sky-100 text-sky-700",
+  SICK: "bg-red-100 text-red-700",
+  MATERNITY: "bg-pink-100 text-pink-700",
+  PATERNITY: "bg-violet-100 text-violet-700",
+};
+
+/** Tolerates historical values still sitting in old rows or JSON payloads. */
+export function leaveTypeLabel(type: string): string {
+  return (LEAVE_TYPE_LABELS as Record<string, string>)[type] ?? type.replace(/_/g, " ");
+}
+
+/** The type a fresh request form should start on. */
+export const DEFAULT_LEAVE_TYPE: LeaveTypeKey = "VACATION_PAID";
+
 // ─── Gender eligibility ──────────────────────────────────────────────────────
 
 export interface EligibilityResult {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { HRDashboardStats } from "./_components/hr-dashboard-stats";
 import { HRTabsClient } from "./_components/hr-tabs-client";
+import { canRequestAccount, canReviewAccountRequest } from "@/lib/account-requests";
 
 export default async function HRPage() {
   const session = await auth();
@@ -11,6 +12,7 @@ export default async function HRPage() {
 
   const { role, id: userId } = session.user;
   const isHR = role === "HR_MANAGER" || role === "SUPER_ADMIN";
+  const canSeeAccountRequests = canRequestAccount(role) || canReviewAccountRequest(role);
 
   // For employee self-service: redirect to their profile
   if (role === "EMPLOYEE") {
@@ -59,6 +61,7 @@ export default async function HRPage() {
       <HRTabsClient
         isHR={isHR}
         isSuperAdmin={role === "SUPER_ADMIN"}
+        canSeeAccountRequests={canSeeAccountRequests}
         userId={userId}
         totalEmployees={totalEmployees}
         onLeaveToday={onLeaveToday}

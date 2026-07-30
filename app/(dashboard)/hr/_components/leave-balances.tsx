@@ -13,6 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { leaveTypeLabel, LEAVE_TYPE_BADGE_CLASSES } from "@/lib/leave-policy";
 
 interface Balance {
   id: string;
@@ -44,14 +45,6 @@ const LEAVE_LABELS: Record<string, string> = {
   PATERNITY: "Paternity", UNPAID: "Unpaid", COMP_OFF: "Comp Off",
 };
 
-const LEAVE_COLORS: Record<string, string> = {
-  ANNUAL: "bg-blue-100 text-blue-700",
-  SICK: "bg-red-100 text-red-700",
-  MATERNITY: "bg-pink-100 text-pink-700",
-  PATERNITY: "bg-indigo-100 text-indigo-700",
-  UNPAID: "bg-slate-100 text-slate-600",
-  COMP_OFF: "bg-amber-100 text-amber-700",
-};
 
 export function LeaveBalances() {
   const { toast } = useToast();
@@ -223,7 +216,7 @@ export function LeaveBalances() {
                       <span className="text-sm text-slate-600">{b.employee.department?.name ?? "—"}</span>
                     </TableCell>
                     <TableCell>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${LEAVE_COLORS[b.leaveType] ?? "bg-slate-100 text-slate-600"}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${(LEAVE_TYPE_BADGE_CLASSES as Record<string,string>)[b.leaveType] ?? "bg-slate-100 text-slate-600"}`}>
                         {LEAVE_LABELS[b.leaveType] ?? b.leaveType}
                       </span>
                     </TableCell>

@@ -855,6 +855,87 @@ export async function sendFullReportEmail(opts: {
   });
 }
 
+// ─── New account request — notify IT ──────────────────────────────────────────
+
+export async function sendAccountRequestEmail(opts: {
+  to: string | string[];
+  fullName: string;
+  email: string;
+  jobTitle: string;
+  requestedRole: string;
+  employmentType: string;
+  startDate: string;
+  region: string | null;
+  department: string | null;
+  phone: string | null;
+  justification: string;
+  requestedByName: string;
+  requestedByEmail: string;
+  reviewUrl: string;
+}) {
+  const label = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  await safeSend({
+    to: opts.to,
+    subject: `Account Request: ${opts.fullName} (${opts.jobTitle}) — Action Required`,
+    html: wrapEmail("New Account Request", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">New Account Request</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        <strong>${opts.requestedByName}</strong> has requested a portal account for a new joiner.
+        Nothing has been created — review the details below and set the account up if you approve.
+      </p>
+      ${infoTable([
+        ["Full name", opts.fullName],
+        ["Work email", opts.email],
+        ["Job title", opts.jobTitle],
+        ["Requested role", label(opts.requestedRole)],
+        ["Employment type", label(opts.employmentType)],
+        ["Start date", opts.startDate],
+        ...(opts.region ? [["Region", opts.region] as [string, string]] : []),
+        ...(opts.department ? [["Department", opts.department] as [string, string]] : []),
+        ...(opts.phone ? [["Phone", opts.phone] as [string, string]] : []),
+        ["Requested by", `${opts.requestedByName} (${opts.requestedByEmail})`],
+        ["Status", badge("Pending Review", "#f59e0b")],
+      ])}
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Justification</strong></p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${opts.justification}</p>
+      ${ctaButton("Review Request", opts.reviewUrl)}
+    `),
+  });
+}
+
+// ─── Account request decision — notify the requesting manager ─────────────────
+
+export async function sendAccountRequestDecisionEmail(opts: {
+  to: string;
+  requesterName: string;
+  candidateName: string;
+  approved: boolean;
+  notes?: string;
+  requestUrl: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `Account Request ${opts.approved ? "Approved" : "Declined"}: ${opts.candidateName}`,
+    html: wrapEmail(`Account Request ${opts.approved ? "Approved" : "Declined"}`, `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">
+        Account Request ${opts.approved ? "Approved" : "Declined"}
+      </h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Hi ${opts.requesterName}, your request for <strong>${opts.candidateName}</strong>
+        ${opts.approved
+          ? "has been approved. IT will create the account and the new joiner will receive their own onboarding email."
+          : "has been declined."}
+      </p>
+      ${infoTable([
+        ["New joiner", opts.candidateName],
+        ["Decision", opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444")],
+        ...(opts.notes ? [["Notes", opts.notes] as [string, string]] : []),
+      ])}
+      ${ctaButton("View Request", opts.requestUrl)}
+    `),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {
