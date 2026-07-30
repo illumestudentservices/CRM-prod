@@ -87,3 +87,5 @@ verify-hr.mjs
 verify-refresh.mjs
 verify-requests.mjs
 mailprobe.ts
+verify-lifecycle.mjs
+purgecheck.ts
