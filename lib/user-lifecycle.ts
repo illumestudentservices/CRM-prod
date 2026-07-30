@@ -115,7 +115,24 @@ export interface PurgeSummary {
  * that "who created this lead" still resolves.
  */
 export async function purgeExpiredUsers(
-  { dryRun = false, now = new Date() }: { dryRun?: boolean; now?: Date } = {}
+  {
+    dryRun = false,
+    now = new Date(),
+    userIds,
+  }: {
+    dryRun?: boolean;
+    now?: Date;
+    /**
+     * Restrict the sweep to specific accounts.
+     *
+     * The scheduled job leaves this unset and processes everything due, which
+     * is its purpose. Anything else — a test, or an administrator purging one
+     * account early — should scope it: this is irreversible, and a helper whose
+     * only mode is "anonymise every expired account in the database" is far too
+     * blunt an instrument to invoke casually.
+     */
+    userIds?: string[];
+  } = {}
 ): Promise<PurgeSummary> {
   const cutoff = new Date(now.getTime() - RECOVERY_WINDOW_DAYS * DAY_MS);
 
@@ -124,6 +141,7 @@ export async function purgeExpiredUsers(
       deletedAt: { not: null, lte: cutoff },
       // Never process the same account twice; a purged row keeps its deletedAt.
       purgedAt: null,
+      ...(userIds ? { id: { in: userIds } } : {}),
     },
     select: { id: true, email: true, role: true, deletedAt: true },
   });
