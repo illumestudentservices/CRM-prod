@@ -85,3 +85,5 @@ mkaccount.ts
 rmaccount.ts
 verify-hr.mjs
 verify-refresh.mjs
+verify-requests.mjs
+mailprobe.ts
