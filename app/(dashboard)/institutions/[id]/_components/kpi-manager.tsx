@@ -120,6 +120,18 @@ const PERIOD_CONFIG: Record<KPIPeriod, { label: string; color: string }> = {
 
 const CATEGORIES: KPICategory[] = ["RECRUITMENT", "MARKET_DEVELOPMENT", "RELATIONSHIP", "ENGAGEMENT"];
 
+/**
+ * Stands in for "no month/quarter chosen" in the Select.
+ *
+ * Radix refuses an empty string as an item value — it reserves "" for the
+ * cleared state — and throws rather than degrading. The throw is not deferred
+ * until the dropdown is opened: a closed `Select.Content` still renders its
+ * children into an off-screen DocumentFragment so the items can be collected
+ * for value matching. So `<SelectItem value="">` threw the moment the dialog
+ * mounted, React unwound the tree, and "Add KPI" appeared to do nothing at all.
+ */
+const NONE = "none";
+
 const currentYear = new Date().getFullYear();
 
 function getDefaultFormState(year: number): KPIFormState {
@@ -744,13 +756,17 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                 <Label htmlFor="kpi-month">Month (optional)</Label>
                 <Select
                   value={formState.month}
-                  onValueChange={(v) => updateForm("month", v)}
+                  // NONE is a sentinel because Radix throws on an empty item
+                  // value — it reserves "" for the cleared state. Kept as ""
+                  // in form state so the payload's `month ? Number : null`
+                  // still reads it as absent.
+                  onValueChange={(v) => updateForm("month", v === NONE ? "" : v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value={NONE}>None</SelectItem>
                     {Array.from({ length: 12 }, (_, i) => (
                       <SelectItem key={i + 1} value={String(i + 1)}>
                         {new Date(2000, i, 1).toLocaleString("default", { month: "long" })}
@@ -763,13 +779,13 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                 <Label htmlFor="kpi-quarter">Quarter (optional)</Label>
                 <Select
                   value={formState.quarter}
-                  onValueChange={(v) => updateForm("quarter", v)}
+                  onValueChange={(v) => updateForm("quarter", v === NONE ? "" : v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value={NONE}>None</SelectItem>
                     <SelectItem value="1">Q1</SelectItem>
                     <SelectItem value="2">Q2</SelectItem>
                     <SelectItem value="3">Q3</SelectItem>
