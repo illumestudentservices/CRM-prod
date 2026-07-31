@@ -90,3 +90,5 @@ mailprobe.ts
 verify-lifecycle.mjs
 purgecheck.ts
 verify-hrfix.mjs
+setup-hr.mjs
+entcheck.ts
