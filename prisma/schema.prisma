@@ -654,6 +654,17 @@ model Lead {
   eventId       String?
   event         Event?       @relation(fields: [eventId], references: [id])
 
+  /// Idempotency key for offline capture, generated on the device the moment a
+  /// lead is written down and never reused.
+  ///
+  /// A booth upload of 100 leads that dies halfway leaves the ICR no way to
+  /// tell which ones landed; without this, pressing Upload again re-creates
+  /// every lead that already succeeded. The unique index makes the retry safe:
+  /// a captureId that is already present is reported back as a duplicate
+  /// instead of inserted. Nullable because leads created in the office have no
+  /// device-side origin, and Postgres allows many NULLs under a unique index.
+  captureId String? @unique
+
   /// Denormalised pointer to the application currently in play. A lead can
   /// hold several over its lifetime — rejected by one institution, then
   /// offered by another.

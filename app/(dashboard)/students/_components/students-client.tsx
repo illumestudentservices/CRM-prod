@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, LayoutGrid, List, Search, X } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
 import { ExportButton } from "@/components/shared/export-button";
 import { displayName } from "@/lib/person-name";
+import { OFFLINE_CAPTURE_WARNING } from "@/lib/offline-capture";
 
 const LEAD_EXPORT_COLUMNS = [
   // Two columns, not one: the export feeds university application forms, which
@@ -130,6 +131,16 @@ export function StudentsClientPage({
 
   return (
     <div className="space-y-4">
+      {/* Offline capture limit. Shown to everyone rather than only when a queue
+          exists: an ICR needs to know the ceiling before they leave for an
+          event, which is exactly when they have nothing queued yet. */}
+      <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5">
+        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-900 leading-relaxed">
+          {OFFLINE_CAPTURE_WARNING}
+        </p>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         {/* Tab switcher */}
