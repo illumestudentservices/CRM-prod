@@ -45,3 +45,15 @@ export function scopeToLiveEmployees(
     where.user && typeof where.user === "object" ? (where.user as Prisma.UserWhereInput) : {};
   return { ...where, user: { ...existing, deletedAt: null } };
 }
+
+/**
+ * Records that hang off an employee — leave, training, reviews.
+ *
+ * The dashboard summed every leave balance regardless of whose it was, so the
+ * "Leave Utilization" chart showed bars for ghost employees while the headcount
+ * beside it read zero. Any aggregate keyed to an employee needs the same rule
+ * as the headcount, or the two disagree on the same screen.
+ */
+export const OWNED_BY_LIVE_EMPLOYEE = {
+  employee: { user: { deletedAt: null } },
+} as const;

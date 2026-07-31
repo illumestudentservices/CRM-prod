@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { HRDashboardStats } from "./_components/hr-dashboard-stats";
 import { HRTabsClient } from "./_components/hr-tabs-client";
-import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
+import { ACTIVE_EMPLOYEE, OWNED_BY_LIVE_EMPLOYEE } from "@/lib/hr-scope";
 import { canRequestAccount, canReviewAccountRequest } from "@/lib/account-requests";
 
 export default async function HRPage() {
@@ -24,10 +24,15 @@ export default async function HRPage() {
   const [totalEmployees, onLeaveToday, openTasks, pendingLeave] = await Promise.all([
     db.employee.count({ where: ACTIVE_EMPLOYEE }),
     db.leaveRequest.count({
-      where: { status: "APPROVED", startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+      where: {
+        status: "APPROVED",
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+        ...OWNED_BY_LIVE_EMPLOYEE,
+      },
     }),
     db.task.count({ where: { status: { in: ["TODO", "IN_PROGRESS"] }, deletedAt: null } }),
-    db.leaveRequest.count({ where: { status: "PENDING" } }),
+    db.leaveRequest.count({ where: { status: "PENDING", ...OWNED_BY_LIVE_EMPLOYEE } }),
   ]);
 
   // Stats for HRDashboardStats
@@ -39,14 +44,17 @@ export default async function HRPage() {
 
   const leaveUtilization = await db.leaveBalance.groupBy({
     by: ["leaveType"],
+    where: OWNED_BY_LIVE_EMPLOYEE,
     _sum: { usedDays: true, totalDays: true },
   });
 
-  const trainingCompletion = await db.trainingRecord.count({ where: { completedAt: { not: null } } });
-  const trainingTotal = await db.trainingRecord.count();
+  const trainingCompletion = await db.trainingRecord.count({
+    where: { completedAt: { not: null }, ...OWNED_BY_LIVE_EMPLOYEE },
+  });
+  const trainingTotal = await db.trainingRecord.count({ where: OWNED_BY_LIVE_EMPLOYEE });
 
   const perfScores = await db.performanceReview.findMany({
-    where: { score: { not: null } },
+    where: { score: { not: null }, ...OWNED_BY_LIVE_EMPLOYEE },
     select: { score: true },
   });
 
