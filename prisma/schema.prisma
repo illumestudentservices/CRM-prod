@@ -402,6 +402,14 @@ model User {
   /// 30 days so it can be restored, then anonymised by the purge job.
   deletedAt DateTime?
 
+  /// This login is not a person — a break-glass or integration credential.
+  ///
+  /// Such accounts must never gain an Employee record: they would inflate
+  /// headcount, accrue leave nobody can take, and appear in assignee pickers.
+  /// Flagging them also stops HR nagging forever about a missing employee
+  /// record that should never exist.
+  isServiceAccount Boolean @default(false)
+
   /// Any session issued before this instant is refused.
   ///
   /// Sessions are stateless JWTs, so there is nothing server-side to destroy.

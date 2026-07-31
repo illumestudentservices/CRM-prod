@@ -11,6 +11,15 @@ import { getInitials } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, AlertTriangle } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 const EMPLOYEE_EXPORT_COLUMNS = [
   { key: "name",           header: "Full Name" },
@@ -36,6 +45,7 @@ interface EmployeeRow {
 
 export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAdmin: boolean }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -43,6 +53,10 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
   const [unlinked, setUnlinked] = useState<
     { id: string; name: string | null; email: string; role: string }[]
   >([]);
+  const [linking, setLinking] = useState<{ id: string; name: string | null; email: string } | null>(null);
+  const [linkForm, setLinkForm] = useState({ jobTitle: "", startDate: "", employmentType: "FULL_TIME", gender: "none" });
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [flagging, setFlagging] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -57,6 +71,49 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
   }
 
   useEffect(() => { load(); }, []);
+
+  async function createEmployeeRecord() {
+    if (!linking) return;
+    setLinkSaving(true);
+    const res = await fetch("/api/hr/unlinked-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: linking.id,
+        jobTitle: linkForm.jobTitle,
+        startDate: new Date(`${linkForm.startDate}T00:00:00.000Z`).toISOString(),
+        employmentType: linkForm.employmentType,
+        gender: linkForm.gender === "none" ? null : linkForm.gender,
+      }),
+    });
+    const data = await res.json();
+    setLinkSaving(false);
+    if (res.ok) {
+      toast({ title: "Employee record created", description: `${linking.name ?? linking.email} now appears in HR.` });
+      setLinking(null);
+      setLinkForm({ jobTitle: "", startDate: "", employmentType: "FULL_TIME", gender: "none" });
+      load();
+    } else {
+      toast({ title: "Could not create", description: data.error, variant: "destructive" });
+    }
+  }
+
+  async function markServiceAccount(userId: string) {
+    setFlagging(userId);
+    const res = await fetch("/api/hr/unlinked-users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, isServiceAccount: true }),
+    });
+    const data = await res.json();
+    setFlagging(null);
+    if (res.ok) {
+      toast({ title: "Marked as a service account", description: "It will no longer be listed as missing an employee record." });
+      load();
+    } else {
+      toast({ title: "Could not update", description: data.error, variant: "destructive" });
+    }
+  }
 
   const columns: ColumnDef<EmployeeRow>[] = [
     {
@@ -136,14 +193,37 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
               <p className="text-xs text-amber-800 mt-0.5">
                 These people can sign in, but HR cannot see them — they cannot request
                 leave, be assigned tasks, or appear in headcount. Accounts created in
-                Settings &rarr; Users do not get an employee record; use{" "}
-                <strong>Add Employee</strong> to create one.
+                Settings &rarr; Users do not get an employee record.
               </p>
-              <ul className="mt-2 space-y-0.5">
+              <ul className="mt-2 space-y-1.5">
                 {unlinked.map((u) => (
-                  <li key={u.id} className="text-xs text-amber-900">
-                    • {u.name ?? u.email}{" "}
-                    <span className="text-amber-700">({u.email} · {u.role.replace(/_/g, " ").toLowerCase()})</span>
+                  <li key={u.id} className="flex items-center justify-between gap-3 flex-wrap">
+                    <span className="text-xs text-amber-900 min-w-0">
+                      {u.name ?? u.email}{" "}
+                      <span className="text-amber-700">
+                        ({u.email} · {u.role.replace(/_/g, " ").toLowerCase()})
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100"
+                        onClick={() => setLinking(u)}
+                      >
+                        Create employee record
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-amber-700 hover:bg-amber-100"
+                        disabled={flagging === u.id}
+                        title="For break-glass or integration logins that are not people"
+                        onClick={() => markServiceAccount(u.id)}
+                      >
+                        {flagging === u.id ? "Saving…" : "Not a person"}
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -180,6 +260,89 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
         />
       )}
 
+      {/* Gives an EXISTING account an employee record. Add Employee cannot do
+          this — it creates a new user and refuses an email already in use. */}
+      <Dialog open={!!linking} onOpenChange={(o) => { if (!o) setLinking(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create employee record</DialogTitle>
+          </DialogHeader>
+          {linking && (
+            <div className="space-y-4 py-1">
+              <div className="text-sm text-muted-foreground">
+                <p className="font-medium text-slate-900">{linking.name ?? linking.email}</p>
+                <p className="text-xs">{linking.email}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Job title *</Label>
+                <Input
+                  value={linkForm.jobTitle}
+                  onChange={(e) => setLinkForm((f) => ({ ...f, jobTitle: e.target.value }))}
+                  placeholder="e.g. Chief Operating Officer"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Start date *</Label>
+                  <Input
+                    type="date"
+                    value={linkForm.startDate}
+                    onChange={(e) => setLinkForm((f) => ({ ...f, startDate: e.target.value }))}
+                  />
+                  <p className="text-xs text-slate-400">
+                    Leave entitlement is calculated from this.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Employment type</Label>
+                  <Select
+                    value={linkForm.employmentType}
+                    onValueChange={(v) => setLinkForm((f) => ({ ...f, employmentType: v }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FULL_TIME">Full-time</SelectItem>
+                      <SelectItem value="PART_TIME">Part-time</SelectItem>
+                      <SelectItem value="CONTRACT">Contract</SelectItem>
+                      <SelectItem value="INTERN">Intern</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Gender</Label>
+                <Select
+                  value={linkForm.gender}
+                  onValueChange={(v) => setLinkForm((f) => ({ ...f, gender: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not recorded</SelectItem>
+                    <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="MALE">Male</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-400">
+                  Maternity and paternity leave stay blocked until this is set.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinking(null)}>Cancel</Button>
+            <Button
+              disabled={linkSaving || linkForm.jobTitle.trim().length < 2 || !linkForm.startDate}
+              onClick={createEmployeeRecord}
+            >
+              {linkSaving ? "Creating…" : "Create record"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
