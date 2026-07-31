@@ -567,8 +567,13 @@ model Lead {
   /// afterwards — roughly a third of this pipeline's names are not two words.
   firstName          String
   lastName           String
-  /// Nullable because the pipeline requires "Email OR Phone", not both.
-  /// Dedup must skip blank values or every phoneless lead matches every other.
+  /// Both an email AND a phone are required to create a lead, and neither can
+  /// be cleared afterwards — the update schema refuses null and "". The column
+  /// stays nullable only because tightening it to NOT NULL would need a
+  /// migration and buys nothing while the API is the sole writer.
+  ///
+  /// Dedup must still skip blank values: matching on an empty string would make
+  /// every blank-email lead a duplicate of every other.
   email              String?
   phone              String?
   /// Citizenship, in pipeline terms. Distinct from countryOfResidence.

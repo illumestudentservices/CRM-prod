@@ -145,7 +145,11 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
     requiredFields: [
       { kind: "field", key: "firstName", label: "First name" },
       { kind: "field", key: "lastName", label: "Last name" },
-      { kind: "anyOf", keys: ["email", "phone"], label: "Email or phone" },
+      // Both, not either. Creation requires each of them and neither can be
+      // cleared afterwards, so an "email or phone" gate would advertise a
+      // looser rule than the one the system actually enforces.
+      { kind: "field", key: "email", label: "Email" },
+      { kind: "field", key: "phone", label: "Phone" },
       { kind: "field", key: "countryOfResidence", label: "Country of residence" },
       { kind: "field", key: "nationality", label: "Citizenship" },
       { kind: "field", key: "sourceId", label: "Lead source" },
