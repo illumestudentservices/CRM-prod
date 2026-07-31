@@ -1,7 +1,13 @@
 # Person names: split into first + last
 
-Code complete on `wip/split-person-names` as of 2026-07-31. Builds clean, 0 tsc
-errors, `stage-audit.mjs` passes. **The migration has not been run.**
+**Shipped to production 2026-07-31** (`eda8dbf`). Migration 009 ran cleanly:
+52 leads and 14 users backfilled, `leads.fullName` dropped, zero nameless rows,
+zero 5xx after restart. Pre-migration `pg_dump` kept at
+`/root/db-backups/illume_crm-pre-namesplit-20260731-090633.sql` on the VPS.
+
+The originals survive in an `audit_logs` row
+(`action = 'LEAD_NAMES_PRE_SPLIT_SNAPSHOT'`, all 52 captured) — that is the
+source of truth for correcting any name the first-space split misfiled.
 
 ---
 
@@ -23,7 +29,7 @@ Two decisions the user made:
 
 ---
 
-## The one thing left to do
+## How it was migrated (already done — kept for the next environment)
 
 Run `prisma/manual/009-split-person-names.sql` against the target database.
 
