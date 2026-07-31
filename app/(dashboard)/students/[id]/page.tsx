@@ -38,6 +38,7 @@ import {
 } from "@/lib/lead-pipeline";
 import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
 import { loadLeadForGate } from "@/lib/lead-access";
+import { displayName } from "@/lib/person-name";
 export { STAGE_COLORS, STAGE_LABELS };
 
 // ─── Detail row ───────────────────────────────────────────────────────────────
@@ -203,7 +204,7 @@ export default async function LeadDetailPage({
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{lead.fullName}</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{displayName(lead)}</h1>
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",

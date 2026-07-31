@@ -26,11 +26,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Lead, Source, Institution, User } from "@prisma/client";
+import { displayName } from "@/lib/person-name";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const leadSchema = z.object({
-  fullName: z.string().min(2, "Full name is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(7, "Phone number is required"),
   nationality: z.string().min(1, "Nationality is required"),
@@ -170,7 +172,8 @@ export function LeadForm({
   } = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema) as never,
     defaultValues: {
-      fullName: lead?.fullName ?? "",
+      firstName: lead?.firstName ?? "",
+      lastName: lead?.lastName ?? "",
       email: lead?.email ?? "",
       phone: lead?.phone ?? "",
       nationality: lead?.nationality ?? "",
@@ -201,7 +204,8 @@ export function LeadForm({
   React.useEffect(() => {
     if (open) {
       reset({
-        fullName: lead?.fullName ?? "",
+        firstName: lead?.firstName ?? "",
+        lastName: lead?.lastName ?? "",
         email: lead?.email ?? "",
         phone: lead?.phone ?? "",
         nationality: lead?.nationality ?? "",
@@ -291,8 +295,8 @@ export function LeadForm({
       toast({
         title: isEdit ? "Lead updated" : "Lead created",
         description: isEdit
-          ? `${values.fullName} has been updated.`
-          : `${values.fullName} has been added to the pipeline.`,
+          ? `${displayName(values)} has been updated.`
+          : `${displayName(values)} has been added to the pipeline.`,
         variant: "success",
       });
 
@@ -339,8 +343,11 @@ export function LeadForm({
               Personal Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Full Name" required error={errors.fullName?.message}>
-                <Input {...register("fullName")} placeholder="John Doe" />
+              <FormField label="First Name" required error={errors.firstName?.message}>
+                <Input {...register("firstName")} placeholder="Nkechi" />
+              </FormField>
+              <FormField label="Last Name" required error={errors.lastName?.message}>
+                <Input {...register("lastName")} placeholder="Obi" />
               </FormField>
 
               <FormField label="Email" required error={errors.email?.message}>

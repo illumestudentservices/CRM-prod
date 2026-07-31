@@ -148,7 +148,8 @@ export async function POST(req: NextRequest) {
       },
       select: {
         id: true,
-        fullName: true,
+        firstName: true,
+        lastName: true,
         email: true,
         stage: true,
         studyLevel: true,

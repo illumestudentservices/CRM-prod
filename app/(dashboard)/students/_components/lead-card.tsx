@@ -14,6 +14,7 @@ import {
   INACTIVITY_ESCALATION_DAYS,
 } from "@/lib/lead-pipeline";
 import type { Lead, User, Institution, Source } from "@prisma/client";
+import { displayName } from "@/lib/person-name";
 
 export type LeadWithRelations = Lead & {
   assignedICR: Pick<User, "id" | "name" | "image"> | null;
@@ -138,7 +139,7 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
         {/* Header row: name + duplicate */}
         <div className="flex items-start justify-between gap-1 mb-1.5">
           <p className="text-sm font-semibold text-slate-900 leading-tight line-clamp-1 flex-1">
-            {lead.fullName}
+            {displayName(lead)}
           </p>
           {lead.isDuplicate && (
             <span title="Possible duplicate" className="shrink-0 mt-0.5">

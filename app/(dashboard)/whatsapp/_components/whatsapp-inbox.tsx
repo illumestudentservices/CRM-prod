@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 
 interface Lead {
   id: string;
-  fullName: string;
+  firstName: string;  lastName: string;
   phone: string | null;
 }
 

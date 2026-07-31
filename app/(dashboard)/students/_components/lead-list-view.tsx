@@ -34,6 +34,7 @@ import {
 } from "@/lib/lead-pipeline";
 import type { LeadWithRelations } from "./lead-card";
 import type { User } from "@prisma/client";
+import { displayName } from "@/lib/person-name";
 
 // ─── Stage helpers ─────────────────────────────────────────────────────────────
 
@@ -164,11 +165,11 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
             <span className="text-[10px] font-bold text-[#1E3A5F]">
-              {getInitials(row.original.fullName)}
+              {getInitials(displayName(row.original))}
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">{row.original.fullName}</p>
+            <p className="text-sm font-medium text-slate-900 truncate">{displayName(row.original)}</p>
             {row.original.isDuplicate && (
               <p className="text-[10px] text-amber-600 font-medium">Possible duplicate</p>
             )}

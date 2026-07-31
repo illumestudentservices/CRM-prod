@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { LeadForm } from "../../_components/lead-form";
 import type { Lead, Source, Institution, User } from "@prisma/client";
+import { displayName } from "@/lib/person-name";
 
 interface LeadDetailClientProps {
   lead: Lead;
@@ -41,7 +42,7 @@ function WhatsAppButton({ lead }: { lead: Lead }) {
           phone: lead.phone,
           body,
           leadId: lead.id,
-          displayName: lead.fullName,
+          displayName: displayName(lead),
         }),
       });
       if (!res.ok) throw new Error();
@@ -68,7 +69,7 @@ function WhatsAppButton({ lead }: { lead: Lead }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Send WhatsApp to {lead.fullName}</DialogTitle>
+          <DialogTitle>Send WhatsApp to {displayName(lead)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <p className="text-sm text-muted-foreground">

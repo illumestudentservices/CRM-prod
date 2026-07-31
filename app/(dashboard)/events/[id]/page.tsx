@@ -20,6 +20,7 @@ import { ROICard } from "./_components/roi-card";
 import { ExpenseForm } from "./_components/expense-form";
 import { type EventStatus } from "@prisma/client";
 import Link from "next/link";
+import { displayName } from "@/lib/person-name";
 
 const STATUS_BADGE: Record<EventStatus, string> = {
   PLANNED: "bg-slate-100 text-slate-600 border-slate-200",
@@ -243,7 +244,7 @@ export default async function EventDetailPage({
                             href={`/students/${lead.id}`}
                             className="font-medium text-[#1E3A5F] hover:underline"
                           >
-                            {lead.fullName}
+                            {displayName(lead)}
                           </Link>
                         </TableCell>
                         <TableCell>

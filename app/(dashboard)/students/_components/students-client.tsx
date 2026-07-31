@@ -21,6 +21,7 @@ import type { Source, Institution, User } from "@prisma/client";
 import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
 import { ExportButton } from "@/components/shared/export-button";
+import { displayName } from "@/lib/person-name";
 
 const LEAD_EXPORT_COLUMNS = [
   { key: "fullName",          header: "Full Name" },
@@ -74,7 +75,7 @@ export function StudentsClientPage({
       if (search) {
         const q = search.toLowerCase();
         const matches =
-          lead.fullName.toLowerCase().includes(q) ||
+          displayName(lead).toLowerCase().includes(q) ||
           (lead.email?.toLowerCase().includes(q) ?? false) ||
           lead.interestedProgram.toLowerCase().includes(q) ||
           lead.nationality.toLowerCase().includes(q) ||
@@ -98,7 +99,7 @@ export function StudentsClientPage({
   const exportData = React.useMemo(
     () =>
       filteredLeads.map((l) => ({
-        fullName:           l.fullName,
+        fullName:           displayName(l),
         email:              l.email,
         interestedProgram:  l.interestedProgram,
         studyLevel:         l.studyLevel ?? "",

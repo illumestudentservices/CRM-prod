@@ -17,6 +17,7 @@ import {
 import { cn, formatDate } from "@/lib/utils";
 import { SourceForm } from "../_components/source-form";
 import { stageBadgeClass } from "@/lib/lead-pipeline";
+import { displayName } from "@/lib/person-name";
 
 
 function stageLabel(stage: string) {
@@ -278,7 +279,7 @@ export default async function SourceDetailPage({
                   <TableBody>
                     {source.leads.map((lead) => (
                       <TableRow key={lead.id} className="hover:bg-slate-50">
-                        <TableCell className="font-medium text-slate-800">{lead.fullName}</TableCell>
+                        <TableCell className="font-medium text-slate-800">{displayName(lead)}</TableCell>
                         <TableCell>
                           <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", stageBadgeClass(lead.stage))}>
                             {stageLabel(lead.stage)}

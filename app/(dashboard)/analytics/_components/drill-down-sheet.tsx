@@ -12,10 +12,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink } from "lucide-react";
 import { stageBadgeClass } from "@/lib/lead-pipeline";
+import { displayName } from "@/lib/person-name";
 
 interface LeadRow {
   id: string;
-  fullName: string;
+  firstName: string;  lastName: string;
   email: string;
   stage: string;
   nationality: string;
@@ -101,7 +102,7 @@ export function DrillDownSheet({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-slate-800 truncate">
-                          {lead.fullName}
+                          {displayName(lead)}
                         </span>
                         <ExternalLink className="h-3 w-3 text-slate-300 group-hover:text-slate-500 shrink-0 transition-colors" />
                       </div>

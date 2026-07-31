@@ -5,6 +5,7 @@ import {
   INACTIVITY_ESCALATION_DAYS,
 } from "@/lib/lead-pipeline";
 import type { Prisma } from "@prisma/client";
+import { displayName } from "@/lib/person-name";
 
 /**
  * Scheduled pipeline automation.
@@ -115,7 +116,8 @@ export async function runLeadAutomation(
     where: activeScope,
     select: {
       id: true,
-      fullName: true,
+      firstName: true,
+        lastName: true,
       stage: true,
       regionId: true,
       createdById: true,
@@ -160,7 +162,7 @@ export async function runLeadAutomation(
                 data: {
                   userId: lead.assignedICRId,
                   title: "Student needs attention",
-                  message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+                  message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
                   type: "LEAD_INACTIVITY",
                   link: `/students/${lead.id}`,
                 },
@@ -196,7 +198,7 @@ export async function runLeadAutomation(
           data: {
             userId,
             title: "Stalled student",
-            message: `"${lead.fullName}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+            message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
             type: "LEAD_ESCALATION",
             link: `/students/${lead.id}`,
           },
@@ -237,7 +239,8 @@ export async function runLeadAutomation(
       offerExpiryDate: true,
       depositDeadline: true,
       depositPaid: true,
-      lead: { select: { id: true, fullName: true, assignedICRId: true } },
+      lead: { select: { id: true, firstName: true,
+        lastName: true, assignedICRId: true } },
     },
     take: BATCH_LIMIT,
   });
@@ -262,7 +265,7 @@ export async function runLeadAutomation(
       data: {
         userId: app.lead.assignedICRId,
         title: "Deadline approaching",
-        message: `"${app.lead.fullName}" — ${notes.join(", ")}.`,
+        message: `"${displayName(app.lead)}" — ${notes.join(", ")}.`,
         type: "LEAD_DEADLINE",
         link: `/students/${app.lead.id}`,
       },
@@ -274,7 +277,8 @@ export async function runLeadAutomation(
     where: { deletedAt: null, stage: "DEFERRED", deferredReopenAt: { lte: now } },
     select: {
       id: true,
-      fullName: true,
+      firstName: true,
+        lastName: true,
       stageBeforeClose: true,
       assignedICRId: true,
       deferredIntakeYear: true,
@@ -322,7 +326,7 @@ export async function runLeadAutomation(
               data: {
                 userId: lead.assignedICRId,
                 title: "Deferred student reopened",
-                message: `"${lead.fullName}" is back in the pipeline ahead of their ${lead.deferredIntakeMonth}/${lead.deferredIntakeYear} intake.`,
+                message: `"${displayName(lead)}" is back in the pipeline ahead of their ${lead.deferredIntakeMonth}/${lead.deferredIntakeYear} intake.`,
                 type: "LEAD_REOPENED",
                 link: `/students/${lead.id}`,
               },

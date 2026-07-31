@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { safeSend, wrapEmail } from "@/lib/email";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
 import type { Role } from "@/lib/permissions";
+import { displayName } from "@/lib/person-name";
 import {
   WEEKLY_ACTIVITY_DEFS,
   WEEKLY_ACTIVITY_TYPES,
@@ -61,7 +62,7 @@ function buildReportHtml(opts: {
 
   if (opts.leads.length > 0) {
     body += `<h2><span class="sn">${sectionNum++}</span> Leads Collected (${opts.leads.length})</h2><table><thead><tr><th>Name</th><th>Nationality</th><th>Program</th><th>Level</th><th>Stage</th></tr></thead><tbody>`;
-    for (const l of opts.leads) body += `<tr><td class="b">${esc(l.fullName)}</td><td>${esc(l.nationality)}</td><td>${esc(l.interestedProgram)}</td><td>${l.studyLevel}</td><td>${l.stage.replace(/_/g, " ")}</td></tr>`;
+    for (const l of opts.leads) body += `<tr><td class="b">${esc(displayName(l))}</td><td>${esc(l.nationality)}</td><td>${esc(l.interestedProgram)}</td><td>${l.studyLevel}</td><td>${l.stage.replace(/_/g, " ")}</td></tr>`;
     body += `</tbody></table>`;
   }
 

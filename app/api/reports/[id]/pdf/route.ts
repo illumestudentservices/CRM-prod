@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { displayName } from "@/lib/person-name";
 import {
   WEEKLY_ACTIVITY_DEFS,
   WEEKLY_ACTIVITY_TYPES,
@@ -197,7 +198,7 @@ export async function GET(
       html += `<h2><span class="section-num">${sectionNum++}</span> Leads Collected (${leads.length})</h2>
 <table><thead><tr><th>Name</th><th>Nationality</th><th>Program</th><th>Level</th><th>Stage</th></tr></thead><tbody>`;
       for (const lead of leads) {
-        html += `<tr><td class="b">${esc(lead.fullName)}</td><td>${esc(lead.nationality)}</td><td>${esc(lead.interestedProgram)}</td><td>${lead.studyLevel}</td><td>${lead.stage.replace(/_/g, " ")}</td></tr>`;
+        html += `<tr><td class="b">${esc(displayName(lead))}</td><td>${esc(lead.nationality)}</td><td>${esc(lead.interestedProgram)}</td><td>${lead.studyLevel}</td><td>${lead.stage.replace(/_/g, " ")}</td></tr>`;
       }
       html += `</tbody></table>`;
     }
