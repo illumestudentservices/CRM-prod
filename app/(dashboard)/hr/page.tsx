@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { HRDashboardStats } from "./_components/hr-dashboard-stats";
 import { HRTabsClient } from "./_components/hr-tabs-client";
+import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 import { canRequestAccount, canReviewAccountRequest } from "@/lib/account-requests";
 
 export default async function HRPage() {
@@ -21,7 +22,7 @@ export default async function HRPage() {
   }
 
   const [totalEmployees, onLeaveToday, openTasks, pendingLeave] = await Promise.all([
-    db.employee.count({ where: { isActive: true } }),
+    db.employee.count({ where: ACTIVE_EMPLOYEE }),
     db.leaveRequest.count({
       where: { status: "APPROVED", startDate: { lte: new Date() }, endDate: { gte: new Date() } },
     }),
@@ -31,7 +32,9 @@ export default async function HRPage() {
 
   // Stats for HRDashboardStats
   const deptHeadcount = await db.department.findMany({
-    include: { _count: { select: { employees: true } } },
+    // Counted with the same rule as the headcount above, or the chart would
+    // disagree with the stat card sitting directly beside it.
+    include: { _count: { select: { employees: { where: ACTIVE_EMPLOYEE } } } },
   });
 
   const leaveUtilization = await db.leaveBalance.groupBy({

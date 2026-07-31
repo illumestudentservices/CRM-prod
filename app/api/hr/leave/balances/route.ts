@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 import {
   LEAVE_POLICIES,
   computeEntitlement,
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const employees = await db.employee.findMany({
     where: {
-      isActive: true,
+      ...ACTIVE_EMPLOYEE,
       ...(ownEmployee ? { id: ownEmployee.id } : {}),
     },
     select: {

@@ -5,6 +5,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TravelClient } from "./_components/travel-client";
+import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 export default async function TravelPage() {
   const session = await auth();
@@ -55,7 +56,7 @@ export default async function TravelPage() {
 
   // Fetch employees for the create form
   const employees = await db.employee.findMany({
-    where: { isActive: true },
+    where: ACTIVE_EMPLOYEE,
     include: { user: { select: { name: true } } },
     orderBy: { user: { name: "asc" } },
   });

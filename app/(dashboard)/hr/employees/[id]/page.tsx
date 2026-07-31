@@ -10,6 +10,7 @@ import { ArrowLeft, Mail, Phone, Building2, Calendar } from "lucide-react";
 import Link from "next/link";
 import { EditEmployeeTrigger } from "./_components/edit-employee-trigger";
 import { EmployeeTabsClient } from "./_components/employee-tabs-client";
+import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 export default async function EmployeeDetailPage({
   params,
@@ -47,7 +48,7 @@ export default async function EmployeeDetailPage({
     db.department.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.employee.findMany({
       select: { id: true, user: { select: { name: true } } },
-      where: { isActive: true },
+      where: ACTIVE_EMPLOYEE,
       orderBy: { user: { name: "asc" } },
     }),
     db.region.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import type { Prisma } from "@prisma/client";
 import { sendWelcomeEmail, sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { createMagicLink } from "@/lib/magic-link";
 import { generateTempPassword } from "@/lib/password";
@@ -78,13 +79,16 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "50"));
 
-    const where: Record<string, unknown> = {
+    const where: Prisma.EmployeeWhereInput = {
       // Default to active employees unless caller requests otherwise
       isActive: isActiveParam !== null ? isActiveParam === "true" : true,
+      // Never list someone whose account has been deleted, whatever isActive
+      // says on the employee row — the two flags were never kept in step.
+      user: { deletedAt: null },
     };
     if (departmentId) where.departmentId = departmentId;
     if (search) {
-      where.user = { name: { contains: search, mode: "insensitive" } };
+      where.user = { deletedAt: null, name: { contains: search, mode: "insensitive" } };
     }
 
     const [employees, total] = await Promise.all([

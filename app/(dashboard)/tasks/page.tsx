@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
+import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 async function getAllTasks() {
   return db.task.findMany({
@@ -25,7 +26,7 @@ async function getAllTasks() {
 
 async function getEmployees() {
   return db.employee.findMany({
-    where: { isActive: true },
+    where: ACTIVE_EMPLOYEE,
     include: { user: { select: { id: true, name: true, image: true } } },
     orderBy: { user: { name: "asc" } },
   });
