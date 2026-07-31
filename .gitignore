@@ -89,3 +89,4 @@ verify-requests.mjs
 mailprobe.ts
 verify-lifecycle.mjs
 purgecheck.ts
+verify-hrfix.mjs
