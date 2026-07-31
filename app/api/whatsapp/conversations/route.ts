@@ -16,7 +16,7 @@ export async function GET() {
   const conversations = await db.whatsAppConversation.findMany({
     orderBy: { lastMessageAt: "desc" },
     include: {
-      lead: { select: { id: true, fullName: true, phone: true } },
+      lead: { select: { id: true, firstName: true, lastName: true, phone: true } },
     },
   });
 

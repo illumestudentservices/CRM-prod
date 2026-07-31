@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { displayName } from "@/lib/person-name";
 
 /**
  * GET /api/reports/weekly-report?icrId=&year=&month=&weekOfMonth=
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
           },
           select: {
             id: true,
-            fullName: true,
+            firstName: true, lastName: true,
             stage: true,
             updatedAt: true,
             institution: { select: { name: true } },
@@ -164,7 +165,7 @@ export async function GET(req: NextRequest) {
       outcomes,
       pipelineUpdates: leadChanges.map((l) => ({
         leadId: l.id,
-        name: l.fullName,
+        name: displayName(l),
         currentStage: l.stage,
         institution: l.institution?.name ?? null,
         updatedAt: l.updatedAt,

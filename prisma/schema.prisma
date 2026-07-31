@@ -380,6 +380,15 @@ model User {
   id                   String    @id @default(uuid())
   email                String    @unique
   emailVerified        DateTime?
+  /// Source of truth for the person's name.
+  firstName            String?
+  lastName             String?
+  /// Derived from firstName + lastName on every write.
+  ///
+  /// Kept because NextAuth's `session.user.name` is part of the adapter
+  /// contract and is read in roughly seventy places; removing it would mean
+  /// reworking authentication to change a display string. Never write this
+  /// directly — use the helpers in lib/person-name.ts.
   name                 String?
   image                String?
   password             String?
@@ -553,7 +562,11 @@ model Region {
 
 model Lead {
   id                 String     @id @default(uuid())
-  fullName           String
+  /// Names are stored split because university applications ask for given and
+  /// family name separately, and a single field cannot be reliably divided
+  /// afterwards — roughly a third of this pipeline's names are not two words.
+  firstName          String
+  lastName           String
   /// Nullable because the pipeline requires "Email OR Phone", not both.
   /// Dedup must skip blank values or every phoneless lead matches every other.
   email              String?

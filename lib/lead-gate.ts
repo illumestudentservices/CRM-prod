@@ -52,7 +52,8 @@ export interface GateResult {
 export interface GateLead {
   stage: LeadStage;
   stageEnteredAt: Date | string;
-  fullName?: string | null;
+  firstName: string;
+  lastName: string;
   email?: string | null;
   phone?: string | null;
   nationality?: string | null;
@@ -142,7 +143,8 @@ interface StageConfig {
 export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
   NEW_LEAD: {
     requiredFields: [
-      { kind: "field", key: "fullName", label: "Full name" },
+      { kind: "field", key: "firstName", label: "First name" },
+      { kind: "field", key: "lastName", label: "Last name" },
       { kind: "anyOf", keys: ["email", "phone"], label: "Email or phone" },
       { kind: "field", key: "countryOfResidence", label: "Country of residence" },
       { kind: "field", key: "nationality", label: "Citizenship" },

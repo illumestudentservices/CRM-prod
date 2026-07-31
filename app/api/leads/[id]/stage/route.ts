@@ -10,6 +10,7 @@ import { canAccessLead, loadLeadForGate } from "@/lib/lead-access";
 import { CHECKLIST_TRIGGERS, resolveChecklist } from "@/lib/lead-checklists";
 import { sendLeadStageChangeEmail } from "@/lib/email";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { displayName } from "@/lib/person-name";
 
 /**
  * The only route that may change a lead's pipeline stage.
@@ -224,7 +225,7 @@ export async function PATCH(
         data: {
           userId: updatedLead.assignedICRId,
           title: "Lead stage updated",
-          message: `"${updatedLead.fullName}" moved to ${STAGE_LABELS[newStage]}`,
+          message: `"${displayName(updatedLead)}" moved to ${STAGE_LABELS[newStage]}`,
           type: "STAGE_CHANGE",
           link: `/students/${id}`,
         },
@@ -238,7 +239,7 @@ export async function PATCH(
         sendLeadStageChangeEmail({
           to: updatedLead.assignedICR.email,
           icrName: updatedLead.assignedICR.name ?? "Team",
-          leadName: updatedLead.fullName,
+          leadName: displayName(updatedLead),
           previousStage: STAGE_LABELS[previousStage],
           newStage: STAGE_LABELS[newStage],
           changedBy: changedByUser?.name ?? "A team member",

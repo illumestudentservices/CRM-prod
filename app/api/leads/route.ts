@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -16,7 +17,8 @@ const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
 
 const createLeadSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(6, "Phone number is required"),
   nationality: z.string().min(2, "Nationality is required"),
@@ -63,7 +65,7 @@ const listLeadsQuerySchema = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  sortBy: z.enum(["createdAt", "updatedAt", "fullName", "stage"]).default("createdAt"),
+  sortBy: z.enum(["createdAt", "updatedAt", "lastName", "stage"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
@@ -133,7 +135,7 @@ export async function GET(req: NextRequest) {
       ...(nationality && { nationality: { equals: nationality, mode: "insensitive" } }),
       ...(search && {
         OR: [
-          { fullName: { contains: search, mode: "insensitive" } },
+          ...(nameSearchFilter(search) ? [nameSearchFilter(search)!] : []),
           { email: { contains: search, mode: "insensitive" } },
           { phone: { contains: search, mode: "insensitive" } },
           { interestedProgram: { contains: search, mode: "insensitive" } },
@@ -144,12 +146,12 @@ export async function GET(req: NextRequest) {
     const [leads, total] = await Promise.all([
       db.lead.findMany({
         where,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: sortBy === "lastName" ? nameOrder(sortOrder) : { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,
         select: {
           id: true,
-          fullName: true,
+          firstName: true, lastName: true,
           email: true,
           phone: true,
           nationality: true,
@@ -221,15 +223,19 @@ export async function POST(req: NextRequest) {
     const data = parsed.data;
 
     // ── Deduplication check ──────────────────────────────────────────────────
+    // Both parts must match, which is the same test the single `fullName`
+    // equality made before the split — "Mei Ling Tan" only ever equalled
+    // another "Mei Ling Tan". Matching one part alone would flag every lead
+    // sharing a common surname as a duplicate of the first one entered.
     const duplicate = await db.lead.findFirst({
       where: {
         deletedAt: null,
         OR: [
           { email: data.email },
-          { fullName: data.fullName, phone: data.phone },
+          { firstName: data.firstName, lastName: data.lastName, phone: data.phone },
         ],
       },
-      select: { id: true, fullName: true, email: true },
+      select: { id: true, firstName: true, lastName: true, email: true },
     });
 
     // Inherit region from session if not provided (for ICR/RM)
@@ -239,7 +245,8 @@ export async function POST(req: NextRequest) {
 
     const lead = await db.lead.create({
       data: {
-        fullName: data.fullName,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         phone: data.phone,
         nationality: data.nationality,
@@ -305,7 +312,7 @@ export async function POST(req: NextRequest) {
       {
         data: lead,
         ...(duplicate && {
-          warning: `Possible duplicate detected: matches lead "${duplicate.fullName}" (${duplicate.email})`,
+          warning: `Possible duplicate detected: matches lead "${displayName(duplicate)}" (${duplicate.email})`,
           duplicateOf: duplicate,
         }),
       },

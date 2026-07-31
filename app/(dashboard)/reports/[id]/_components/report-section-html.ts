@@ -1,5 +1,7 @@
+import { snapshotName, type SnapshotName } from "@/lib/person-name";
+
 const TH = 'style="background:#1E3A5F;color:#ffffff;text-align:left;padding:10px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;"';
-const TH_R = 'style="background:#1E3A5F;color:#ffffff;text-align:right;padding:10px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;"';
+const TH_R ='style="background:#1E3A5F;color:#ffffff;text-align:right;padding:10px 14px;font-size:12px;font-weight:600;letter-spacing:0.3px;"';
 const TD = 'style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;"';
 const TD_R = 'style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;text-align:right;"';
 const TD_BOLD = 'style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;font-weight:600;"';
@@ -44,8 +46,7 @@ export function renderKpiHtml(kpi: {
   </table>`;
 }
 
-export function renderLeadsHtml(leads: Array<{
-  fullName: string;
+export function renderLeadsHtml(leads: Array<SnapshotName & {
   nationality: string;
   interestedProgram: string;
   studyLevel: string;
@@ -54,7 +55,7 @@ export function renderLeadsHtml(leads: Array<{
   if (leads.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No leads recorded.</p>';
   const rows = leads.slice(0, 25).map((l, i) =>
     `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
-      <td ${TD_BOLD}>${esc(l.fullName)}</td>
+      <td ${TD_BOLD}>${esc(snapshotName(l))}</td>
       <td ${TD}>${esc(l.nationality)}</td>
       <td ${TD}>${esc(l.interestedProgram)}</td>
       <td ${TD}>${l.studyLevel}</td>

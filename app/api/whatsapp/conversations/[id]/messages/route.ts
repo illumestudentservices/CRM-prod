@@ -21,7 +21,7 @@ export async function GET(
   const [conversation, messages] = await Promise.all([
     db.whatsAppConversation.findUnique({
       where: { id },
-      include: { lead: { select: { id: true, fullName: true, phone: true } } },
+      include: { lead: { select: { id: true, firstName: true, lastName: true, phone: true } } },
     }),
     db.whatsAppMessage.findMany({
       where: { conversationId: id },

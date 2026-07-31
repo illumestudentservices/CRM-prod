@@ -10,6 +10,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
+import { displayName } from "@/lib/person-name";
 import {
   BarChart,
   Bar,
@@ -28,7 +29,8 @@ interface OverviewData {
 
 interface LeadAttention {
   id: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   stage: string;
   lastContactedAt: string | null;
   lastProgressedAt: string | null;
@@ -157,7 +159,7 @@ export function ICRDashboard() {
   // Export data
   const stageExportData = pipelineData.map((p) => ({ stage: p.stage, count: p.count }));
   const attentionExportData = attentionLeads.map((l) => ({
-    name: l.fullName,
+    name: displayName(l),
     stage: l.stage.replace(/_/g, " "),
     lastContact: l.lastContactedAt
       ? new Date(l.lastContactedAt).toLocaleDateString("en-GB")
@@ -295,7 +297,7 @@ export function ICRDashboard() {
                           className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
                           onClick={() => router.push(`/students/${lead.id}`)}
                         >
-                          <td className="py-2.5 pr-3 font-medium text-slate-800 hover:text-[#1E3A5F]">{lead.fullName}</td>
+                          <td className="py-2.5 pr-3 font-medium text-slate-800 hover:text-[#1E3A5F]">{displayName(lead)}</td>
                           <td className="py-2.5 px-3">
                             <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                               {lead.stage.replace(/_/g, " ")}

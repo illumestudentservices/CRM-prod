@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { Role } from "@/lib/permissions";
 import { AnnouncementsFeed } from "@/components/shared/announcements-feed";
+import { displayName } from "@/lib/person-name";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,8 @@ async function getExecutiveDashboardData(regionId?: string | null) {
       take: 6,
       select: {
         id: true,
-        fullName: true,
+        firstName: true,
+        lastName: true,
         stage: true,
         createdAt: true,
         institution: { select: { name: true } },
@@ -261,7 +263,8 @@ async function getICRDashboardData(userId: string) {
       take: 6,
       select: {
         id: true,
-        fullName: true,
+        firstName: true,
+        lastName: true,
         stage: true,
         createdAt: true,
         institution: { select: { name: true } },
@@ -427,7 +430,8 @@ function RecentLeadsCard({
 }: {
   leads: {
     id: string;
-    fullName: string;
+    firstName: string;
+    lastName: string;
     stage: string;
     createdAt: Date;
     institution: { name: string } | null;
@@ -454,7 +458,7 @@ function RecentLeadsCard({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-8 w-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold text-[#1E3A5F]">
-                    {lead.fullName
+                    {displayName(lead)
                       .split(" ")
                       .map((n) => n[0])
                       .slice(0, 2)
@@ -463,7 +467,7 @@ function RecentLeadsCard({
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{lead.fullName}</p>
+                  <p className="text-sm font-medium text-slate-900 truncate">{displayName(lead)}</p>
                   <p className="text-xs text-slate-500 truncate">
                     {lead.institution?.name ?? "No institution"}
                     {showICR && lead.assignedICR?.name && (

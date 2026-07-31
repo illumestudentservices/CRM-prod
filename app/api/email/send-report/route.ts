@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { safeSend, wrapEmail } from "@/lib/email";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
 import type { Role } from "@/lib/permissions";
+import { snapshotName, type SnapshotName } from "@/lib/person-name";
 import {
   WEEKLY_ACTIVITY_DEFS,
   WEEKLY_ACTIVITY_TYPES,
@@ -33,7 +34,7 @@ function buildReportHtml(opts: {
   icrName: string;
   regionName: string;
   kpi: { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
-  leads: Array<{ fullName: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
+  leads: Array<SnapshotName & { nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
   programs: Array<{ program: string; count: number; levels: Record<string, number> }>;
   sources: Array<{ name: string; leads: number; enrolled: number }>;
   events: Array<{ name: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>;
@@ -61,7 +62,7 @@ function buildReportHtml(opts: {
 
   if (opts.leads.length > 0) {
     body += `<h2><span class="sn">${sectionNum++}</span> Leads Collected (${opts.leads.length})</h2><table><thead><tr><th>Name</th><th>Nationality</th><th>Program</th><th>Level</th><th>Stage</th></tr></thead><tbody>`;
-    for (const l of opts.leads) body += `<tr><td class="b">${esc(l.fullName)}</td><td>${esc(l.nationality)}</td><td>${esc(l.interestedProgram)}</td><td>${l.studyLevel}</td><td>${l.stage.replace(/_/g, " ")}</td></tr>`;
+    for (const l of opts.leads) body += `<tr><td class="b">${esc(snapshotName(l))}</td><td>${esc(l.nationality)}</td><td>${esc(l.interestedProgram)}</td><td>${l.studyLevel}</td><td>${l.stage.replace(/_/g, " ")}</td></tr>`;
     body += `</tbody></table>`;
   }
 
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     const senderName = (session.user as { name?: string }).name ?? "An Illume user";
 
     const kpi = report.kpiSummary as { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
-    const leads = Array.isArray(report.leadsData) ? (report.leadsData as Array<{ fullName: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>) : [];
+    const leads = Array.isArray(report.leadsData) ? (report.leadsData as unknown as Array<SnapshotName & { nationality: string; interestedProgram: string; studyLevel: string; stage: string }>) : [];
     const programs = Array.isArray(report.programBreakdown) ? (report.programBreakdown as Array<{ program: string; count: number; levels: Record<string, number> }>) : [];
     const sources = Array.isArray(report.sourcePerformance) ? (report.sourcePerformance as Array<{ name: string; leads: number; enrolled: number }>) : [];
     const events = Array.isArray(report.eventActivities) ? (report.eventActivities as Array<{ name: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>) : [];

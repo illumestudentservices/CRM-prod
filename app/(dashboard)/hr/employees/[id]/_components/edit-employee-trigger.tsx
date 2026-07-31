@@ -23,7 +23,8 @@ interface EditEmployeeTriggerProps {
     isActive: boolean;
     departmentId: string | null;
     managerId: string | null;
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     role: string;
     regionId: string | null;

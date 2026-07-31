@@ -194,7 +194,12 @@ export async function purgeExpiredUsers(
         where: { id: u.id },
         data: {
           email: tombstone,
+          // All three, or the purge is not an anonymisation: `name` is the
+          // derived copy, and clearing it alone would leave the person's real
+          // given and family name sitting in the columns it was derived from.
           name: "Deleted user",
+          firstName: null,
+          lastName: null,
           image: null,
           password: null,
           emailVerified: null,
