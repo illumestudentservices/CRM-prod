@@ -24,7 +24,11 @@ import { ExportButton } from "@/components/shared/export-button";
 import { displayName } from "@/lib/person-name";
 
 const LEAD_EXPORT_COLUMNS = [
-  { key: "fullName",          header: "Full Name" },
+  // Two columns, not one: the export feeds university application forms, which
+  // ask for given and family name separately. Recombining here would throw
+  // away the split the record already holds.
+  { key: "firstName",         header: "First Name" },
+  { key: "lastName",          header: "Last Name" },
   { key: "email",             header: "Email" },
   { key: "interestedProgram", header: "Program" },
   { key: "studyLevel",        header: "Study Level" },
@@ -99,7 +103,8 @@ export function StudentsClientPage({
   const exportData = React.useMemo(
     () =>
       filteredLeads.map((l) => ({
-        fullName:           displayName(l),
+        firstName:          l.firstName,
+        lastName:           l.lastName,
         email:              l.email,
         interestedProgram:  l.interestedProgram,
         studyLevel:         l.studyLevel ?? "",

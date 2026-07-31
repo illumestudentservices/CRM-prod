@@ -32,7 +32,8 @@ interface EditEmployeeFormProps {
     departmentId: string | null;
     managerId: string | null;
     // Super admin fields
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     role: string;
     regionId: string | null;
@@ -60,7 +61,8 @@ export function EditEmployeeForm({
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     // Super admin fields
-    name: initial.name ?? "",
+    firstName: initial.firstName ?? "",
+    lastName: initial.lastName ?? "",
     email: initial.email,
     role: initial.role,
     regionId: initial.regionId ?? "none",
@@ -99,7 +101,11 @@ export function EditEmployeeForm({
       payload.managerId = form.managerId === "none" ? null : form.managerId;
     }
     if (isSuperAdmin) {
-      payload.name = form.name || null;
+      // Sent only when filled. Both parts are required on the server, so an
+      // empty box means "leave this alone" rather than "clear the name" —
+      // there is no valid state in which a user has no name.
+      if (form.firstName.trim()) payload.firstName = form.firstName.trim();
+      if (form.lastName.trim()) payload.lastName = form.lastName.trim();
       payload.email = form.email;
       payload.role = form.role;
       payload.regionId = form.regionId === "none" ? null : form.regionId;
@@ -131,13 +137,17 @@ export function EditEmployeeForm({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b pb-1">Account Settings</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Full Name</Label>
-                  <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
+                  <Label>First Name</Label>
+                  <Input value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+                  <Label>Last Name</Label>
+                  <Input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

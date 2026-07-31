@@ -8,7 +8,11 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const updateLeadSchema = z.object({
-  fullName: z.string().min(2).optional(),
+  // min(1) to match the create schema — a one-letter given name is real, and
+  // the schema is `.strict()`, so leaving `fullName` here would have made the
+  // edit form's firstName/lastName a 422 and the name uneditable.
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(6).optional(),
   nationality: z.string().min(2).optional(),

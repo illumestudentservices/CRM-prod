@@ -79,8 +79,7 @@ export async function POST(
       select: {
         id: true,
         stage: true,
-        firstName: true,
-        lastName: true,
+        firstName: true, lastName: true,
         regionId: true,
         assignedICRId: true,
         institutionId: true,

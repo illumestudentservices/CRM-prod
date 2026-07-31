@@ -134,7 +134,8 @@ async function getExecutiveDashboardData(regionId?: string | null) {
       take: 6,
       select: {
         id: true,
-        firstName: true,        lastName: true,
+        firstName: true,
+        lastName: true,
         stage: true,
         createdAt: true,
         institution: { select: { name: true } },
@@ -262,7 +263,8 @@ async function getICRDashboardData(userId: string) {
       take: 6,
       select: {
         id: true,
-        firstName: true,        lastName: true,
+        firstName: true,
+        lastName: true,
         stage: true,
         createdAt: true,
         institution: { select: { name: true } },
@@ -428,7 +430,8 @@ function RecentLeadsCard({
 }: {
   leads: {
     id: string;
-    firstName: string;    lastName: string;
+    firstName: string;
+    lastName: string;
     stage: string;
     createdAt: Date;
     institution: { name: string } | null;

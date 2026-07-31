@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
-import { displayName } from "@/lib/person-name";
+import { snapshotName, type SnapshotName } from "@/lib/person-name";
 import {
   WEEKLY_ACTIVITY_DEFS,
   WEEKLY_ACTIVITY_TYPES,
@@ -93,7 +93,7 @@ export async function GET(
     const kpi = report.kpiSummary as { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
     const prevKpi = prevReport?.kpiSummary as typeof kpi | null;
 
-    const leads = Array.isArray(report.leadsData) ? (report.leadsData as Array<{ fullName: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>) : [];
+    const leads = Array.isArray(report.leadsData) ? (report.leadsData as unknown as Array<SnapshotName & { nationality: string; interestedProgram: string; studyLevel: string; stage: string }>) : [];
     const programs = Array.isArray(report.programBreakdown) ? (report.programBreakdown as Array<{ program: string; count: number; levels: Record<string, number> }>) : [];
     const sources = Array.isArray(report.sourcePerformance) ? (report.sourcePerformance as Array<{ name: string; leads: number; enrolled: number }>) : [];
     const events = Array.isArray(report.eventActivities) ? (report.eventActivities as Array<{ name: string; type: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>) : [];
@@ -198,7 +198,7 @@ export async function GET(
       html += `<h2><span class="section-num">${sectionNum++}</span> Leads Collected (${leads.length})</h2>
 <table><thead><tr><th>Name</th><th>Nationality</th><th>Program</th><th>Level</th><th>Stage</th></tr></thead><tbody>`;
       for (const lead of leads) {
-        html += `<tr><td class="b">${esc(displayName(lead))}</td><td>${esc(lead.nationality)}</td><td>${esc(lead.interestedProgram)}</td><td>${lead.studyLevel}</td><td>${lead.stage.replace(/_/g, " ")}</td></tr>`;
+        html += `<tr><td class="b">${esc(snapshotName(lead))}</td><td>${esc(lead.nationality)}</td><td>${esc(lead.interestedProgram)}</td><td>${lead.studyLevel}</td><td>${lead.stage.replace(/_/g, " ")}</td></tr>`;
       }
       html += `</tbody></table>`;
     }

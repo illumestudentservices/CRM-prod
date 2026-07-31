@@ -116,8 +116,7 @@ export async function runLeadAutomation(
     where: activeScope,
     select: {
       id: true,
-      firstName: true,
-        lastName: true,
+      firstName: true, lastName: true,
       stage: true,
       regionId: true,
       createdById: true,
@@ -239,8 +238,7 @@ export async function runLeadAutomation(
       offerExpiryDate: true,
       depositDeadline: true,
       depositPaid: true,
-      lead: { select: { id: true, firstName: true,
-        lastName: true, assignedICRId: true } },
+      lead: { select: { id: true, firstName: true, lastName: true, assignedICRId: true } },
     },
     take: BATCH_LIMIT,
   });
@@ -277,8 +275,7 @@ export async function runLeadAutomation(
     where: { deletedAt: null, stage: "DEFERRED", deferredReopenAt: { lte: now } },
     select: {
       id: true,
-      firstName: true,
-        lastName: true,
+      firstName: true, lastName: true,
       stageBeforeClose: true,
       assignedICRId: true,
       deferredIntakeYear: true,

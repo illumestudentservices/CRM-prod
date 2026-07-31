@@ -148,8 +148,7 @@ export async function POST(req: NextRequest) {
       },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
+        firstName: true, lastName: true,
         email: true,
         stage: true,
         studyLevel: true,
@@ -161,12 +160,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    type LeadSelectRow = { id: string; fullName: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; countryOfResidence: string; createdAt: Date; source: { id: string; name: string } | null };
-    const typedLeadsForBreakdown = leads as LeadSelectRow[];
-
     // Program breakdown
     const programMap: Record<string, { count: number; levels: Record<string, number> }> = {};
-    for (const lead of typedLeadsForBreakdown) {
+    for (const lead of leads) {
       const prog = lead.interestedProgram;
       if (!programMap[prog]) programMap[prog] = { count: 0, levels: {} };
       programMap[prog].count++;
@@ -176,7 +172,7 @@ export async function POST(req: NextRequest) {
 
     // Source performance
     const sourcePerf: Record<string, { name: string; leads: number; enrolled: number }> = {};
-    for (const lead of typedLeadsForBreakdown) {
+    for (const lead of leads) {
       if (lead.source) {
         const sid = lead.source.id;
         if (!sourcePerf[sid]) sourcePerf[sid] = { name: lead.source.name, leads: 0, enrolled: 0 };
@@ -219,11 +215,9 @@ export async function POST(req: NextRequest) {
     }));
 
     // KPI summary
-    type LeadRow = { id: string; fullName: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; countryOfResidence: string; createdAt: Date; source: { id: string; name: string } | null };
-    const typedLeads = leads as LeadRow[];
-    const totalLeads = typedLeads.length;
-    const enrolled = typedLeads.filter((l) => l.stage === "ENROLLED").length;
-    const contacted = typedLeads.filter((l) => l.stage !== "NEW_LEAD").length;
+    const totalLeads = leads.length;
+    const enrolled = leads.filter((l) => l.stage === "ENROLLED").length;
+    const contacted = leads.filter((l) => l.stage !== "NEW_LEAD").length;
 
     const kpiSummary = {
       totalLeads,
@@ -242,7 +236,7 @@ export async function POST(req: NextRequest) {
         reportingMonth,
         reportingYear,
         status: "DRAFT",
-        leadsData: typedLeadsForBreakdown as unknown as object,
+        leadsData: leads as unknown as object,
         programBreakdown: Object.entries(programMap).map(([program, data]) => ({
           program,
           ...data,

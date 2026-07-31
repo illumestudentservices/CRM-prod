@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { Search, Users, Building2, Globe, Calendar } from "lucide-react";
-import { displayName } from "@/lib/person-name";
+import { displayName, nameSearchFilter } from "@/lib/person-name";
 
 export default async function SearchPage({
   searchParams,
@@ -36,13 +36,16 @@ export default async function SearchPage({
   }
 
   const like = { contains: query, mode: "insensitive" as const };
+  // Matches each token against either name part, so "Nkechi Obi" still finds a
+  // lead whose two halves are stored in separate columns.
+  const byName = nameSearchFilter(query);
 
   const [leads, institutions, sources, events] = await Promise.all([
     db.lead.findMany({
       where: {
         deletedAt: null,
         OR: [
-          { fullName: like },
+          ...(byName ? [byName] : []),
           { email: like },
           { phone: like },
           { nationality: like },

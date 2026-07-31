@@ -9,13 +9,15 @@ import type { Prisma } from "@prisma/client";
 import { sendWelcomeEmail, sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { createMagicLink } from "@/lib/magic-link";
 import { generateTempPassword } from "@/lib/password";
+import { displayName, userNameFields } from "@/lib/person-name";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const createEmployeeSchema = z
   .object({
     email: z.string().email("Invalid email"),
-    name: z.string().min(2, "Name is required"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     role: z
       .enum([
@@ -176,7 +178,7 @@ export async function POST(req: NextRequest) {
       const user = await tx.user.create({
         data: {
           email: data.email,
-          name: data.name,
+          ...userNameFields(data),
           password: hashedPassword,
           role: data.role as Role,
           regionId: data.regionId ?? null,
@@ -228,7 +230,7 @@ export async function POST(req: NextRequest) {
       .then((magicLinkUrl) =>
         sendWelcomeEmail({
           to: data.email,
-          name: data.name,
+          name: displayName(data),
           employeeId: employee.employeeId,
           jobTitle: data.jobTitle,
           magicLinkUrl,
@@ -243,7 +245,7 @@ export async function POST(req: NextRequest) {
         return sendSecurityAlertEmail({
           to: adminEmails,
           alertType: "USER_CREATED",
-          targetName: data.name,
+          targetName: displayName(data),
           targetEmail: data.email,
           changedBy: session.user.name ?? session.user.email ?? "HR Manager",
           details: {

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { userNameFields } from "@/lib/person-name";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -29,7 +30,8 @@ const patchEmployeeSchema = z.object({
   startDate: z.string().transform((v) => new Date(v)).optional(),
   endDate: z.string().transform((v) => new Date(v)).optional().nullable(),
   // User account fields (SUPER_ADMIN only)
-  name: z.string().min(2).optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
   email: z.string().email().optional(),
   role: z.enum(["SUPER_ADMIN","HQ_EXECUTIVE","HQ_ANALYTICS","REGIONAL_MANAGER","ICR","INSTITUTION_CLIENT","HR_MANAGER","EMPLOYEE"]).optional(),
   regionId: z.string().min(1).optional().nullable(),
@@ -155,7 +157,7 @@ export async function PATCH(
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";
 
   // Split fields by permission level
-  const superAdminUserFields = ["name", "email", "role", "regionId"];
+  const superAdminUserFields = ["firstName", "lastName", "email", "role", "regionId"];
   // HR-only, like the other employment-record fields: gender decides parental
   // leave eligibility, so it is not something an employee sets on themselves.
   const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "startDate", "endDate", "gender"];
@@ -172,6 +174,23 @@ export async function PATCH(
     } else if (selfFields.includes(key)) {
       employeeUpdate[key] = value;
     }
+  }
+
+  // `name` is derived from both parts, so a request that changes only one of
+  // them still has to be combined with the stored other half — recomputing
+  // from `userUpdate` alone would blank the part that was not sent.
+  if ("firstName" in userUpdate || "lastName" in userUpdate) {
+    const current = await db.employee.findUnique({
+      where: { id },
+      select: { user: { select: { firstName: true, lastName: true } } },
+    });
+    Object.assign(
+      userUpdate,
+      userNameFields({
+        firstName: (userUpdate.firstName as string | undefined) ?? current?.user.firstName,
+        lastName: (userUpdate.lastName as string | undefined) ?? current?.user.lastName,
+      })
+    );
   }
 
   // Prevent demoting last super admin

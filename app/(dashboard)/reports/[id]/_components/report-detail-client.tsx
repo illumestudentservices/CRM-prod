@@ -51,7 +51,7 @@ import {
   Cell,
 } from "recharts";
 import { stageHex } from "@/lib/lead-pipeline";
-import { displayName } from "@/lib/person-name";
+import { snapshotName, type SnapshotName } from "@/lib/person-name";
 
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -105,7 +105,7 @@ interface ReportDetailClientProps {
     eventsCount: number;
     totalEventCost: number;
   } | null;
-  leads: Array<{ id: string; fullName: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
+  leads: Array<SnapshotName & { id: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
   programs: Array<{ program: string; count: number; levels: Record<string, number> }>;
   sources: Array<{ name: string; leads: number; enrolled: number }>;
   events: Array<{ id: string; name: string; type: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>;
@@ -356,7 +356,7 @@ export function ReportDetailClient({
                 <tbody>
                   {leads.slice(0, 20).map((lead, i) => (
                     <tr key={lead.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="py-2 px-4 font-medium text-slate-800">{displayName(lead)}</td>
+                      <td className="py-2 px-4 font-medium text-slate-800">{snapshotName(lead)}</td>
                       <td className="py-2 px-3 text-slate-600">{lead.nationality}</td>
                       <td className="py-2 px-3 text-slate-600 max-w-[140px] truncate">{lead.interestedProgram}</td>
                       <td className="py-2 px-3 text-slate-500">{lead.studyLevel}</td>

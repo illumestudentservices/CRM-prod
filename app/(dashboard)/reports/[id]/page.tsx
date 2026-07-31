@@ -8,6 +8,7 @@ import {
   type WeeklyActivityType,
 } from "@/lib/weekly-activities";
 import { ReportDetailClient } from "./_components/report-detail-client";
+import type { SnapshotName } from "@/lib/person-name";
 import {
   renderKpiHtml,
   renderLeadsHtml,
@@ -71,7 +72,7 @@ export default async function ReportViewPage({
     report.icrId === userId;
 
   // Parse JSON data
-  const leads = Array.isArray(report.leadsData) ? (report.leadsData as Array<{ id: string; fullName: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; createdAt: string }>) : [];
+  const leads = Array.isArray(report.leadsData) ? (report.leadsData as unknown as Array<SnapshotName & { id: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; createdAt: string }>) : [];
   const programs = Array.isArray(report.programBreakdown) ? (report.programBreakdown as Array<{ program: string; count: number; levels: Record<string, number> }>) : [];
   const sources = Array.isArray(report.sourcePerformance) ? (report.sourcePerformance as Array<{ name: string; leads: number; enrolled: number }>) : [];
   const events = Array.isArray(report.eventActivities) ? (report.eventActivities as Array<{ id: string; name: string; type: string; date: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>) : [];

@@ -39,6 +39,43 @@ export function initials(p: PersonName | null | undefined, fallback = "?"): stri
 }
 
 /**
+ * The three fields to write whenever a user's name changes.
+ *
+ * `User.name` is derived, never authored. It stays because NextAuth's adapter
+ * contract puts it in `session.user.name`, which roughly seventy call sites
+ * read; writing the two parts without it would leave every one of those
+ * showing the previous name indefinitely. Always spread this rather than
+ * setting the parts by hand, so the three cannot drift apart.
+ */
+export function userNameFields(p: PersonName): {
+  firstName: string;
+  lastName: string;
+  name: string;
+} {
+  const firstName = (p.firstName ?? "").trim();
+  const lastName = (p.lastName ?? "").trim();
+  return { firstName, lastName, name: displayName({ firstName, lastName }) };
+}
+
+/**
+ * A name read out of a stored JSON snapshot, in either shape.
+ *
+ * `MonthlyReport.leadsData` freezes the lead rows as they stood when the report
+ * was generated, so reports written before the split still carry a single
+ * `fullName`. That snapshot is deliberately immutable — it is the record of
+ * what was reported — so it is read in both shapes rather than rewritten, the
+ * same tolerance `stageLabel` already applies to old stage names in the same
+ * blob.
+ */
+export interface SnapshotName extends PersonName {
+  fullName?: string | null;
+}
+
+export function snapshotName(p: SnapshotName | null | undefined): string {
+  return displayName(p) || (p?.fullName?.trim() ?? "");
+}
+
+/**
  * Splits a legacy single name on the first space.
  *
  * Used by the migration and when importing from a source that only supplies one
@@ -87,5 +124,14 @@ export function nameSearchFilter(term: string) {
   };
 }
 
-/** Ordering by name, family name first, as a directory would list it. */
-export const NAME_ORDER = [{ lastName: "asc" as const }, { firstName: "asc" as const }];
+/**
+ * Ordering by name, family name first, as a directory would list it.
+ *
+ * Takes a direction because the leads list exposes sort order as a query
+ * parameter; a fixed ascending constant could not serve it. Both parts are
+ * always ordered together — sorting on `lastName` alone leaves leads who share
+ * a surname in whatever order the planner happens to return.
+ */
+export function nameOrder(direction: "asc" | "desc" = "asc") {
+  return [{ lastName: direction }, { firstName: direction }];
+}

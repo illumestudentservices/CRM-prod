@@ -18,12 +18,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { displayNameOr } from "@/lib/person-name";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 interface Lead {
   id: string;
-  firstName: string;  lastName: string;
+  firstName: string;
+  lastName: string;
   phone: string | null;
 }
 
@@ -183,7 +185,7 @@ function ChatPanel({
   }
 
   const displayName =
-    conversation.displayName ?? conversation.lead?.fullName ?? conversation.phone;
+    conversation.displayName ?? displayNameOr(conversation.lead, conversation.phone);
 
   return (
     <div className="flex flex-col h-full">
@@ -295,7 +297,7 @@ export function WhatsAppInbox({ initialConversations, currentUserId }: WhatsAppI
   const [search, setSearch] = React.useState("");
 
   const filtered = conversations.filter((c) => {
-    const name = (c.displayName ?? c.lead?.fullName ?? c.phone).toLowerCase();
+    const name = (c.displayName ?? displayNameOr(c.lead, c.phone)).toLowerCase();
     return name.includes(search.toLowerCase()) || c.phone.includes(search);
   });
 
@@ -333,7 +335,7 @@ export function WhatsAppInbox({ initialConversations, currentUserId }: WhatsAppI
             <div className="flex items-center gap-1.5">
               <ExportButton
                 data={conversations.map((c) => ({
-                  contact: c.displayName ?? c.lead?.fullName ?? c.phone,
+                  contact: c.displayName ?? displayNameOr(c.lead, c.phone),
                   lastMessage: c.lastMessage ?? "—",
                   timestamp: c.lastMessageAt
                     ? new Date(c.lastMessageAt).toLocaleString()
@@ -369,7 +371,7 @@ export function WhatsAppInbox({ initialConversations, currentUserId }: WhatsAppI
             <p className="text-center text-sm text-muted-foreground py-10">No conversations yet.</p>
           ) : (
             filtered.map((conv) => {
-              const name = conv.displayName ?? conv.lead?.fullName ?? conv.phone;
+              const name = conv.displayName ?? displayNameOr(conv.lead, conv.phone);
               const isSelected = selected?.id === conv.id;
               return (
                 <button

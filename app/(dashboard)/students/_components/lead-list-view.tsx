@@ -34,7 +34,7 @@ import {
 } from "@/lib/lead-pipeline";
 import type { LeadWithRelations } from "./lead-card";
 import type { User } from "@prisma/client";
-import { displayName } from "@/lib/person-name";
+import { displayName, initials } from "@/lib/person-name";
 
 // ─── Stage helpers ─────────────────────────────────────────────────────────────
 
@@ -159,13 +159,18 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
 
   const columns: ColumnDef<LeadWithRelations>[] = [
     {
-      accessorKey: "fullName",
+      // An accessorFn, not an accessorKey: the table's search box filters on
+      // the column's accessed value, and no single stored column holds the
+      // whole name any more. Keying it to one part would make the box match
+      // only half of what the row visibly says.
+      id: "name",
+      accessorFn: (lead) => displayName(lead),
       header: "Name",
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
             <span className="text-[10px] font-bold text-[#1E3A5F]">
-              {getInitials(displayName(row.original))}
+              {initials(row.original)}
             </span>
           </div>
           <div className="min-w-0">
@@ -333,7 +338,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       <DataTable
         columns={columns}
         data={leads}
-        searchKey="fullName"
+        searchKey="name"
         searchPlaceholder="Search leads..."
         onRowClick={(lead) => router.push(`/students/${lead.id}`)}
         enableRowSelection

@@ -17,7 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const schema = z.object({
   // User info
-  name: z.string().min(2),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email(),
   password: z.string().min(8),
   role: z.string(),
@@ -94,7 +95,10 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
       toast({ title: "Error", description: data.error || "Failed to create employee", variant: "destructive" });
       return;
     }
-    toast({ title: "Employee created", description: `${values.name} has been added.` });
+    toast({
+      title: "Employee created",
+      description: `${values.firstName} ${values.lastName} has been added.`,
+    });
     onSuccess();
   }
 
@@ -108,10 +112,17 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground font-medium">Step 1: Account Details</p>
-              <div className="space-y-2">
-                <Label>Full Name *</Label>
-                <Input {...register("name")} placeholder="John Smith" />
-                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>First Name *</Label>
+                  <Input {...register("firstName")} placeholder="John" />
+                  {errors.firstName && <p className="text-xs text-destructive">{errors.firstName.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name *</Label>
+                  <Input {...register("lastName")} placeholder="Smith" />
+                  {errors.lastName && <p className="text-xs text-destructive">{errors.lastName.message}</p>}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Email *</Label>

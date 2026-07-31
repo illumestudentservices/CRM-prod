@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { config } from "dotenv";
+import { splitLegacyName, userNameFields } from "../lib/person-name";
 
 config();
 
@@ -36,49 +37,54 @@ async function main() {
   const hash = (p: string) => bcrypt.hashSync(p, 10);
   const password = hash("password123");
 
+  // Writes firstName, lastName and the derived `name` together. Setting `name`
+  // on its own would seed users whose parts are empty — the drift the helper
+  // exists to prevent, reproduced in the fixtures.
+  const named = (full: string) => userNameFields(splitLegacyName(full));
+
   const adminUser = await db.user.upsert({
     where: { email: "admin@illume.edu" }, update: {},
-    create: { email: "admin@illume.edu", name: "System Admin", password, role: Role.SUPER_ADMIN, isActive: true },
+    create: { email: "admin@illume.edu", ...named("System Admin"), password, role: Role.SUPER_ADMIN, isActive: true },
   });
   const hqUser = await db.user.upsert({
     where: { email: "hq@illume.edu" }, update: {},
-    create: { email: "hq@illume.edu", name: "James Whitfield", password, role: Role.HQ_EXECUTIVE, isActive: true },
+    create: { email: "hq@illume.edu", ...named("James Whitfield"), password, role: Role.HQ_EXECUTIVE, isActive: true },
   });
   const analyticsUser = await db.user.upsert({
     where: { email: "analytics@illume.edu" }, update: {},
-    create: { email: "analytics@illume.edu", name: "Priya Nair", password, role: Role.HQ_ANALYTICS, isActive: true },
+    create: { email: "analytics@illume.edu", ...named("Priya Nair"), password, role: Role.HQ_ANALYTICS, isActive: true },
   });
   const managerUser = await db.user.upsert({
     where: { email: "manager@illume.edu" }, update: {},
-    create: { email: "manager@illume.edu", name: "Sarah Chen", password, role: Role.REGIONAL_MANAGER, regionId: regionSEA.id, isActive: true },
+    create: { email: "manager@illume.edu", ...named("Sarah Chen"), password, role: Role.REGIONAL_MANAGER, regionId: regionSEA.id, isActive: true },
   });
   const manager2User = await db.user.upsert({
     where: { email: "manager2@illume.edu" }, update: {},
-    create: { email: "manager2@illume.edu", name: "Omar Al-Rashidi", password, role: Role.REGIONAL_MANAGER, regionId: regionME.id, isActive: true },
+    create: { email: "manager2@illume.edu", ...named("Omar Al-Rashidi"), password, role: Role.REGIONAL_MANAGER, regionId: regionME.id, isActive: true },
   });
   const icrUser = await db.user.upsert({
     where: { email: "icr@illume.edu" }, update: {},
-    create: { email: "icr@illume.edu", name: "Aisha Rahman", password, role: Role.ICR, regionId: regionSEA.id, isActive: true },
+    create: { email: "icr@illume.edu", ...named("Aisha Rahman"), password, role: Role.ICR, regionId: regionSEA.id, isActive: true },
   });
   const icr2User = await db.user.upsert({
     where: { email: "icr2@illume.edu" }, update: {},
-    create: { email: "icr2@illume.edu", name: "Deepak Sharma", password, role: Role.ICR, regionId: regionSA.id, isActive: true },
+    create: { email: "icr2@illume.edu", ...named("Deepak Sharma"), password, role: Role.ICR, regionId: regionSA.id, isActive: true },
   });
   const icr3User = await db.user.upsert({
     where: { email: "icr3@illume.edu" }, update: {},
-    create: { email: "icr3@illume.edu", name: "Fatima Hassan", password, role: Role.ICR, regionId: regionME.id, isActive: true },
+    create: { email: "icr3@illume.edu", ...named("Fatima Hassan"), password, role: Role.ICR, regionId: regionME.id, isActive: true },
   });
   const hrUser = await db.user.upsert({
     where: { email: "hr@illume.edu" }, update: {},
-    create: { email: "hr@illume.edu", name: "Linda Park", password, role: Role.HR_MANAGER, isActive: true },
+    create: { email: "hr@illume.edu", ...named("Linda Park"), password, role: Role.HR_MANAGER, isActive: true },
   });
   const emp1User = await db.user.upsert({
     where: { email: "emp1@illume.edu" }, update: {},
-    create: { email: "emp1@illume.edu", name: "Marcus Thompson", password, role: Role.EMPLOYEE, isActive: true },
+    create: { email: "emp1@illume.edu", ...named("Marcus Thompson"), password, role: Role.EMPLOYEE, isActive: true },
   });
   const emp2User = await db.user.upsert({
     where: { email: "emp2@illume.edu" }, update: {},
-    create: { email: "emp2@illume.edu", name: "Yuki Tanaka", password, role: Role.EMPLOYEE, regionId: regionSEA.id, isActive: true },
+    create: { email: "emp2@illume.edu", ...named("Yuki Tanaka"), password, role: Role.EMPLOYEE, regionId: regionSEA.id, isActive: true },
   });
   console.log("✅ Users created");
 
@@ -276,12 +282,18 @@ async function main() {
 
   const now = new Date();
   for (const ld of leadData) {
+    // The fixtures above are written as single names and split here on the
+    // first space — the same guess the migration makes, and wrong in the same
+    // places ("Chen Xiao Ming" is surname-first). They are demo records, not a
+    // source of truth, so they are not hand-curated.
+    const { fullName, ...rest } = ld;
     await db.lead.upsert({
       where: { id: `lead-${ld.email.replace(/[@.]/g, "-")}` },
       update: {},
       create: {
         id: `lead-${ld.email.replace(/[@.]/g, "-")}`,
-        ...ld,
+        ...rest,
+        ...splitLegacyName(fullName),
         createdById: adminUser.id,
         lastContactedAt: ld.stage !== LeadStage.NEW_LEAD ? now : null,
         lastProgressedAt: ![LeadStage.NEW_LEAD as string, LeadStage.CONTACTED as string].includes(ld.stage) ? now : null,

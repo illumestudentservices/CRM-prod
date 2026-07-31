@@ -16,7 +16,8 @@ import { displayName } from "@/lib/person-name";
 
 interface LeadRow {
   id: string;
-  firstName: string;  lastName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   stage: string;
   nationality: string;

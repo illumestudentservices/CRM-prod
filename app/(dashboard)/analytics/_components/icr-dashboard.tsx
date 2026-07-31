@@ -29,7 +29,8 @@ interface OverviewData {
 
 interface LeadAttention {
   id: string;
-  firstName: string;  lastName: string;
+  firstName: string;
+  lastName: string;
   stage: string;
   lastContactedAt: string | null;
   lastProgressedAt: string | null;

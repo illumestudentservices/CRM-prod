@@ -4,8 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { displayName } from "@/lib/person-name";
-import { nameSearchFilter } from "@/lib/person-name";
+import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -147,13 +146,12 @@ export async function GET(req: NextRequest) {
     const [leads, total] = await Promise.all([
       db.lead.findMany({
         where,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: sortBy === "lastName" ? nameOrder(sortOrder) : { [sortBy]: sortOrder },
         skip: (page - 1) * limit,
         take: limit,
         select: {
           id: true,
-          firstName: true,
-        lastName: true,
+          firstName: true, lastName: true,
           email: true,
           phone: true,
           nationality: true,
@@ -225,16 +223,19 @@ export async function POST(req: NextRequest) {
     const data = parsed.data;
 
     // ── Deduplication check ──────────────────────────────────────────────────
+    // Both parts must match, which is the same test the single `fullName`
+    // equality made before the split — "Mei Ling Tan" only ever equalled
+    // another "Mei Ling Tan". Matching one part alone would flag every lead
+    // sharing a common surname as a duplicate of the first one entered.
     const duplicate = await db.lead.findFirst({
       where: {
         deletedAt: null,
         OR: [
           { email: data.email },
-          { fullName: displayName(data), phone: data.phone },
+          { firstName: data.firstName, lastName: data.lastName, phone: data.phone },
         ],
       },
-      select: { id: true, firstName: true,
-        lastName: true, email: true },
+      select: { id: true, firstName: true, lastName: true, email: true },
     });
 
     // Inherit region from session if not provided (for ICR/RM)
@@ -244,6 +245,8 @@ export async function POST(req: NextRequest) {
 
     const lead = await db.lead.create({
       data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         phone: data.phone,
         nationality: data.nationality,

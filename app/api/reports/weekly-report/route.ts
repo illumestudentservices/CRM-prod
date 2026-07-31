@@ -118,8 +118,7 @@ export async function GET(req: NextRequest) {
           },
           select: {
             id: true,
-            firstName: true,
-        lastName: true,
+            firstName: true, lastName: true,
             stage: true,
             updatedAt: true,
             institution: { select: { name: true } },
