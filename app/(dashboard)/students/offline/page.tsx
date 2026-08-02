@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/page-header";
 import { OfflineCaptureClient } from "./_components/offline-capture-client";
+import { RegisterOfflineWorker } from "./_components/register-offline-worker";
 
 /**
  * Lead capture for events with no connection.
@@ -18,6 +19,7 @@ export default async function OfflineCapturePage() {
 
   return (
     <div className="space-y-6">
+      <RegisterOfflineWorker />
       <PageHeader
         title="Offline Capture"
         description="Collect leads at an event with no internet, then upload them all at once."

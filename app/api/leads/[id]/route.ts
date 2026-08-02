@@ -49,6 +49,12 @@ const updateLeadSchema = z.object({
     .nullable(),
   eligibilityConfirmedAt: z.string().datetime().optional().nullable(),
   enrolmentDate: z.string().datetime().optional().nullable(),
+
+  // Nullable so an answer can be withdrawn back to "never asked" — a student
+  // who asks to be forgotten should not leave a standing "declined" record
+  // behind. The schema is .strict(), so omitting this would make the consent
+  // control on the edit form a 422.
+  marketingConsent: z.boolean().optional().nullable(),
 })
   // Reject unknown keys rather than dropping them. Silently discarding a field
   // while returning 200 is worse than refusing it: the caller has no way to
@@ -202,9 +208,18 @@ export async function PATCH(
 
     const updates = parsed.data;
 
+    // The timestamp is what makes the consent record defensible, so it moves
+    // with the flag rather than being set independently. Clearing consent back
+    // to "never asked" clears the date too, so a stale date cannot be read as
+    // evidence of an answer that no longer exists.
+    const consentStamp =
+      "marketingConsent" in updates
+        ? { marketingConsentAt: updates.marketingConsent === null ? null : new Date() }
+        : {};
+
     const updatedLead = await db.lead.update({
       where: { id },
-      data: updates,
+      data: { ...updates, ...consentStamp },
       include: {
         region: { select: { id: true, name: true } },
         assignedICR: { select: { id: true, name: true, email: true } },

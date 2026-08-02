@@ -47,6 +47,9 @@ const leadSchema = z.object({
   institutionId: z.string().optional(),
   assignedICRId: z.string().optional(),
   notes: z.string().optional(),
+  /// "" = not asked. Mapped to true/false/undefined on submit, never to a
+  /// default — an unanswered question is not a refusal.
+  marketingConsent: z.enum(["", "yes", "no"]).optional(),
 
   // Pipeline capture. Optional here on purpose: the stage gate decides when
   // each one becomes mandatory, so requiring them at creation would block a
@@ -141,6 +144,8 @@ export function LeadForm({
       institutionId: lead?.institutionId ?? undefined,
       assignedICRId: lead?.assignedICRId ?? undefined,
       notes: lead?.notes ?? "",
+      marketingConsent:
+        lead?.marketingConsent === true ? "yes" : lead?.marketingConsent === false ? "no" : "",
       intendedDestination: lead?.intendedDestination ?? "",
       preferredCountry: lead?.preferredCountry ?? "",
       budgetRange: lead?.budgetRange ?? undefined,
@@ -221,6 +226,10 @@ export function LeadForm({
         enrolmentDate: values.enrolmentDate
           ? new Date(`${values.enrolmentDate}T00:00:00.000Z`).toISOString()
           : null,
+        // "" means the question was not put to them, which the API stores as
+        // NULL. Sending false would record a refusal that never happened.
+        marketingConsent:
+          !values.marketingConsent ? undefined : values.marketingConsent === "yes",
       };
 
       const response = await fetch(url, {
@@ -574,6 +583,38 @@ export function LeadForm({
               rows={3}
             />
           </FormField>
+
+          {/* Anti-spam consent. Present here as well as on the offline form —
+              a consent record that only covers event leads is worse than none,
+              because it looks like coverage while office-created leads sit
+              unrecorded. Three states: unanswered is not a refusal. */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-2">
+            <Label className="text-xs font-medium text-slate-700">May we email them?</Label>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Canadian anti-spam law requires permission before sending marketing email.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-0.5">
+              {([
+                { v: "yes", label: "Yes, they agreed" },
+                { v: "no", label: "No, they declined" },
+                { v: "", label: "Didn't ask" },
+              ] as const).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setValue("marketingConsent", o.v)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                    (watch("marketingConsent") ?? "") === o.v
+                      ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

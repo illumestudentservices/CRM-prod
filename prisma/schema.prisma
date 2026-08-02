@@ -654,6 +654,18 @@ model Lead {
   eventId       String?
   event         Event?       @relation(fields: [eventId], references: [id])
 
+  /// Permission to send this person commercial email.
+  ///
+  /// Three-valued on purpose: NULL means nobody has asked, false means they
+  /// were asked and said no. A plain boolean defaulting to false collapses
+  /// those two into the same thing, and under CASL the difference is the whole
+  /// point — "never asked" is a gap to go and close, "declined" is a record you
+  /// must honour and be able to produce.
+  marketingConsent   Boolean?
+  /// When consent was given or refused. CASL requires being able to show *when*
+  /// and in what circumstances, so the flag alone is not a defensible record.
+  marketingConsentAt DateTime?
+
   /// Idempotency key for offline capture, generated on the device the moment a
   /// lead is written down and never reused.
   ///

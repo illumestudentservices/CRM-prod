@@ -52,6 +52,10 @@ const createLeadSchema = z.object({
     z.enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"]).optional()
   ),
   enrolmentDate: z.preprocess(blankToUndefined, z.string().datetime().optional()),
+
+  // Optional, and left undefined rather than defaulted to false when the form
+  // does not send it: an unanswered consent question is not a refusal.
+  marketingConsent: z.boolean().optional(),
 });
 
 const listLeadsQuerySchema = z.object({
@@ -277,6 +281,11 @@ export async function POST(req: NextRequest) {
         budgetRange: data.budgetRange,
         englishStatus: data.englishStatus,
         enrolmentDate: data.enrolmentDate ? new Date(data.enrolmentDate) : undefined,
+        marketingConsent: data.marketingConsent,
+        // Stamped only when an answer was actually given, so the timestamp
+        // always means "this is when they were asked" rather than "this is when
+        // the row happened to be created".
+        marketingConsentAt: data.marketingConsent === undefined ? undefined : new Date(),
       },
       include: {
         region: { select: { id: true, name: true } },

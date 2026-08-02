@@ -55,6 +55,10 @@ const capturedLeadSchema = z.object({
   englishStatus: z
     .enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"])
     .optional(),
+
+  /// Whether the student agreed to commercial email, asked at the booth.
+  /// Undefined means the question was not put to them — not a refusal.
+  marketingConsent: z.boolean().optional(),
 });
 
 const syncSchema = z.object({
@@ -179,6 +183,15 @@ export async function POST(req: NextRequest) {
             academicQualification: lead.academicQualification,
             budgetRange: lead.budgetRange,
             englishStatus: lead.englishStatus,
+            marketingConsent: lead.marketingConsent,
+            // The moment they were asked at the booth, not the moment the batch
+            // reached the server — those can be days apart.
+            marketingConsentAt:
+              lead.marketingConsent === undefined
+                ? undefined
+                : lead.capturedAt
+                  ? new Date(lead.capturedAt)
+                  : new Date(),
           },
           select: { id: true },
         });

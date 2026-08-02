@@ -66,6 +66,8 @@ interface FormState {
   budgetRange: string;
   englishStatus: string;
   notes: string;
+  /** "" = not asked, "yes"/"no" = an answer was actually given. */
+  marketingConsent: "" | "yes" | "no";
 }
 
 function emptyForm(): FormState {
@@ -88,6 +90,7 @@ function emptyForm(): FormState {
     budgetRange: NONE,
     englishStatus: NONE,
     notes: "",
+    marketingConsent: "",
   };
 }
 
@@ -135,6 +138,10 @@ function toPayload(f: FormState): Record<string, unknown> {
     budgetRange: sel(f.budgetRange),
     englishStatus: sel(f.englishStatus),
     notes: opt(f.notes),
+    // Left undefined when unanswered. Sending false would record a refusal
+    // nobody gave, and under CASL that is the difference between someone you
+    // may still ask and someone you must not contact.
+    marketingConsent: f.marketingConsent === "" ? undefined : f.marketingConsent === "yes",
   };
 }
 
@@ -547,6 +554,40 @@ export function OfflineCaptureClient({
             <Field label="Notes">
               <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Anything worth remembering about this conversation" />
             </Field>
+
+            {/* Anti-spam consent. Three states, not a checkbox: a checkbox left
+                unticked cannot be told apart from one they were never shown,
+                and that distinction is what makes the record defensible. */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-2">
+              <Label className="text-xs font-medium text-slate-700">
+                May we email them? <span className="text-red-500">*</span>
+              </Label>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Canadian anti-spam law requires permission before sending marketing email.
+                Ask the student directly — leaving this unanswered means we cannot email them.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {([
+                  { v: "yes", label: "Yes, they agreed" },
+                  { v: "no", label: "No, they declined" },
+                  { v: "", label: "Didn't ask" },
+                ] as const).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => set("marketingConsent", o.v)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      form.marketingConsent === o.v
+                        ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving || full} className="gap-1.5 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
