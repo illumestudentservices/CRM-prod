@@ -11,6 +11,18 @@ Screenshots below are of the real system, captured against production.
 
 ## For ICRs: using it at an event
 
+### Setting a PIN
+
+The first time you open Offline Capture, you'll be asked to set a PIN of at
+least six digits. Leads held on the device are encrypted with it, so a lost
+phone doesn't mean lost student data.
+
+> **Nobody can recover this PIN — not IT, not us.** If you forget it, leads
+> still waiting on the device can't be read and have to be erased. Upload at the
+> end of each day and there's nothing to lose.
+
+You'll be asked for it each time you open the page.
+
 ### Before you travel — do this on wifi
 
 Open **Students & Pipeline**, then **Offline Capture**.
@@ -38,6 +50,15 @@ if the lists are weeks old, an event created since then won't be in the list.
 
 Fill in the form and tap **Save to device**. You need **both an email and a
 phone number** — ask for both while the student is still with you.
+
+If the event issues scannable badges, tap **Scan badge** and hold it in the
+frame. Whatever it can read is shown for you to confirm before it fills the
+form, and you can still change anything. Badges differ between organisers, so
+check what came through — some carry a full contact card, others only an
+attendee number.
+
+> **Scan badge only appears on Android and Chrome.** iPhones can't do this yet;
+> type the details in as normal.
 
 ![Form filled in](images/06-form-filled.png)
 
@@ -94,8 +115,9 @@ hidden ticket number, so leads that already arrived are recognised and skipped
 rather than created twice.
 
 **One bad record won't block the rest.** Each lead is sent separately. Failures
-stay on the device with a note explaining what's wrong, so you can fix and
-resend just those. Everything else uploads normally.
+stay on the device with a note explaining what's wrong. Tap the pencil next to a
+rejected lead to load it back into the form, fix it, and save — it goes up with
+the next upload. Everything else uploads normally.
 
 **Nothing is deleted from the device until the server confirms it.** If the
 upload fails, nothing is removed and you'll be told so.
@@ -118,7 +140,11 @@ close.
 | `app/(dashboard)/students/offline/page.tsx` | Route |
 | `.../offline/_components/offline-capture-client.tsx` | The capture screen |
 | `.../offline/_components/register-offline-worker.tsx` | Installs the service worker |
-| `lib/offline-queue.ts` | IndexedDB queue |
+| `.../offline/_components/pin-gate.tsx` | PIN lock in front of the screen |
+| `.../offline/_components/badge-scanner.tsx` | Camera scanning |
+| `lib/offline-queue.ts` | IndexedDB queue, encrypted |
+| `lib/offline-crypto.ts` | AES-GCM + PBKDF2 |
+| `lib/badge-scan.ts` | Badge payload parsing |
 | `lib/offline-capture.ts` | The 100 limit and its warning text |
 | `lib/lead-options.ts` | Dropdown options, shared with the online form |
 | `app/api/leads/offline-sync/route.ts` | Batch upload |
@@ -183,12 +209,59 @@ between the interpolation and the closing backtick. The banner shipped reading
 *"holds up to 100Upload them before collecting more"*. TypeScript, eslint and the
 build all passed. Keep it as one literal.
 
+### Encryption at rest
+
+Held leads are encrypted with AES-GCM under a key derived from the device PIN
+(PBKDF2-HMAC-SHA256, 310,000 iterations — OWASP's floor, and roughly 100ms on a
+mid-range phone). `captureId`, timestamps and status stay in the clear so the
+queue can be counted, sorted and reconciled without a key; none of them says
+anything about a student.
+
+The threat is narrow and worth stating: a phone left on a stand or taken from a
+bag. It does not defend against malware running as the user, and cannot — the
+key is derived in the browser that would be compromised. A six-digit PIN is weak,
+which is why the derivation is deliberately expensive: brute-forcing the space
+costs hours of work on the device rather than seconds, and the queue is meant to
+be emptied daily.
+
+**There is no PIN recovery.** The key exists only in the PIN. A forgotten PIN
+means the held leads cannot be read, and the only way forward is to erase them.
+That is offered explicitly, with a warning, because the alternative is a device
+that can never capture again. Anything that could recover the key would defeat
+the one threat this exists for.
+
+Records written before encryption existed are discarded rather than carried over
+— they cannot be encrypted retroactively with a key that did not exist when they
+were written, and leaving readable copies beside encrypted ones would make the
+encryption decorative. The gate warns before that happens.
+
+### Badge scanning
+
+`lib/badge-scan.ts` reads what organisers actually put on badges: vCard, MECARD,
+JSON, a URL with query parameters, `Key: value` lines, or unstructured text.
+There is no standard, so it fills only the fields it is confident about and
+leaves the rest to the ICR. A wrong email captured at a booth is worse than a
+blank one, because nobody goes back to check — so **no name is ever guessed from
+loose text**, only from a recognised structure.
+
+Scanning uses the browser's native `BarcodeDetector`. Chrome and Android have
+it; Safari and iOS do not. The button is hidden where it is unsupported rather
+than failing when pressed. Everything read is shown for confirmation before it
+touches the form.
+
+### Correcting a rejected lead
+
+A failed capture keeps its reason and can be loaded back into the form, fixed
+and resaved. **The `captureId` is preserved through a correction** — a corrected
+lead is the same lead, and issuing a fresh one would let the original attempt
+and the retry both land. The 100-lead ceiling does not block a correction, since
+it replaces a record already counted.
+
 ### Known gaps
 
-- **No badge/QR scanning.** Most fairs issue scannable badges; typing is slower
-  and more error-prone. Worth doing next.
-- **Queue is not encrypted at rest.** Considered and deliberately deferred. Up to
-  100 students' contact details sit on the device between uploads; a PIN lock is
-  roughly half a day's work and can be added without redoing anything.
-- **No screen for correcting a rejected lead.** Failures show their reason and
-  can be deleted, but not edited in place.
+- **iPhone cannot scan badges.** Safari has no `BarcodeDetector`. A JS decoder
+  library would close this at the cost of a dependency and a slower scan.
+- **The PIN is not rate-limited.** Attempts are unlimited; the cost of the key
+  derivation is the only brake.
+- **Reference lists do not expire.** The screen shows when they were downloaded
+  but will not stop you using month-old data.

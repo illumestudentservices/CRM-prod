@@ -12,6 +12,9 @@ import {
   Trash2,
   Upload,
   UserPlus,
+  Camera,
+  Pencil,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,9 +43,13 @@ import {
   QueueFullError,
   removeCaptures,
   saveReference,
+  updateCapture,
   type OfflineReference,
   type QueuedCapture,
 } from "@/lib/offline-queue";
+import { PinGate } from "./pin-gate";
+import { BadgeScanner, isScanningSupported } from "./badge-scanner";
+import type { ScannedBadge } from "@/lib/badge-scan";
 
 /** Never an empty string: Radix reserves "" and throws on it as an item value. */
 const NONE = "none";
@@ -145,6 +152,48 @@ function toPayload(f: FormState): Record<string, unknown> {
   };
 }
 
+/** Fills only what the badge actually carried; anything absent is left alone. */
+function applyBadge(form: FormState, b: ScannedBadge): FormState {
+  return {
+    ...form,
+    firstName: b.firstName ?? form.firstName,
+    lastName: b.lastName ?? form.lastName,
+    email: b.email ?? form.email,
+    phone: b.phone ?? form.phone,
+    nationality: b.nationality ?? form.nationality,
+    countryOfResidence: b.countryOfResidence ?? form.countryOfResidence,
+    interestedProgram: b.interestedProgram ?? form.interestedProgram,
+  };
+}
+
+/** Rebuilds the form from a queued lead so a rejected one can be corrected. */
+function formFromCapture(data: Record<string, unknown>): FormState {
+  const s = (v: unknown) => (v == null ? "" : String(v));
+  const sel = (v: unknown) => (v == null || v === "" ? NONE : String(v));
+  return {
+    firstName: s(data.firstName),
+    lastName: s(data.lastName),
+    email: s(data.email),
+    phone: s(data.phone),
+    nationality: s(data.nationality),
+    countryOfResidence: s(data.countryOfResidence),
+    interestedProgram: s(data.interestedProgram),
+    studyLevel: s(data.studyLevel),
+    intakeYear: s(data.intakeYear) || String(new Date().getFullYear() + 1),
+    intakeMonth: s(data.intakeMonth),
+    intendedDestination: s(data.intendedDestination),
+    sourceId: sel(data.sourceId),
+    eventId: sel(data.eventId),
+    institutionId: sel(data.institutionId),
+    preferredCountry: s(data.preferredCountry),
+    budgetRange: sel(data.budgetRange),
+    englishStatus: sel(data.englishStatus),
+    notes: s(data.notes),
+    marketingConsent:
+      data.marketingConsent === true ? "yes" : data.marketingConsent === false ? "no" : "",
+  };
+}
+
 export function OfflineCaptureClient({
   userId,
   userName,
@@ -154,8 +203,14 @@ export function OfflineCaptureClient({
 }) {
   const { toast } = useToast();
 
+  // Held in memory only. Reloading the page locks the device again by design —
+  // persisting it anywhere would put the key next to the data it protects.
+  const [key, setKey] = React.useState<CryptoKey | null>(null);
+
   const [online, setOnline] = React.useState(true);
   const [storageOk, setStorageOk] = React.useState(true);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [reference, setReference] = React.useState<OfflineReference | null>(null);
   const [queue, setQueue] = React.useState<QueuedCapture[]>([]);
   const [form, setForm] = React.useState<FormState>(emptyForm);
@@ -168,12 +223,13 @@ export function OfflineCaptureClient({
     setForm((p) => ({ ...p, [k]: v }));
 
   const reloadQueue = React.useCallback(async () => {
+    if (!key) return;
     try {
-      setQueue(await listCaptures());
+      setQueue(await listCaptures(key));
     } catch {
       setStorageOk(false);
     }
-  }, []);
+  }, [key]);
 
   React.useEffect(() => {
     setOnline(navigator.onLine);
@@ -195,6 +251,19 @@ export function OfflineCaptureClient({
     loadReference().then(setReference).catch(() => setStorageOk(false));
     reloadQueue();
   }, [reloadQueue]);
+
+  function cancelEditing() {
+    setEditingId(null);
+    setForm(emptyForm());
+    setErrors({});
+  }
+
+  function startEditing(q: QueuedCapture) {
+    setEditingId(q.captureId);
+    setForm(formFromCapture(q.data));
+    setErrors({});
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function refreshReference() {
     setRefreshing(true);
@@ -218,21 +287,31 @@ export function OfflineCaptureClient({
 
   async function saveToDevice(e: React.FormEvent) {
     e.preventDefault();
+    if (!key) return;
     const found = validate(form);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
     setSaving(true);
     try {
-      await addCapture(toPayload(form), userId);
-      const next = await countCaptures();
-      setForm(emptyForm());
-      setErrors({});
-      await reloadQueue();
-      toast({
-        title: "Saved to this device",
-        description: `${next} of ${OFFLINE_CAPTURE_LIMIT} held. Not yet uploaded.`,
-      });
+      if (editingId) {
+        // Same captureId, so the corrected lead is still the same lead and a
+        // retry cannot land alongside the original. Status returns to pending.
+        await updateCapture(key, editingId, toPayload(form));
+        cancelEditing();
+        await reloadQueue();
+        toast({ title: "Corrected", description: "It will go up with the next upload." });
+      } else {
+        await addCapture(key, toPayload(form), userId);
+        const next = await countCaptures();
+        setForm(emptyForm());
+        setErrors({});
+        await reloadQueue();
+        toast({
+          title: "Saved to this device",
+          description: `${next} of ${OFFLINE_CAPTURE_LIMIT} held. Not yet uploaded.`,
+        });
+      }
     } catch (err) {
       toast({
         title: err instanceof QueueFullError ? "Device is full" : "Could not save",
@@ -343,8 +422,20 @@ export function OfflineCaptureClient({
     );
   }
 
+  // Nothing is readable until the device is unlocked, so the gate stands in
+  // front of the whole screen rather than guarding individual actions.
+  if (!key) {
+    return <PinGate onUnlocked={setKey} />;
+  }
+
   return (
     <div className="space-y-5">
+      <BadgeScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanned={(b) => setForm((f) => applyBadge(f, b))}
+      />
+
       {/* Status strip */}
       <div className="flex flex-wrap items-center gap-3">
         <Badge
@@ -425,13 +516,38 @@ export function OfflineCaptureClient({
       <Card>
         <CardContent className="p-5">
           <div className="flex items-center gap-2 mb-4">
-            <UserPlus className="h-4 w-4 text-[#1E3A5F]" />
-            <h2 className="text-sm font-semibold text-slate-900">New lead</h2>
-            {full && (
-              <Badge variant="outline" className="ml-auto bg-red-50 text-red-700 border-red-200">
-                Device full
-              </Badge>
+            {editingId ? (
+              <Pencil className="h-4 w-4 text-amber-600" />
+            ) : (
+              <UserPlus className="h-4 w-4 text-[#1E3A5F]" />
             )}
+            <h2 className="text-sm font-semibold text-slate-900">
+              {editingId ? "Correcting a rejected lead" : "New lead"}
+            </h2>
+            <div className="ml-auto flex items-center gap-2">
+              {editingId && (
+                <Button variant="ghost" size="sm" onClick={cancelEditing} className="h-7 gap-1.5 text-xs">
+                  <XCircle className="h-3.5 w-3.5" />
+                  Cancel
+                </Button>
+              )}
+              {!editingId && isScanningSupported() && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setScannerOpen(true)}
+                  className="h-7 gap-1.5 text-xs"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  Scan badge
+                </Button>
+              )}
+              {full && !editingId && (
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                  Device full
+                </Badge>
+              )}
+            </div>
           </div>
 
           <p className="text-xs text-slate-500 mb-4">
@@ -590,9 +706,15 @@ export function OfflineCaptureClient({
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={saving || full} className="gap-1.5 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90">
-                <Plus className="h-4 w-4" />
-                {saving ? "Saving..." : "Save to device"}
+              {/* The full-device block does not apply while correcting: fixing
+                  a rejected lead replaces one that is already counted. */}
+              <Button
+                type="submit"
+                disabled={saving || (full && !editingId)}
+                className="gap-1.5 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+              >
+                {editingId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {saving ? "Saving..." : editingId ? "Save correction" : "Save to device"}
               </Button>
             </div>
           </form>
@@ -650,6 +772,17 @@ export function OfflineCaptureClient({
                   >
                     {q.status === "failed" ? "Rejected" : "Waiting"}
                   </Badge>
+                  {q.status === "failed" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-[#1E3A5F] shrink-0"
+                      onClick={() => startEditing(q)}
+                      title="Correct and resend"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
