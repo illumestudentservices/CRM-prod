@@ -93,3 +93,8 @@ verify-hrfix.mjs
 setup-hr.mjs
 entcheck.ts
 set-gender.mjs
+
+# Screenshot/demo harness artefacts — may contain live credentials
+.shot-creds.json
+.shot-manifest.json
+shot-harness.mjs
