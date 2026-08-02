@@ -47,7 +47,6 @@ import {
   type OfflineReference,
   type QueuedCapture,
 } from "@/lib/offline-queue";
-import { PinGate } from "./pin-gate";
 import { BadgeScanner, isScanningSupported } from "./badge-scanner";
 import type { ScannedBadge } from "@/lib/badge-scan";
 
@@ -203,10 +202,6 @@ export function OfflineCaptureClient({
 }) {
   const { toast } = useToast();
 
-  // Held in memory only. Reloading the page locks the device again by design —
-  // persisting it anywhere would put the key next to the data it protects.
-  const [key, setKey] = React.useState<CryptoKey | null>(null);
-
   const [online, setOnline] = React.useState(true);
   const [storageOk, setStorageOk] = React.useState(true);
   const [scannerOpen, setScannerOpen] = React.useState(false);
@@ -223,13 +218,12 @@ export function OfflineCaptureClient({
     setForm((p) => ({ ...p, [k]: v }));
 
   const reloadQueue = React.useCallback(async () => {
-    if (!key) return;
     try {
-      setQueue(await listCaptures(key));
+      setQueue(await listCaptures());
     } catch {
       setStorageOk(false);
     }
-  }, [key]);
+  }, []);
 
   React.useEffect(() => {
     setOnline(navigator.onLine);
@@ -287,7 +281,6 @@ export function OfflineCaptureClient({
 
   async function saveToDevice(e: React.FormEvent) {
     e.preventDefault();
-    if (!key) return;
     const found = validate(form);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
@@ -297,12 +290,12 @@ export function OfflineCaptureClient({
       if (editingId) {
         // Same captureId, so the corrected lead is still the same lead and a
         // retry cannot land alongside the original. Status returns to pending.
-        await updateCapture(key, editingId, toPayload(form));
+        await updateCapture(editingId, toPayload(form));
         cancelEditing();
         await reloadQueue();
         toast({ title: "Corrected", description: "It will go up with the next upload." });
       } else {
-        await addCapture(key, toPayload(form), userId);
+        await addCapture(toPayload(form), userId);
         const next = await countCaptures();
         setForm(emptyForm());
         setErrors({});
@@ -420,12 +413,6 @@ export function OfflineCaptureClient({
         </CardContent>
       </Card>
     );
-  }
-
-  // Nothing is readable until the device is unlocked, so the gate stands in
-  // front of the whole screen rather than guarding individual actions.
-  if (!key) {
-    return <PinGate onUnlocked={setKey} />;
   }
 
   return (

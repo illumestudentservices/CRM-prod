@@ -1,5 +1,10 @@
 /**
- * Renders docs/offline-lead-capture.md to a PDF.
+ * Renders the offline capture SOP to a PDF for circulation to ICRs.
+ *
+ * Built from docs/offline-capture-sop.md and deliberately NOT from
+ * offline-lead-capture.md. The latter carries file paths, API behaviour and
+ * known gaps — useful to whoever maintains this, meaningless to someone standing
+ * at a booth, and not something to hand outside the team.
  *
  * Markdown is converted by `marked` (fetched with npx, so nothing is added to
  * package.json) and printed through Chromium, which is already present for
@@ -12,9 +17,9 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const MD = "docs/offline-lead-capture.md";
-const HTML = "docs/.tmp-offline-lead-capture.html";
-const PDF = "docs/offline-lead-capture.pdf";
+const MD = "docs/offline-capture-sop.md";
+const HTML = "docs/.tmp-offline-capture-sop.html";
+const PDF = "docs/Collecting Leads at Events - SOP.pdf";
 
 // Run through a shell: Node on Windows refuses to spawn a .cmd shim directly.
 const body = execSync(`npx --yes marked -i ${MD}`, {
@@ -96,7 +101,7 @@ await page.pdf({
   printBackground: true,
   displayHeaderFooter: true,
   headerTemplate: `<div style="font-size:7pt;color:#94a3b8;width:100%;padding:0 16mm;">
-     Illume CRM — Offline Lead Capture</div>`,
+     Illume Student Advisory Services — Collecting Leads at Events</div>`,
   footerTemplate: `<div style="font-size:7pt;color:#94a3b8;width:100%;padding:0 16mm;text-align:right;">
      Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`,
   margin: { top: "18mm", bottom: "20mm", left: "16mm", right: "16mm" },

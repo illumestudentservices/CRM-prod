@@ -11,17 +11,9 @@ Screenshots below are of the real system, captured against production.
 
 ## For ICRs: using it at an event
 
-### Setting a PIN
-
-The first time you open Offline Capture, you'll be asked to set a PIN of at
-least six digits. Leads held on the device are encrypted with it, so a lost
-phone doesn't mean lost student data.
-
-> **Nobody can recover this PIN — not IT, not us.** If you forget it, leads
-> still waiting on the device can't be read and have to be erased. Upload at the
-> end of each day and there's nothing to lose.
-
-You'll be asked for it each time you open the page.
+> The user-facing version of this section is `offline-capture-sop.md`, which is
+> what the circulated PDF is built from. Keep the two in step when the flow
+> changes.
 
 ### Before you travel — do this on wifi
 
@@ -140,10 +132,8 @@ close.
 | `app/(dashboard)/students/offline/page.tsx` | Route |
 | `.../offline/_components/offline-capture-client.tsx` | The capture screen |
 | `.../offline/_components/register-offline-worker.tsx` | Installs the service worker |
-| `.../offline/_components/pin-gate.tsx` | PIN lock in front of the screen |
 | `.../offline/_components/badge-scanner.tsx` | Camera scanning |
-| `lib/offline-queue.ts` | IndexedDB queue, encrypted |
-| `lib/offline-crypto.ts` | AES-GCM + PBKDF2 |
+| `lib/offline-queue.ts` | IndexedDB queue |
 | `lib/badge-scan.ts` | Badge payload parsing |
 | `lib/offline-capture.ts` | The 100 limit and its warning text |
 | `lib/lead-options.ts` | Dropdown options, shared with the online form |
@@ -209,32 +199,6 @@ between the interpolation and the closing backtick. The banner shipped reading
 *"holds up to 100Upload them before collecting more"*. TypeScript, eslint and the
 build all passed. Keep it as one literal.
 
-### Encryption at rest
-
-Held leads are encrypted with AES-GCM under a key derived from the device PIN
-(PBKDF2-HMAC-SHA256, 310,000 iterations — OWASP's floor, and roughly 100ms on a
-mid-range phone). `captureId`, timestamps and status stay in the clear so the
-queue can be counted, sorted and reconciled without a key; none of them says
-anything about a student.
-
-The threat is narrow and worth stating: a phone left on a stand or taken from a
-bag. It does not defend against malware running as the user, and cannot — the
-key is derived in the browser that would be compromised. A six-digit PIN is weak,
-which is why the derivation is deliberately expensive: brute-forcing the space
-costs hours of work on the device rather than seconds, and the queue is meant to
-be emptied daily.
-
-**There is no PIN recovery.** The key exists only in the PIN. A forgotten PIN
-means the held leads cannot be read, and the only way forward is to erase them.
-That is offered explicitly, with a warning, because the alternative is a device
-that can never capture again. Anything that could recover the key would defeat
-the one threat this exists for.
-
-Records written before encryption existed are discarded rather than carried over
-— they cannot be encrypted retroactively with a key that did not exist when they
-were written, and leaving readable copies beside encrypted ones would make the
-encryption decorative. The gate warns before that happens.
-
 ### Badge scanning
 
 `lib/badge-scan.ts` reads what organisers actually put on badges: vCard, MECARD,
@@ -259,9 +223,14 @@ it replaces a record already counted.
 
 ### Known gaps
 
+- **The queue is not encrypted at rest.** Up to 100 students' contact details sit
+  on the device between uploads. A PIN-derived AES-GCM layer was built and then
+  removed by request — the recovery problem was judged worse than the exposure,
+  since a forgotten PIN means erasing a day's work with no way back. If it is
+  ever revisited, note that IndexedDB is now at version 3 because that attempt
+  shipped briefly as version 2 and a database cannot be opened at a lower
+  version than the device already holds.
 - **iPhone cannot scan badges.** Safari has no `BarcodeDetector`. A JS decoder
   library would close this at the cost of a dependency and a slower scan.
-- **The PIN is not rate-limited.** Attempts are unlimited; the cost of the key
-  derivation is the only brake.
 - **Reference lists do not expire.** The screen shows when they were downloaded
   but will not stop you using month-old data.
