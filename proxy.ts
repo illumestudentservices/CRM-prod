@@ -81,6 +81,14 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // sw.js is excluded because the service worker spec rejects a registration
+    // whose script request redirects, and every path through this proxy sends a
+    // signed-out visitor to /login. Left in, the worker silently fails to
+    // install and offline capture never cold-starts — with no error anywhere
+    // except the browser console.
+    //
+    // Nothing is exposed by that: the file is a static caching policy with no
+    // data in it, and the pages and APIs it touches stay guarded as before.
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
