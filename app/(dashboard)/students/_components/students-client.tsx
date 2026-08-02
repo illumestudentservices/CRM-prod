@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, LayoutGrid, List, Search, X, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { Plus, LayoutGrid, List, Search, X, AlertTriangle, CloudOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,6 +180,12 @@ export function StudentsClientPage({
             filename="students_pipeline"
             title="Student Pipeline"
           />
+          <Button variant="outline" size="sm" className="gap-2" asChild>
+            <Link href="/students/offline">
+              <CloudOff className="h-4 w-4" />
+              Offline Capture
+            </Link>
+          </Button>
           <Button onClick={() => setAddModalOpen(true)} className="gap-2" size="sm">
             <Plus className="h-4 w-4" />
             Add Lead

@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Lead, Source, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
+import { BUDGET_RANGES, ENGLISH_STATUSES, STUDY_LEVELS, MONTHS } from "@/lib/lead-options";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -62,53 +63,6 @@ const leadSchema = z.object({
 });
 
 type LeadFormValues = z.infer<typeof leadSchema>;
-
-// Mirrors the BudgetRange and EnglishStatus enums. Values must match exactly —
-// the API validates against the same enums and silently rejecting a typo here
-// would look like the field simply not saving.
-const BUDGET_RANGES = [
-  { value: "UNDER_10K", label: "Under $10,000" },
-  { value: "FROM_10K_TO_20K", label: "$10,000 - $20,000" },
-  { value: "FROM_20K_TO_35K", label: "$20,000 - $35,000" },
-  { value: "FROM_35K_TO_50K", label: "$35,000 - $50,000" },
-  { value: "OVER_50K", label: "Over $50,000" },
-  { value: "UNDECIDED", label: "Undecided" },
-] as const;
-
-const ENGLISH_STATUSES = [
-  { value: "IELTS", label: "IELTS" },
-  { value: "TOEFL", label: "TOEFL" },
-  { value: "PTE", label: "PTE" },
-  { value: "DUOLINGO", label: "Duolingo" },
-  { value: "MOI", label: "Medium of Instruction letter" },
-  { value: "NATIVE_SPEAKER", label: "Native speaker" },
-  { value: "NOT_TAKEN", label: "Not taken yet" },
-  { value: "EXEMPT", label: "Exempt" },
-] as const;
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STUDY_LEVELS = [
-  { value: "UNDERGRADUATE", label: "Undergraduate" },
-  { value: "POSTGRADUATE", label: "Postgraduate" },
-  { value: "PATHWAY", label: "Pathway" },
-  { value: "FOUNDATION", label: "Foundation" },
-] as const;
-
-const MONTHS = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
-  { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" },
-];
 
 // ─── Field component ──────────────────────────────────────────────────────────
 
