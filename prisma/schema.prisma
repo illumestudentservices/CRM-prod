@@ -18,6 +18,15 @@ enum Role {
   INSTITUTION_CLIENT
   HR_MANAGER
   EMPLOYEE
+  /// Spec-required client-facing role (Clients §4, Recruitment Planning §3).
+  /// Owns client relationships and approves plans before client submission.
+  ACCOUNT_MANAGER
+  /// Spec-required application-support role (Student Pipeline §22, Clients §4).
+  /// View/update application info, upload docs, record institutional updates.
+  ADMISSIONS_SUPPORT
+  /// Spec-required senior operational role (Recruitment Planning §3 role routing).
+  /// Notified/included in Internal Final Review for quarterly plans.
+  VP_GLOBAL_SALES
 }
 
 /// Recruitment pipeline position.
@@ -39,6 +48,11 @@ enum LeadStage {
   LOST
   DEFERRED
   APPLICATION_REJECTED
+  /// Spec §15 — student withdrew from the process. Distinct from LOST because
+  /// there was no lost-reason competition; the student pulled out unilaterally.
+  WITHDRAWN
+  /// Spec §15 — visa refused (only reachable when visa info is on file).
+  VISA_REFUSED
 }
 
 /// Distinguishes audit rows from schedulable work.
@@ -71,18 +85,37 @@ enum LeadEngagementType {
 enum LeadLostReason {
   NO_RESPONSE
   FINANCIAL
+  /// "Chose Another Institution" in the spec — the student went to a rival
+  /// partner of ours.
   COMPETITOR
+  /// Spec §15 — chose an institution Illume does not represent (out-of-network).
+  /// Distinct from COMPETITOR: we can't recruit them for another client either.
+  CHOSE_NON_ILLUME
   ACADEMIC
+  /// Spec §15 — didn't meet the English requirement. Distinct from ACADEMIC
+  /// so language-support interventions can target it.
+  ENGLISH
   VISA
   PERSONAL
+  /// Spec §15 — changed study plans (e.g. deferred career, gap year, degree
+  /// change). Distinct from DEFERRED (which is a stage, not a loss).
+  CHANGED_PLANS
   OTHER
 }
 
 enum ApplicationSubmissionMethod {
-  ONLINE_PORTAL
+  /// Spec §7: "University portal" — direct submission via institution's portal.
+  UNIVERSITY_PORTAL
+  /// Spec §7: "Agent portal" — third-party agent aggregator portal.
+  AGENT_PORTAL
   EMAIL
+  /// Legacy value kept for backward compatibility with existing rows;
+  /// migration 019 remaps ONLINE_PORTAL → UNIVERSITY_PORTAL and AGENT → AGENT_PORTAL.
+  ONLINE_PORTAL
   AGENT
   DIRECT
+  /// Spec §7: "Internal admissions support" — Illume's own admissions team submits.
+  INTERNAL
   OTHER
 }
 
@@ -107,16 +140,86 @@ enum EligibilityOutcome {
   NOT_ELIGIBLE
 }
 
+/// Spec §5 — outcome of the initial counselling call. Replaces the old
+/// free-text `Lead.counsellingOutcome`. Making this an enum lets Contacted
+/// → Qualified gate on the outcome value and lets reporting group counselling
+/// results.
+enum CounsellingOutcome {
+  PROCEED_TO_ELIGIBILITY
+  FURTHER_COUNSELLING_REQUIRED
+  NOT_READY_YET
+  UNABLE_TO_CONTACT
+  NOT_SUITABLE
+  LOST
+  DEFERRED
+}
+
+/// Spec §11 — enrolment lifecycle. Replaces the previous `isConverted:Boolean`
+/// which collapsed "deposit paid but never turned up" and "successfully
+/// registered" into one state.
+enum EnrolmentStatus {
+  ENROLLED
+  REGISTERED
+  STARTED_STUDIES
+  DID_NOT_ARRIVE
+  WITHDREW_BEFORE_START
+  DEFERRED_AFTER_DEPOSIT
+}
+
+/// Spec §10 — deposit payment lifecycle. Replaces the previous
+/// `depositPaid:Boolean + depositDeadlineNotApplicable:Boolean` combo which
+/// couldn't represent partial payments, waivers or refunds.
+enum DepositStatus {
+  NOT_REQUIRED
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  WAIVED
+  REFUNDED
+}
+
+/// Spec §16 & Recruitment Network — how the lead reached the CRM. Selectable
+/// values, NOT a records table (the spec is explicit: "Lead channels should be
+/// selectable values rather than individual records").
+enum LeadChannel {
+  AGENT_REFERRAL
+  SCHOOL_REFERRAL
+  WEBSITE
+  WALK_IN
+  STUDENT_REFERRAL
+  STAFF_REFERRAL
+  GOOGLE_ADS
+  META_ADS
+  ORGANIC_SOCIAL
+  QR_CODE
+  OTHER
+}
+
 enum OfferType {
   UNCONDITIONAL
   CONDITIONAL
+  /// Spec §9 — offered a different programme than the one applied for
+  /// (e.g. foundation instead of direct entry).
+  ALTERNATIVE_PROGRAMME
+  /// Spec §9 — placed on institution's waitlist.
+  WAITLIST
   SCHOLARSHIP
   REJECTED
+  OTHER
 }
 
 enum StudentDecision {
   ACCEPTED
+  /// Spec §9 — verbal commitment; formal acceptance to follow.
+  INTENDS_TO_ACCEPT
+  /// Spec §9 — actively weighing this offer.
+  CONSIDERING
+  /// Spec §9 — waiting on offers from other institutions before deciding.
+  AWAITING_OTHERS
   DECLINED
+  /// Spec §9 — requesting deferral to a future intake.
+  REQUESTING_DEFERRAL
+  /// Legacy — pre-decision default. Migration 019 remaps to CONSIDERING.
   UNDECIDED
 }
 
@@ -167,28 +270,198 @@ enum SourceType {
   CAMPAIGN
   DIGITAL
   PARTNER
+  /// Spec — distinct from generic PARTNER. Referral Partners are third parties
+  /// who send us leads but aren't agents/schools (embassies, NGOs, alumni orgs).
+  REFERRAL_PARTNER
+  /// Spec — captured leads from a company's education-benefit relationship.
+  EDUCATION_PARTNER
 }
 
+/// Spec — client account lifecycle. RENEWAL_DUE / CHURNED are gone: renewal is
+/// a derived alert from Contract.endDate, and CHURNED collapses two spec states
+/// (Closed, Inactive) into one. Migration 019 remaps the old values.
 enum AccountStatus {
   PROSPECT
+  ONBOARDING
   ACTIVE
+  INACTIVE
+  SUSPENDED
+  CLOSED
+  /// Legacy — kept during migration so existing rows don't fail. Migration 019
+  /// remaps RENEWAL_DUE → ACTIVE, CHURNED → CLOSED.
   RENEWAL_DUE
   CHURNED
 }
 
+/// Spec §11 — Account Health traffic light. Replaces the old numeric
+/// healthScore. When a client is marked AMBER or RED an AccountIntervention
+/// record is required (reason, corrective action, action owner, review date).
+enum AccountHealth {
+  GREEN
+  AMBER
+  RED
+  GREY
+}
+
+/// Spec §9 — Client issue category.
+enum IssueCategory {
+  CLIENT_RELATIONSHIP
+  SERVICE_DELIVERY
+  RECRUITMENT_PERFORMANCE
+  STAFFING
+  CONTRACT
+  FINANCE
+  COMPLIANCE
+  TECHNOLOGY
+  STUDENT_CASE
+  OTHER
+}
+
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_CLIENT
+  AWAITING_INTERNAL_ACTION
+  RESOLVED
+  CLOSED
+}
+
+/// Spec §3 (Clients) — Service Scope multi-select on Institution.
+enum ServiceScope {
+  IN_COUNTRY_REPRESENTATION
+  STUDENT_RECRUITMENT
+  AGENT_ENGAGEMENT
+  SCHOOL_ENGAGEMENT
+  EVENTS_AND_FAIRS
+  MARKETING_SUPPORT
+  APPLICATION_SUPPORT
+  CONVERSION_SUPPORT
+  MARKET_INTELLIGENCE
+  REPORTING
+  OTHER
+}
+
+enum ReportingFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  AD_HOC
+}
+
+/// Spec §5 (Clients) — Contact category.
+enum ContactCategory {
+  INTERNATIONAL_RECRUITMENT
+  ADMISSIONS
+  MARKETING
+  FINANCE
+  CONTRACTS_PROCUREMENT
+  SENIOR_LEADERSHIP
+  FACULTY_ACADEMIC
+  OTHER
+}
+
+/// Spec §6 (Clients) — Contract status. Extended from a free-text column.
+enum ContractStatus {
+  DRAFT
+  UNDER_REVIEW
+  ACTIVE
+  RENEWAL_PENDING
+  EXPIRED
+  TERMINATED
+  /// Spec: "Do not delete replaced contracts. Mark them as Superseded and
+  /// retain their history."
+  SUPERSEDED
+}
+
+enum ContractType {
+  MASTER_SERVICES
+  RECRUITMENT
+  REPRESENTATION
+  ADDENDUM
+  RENEWAL
+  MOU
+  OTHER
+}
+
+/// Spec §10 (Clients) — Document category.
+enum DocumentCategory {
+  CONTRACTS
+  PROPOSALS
+  REPORTS
+  MEETING_MINUTES
+  MARKETING_MATERIALS
+  BRAND_ASSETS
+  ACTIVITY_EVIDENCE
+  FINANCIAL_DOCUMENTS
+  COMPLIANCE_DOCUMENTS
+  PRESENTATIONS
+  OTHER
+}
+
+/// Spec §4 (Clients) — Team assignment account role.
+enum AccountRole {
+  ACCOUNT_MANAGER
+  REGIONAL_MANAGER
+  ICR
+  CLIENT_RELATIONS
+  MARKETING_SUPPORT
+  ADMISSIONS_SUPPORT
+  SENIOR_OVERSIGHT
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 enum EventType {
   EDUCATION_FAIR
+  /// Spec §6 — Recruitment Network events.
+  SCHOOL_FAIR
+  SCHOOL_VISIT
   CAMPUS_VISIT
   WEBINAR
+  OPEN_DAY
+  /// Spec: AGENT_WORKSHOP replaces legacy AGENT_TRAINING (kept below for
+  /// backward compat during migration 019).
+  AGENT_WORKSHOP
   AGENT_TRAINING
-  SCHOOL_PRESENTATION
+  STUDENT_SEMINAR
   EXHIBITION
+  CONVERSION_EVENT
+  APPLICATION_DAY
+  SCHOOL_PRESENTATION
+  OTHER
 }
 
 enum EventStatus {
   PLANNED
   CONFIRMED
+  IN_PROGRESS
   COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+/// Spec §10 (Sources / Recruitment Network) — Campaign lifecycle. Replaces the
+/// old `isActive:Boolean` which couldn't distinguish "planned but not started"
+/// from "closed with outcome recorded".
+enum CampaignStatus {
+  PLANNED
+  APPROVED
+  OPEN
+  COMPLETED
+  CLOSED
   CANCELLED
 }
 
@@ -330,12 +603,40 @@ enum InteractionType {
 
 // ─── PHASE 1 ENUMS ────────────────────────────────────────────────────────
 
+/// Spec §4 (Field Operations) — activity types (formerly a 5-value legacy
+/// enum). STUDENT_EVENT and FAIR are removed per spec: "Attendance at a
+/// Recruitment Event should be recorded through Event Participation. Supporting
+/// work before or after the event may be logged as Field Operations linked to
+/// that event." They are kept below during migration 019 as remapping targets.
 enum ActivityType {
   SCHOOL_VISIT
   AGENT_MEETING
+  AGENT_TRAINING
+  SCHOOL_PRESENTATION
+  CLIENT_MEETING
+  PARTNER_MEETING
+  MARKET_RESEARCH
+  STUDENT_FOLLOW_UP_SESSION
+  EVENT_PREPARATION
+  EVENT_FOLLOW_UP
+  REPORT_SUBMISSION
+  DELEGATION_SUPPORT
+  INTERNAL_REVIEW
+  OTHER
+  /// Legacy — retained for existing rows only; migration 019 remaps
+  /// STUDENT_EVENT → EVENT_FOLLOW_UP and FAIR → EVENT_PREPARATION.
   STUDENT_EVENT
   FAIR
-  PARTNER_MEETING
+}
+
+/// Spec §3 (Field Operations) — activity lifecycle. Adds an actual status
+/// column to Activity (was a JSON-free-for-all before).
+enum ActivityStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+  CANCELLED
 }
 
 enum SchoolType {
@@ -345,20 +646,30 @@ enum SchoolType {
   BOARDING
 }
 
+/// Spec §7 (Stakeholders → Recruitment Network) — Agent tier is auto-calculated
+/// on a rolling 12-month window. INACTIVE added per spec so we can retire an
+/// agent that has stopped producing without wiping their history.
 enum AgentTier {
   PLATINUM
   GOLD
   SILVER
   EMERGING
+  INACTIVE
 }
 
+/// Spec §8 (Recruitment Network) — Relationship health. Realigned to spec's
+/// 5-value palette. Legacy NEW / ESTABLISHED / STRATEGIC are kept for
+/// migration compatibility; migration 019 remaps them to ACTIVE.
 enum RelationshipStatus {
-  NEW
+  ACTIVE
   DEVELOPING
+  DORMANT
+  AT_RISK
+  INACTIVE
+  /// Legacy values — migration 019 remaps to ACTIVE.
+  NEW
   ESTABLISHED
   STRATEGIC
-  AT_RISK
-  DORMANT
 }
 
 enum MarketRiskLevel {
@@ -606,7 +917,18 @@ model User {
 
   // Phase 1 relations
   managedInstitutions Institution[]    @relation("AccountManager")
+  regionalInstitutions Institution[]   @relation("InstitutionRegionalManager")
   activities          Activity[]
+
+  // Phase 5 — Clients spec closure back-refs
+  ownedIssues         ClientIssue[]    @relation("IssueOwner")
+  interventions       AccountIntervention[] @relation("InterventionOwner")
+  ownedContracts      Contract[]       @relation("ContractOwner")
+  ownedContacts       InstitutionContact[] @relation("ContactOwner")
+
+  // Phase 5/6 — Recruitment Network + Field Ops back-refs
+  ownedCampaigns      Campaign[]       @relation("CampaignOwner")
+  followUpActivities  Activity[]       @relation("ActivityFollowUpAssignee")
   ownedRisks          RiskRegister[]
   assignedCompliance  ComplianceItem[]
 
@@ -723,6 +1045,15 @@ model Lead {
   /// Citizenship, in pipeline terms. Distinct from countryOfResidence.
   nationality        String
   countryOfResidence String
+  /// Spec §2 — used by duplicate detection ("Before creating a new Student
+  /// Profile, the CRM should search existing Student Profiles using: Email,
+  /// Mobile number, Full name, Date of birth, where available"). Nullable
+  /// because event capture often can't collect it at the booth.
+  dateOfBirth        DateTime?
+  /// Spec §2 — passport number is the strongest identity signal (a
+  /// government-issued unique key). Nullable because most walk-ins won't
+  /// provide it, but where present it's the primary dedup key.
+  passportNumber     String?
   interestedProgram  String
   faculty            String?
   studyLevel         StudyLevel
@@ -762,7 +1093,13 @@ model Lead {
   preferredCountry     String?
   budgetRange          BudgetRange?
   currentQualification String?
+  /// Free-text explanation from the ICR. Kept alongside the new enum
+  /// `counsellingOutcomeEnum` because "how did the call go" still needs colour
+  /// beyond the seven categorical values.
   counsellingOutcome   String?      @db.Text
+  /// Spec §5 — categorical counselling outcome. The Contacted → Qualified gate
+  /// now checks this instead of just "any text was entered".
+  counsellingOutcomeEnum CounsellingOutcome?
 
   // ─── Stage 3: Qualified ─────────────────────────────────────────────────
   academicQualification  String?
@@ -797,6 +1134,25 @@ model Lead {
   source        Source?      @relation(fields: [sourceId], references: [id])
   eventId       String?
   event         Event?       @relation(fields: [eventId], references: [id])
+
+  /// Spec §16 — the ORIGINAL acquisition source, pinned at creation and
+  /// deliberately not overwritten when the student later engages with other
+  /// events / agents / partners. `sourceId` remains mutable (current
+  /// relationship owner), `originalSourceId` is the audit trail.
+  originalSourceId   String?
+  originalSource     Source?      @relation("OriginalSource", fields: [originalSourceId], references: [id])
+  /// Spec §16 — the specific event that originally captured this lead. Pinned
+  /// at creation like `originalSourceId`.
+  originalEventId    String?
+  originalEvent      Event?       @relation("OriginalEvent", fields: [originalEventId], references: [id])
+  /// Spec §16 — first business-side touchpoint (as opposed to `createdAt`
+  /// which is the DB write time). Populated at capture; usually equal to
+  /// createdAt for online submissions, but can be back-dated for offline
+  /// batch uploads.
+  firstTouchDate     DateTime?
+  /// Spec Recruitment Network — how the lead entered the CRM. Selectable
+  /// values, not a records table.
+  channel            LeadChannel?
 
   /// Permission to send this person commercial email.
   ///
@@ -835,6 +1191,8 @@ model Lead {
   /// The N institution journeys this student is pursuing. Populated by
   /// migration 012; every existing Lead gets exactly one interest at rollout.
   institutionInterests  InstitutionInterest[]
+  /// Field Ops activities that touch this student (offer discussions, follow-ups).
+  fieldActivities       Activity[]           @relation("ActivityLead")
 
   @@index([email])
   @@index([stage])
@@ -932,6 +1290,17 @@ model LeadApplication {
   depositPaid                  Boolean           @default(false)
   depositDate                  DateTime?
   acceptanceStatus             AcceptanceStatus?
+  /// Spec §10 — categorical deposit lifecycle. Replaces the two-boolean shape
+  /// (depositPaid + depositDeadlineNotApplicable) which couldn't express
+  /// PENDING / PARTIALLY_PAID / WAIVED / REFUNDED. Both stay populated so
+  /// existing readers keep working during migration.
+  depositStatus                DepositStatus?
+  /// Spec §10 — partial-payment support.
+  depositAmount                Float?
+  depositCurrency              String?
+  /// Spec §15 — Application-Rejected requires "Appeal possible: Yes/No".
+  appealPossible               Boolean?
+  rejectionDate                DateTime?
 
   // Rejection — kept per application, not on the lead
   rejectionReason String? @db.Text
@@ -1003,6 +1372,10 @@ model InstitutionInterest {
 
   // ─── Stage 8: Enrolled ──────────────────────────────────────────────────
   enrolmentDate      DateTime?
+  /// Spec §11 — categorical enrolment lifecycle. `isConverted:Boolean` below
+  /// stays true whenever any non-terminal enrolment state is set, so old
+  /// analytics keep working.
+  enrolmentStatus    EnrolmentStatus?
   isConverted        Boolean   @default(false)
   commissionEligible Boolean   @default(false)
   convertedAt        DateTime?
@@ -1035,6 +1408,10 @@ model InstitutionInterest {
   applications   LeadApplication[]   @relation("InterestApplications")
   activities     LeadActivity[]
   checklistItems LeadChecklistItem[]
+  /// Spec §20 — per-journey documents (offer letter, application form,
+  /// deposit receipt) attach here. Student-level documents (passport, CV,
+  /// English test) live on Lead with institutionInterestId = NULL.
+  documents      LeadDocument[]
 
   @@index([leadId])
   @@index([institutionId])
@@ -1091,6 +1468,12 @@ model LeadDocument {
   id         String   @id @default(uuid())
   leadId     String
   lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// Spec §20 — some documents are per-journey (application form,
+  /// programme statement, offer letter, deposit receipt) rather than
+  /// student-level (passport, CV, English test). NULL means student-level
+  /// and is reusable across all institution interests.
+  institutionInterestId String?
+  institutionInterest   InstitutionInterest? @relation(fields: [institutionInterestId], references: [id], onDelete: SetNull)
   name       String
   url        String
   type       String
@@ -1100,6 +1483,8 @@ model LeadDocument {
 
   checklistItems LeadChecklistItem[]
 
+  @@index([leadId])
+  @@index([institutionInterestId])
   @@map("lead_documents")
 }
 
@@ -1127,6 +1512,8 @@ model Source {
   regionId  String?
   region    Region?    @relation(fields: [regionId], references: [id])
   leads     Lead[]
+  /// Spec §16 back-ref for the immutable original-source pin on Lead.
+  originalLeads Lead[]  @relation("OriginalSource")
   campaigns Campaign[]
 
   // Phase 1
@@ -1143,13 +1530,33 @@ model Campaign {
   id             String    @id @default(uuid())
   name           String
   channel        String
+  /// Spec §12 (Recruitment Network) — campaign type / event category.
+  type           String?
   startDate      DateTime
   endDate        DateTime?
+  /// Spec §12 (Recruitment Network) — Country/City/Venue required for
+  /// dedup by (name + city + country + date) and for reporting.
+  country        String?
+  city           String?
+  venue          String?
   budget         Float?
   actualSpend    Float?
+  expectedAttendance Int?
+  actualAttendance   Int?
+  eventOrganizer     String?
   leadsGenerated Int       @default(0)
   notes          String?   @db.Text
+  /// DEPRECATED — replaced by `status`. Kept during rollout so existing rows
+  /// survive; new code should read `status`.
   isActive       Boolean   @default(true)
+  /// Spec §10 (Recruitment Network) — Campaign lifecycle. Nullable during
+  /// rollout; migration 019 backfills based on `isActive` + dates.
+  status         CampaignStatus?
+  /// Spec §11 — closure requires end date + actual budget + participating
+  /// institutions confirmed + outcome summary.
+  outcomeSummary String?   @db.Text
+  ownerId        String?
+  owner          User?     @relation("CampaignOwner", fields: [ownerId], references: [id])
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -1158,6 +1565,11 @@ model Campaign {
   sourceId String?
   source   Source? @relation(fields: [sourceId], references: [id])
 
+  /// Field Ops activities linked to this campaign.
+  activities Activity[] @relation("ActivityCampaign")
+
+  @@index([status])
+  @@index([name, city, country, startDate])
   @@map("campaigns")
 }
 
@@ -1166,6 +1578,11 @@ model Campaign {
 model Institution {
   id             String        @id @default(uuid())
   name           String
+  /// Spec §3 (Clients) — the legal name may differ from the display name
+  /// (e.g. "University of Toronto" vs "Governing Council of the University of
+  /// Toronto"). Nullable during rollout; forms populate it from `name` if left
+  /// blank.
+  legalName      String?
   country        String
   type           String
   website        String?
@@ -1181,15 +1598,32 @@ model Institution {
   // Phase 1: Client Management fields
   contractValue       Float?
   renewalDate         DateTime?
+  /// DEPRECATED per spec §2 (Clients): "Remove the Budget card unless a clear
+  /// and consistently maintained budget process is introduced." Kept in the
+  /// schema for one release so existing rows don't fail; UI has stopped
+  /// reading them. Migration 019 marks them as no-longer-required.
   budgetTotal         Float?
   budgetUsed          Float?    @default(0)
   strategicObjectives String?   @db.Text
   overview            String?   @db.Text
 
+  /// Spec §11 (Clients) — Account Health traffic-light. Selected by the
+  /// Account Manager; AMBER/RED require a matching AccountIntervention record.
+  accountHealth       AccountHealth @default(GREY)
+  /// Spec §3 (Clients) — how often reports are due for this client.
+  reportingFrequency  ReportingFrequency?
+  /// Spec §3 (Clients) — which services this client has actually bought.
+  /// Multi-select; Postgres text[] under the hood.
+  serviceScope        ServiceScope[]
+
   regionId         String?
   region           Region? @relation(fields: [regionId], references: [id])
   accountManagerId String?
   accountManager   User?   @relation("AccountManager", fields: [accountManagerId], references: [id])
+  /// Spec §3 (Clients) — the Regional Manager owning this client from the
+  /// operations side, distinct from the Account Manager on the commercial side.
+  regionalManagerId String?
+  regionalManager   User?   @relation("InstitutionRegionalManager", fields: [regionalManagerId], references: [id])
 
   leads             Lead[]
   leadApplications  LeadApplication[]
@@ -1217,16 +1651,33 @@ model Institution {
   plannedEventParticipations PlannedEventParticipation[]
   recruitmentPlans          QuarterlyRecruitmentPlan[]
 
+  // Phase 5 — Clients spec closure
+  issues                    ClientIssue[]
+  interventions             AccountIntervention[]
+
   @@map("institutions")
 }
 
+/// Spec §4 (Clients) — team assignment record. The old shape was just
+/// (institutionId, userId); the spec asks for account role, region/market,
+/// start date and status.
 model InstitutionUser {
   institutionId String
   userId        String
   institution   Institution @relation(fields: [institutionId], references: [id])
   user          User        @relation(fields: [userId], references: [id])
 
+  accountRole         AccountRole?
+  region              String?
+  assignmentStartDate DateTime?
+  assignmentStatus    AssignmentStatus @default(ACTIVE)
+  notes               String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
   @@id([institutionId, userId])
+  @@index([userId])
+  @@index([assignmentStatus])
   @@map("institution_users")
 }
 
@@ -1239,9 +1690,18 @@ model InstitutionContact {
   email         String?
   phone         String?
   isPrimary     Boolean     @default(false)
+  /// Spec §5 (Clients) — categorisation for reporting and filtering.
+  category      ContactCategory?
+  /// Spec §5 (Clients) — free-text department (e.g. "International Office").
+  department    String?
+  /// Spec §5 (Clients) — which Illume user owns the relationship with this contact.
+  relationshipOwnerId String?
+  relationshipOwner   User?   @relation("ContactOwner", fields: [relationshipOwnerId], references: [id])
+  isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
+  @@index([institutionId, isActive])
   @@map("institution_contacts")
 }
 
@@ -1254,13 +1714,38 @@ model Contract {
   startDate     DateTime
   endDate       DateTime
   documentUrl   String?
+  /// Spec §6 (Clients): status is now a controlled enum. Kept as String during
+  /// rollout because existing rows use the free-text "ACTIVE"/"PENDING" etc;
+  /// migration 019 backfills the enum column and later phases drop this one.
   status        String               @default("ACTIVE")
+  statusEnum    ContractStatus?
+  /// Spec §6 (Clients) — contract type (Master Services, Recruitment, MOU, etc).
+  type          ContractType?
+  /// Spec §6 (Clients) — notice period in days (e.g. 90).
+  noticePeriodDays Int?
+  /// Spec §6 (Clients) — commercial owner. Distinct from `createdById`
+  /// which records who typed the row in.
+  ownerId       String?
+  owner         User?                @relation("ContractOwner", fields: [ownerId], references: [id])
+  /// Spec §6 (Clients) — currency (ISO 4217).
+  currency      String?
+  /// Spec §6 (Clients) — free-text payment structure (e.g. "50% upfront,
+  /// 50% on enrolment"). Structured payment schedule can be a Phase 2 addition.
+  paymentStructure String?          @db.Text
+  /// Spec §6 (Clients) — when a contract is replaced, the new row points at
+  /// the old one. Old row's statusEnum → SUPERSEDED (never deleted).
+  supersededById   String?
+  supersededBy     Contract?         @relation("ContractSupersession", fields: [supersededById], references: [id])
+  supersedes       Contract[]        @relation("ContractSupersession")
   notes         String?              @db.Text
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   createdById   String
   attachments   ContractAttachment[]
+  documents     InstitutionDocument[] @relation("DocumentContract")
 
+  @@index([institutionId, statusEnum])
+  @@index([endDate])
   @@map("contracts")
 }
 
@@ -1315,12 +1800,83 @@ model InstitutionDocument {
   institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   name          String
   url           String
+  /// Legacy free-text type; kept during rollout so existing rows survive.
+  /// Prefer `category` for new writes.
   type          String
+  /// Spec §10 (Clients) — controlled category.
+  category      DocumentCategory?
+  /// Spec §10 (Clients) — optional expiry (e.g. accreditation certificate).
+  expiresAt     DateTime?
+  /// Spec §10 (Clients) — optional document version (e.g. "v2", "2026-Q3").
+  version       String?
+  /// Spec §10 (Clients) — link the doc to the record it relates to.
+  contractId    String?
+  contract      Contract?   @relation("DocumentContract", fields: [contractId], references: [id], onDelete: SetNull)
+  issueId       String?
+  issue         ClientIssue? @relation("DocumentIssue", fields: [issueId], references: [id], onDelete: SetNull)
+  activityId    String?
+  activity      Activity?   @relation("DocumentActivity", fields: [activityId], references: [id], onDelete: SetNull)
   size          Int?
   uploadedAt    DateTime    @default(now())
   uploadedBy    String
 
+  @@index([institutionId, category])
   @@map("institution_documents")
+}
+
+/// Spec §9 (Clients) — Issues & Actions module. Tracks anything that needs
+/// follow-up or escalation on a client account.
+model ClientIssue {
+  id             String        @id @default(uuid())
+  institutionId  String
+  institution    Institution   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?       @db.Text
+  category       IssueCategory
+  severity       IssueSeverity @default(MEDIUM)
+  status         IssueStatus   @default(OPEN)
+  ownerId        String
+  owner          User          @relation("IssueOwner", fields: [ownerId], references: [id])
+  openedAt       DateTime      @default(now())
+  targetResolutionAt DateTime?
+  resolvedAt     DateTime?
+  resolutionNotes String?      @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  createdById    String
+
+  /// Documents attached to the issue (screenshots, emails, RCA docs).
+  documents      InstitutionDocument[] @relation("DocumentIssue")
+
+  @@index([institutionId, status])
+  @@index([ownerId, status])
+  @@index([severity, status])
+  @@index([targetResolutionAt])
+  @@map("client_issues")
+}
+
+/// Spec §11 (Clients) — when Account Health is set AMBER or RED, a matching
+/// intervention record is required. This drives the "attention required" panel
+/// and the RM check-in cycle.
+model AccountIntervention {
+  id                String        @id @default(uuid())
+  institutionId     String
+  institution       Institution   @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  health            AccountHealth
+  reason            String        @db.Text
+  correctiveAction  String        @db.Text
+  actionOwnerId     String
+  actionOwner       User          @relation("InterventionOwner", fields: [actionOwnerId], references: [id])
+  reviewDate        DateTime
+  resolvedAt        DateTime?
+  resolutionNotes   String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  createdById       String
+
+  @@index([institutionId, resolvedAt])
+  @@index([reviewDate])
+  @@map("account_interventions")
 }
 
 model EnrollmentTarget {
@@ -1362,7 +1918,11 @@ model Event {
 
   institutions EventInstitution[]
   leads        Lead[]
+  /// Spec §16 back-ref for the immutable original-event pin on Lead.
+  originalLeads Lead[] @relation("OriginalEvent")
   expenses     EventExpense[]
+  /// Field Ops activities linked to this event (event prep, follow-up work).
+  activities   Activity[]   @relation("ActivityEvent")
 
   // Phase 2 / 4 redesign back-refs
   participations             EventParticipation[]
@@ -2146,14 +2706,27 @@ model AgentProfile {
   certificationStatus String?
   icefMembership      Boolean   @default(false)
   countryCoverage     String[]
+  /// Spec §7 (Recruitment Network) — auto-calculated tier. Manual PUTs are
+  /// rejected by /api/stakeholders/agents once the recalc cron is scheduled.
   tier                AgentTier @default(EMERGING)
+  /// Timestamp of the last cron recalculation. Used by the API layer to
+  /// refuse manual `tier` writes ("no you can't override a calculated field").
+  tierCalculatedAt    DateTime?
   contractUrl         String?
   contractExpiryDate  DateTime?
+  /// DEPRECATED per spec — Leads / Applications / Offers / Deposits / Enrolments
+  /// must be derived from student records, not manually written. Retained in
+  /// the column but read-only from the API surface; migration 019 comments them
+  /// off from the writable Zod schemas.
   offers              Int       @default(0)
   deposits            Int       @default(0)
   enrolments          Int       @default(0)
   visaApprovals       Int       @default(0)
   yieldRate           Float?
+  /// Spec §8 (Recruitment Network) — last engagement side-effect from
+  /// activity completion (agent meeting/training). Written by the Field Ops
+  /// completion propagation in `lib/network-automation.ts`.
+  lastMeetingDate     DateTime?
   notes               String?   @db.Text
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -2163,16 +2736,42 @@ model AgentProfile {
 
 // ─── PHASE 1: ACTIVITY MANAGEMENT ─────────────────────────────────────────
 
+/// Spec §1 (Field Operations) — "the module should manage the work performed
+/// by Illume, not simply record random activities. Every Field Operation must
+/// relate to one or more CRM entities."
+///
+/// Spec §3 — activity lifecycle: Planned → In Progress → Completed → Closed.
+/// Completed = happened. Closed = outcome recorded + follow-up assigned.
 model Activity {
   id                    String       @id @default(uuid())
   type                  ActivityType
+  /// Spec §3 (Field Operations) — lifecycle state. Nullable during rollout so
+  /// existing rows survive; migration 019 backfills based on `endDate` /
+  /// `outcomes` heuristics.
+  status                ActivityStatus?
+  /// Spec §2 (Field Operations) — provenance relative to the approved plan.
+  planAlignment         FieldWorkPlanAlignment?
   title                 String
   description           String?      @db.Text
   date                  DateTime
   endDate               DateTime?
+  /// Spec §8 — captured when the activity is marked Completed. `endDate` was
+  /// used as a proxy but was inconsistent; this is the authoritative field.
+  actualDate            DateTime?
+  outcomeSummary        String?      @db.Text
+  /// Spec §8 — follow-up capture is required when status transitions to CLOSED
+  /// via the standard flow.
+  followUpRequired      Boolean      @default(false)
+  followUpDescription   String?      @db.Text
+  followUpDueDate       DateTime?
+  followUpAssigneeId    String?
+  followUpAssignee      User?        @relation("ActivityFollowUpAssignee", fields: [followUpAssigneeId], references: [id])
   location              String?
   city                  String?
   country               String?
+  /// DEPRECATED — these counts should come from the linked Lead/Interest
+  /// records, not manual entry. Retained so old rows still open; new UI hides
+  /// them from the form.
   studentsEngaged       Int?
   counsellorsEngaged    Int?
   leadsGenerated        Int?
@@ -2197,14 +2796,31 @@ model Activity {
   school        School?      @relation("ActivitySchool", fields: [schoolId], references: [id])
   sourceId      String?
   source        Source?      @relation("ActivitySource", fields: [sourceId], references: [id])
+  /// Spec §7 (Field Operations) — multi-entity linking. Activity → Student
+  /// where applicable (student follow-up sessions, offer discussions).
+  leadId        String?
+  lead          Lead?        @relation("ActivityLead", fields: [leadId], references: [id])
+  /// Spec §7 (Field Operations) — activity linked to a marketing campaign.
+  campaignId    String?
+  campaign      Campaign?    @relation("ActivityCampaign", fields: [campaignId], references: [id])
+  /// Spec §7 (Field Operations) — activity linked to a recruitment event
+  /// (event-preparation / event-follow-up work).
+  eventId       String?
+  event         Event?       @relation("ActivityEvent", fields: [eventId], references: [id])
 
   attendees ActivityAttendee[]
   tasks     Task[]
+  /// Spec §10 (Clients) — evidence documents (photos, agenda, minutes).
+  documents InstitutionDocument[] @relation("DocumentActivity")
 
   @@index([userId])
   @@index([institutionId])
   @@index([date])
   @@index([type])
+  @@index([status])
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([eventId])
   @@map("activities")
 }
 
