@@ -69,6 +69,23 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Redesign redirects — old module URLs map to their new homes so bookmarks
+  // and emailed links keep working. 307 (temporary) so a rollback doesn't
+  // pollute browser caches with permanent redirects.
+  async redirects() {
+    return [
+      { source: "/stakeholders", destination: "/recruitment-network/partners", permanent: false },
+      { source: "/stakeholders/:path*", destination: "/recruitment-network/:path*", permanent: false },
+      { source: "/sources", destination: "/recruitment-network/partners", permanent: false },
+      { source: "/sources/:path*", destination: "/recruitment-network/partners/:path*", permanent: false },
+      { source: "/markets", destination: "/market-intelligence", permanent: false },
+      { source: "/markets/:path*", destination: "/market-intelligence/:path*", permanent: false },
+      { source: "/travel", destination: "/recruitment-planning", permanent: false },
+      { source: "/travel/:path*", destination: "/recruitment-planning/:path*", permanent: false },
+      { source: "/activities", destination: "/field-operations", permanent: false },
+      { source: "/activities/:path*", destination: "/field-operations/:path*", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

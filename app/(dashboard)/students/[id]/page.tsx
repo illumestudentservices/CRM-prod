@@ -26,6 +26,7 @@ import { ChecklistPanel } from "./_components/checklist-panel";
 import { ApplicationPanel } from "./_components/application-panel";
 import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
+import { InstitutionInterestsPanel } from "./_components/institution-interests-panel";
 
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
@@ -137,7 +138,7 @@ export default async function LeadDetailPage({
     }),
     db.institution.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true },
+      select: { id: true, name: true, country: true },
       orderBy: { name: "asc" },
     }),
     db.user.findMany({
@@ -264,6 +265,24 @@ export default async function LeadDetailPage({
             </CardHeader>
             <CardContent>
               <ActivitiesPanel leadId={lead.id} />
+            </CardContent>
+          </Card>
+
+          {/* Institution Interests — one journey per institution the student
+              is considering. Replaces the "one stage per lead" model. */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-slate-800">Institution Interests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InstitutionInterestsPanel
+                leadId={lead.id}
+                institutions={institutions.map(i => ({ id: i.id, name: i.name, country: i.country }))}
+                icrUsers={icrUsers.map(u => ({ id: u.id, name: u.name }))}
+                defaultStudyLevel={lead.studyLevel}
+                defaultIntakeYear={lead.intakeYear}
+                defaultIntakeMonth={lead.intakeMonth}
+              />
             </CardContent>
           </Card>
 

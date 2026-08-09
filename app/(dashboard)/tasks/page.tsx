@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
+import { MyDashboard } from "./_components/my-dashboard";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 async function getAllTasks() {
@@ -49,6 +50,7 @@ export default async function TasksPage() {
           { label: "Tasks" },
         ]}
       />
+      <MyDashboard />
       <TasksClient tasks={tasks} employees={employees} />
     </div>
   );
