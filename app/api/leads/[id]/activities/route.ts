@@ -233,12 +233,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
  * chased once would never be chased a second time.
  */
 async function touchLeadActivity(leadId: string) {
+  const now = new Date();
+  // Spec §4 (Student Pipeline) — the first-response SLA closes on the FIRST
+  // completed engagement, not just when the stage moves. This lets an ICR
+  // book and complete a call while the record still sits in New Lead and
+  // still stops the SLA clock. `firstContactAt IS NULL` in the update WHERE
+  // means the second-and-later completions don't overwrite it.
+  const current = await db.lead.findUnique({
+    where: { id: leadId },
+    select: { firstContactAt: true, createdAt: true },
+  });
+  if (!current) return;
+
+  const shouldStampFirstContact = current.firstContactAt === null;
+  const responseTimeMinutes = shouldStampFirstContact
+    ? Math.max(0, Math.round((now.getTime() - new Date(current.createdAt).getTime()) / 60000))
+    : undefined;
+
   await db.lead.update({
     where: { id: leadId },
     data: {
-      lastContactedAt: new Date(),
+      lastContactedAt: now,
       inactivity14NotifiedAt: null,
       inactivity21NotifiedAt: null,
+      ...(shouldStampFirstContact
+        ? {
+            firstContactAt: now,
+            responseTimeMinutes,
+          }
+        : {}),
     },
   });
 }

@@ -38,6 +38,13 @@ const leadSchema = z.object({
   phone: z.string().min(7, "Phone number is required"),
   nationality: z.string().min(1, "Nationality is required"),
   countryOfResidence: z.string().min(1, "Country of residence is required"),
+  // Spec §2 (Student Pipeline) — dedup keys captured at creation when
+  // available. Both nullable — event capture often can't collect them.
+  dateOfBirth: z.string().optional(),
+  passportNumber: z.string().optional(),
+  // Spec Recruitment Network — how the lead reached us. Optional to keep
+  // capture fast; the pipeline gate can flag it later.
+  channel: z.string().optional(),
   interestedProgram: z.string().min(2, "Program is required"),
   faculty: z.string().optional(),
   studyLevel: z.enum(["UNDERGRADUATE", "POSTGRADUATE", "PATHWAY", "FOUNDATION"]),
@@ -66,6 +73,141 @@ const leadSchema = z.object({
 });
 
 type LeadFormValues = z.infer<typeof leadSchema>;
+
+// ─── Match check panel ───────────────────────────────────────────────────────
+// Spec §2 — before creating a new Student Profile, search existing profiles.
+// The panel debounces the current form values, calls /api/leads/find-matches,
+// and surfaces candidates as clickable rows. Auto-hides when the form is in
+// edit mode (there's already a profile).
+
+interface MatchRow {
+  id: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  countryOfResidence: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  matchedOn: string[];
+  interestCount: number;
+  currentOwner: { id: string; name: string | null } | null;
+}
+
+function MatchCheckPanel({
+  enabled,
+  firstName,
+  lastName,
+  email,
+  phone,
+  countryOfResidence,
+  dateOfBirth,
+  passportNumber,
+}: {
+  enabled: boolean;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  countryOfResidence?: string;
+  dateOfBirth?: string;
+  passportNumber?: string;
+}) {
+  const [matches, setMatches] = React.useState<MatchRow[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!enabled) {
+      setMatches([]);
+      return;
+    }
+    // Require at least one strong signal before hitting the endpoint.
+    const hasSignal =
+      (email && email.length > 3) ||
+      (phone && phone.length > 5) ||
+      (passportNumber && passportNumber.length >= 3) ||
+      (firstName && lastName && firstName.length > 1 && lastName.length > 1);
+    if (!hasSignal) {
+      setMatches([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/leads/find-matches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            phone,
+            countryOfResidence,
+            dateOfBirth: dateOfBirth
+              ? new Date(`${dateOfBirth}T00:00:00.000Z`).toISOString()
+              : undefined,
+            passportNumber,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMatches(data.matches ?? []);
+        }
+      } catch {
+        /* ignore — non-fatal */
+      } finally {
+        setLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [enabled, firstName, lastName, email, phone, countryOfResidence, dateOfBirth, passportNumber]);
+
+  if (!enabled || matches.length === 0) return null;
+
+  const badgeColour = (c: MatchRow["confidence"]) =>
+    c === "HIGH"
+      ? "bg-red-100 text-red-700 border-red-200"
+      : c === "MEDIUM"
+      ? "bg-amber-100 text-amber-700 border-amber-200"
+      : "bg-slate-100 text-slate-600 border-slate-200";
+
+  return (
+    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <p className="text-sm font-medium text-amber-900">
+          {matches.length} possible existing student{matches.length === 1 ? "" : "s"}
+          {loading ? " (searching…)" : ""}
+        </p>
+      </div>
+      <p className="text-xs text-amber-800 mb-2">
+        Open an existing record to add a new Institution Interest instead of creating a duplicate profile.
+      </p>
+      <ul className="space-y-1.5">
+        {matches.slice(0, 5).map((m) => (
+          <li key={m.id} className="flex items-start gap-2 rounded border border-amber-200 bg-white p-2 text-xs">
+            <span className={cn("inline-flex items-center rounded border px-1.5 py-0.5 font-semibold uppercase tracking-wide", badgeColour(m.confidence))}>
+              {m.confidence}
+            </span>
+            <div className="flex-1">
+              <a
+                href={`/students/${m.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-slate-900 hover:underline"
+              >
+                {m.displayName}
+              </a>
+              <div className="text-slate-500">
+                {m.email ?? "no email"} · {m.phone ?? "no phone"} · {m.countryOfResidence} · {m.interestCount} interest{m.interestCount === 1 ? "" : "s"}
+                {m.currentOwner?.name && <> · owned by {m.currentOwner.name}</>}
+              </div>
+              <div className="text-slate-400">Matched on: {m.matchedOn.join(", ")}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // ─── Field component ──────────────────────────────────────────────────────────
 
@@ -135,6 +277,11 @@ export function LeadForm({
       phone: lead?.phone ?? "",
       nationality: lead?.nationality ?? "",
       countryOfResidence: lead?.countryOfResidence ?? "",
+      dateOfBirth: lead?.dateOfBirth
+        ? new Date(lead.dateOfBirth).toISOString().slice(0, 10)
+        : "",
+      passportNumber: lead?.passportNumber ?? "",
+      channel: lead?.channel ?? "",
       interestedProgram: lead?.interestedProgram ?? "",
       faculty: lead?.faculty ?? "",
       studyLevel: (lead?.studyLevel as LeadFormValues["studyLevel"]) ?? "UNDERGRADUATE",
@@ -214,6 +361,14 @@ export function LeadForm({
         sourceId: cleanId(values.sourceId),
         institutionId: cleanId(values.institutionId),
         assignedICRId: cleanId(values.assignedICRId),
+
+        // Spec §2 — DOB is captured as YYYY-MM-DD from the date input; the API
+        // wants an ISO datetime. Passport is a bare string.
+        dateOfBirth: values.dateOfBirth
+          ? new Date(`${values.dateOfBirth}T00:00:00.000Z`).toISOString()
+          : undefined,
+        passportNumber: orNull(values.passportNumber),
+        channel: orUndefined(values.channel),
 
         intendedDestination: orNull(values.intendedDestination),
         preferredCountry: orNull(values.preferredCountry),
@@ -332,7 +487,53 @@ export function LeadForm({
               >
                 <Input {...register("countryOfResidence")} placeholder="e.g. Nigeria" />
               </FormField>
+
+              {/* Spec §2 — DOB and passport are the strongest identity signals
+                  for duplicate detection. Both are optional at capture. */}
+              <FormField label="Date of Birth" error={errors.dateOfBirth?.message}>
+                <Input {...register("dateOfBirth")} type="date" />
+              </FormField>
+
+              <FormField label="Passport Number" error={errors.passportNumber?.message}>
+                <Input {...register("passportNumber")} placeholder="Optional" />
+              </FormField>
+
+              {/* Spec Recruitment Network — how the lead reached us. */}
+              <FormField label="Lead Channel" error={errors.channel?.message}>
+                <Select
+                  value={watch("channel") || ""}
+                  onValueChange={(v) => setValue("channel", v, { shouldValidate: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select channel..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AGENT_REFERRAL">Agent Referral</SelectItem>
+                    <SelectItem value="SCHOOL_REFERRAL">School Referral</SelectItem>
+                    <SelectItem value="WEBSITE">Website</SelectItem>
+                    <SelectItem value="WALK_IN">Walk-in</SelectItem>
+                    <SelectItem value="STUDENT_REFERRAL">Student Referral</SelectItem>
+                    <SelectItem value="STAFF_REFERRAL">Staff Referral</SelectItem>
+                    <SelectItem value="GOOGLE_ADS">Google Ads</SelectItem>
+                    <SelectItem value="META_ADS">Meta Ads</SelectItem>
+                    <SelectItem value="ORGANIC_SOCIAL">Organic Social</SelectItem>
+                    <SelectItem value="QR_CODE">QR Code</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
             </div>
+
+            <MatchCheckPanel
+              enabled={!isEdit}
+              firstName={watch("firstName")}
+              lastName={watch("lastName")}
+              email={watch("email")}
+              phone={watch("phone")}
+              countryOfResidence={watch("countryOfResidence")}
+              dateOfBirth={watch("dateOfBirth")}
+              passportNumber={watch("passportNumber")}
+            />
           </div>
 
           {/* Academic information */}

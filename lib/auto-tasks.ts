@@ -35,7 +35,103 @@ interface FollowUpTask {
   priority: string;
 }
 
+// Spec §12 / §16 (Field Operations) — templates keyed by activity type.
+// Extended in Phase 6/7 to cover the new spec-required activity types.
 const TASK_TEMPLATES: Record<string, FollowUpTask[]> = {
+  AGENT_TRAINING: [
+    {
+      title: "Send training materials",
+      description:
+        "Distribute presentation decks, brochures and reference materials to trained agent staff.",
+      priority: "HIGH",
+    },
+    {
+      title: "Schedule refresher check-in",
+      description:
+        "Book a follow-up call in 4–6 weeks to reinforce training and answer field questions.",
+      priority: "MEDIUM",
+    },
+  ],
+  SCHOOL_PRESENTATION: [
+    {
+      title: "Send counsellor thank-you note",
+      description:
+        "Thank the school counsellors and share the presentation deck + programme brochures.",
+      priority: "HIGH",
+    },
+    {
+      title: "Follow up with prospective students",
+      description:
+        "Contact students who signed up at the presentation with next-step information.",
+      priority: "URGENT",
+    },
+  ],
+  CLIENT_MEETING: [
+    {
+      title: "Send meeting minutes",
+      description:
+        "Circulate agreed action items and next steps to the client and internal stakeholders.",
+      priority: "HIGH",
+    },
+    {
+      title: "Update account notes",
+      description:
+        "Record decisions and open items in the client's account record so they surface in the next review.",
+      priority: "MEDIUM",
+    },
+  ],
+  EVENT_PREPARATION: [
+    {
+      title: "Confirm attendee registrations",
+      description:
+        "Verify all registered attendees, confirm timings, and prepare name badges/materials.",
+      priority: "URGENT",
+    },
+    {
+      title: "Brief the team",
+      description:
+        "Pre-event briefing on booth logistics, targets, and lead-capture process.",
+      priority: "HIGH",
+    },
+  ],
+  EVENT_FOLLOW_UP: [
+    {
+      title: "Contact captured leads within 48h",
+      description:
+        "Reach every lead collected at the event within 48 hours with personalised communications.",
+      priority: "URGENT",
+    },
+    {
+      title: "Upload event outcome",
+      description:
+        "File the post-event summary with attendance, lead counts, and observations.",
+      priority: "HIGH",
+    },
+  ],
+  STUDENT_FOLLOW_UP_SESSION: [
+    {
+      title: "Log outcome on student profile",
+      description:
+        "Record the outcome of the follow-up session on the student's institution interest.",
+      priority: "HIGH",
+    },
+  ],
+  MARKET_RESEARCH: [
+    {
+      title: "Submit market intelligence update",
+      description:
+        "Convert research findings into a Market Intelligence suggestion for RM review.",
+      priority: "MEDIUM",
+    },
+  ],
+  REPORT_SUBMISSION: [
+    {
+      title: "Confirm receipt",
+      description:
+        "Verify the report was accepted by the reviewing party and file the confirmation.",
+      priority: "LOW",
+    },
+  ],
   SCHOOL_VISIT: [
     {
       title: "Send follow-up materials",
