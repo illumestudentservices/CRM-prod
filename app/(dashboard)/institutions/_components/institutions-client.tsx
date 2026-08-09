@@ -29,6 +29,9 @@ export interface InstitutionRow {
   usersCount: number;
   regionId: string | null;
   regionName: string | null;
+  /// Spec §1 (Clients) — Account Manager column supports the AM filter.
+  accountManagerId?: string | null;
+  accountManagerName?: string | null;
 }
 
 interface InstitutionStats {
@@ -36,21 +39,41 @@ interface InstitutionStats {
   active: number;
   renewalDue: number;
   prospects: number;
+  /// Spec §9 — Open Issues stat card.
+  openIssues?: number;
 }
 
 interface InstitutionsClientProps {
   institutions: InstitutionRow[];
   regions: { id: string; name: string }[];
+  /// Spec §1 (Clients) — AM filter dropdown.
+  accountManagers?: { id: string; name: string | null }[];
+  /// Spec §1 (Clients) — Country filter dropdown (derived from the institutions list).
   stats: InstitutionStats;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function InstitutionsClient({ institutions, regions, stats }: InstitutionsClientProps) {
+export function InstitutionsClient({
+  institutions,
+  regions,
+  accountManagers = [],
+  stats,
+}: InstitutionsClientProps) {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [regionFilter, setRegionFilter] = React.useState("all");
+  const [countryFilter, setCountryFilter] = React.useState("all");
+  const [accountManagerFilter, setAccountManagerFilter] = React.useState("all");
+
+  // Derived country list from the loaded institutions — keeps the filter
+  // tight to what's actually present.
+  const countries = React.useMemo(() => {
+    const uniq = new Set<string>();
+    institutions.forEach((i) => i.country && uniq.add(i.country));
+    return Array.from(uniq).sort();
+  }, [institutions]);
 
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
@@ -61,15 +84,24 @@ export function InstitutionsClient({ institutions, regions, stats }: Institution
       if (statusFilter !== "all" && inst.accountStatus !== statusFilter) return false;
       if (typeFilter !== "all" && inst.type !== typeFilter) return false;
       if (regionFilter !== "all" && inst.regionId !== regionFilter) return false;
+      if (countryFilter !== "all" && inst.country !== countryFilter) return false;
+      if (accountManagerFilter !== "all" && inst.accountManagerId !== accountManagerFilter) return false;
       return true;
     });
-  }, [institutions, search, statusFilter, typeFilter, regionFilter]);
+  }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter]);
 
   const statCards = [
-    { title: "Total Partners", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", status: "all" },
-    { title: "Active",         value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600", iconBg: "bg-green-50",   status: "ACTIVE" },
-    { title: "Renewal Due",    value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600", iconBg: "bg-amber-50",   status: "RENEWAL_DUE" },
-    { title: "Prospects",      value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500", iconBg: "bg-slate-50",   status: "PROSPECT" },
+    { title: "Total Clients", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", status: "all" },
+    { title: "Active",        value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600", iconBg: "bg-green-50",   status: "ACTIVE" },
+    // Spec §1 — Renewal Due is a computed alert from contract dates, not a
+    // client status. Clicking the card no longer filters by a RENEWAL_DUE
+    // enum value; it's information-only.
+    { title: "Renewal Due",   value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600", iconBg: "bg-amber-50",   status: null as string | null },
+    { title: "Prospects",     value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500", iconBg: "bg-slate-50",   status: "PROSPECT" },
+    // Spec §9 — Open Issues card (Clients module).
+    ...(stats.openIssues !== undefined
+      ? [{ title: "Open Issues", value: stats.openIssues, icon: "AlertCircle" as const, iconColor: "text-rose-600", iconBg: "bg-rose-50", status: null as string | null }]
+      : []),
   ];
 
   return (
@@ -85,10 +117,14 @@ export function InstitutionsClient({ institutions, regions, stats }: Institution
             iconColor={card.iconColor}
             iconBg={card.iconBg}
             className={cn(
-              "cursor-pointer transition-all",
-              statusFilter === card.status && "ring-2 ring-[#1E3A5F] ring-offset-1"
+              card.status !== null && "cursor-pointer transition-all",
+              card.status !== null && statusFilter === card.status && "ring-2 ring-[#1E3A5F] ring-offset-1"
             )}
-            onClick={() => setStatusFilter(statusFilter === card.status ? "all" : card.status)}
+            onClick={
+              card.status !== null
+                ? () => setStatusFilter(statusFilter === card.status ? "all" : (card.status ?? "all"))
+                : undefined
+            }
           />
         ))}
       </div>
@@ -111,10 +147,12 @@ export function InstitutionsClient({ institutions, regions, stats }: Institution
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="RENEWAL_DUE">Renewal Due</SelectItem>
             <SelectItem value="PROSPECT">Prospect</SelectItem>
-            <SelectItem value="CHURNED">Churned</SelectItem>
+            <SelectItem value="ONBOARDING">Onboarding</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="INACTIVE">Inactive</SelectItem>
+            <SelectItem value="SUSPENDED">Suspended</SelectItem>
+            <SelectItem value="CLOSED">Closed</SelectItem>
           </SelectContent>
         </Select>
 
@@ -141,6 +179,38 @@ export function InstitutionsClient({ institutions, regions, stats }: Institution
               {regions.map((r) => (
                 <SelectItem key={r.id} value={r.id}>
                   {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {countries.length > 0 && (
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="h-9 w-[150px] text-sm">
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {countries.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {accountManagers.length > 0 && (
+          <Select value={accountManagerFilter} onValueChange={setAccountManagerFilter}>
+            <SelectTrigger className="h-9 w-[170px] text-sm">
+              <SelectValue placeholder="Account Manager" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Account Managers</SelectItem>
+              {accountManagers.map((am) => (
+                <SelectItem key={am.id} value={am.id}>
+                  {am.name ?? am.id}
                 </SelectItem>
               ))}
             </SelectContent>

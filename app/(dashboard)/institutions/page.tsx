@@ -20,14 +20,38 @@ const INSTITUTION_EXPORT_COLUMNS = [
 ];
 
 async function getInstitutionStats() {
-  const [total, active, renewalDue, prospects, churned] = await Promise.all([
+  const now = new Date();
+  // Spec §1 (Clients) — "Renewal Due" is a computed alert from contract dates,
+  // NOT a stored client status. Institutions with an ACTIVE contract expiring
+  // within 90 days count as renewal-due for the summary card.
+  const renewalWindowMs = 90 * 24 * 60 * 60 * 1000;
+  const [total, active, renewalDueByContract, prospects, openIssues] = await Promise.all([
     db.institution.count({ where: { deletedAt: null } }),
     db.institution.count({ where: { deletedAt: null, accountStatus: "ACTIVE" } }),
-    db.institution.count({ where: { deletedAt: null, accountStatus: "RENEWAL_DUE" } }),
+    db.institution.count({
+      where: {
+        deletedAt: null,
+        contracts: {
+          some: {
+            OR: [
+              { statusEnum: "ACTIVE" },
+              { statusEnum: null, status: "ACTIVE" },
+            ],
+            endDate: {
+              gte: now,
+              lte: new Date(now.getTime() + renewalWindowMs),
+            },
+          },
+        },
+      },
+    }),
     db.institution.count({ where: { deletedAt: null, accountStatus: "PROSPECT" } }),
-    db.institution.count({ where: { deletedAt: null, accountStatus: "CHURNED" } }),
+    // Spec §9 — Open Issues stat card.
+    db.clientIssue.count({
+      where: { status: { notIn: ["RESOLVED", "CLOSED"] } },
+    }),
   ]);
-  return { total, active, renewalDue, prospects, churned };
+  return { total, active, renewalDue: renewalDueByContract, prospects, openIssues };
 }
 
 async function getInstitutions() {
@@ -35,11 +59,47 @@ async function getInstitutions() {
     where: { deletedAt: null },
     include: {
       region: { select: { id: true, name: true } },
+      accountManager: { select: { id: true, name: true } },
       _count: {
         select: {
-          leads: true,
-          contracts: true,
-          users: true,
+          // Spec §1 (Clients) — the card's "students" pill should count
+          // ACTIVE students on the pipeline, not every lead ever captured.
+          // A LOST / DEFERRED / APPLICATION_REJECTED / ENROLLED lead is not
+          // active recruitment.
+          leads: {
+            where: {
+              deletedAt: null,
+              stage: {
+                notIn: [
+                  "LOST",
+                  "DEFERRED",
+                  "APPLICATION_REJECTED",
+                  "WITHDRAWN",
+                  "VISA_REFUSED",
+                  "ENROLLED",
+                ],
+              },
+            },
+          },
+          // Only ACTIVE contracts count for the header pill; expired/superseded
+          // rows stay in the model but shouldn't inflate the summary.
+          contracts: {
+            where: {
+              OR: [
+                { statusEnum: "ACTIVE" },
+                { statusEnum: null, status: "ACTIVE" },
+              ],
+            },
+          },
+          // Only ICR-role users count for the "ICRs" label on the card. Other
+          // roles (Regional Manager, Account Manager) are counted separately
+          // when needed.
+          users: {
+            where: {
+              assignmentStatus: "ACTIVE",
+              user: { role: "ICR" },
+            },
+          },
         },
       },
     },
@@ -51,15 +111,34 @@ async function getRegions() {
   return db.region.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }
 
+async function getAccountManagers() {
+  // Spec §1 (Clients) — dashboard filter by Account Manager.
+  return db.user.findMany({
+    where: {
+      isActive: true,
+      deletedAt: null,
+      // Cover the current AM signal (User referenced by institutions.accountManagerId)
+      // plus the new ACCOUNT_MANAGER role added in migration 019.
+      OR: [
+        { role: "ACCOUNT_MANAGER" },
+        { managedInstitutions: { some: {} } },
+      ],
+    },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export default async function InstitutionsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await effectiveHasPermission(session.user.role, "institutions", "read"))) redirect("/dashboard");
 
-  const [stats, institutions, regions] = await Promise.all([
+  const [stats, institutions, regions, accountManagers] = await Promise.all([
     getInstitutionStats(),
     getInstitutions(),
     getRegions(),
+    getAccountManagers(),
   ]);
 
   return (
@@ -105,8 +184,11 @@ export default async function InstitutionsPage() {
           usersCount: i._count.users,
           regionId: i.region?.id ?? null,
           regionName: i.region?.name ?? null,
+          accountManagerId: i.accountManagerId ?? null,
+          accountManagerName: i.accountManager?.name ?? null,
         }))}
         regions={regions}
+        accountManagers={accountManagers}
       />
     </div>
   );

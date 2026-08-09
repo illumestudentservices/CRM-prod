@@ -64,14 +64,16 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (
-      !(await effectiveHasPermission(
-        session.user.role as Role,
-        "markets",
-        "write"
-      ))
-    )
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Spec §1 (Market Intelligence): "Only System Administrators can create
+    // new markets." The permission matrix opens `markets:write` to RM/ICR
+    // for the rest of the module (editing intelligence, submitting
+    // suggestions); creation is deliberately narrower.
+    if (session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Only System Administrators may create markets." },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const {
@@ -94,6 +96,24 @@ export async function POST(req: NextRequest) {
         { error: "Name and code are required" },
         { status: 400 }
       );
+    }
+
+    // Spec §1: "One Market = One Country." Enforce uniqueness on countryCode
+    // (when provided) so a second India/Vietnam/Brazil can't be created.
+    if (countryCode) {
+      const existing = await db.market.findFirst({
+        where: { countryCode, deletedAt: null },
+        select: { id: true, name: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          {
+            error: `A market for country ${countryCode} already exists ("${existing.name}").`,
+            existing,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const market = await db.market.create({

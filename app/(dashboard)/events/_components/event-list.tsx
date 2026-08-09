@@ -49,33 +49,53 @@ interface EventListProps {
 
 const EVENT_TYPE_BADGE: Record<EventType, string> = {
   EDUCATION_FAIR: "bg-blue-100 text-blue-700 border-blue-200",
+  SCHOOL_FAIR: "bg-sky-100 text-sky-700 border-sky-200",
+  SCHOOL_VISIT: "bg-cyan-100 text-cyan-700 border-cyan-200",
   CAMPUS_VISIT: "bg-indigo-100 text-indigo-700 border-indigo-200",
   WEBINAR: "bg-violet-100 text-violet-700 border-violet-200",
+  OPEN_DAY: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  AGENT_WORKSHOP: "bg-amber-100 text-amber-800 border-amber-200",
   AGENT_TRAINING: "bg-amber-100 text-amber-700 border-amber-200",
-  SCHOOL_PRESENTATION: "bg-teal-100 text-teal-700 border-teal-200",
+  STUDENT_SEMINAR: "bg-lime-100 text-lime-700 border-lime-200",
   EXHIBITION: "bg-rose-100 text-rose-700 border-rose-200",
+  CONVERSION_EVENT: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+  APPLICATION_DAY: "bg-purple-100 text-purple-700 border-purple-200",
+  SCHOOL_PRESENTATION: "bg-teal-100 text-teal-700 border-teal-200",
+  OTHER: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const EVENT_TYPE_LABEL: Record<EventType, string> = {
   EDUCATION_FAIR: "Education Fair",
+  SCHOOL_FAIR: "School Fair",
+  SCHOOL_VISIT: "School Visit",
   CAMPUS_VISIT: "Campus Visit",
   WEBINAR: "Webinar",
+  OPEN_DAY: "Open Day",
+  AGENT_WORKSHOP: "Agent Workshop",
   AGENT_TRAINING: "Agent Training",
-  SCHOOL_PRESENTATION: "School Presentation",
+  STUDENT_SEMINAR: "Student Seminar",
   EXHIBITION: "Exhibition",
+  CONVERSION_EVENT: "Conversion Event",
+  APPLICATION_DAY: "Application Day",
+  SCHOOL_PRESENTATION: "School Presentation",
+  OTHER: "Other",
 };
 
 const EVENT_STATUS_BADGE: Record<EventStatus, string> = {
   PLANNED: "bg-slate-100 text-slate-600 border-slate-200",
   CONFIRMED: "bg-blue-100 text-blue-700 border-blue-200",
+  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
   COMPLETED: "bg-green-100 text-green-700 border-green-200",
+  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
   CANCELLED: "bg-red-100 text-red-700 border-red-200",
 };
 
 const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
   PLANNED: "Planned",
   CONFIRMED: "Confirmed",
+  IN_PROGRESS: "In Progress",
   COMPLETED: "Completed",
+  CLOSED: "Closed",
   CANCELLED: "Cancelled",
 };
 

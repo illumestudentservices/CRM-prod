@@ -57,6 +57,8 @@ const TYPE_BADGE: Record<SourceType, string> = {
   CAMPAIGN: "bg-green-100 text-green-700 border-green-200",
   DIGITAL: "bg-violet-100 text-violet-700 border-violet-200",
   PARTNER: "bg-amber-100 text-amber-700 border-amber-200",
+  REFERRAL_PARTNER: "bg-orange-100 text-orange-700 border-orange-200",
+  EDUCATION_PARTNER: "bg-teal-100 text-teal-700 border-teal-200",
 };
 
 const TYPE_LABEL: Record<SourceType, string> = {
@@ -66,6 +68,8 @@ const TYPE_LABEL: Record<SourceType, string> = {
   CAMPAIGN: "Campaign",
   DIGITAL: "Digital",
   PARTNER: "Partner",
+  REFERRAL_PARTNER: "Referral Partner",
+  EDUCATION_PARTNER: "Education Partner",
 };
 
 // ─── Star Rating ───────────────────────────────────────────────────────────

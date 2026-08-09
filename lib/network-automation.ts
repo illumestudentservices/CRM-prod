@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { AgentTier } from "@prisma/client";
+import type { AgentTier, RelationshipStatus } from "@prisma/client";
 
 /// Automation jobs for the Recruitment Network layer:
 ///
@@ -56,11 +56,27 @@ export async function recalcAgentTiers(opts: { dryRun?: boolean } = {}): Promise
 
     if (newTier !== ap.tier) {
       if (!dryRun) {
-        await db.agentProfile.update({ where: { id: ap.id }, data: { tier: newTier, enrolments } });
+        // Stamp tierCalculatedAt so subsequent manual PUTs to /api/stakeholders/agents
+        // are refused. This is what turns Agent Tier from a manual dropdown
+        // into an auto-derived value per spec §7.
+        await db.agentProfile.update({
+          where: { id: ap.id },
+          data: { tier: newTier, enrolments, tierCalculatedAt: new Date() },
+        });
       }
       summary.tierChanges++;
     } else if (!dryRun && enrolments !== ap.enrolments) {
-      await db.agentProfile.update({ where: { id: ap.id }, data: { enrolments } });
+      await db.agentProfile.update({
+        where: { id: ap.id },
+        data: { enrolments, tierCalculatedAt: new Date() },
+      });
+    } else if (!dryRun && !ap.tierCalculatedAt) {
+      // First-time run for an existing agent: stamp so we can start refusing
+      // manual overrides even though the tier didn't change.
+      await db.agentProfile.update({
+        where: { id: ap.id },
+        data: { tierCalculatedAt: new Date() },
+      });
     }
   }
 
@@ -88,12 +104,16 @@ export async function recomputeRelationshipHealth(opts: { dryRun?: boolean } = {
     const lastVisit = s.lastVisitDate ? s.lastVisitDate.getTime() : 0;
     const daysSince = lastVisit ? Math.floor((now - lastVisit) / DAY_MS) : Infinity;
 
-    let status: "NEW" | "DEVELOPING" | "ESTABLISHED" | "STRATEGIC" | "AT_RISK" | "DORMANT" = s.relationshipStatus;
-    if (!lastVisit) status = "NEW";
+    // Spec §8 realignment: ACTIVE/DEVELOPING/DORMANT/AT_RISK/INACTIVE.
+    // Legacy NEW/ESTABLISHED/STRATEGIC still exist in the enum but the
+    // classifier no longer writes them (migration 019 remaps existing rows).
+    let status: RelationshipStatus = s.relationshipStatus;
+    if (!lastVisit) status = "DEVELOPING";
+    else if (daysSince > 730) status = "INACTIVE";
     else if (daysSince > 365) status = "DORMANT";
     else if (daysSince > 180) status = "AT_RISK";
     else if (daysSince > 90) status = "DEVELOPING";
-    else status = "ESTABLISHED";
+    else status = "ACTIVE";
 
     if (status !== s.relationshipStatus) {
       if (!dryRun) {

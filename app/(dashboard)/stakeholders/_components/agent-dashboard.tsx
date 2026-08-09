@@ -17,6 +17,7 @@ const TIER_COLOR: Record<string, string> = {
   GOLD: "bg-amber-100 text-amber-700 border-amber-200",
   SILVER: "bg-slate-100 text-slate-600 border-slate-200",
   EMERGING: "bg-green-100 text-green-700 border-green-200",
+  INACTIVE: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 
 interface AgentData {
@@ -41,12 +42,14 @@ interface Props {
 }
 
 export function AgentDashboard({ agents }: Props) {
-  // Tier distribution
-  const tierCounts = {
+  // Tier distribution — spec §7 adds INACTIVE for agents that have stopped
+  // producing.
+  const tierCounts: Record<AgentTier, number> = {
     PLATINUM: agents.filter((a) => a.tier === "PLATINUM").length,
-    GOLD: agents.filter((a) => a.tier === "GOLD").length,
-    SILVER: agents.filter((a) => a.tier === "SILVER").length,
+    GOLD:     agents.filter((a) => a.tier === "GOLD").length,
+    SILVER:   agents.filter((a) => a.tier === "SILVER").length,
     EMERGING: agents.filter((a) => a.tier === "EMERGING").length,
+    INACTIVE: agents.filter((a) => a.tier === "INACTIVE").length,
   };
 
   const totalAgents = agents.length;
@@ -61,14 +64,9 @@ export function AgentDashboard({ agents }: Props) {
     .sort((a, b) => b.enrolments - a.enrolments)
     .slice(0, 5);
 
-  // Visa approval rate ranking
-  const agentsWithVisaRate = agents
-    .filter((a) => a.offers > 0)
-    .map((a) => ({
-      ...a,
-      visaApprovalRate: (a.visaApprovals / a.offers) * 100,
-    }))
-    .sort((a, b) => b.visaApprovalRate - a.visaApprovalRate);
+  // Spec §10 — Visa Approval Rate removed from the Network Performance
+  // dashboard because visa information is inconsistently available. The
+  // derived column is no longer computed here.
 
   // Yield rate ranking
   const agentsWithYield = agents
@@ -88,7 +86,7 @@ export function AgentDashboard({ agents }: Props) {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             {(
-              ["PLATINUM", "GOLD", "SILVER", "EMERGING"] as AgentTier[]
+              ["PLATINUM", "GOLD", "SILVER", "EMERGING", "INACTIVE"] as AgentTier[]
             ).map((tier) => {
               const count = tierCounts[tier];
               const pct = totalAgents > 0 ? (count / totalAgents) * 100 : 0;
@@ -231,55 +229,17 @@ export function AgentDashboard({ agents }: Props) {
         </Card>
       </div>
 
-      {/* Visa Approval Rate Chart (text-based) */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-900">
-            Visa Approval Rate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {agentsWithVisaRate.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">
-              No visa approval data available.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {agentsWithVisaRate.slice(0, 8).map((a) => (
-                <div key={a.id} className="flex items-center gap-3">
-                  <div className="w-40 min-w-[10rem] truncate">
-                    <p className="text-sm font-medium text-slate-700 truncate">
-                      {a.source.name}
-                    </p>
-                  </div>
-                  <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                      style={{
-                        width: `${Math.max(a.visaApprovalRate, 5)}%`,
-                      }}
-                    >
-                      {a.visaApprovalRate >= 15 && (
-                        <span className="text-[10px] font-medium text-white">
-                          {a.visaApprovalRate.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {a.visaApprovalRate < 15 && (
-                    <span className="text-xs font-medium text-slate-600 min-w-[3rem]">
-                      {a.visaApprovalRate.toFixed(1)}%
-                    </span>
-                  )}
-                  <span className="text-xs text-slate-400 min-w-[5rem] text-right">
-                    {a.visaApprovals}/{a.offers} offers
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/*
+        Spec §10 (Sources / Recruitment Network) — the Visa Approval Rate chart
+        was explicitly retired: "Remove Visa Approval Rate from the Network
+        Performance dashboard. Reason: Visa information is often incomplete,
+        varies by destination country, and may not be consistently available.
+        If visa processing is introduced as a future Student module, this
+        metric can be reconsidered."
+
+        Kept the block removed rather than commented, so the component's file
+        length reflects only fields the spec currently endorses.
+      */}
 
       {/* Yield Rate Ranking */}
       <Card>

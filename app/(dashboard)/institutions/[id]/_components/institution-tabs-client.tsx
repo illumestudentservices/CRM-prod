@@ -87,10 +87,13 @@ interface InstitutionTabsClientProps {
       activitiesCount: number;
       openRisks: number;
       openCompliance: number;
+      openIssues?: number;
       deliverablesPending: number;
       deliverablesCompleted: number;
     };
-    budget: { total: number | null; used: number | null };
+    /// Spec §11 — traffic-light account health. Optional to keep old test
+    /// harnesses passing during rollout.
+    accountHealth?: "GREEN" | "AMBER" | "RED" | "GREY" | null;
     kpis: Array<{
       id: string;
       name: string;
@@ -147,7 +150,7 @@ export function InstitutionTabsClient({
       <TabsContent value="governance" className="mt-4">
         <GovernanceTab
           stats={governanceData.stats}
-          budget={governanceData.budget}
+          accountHealth={governanceData.accountHealth ?? null}
           kpis={governanceData.kpis}
           recentActivities={governanceData.recentActivities}
         />

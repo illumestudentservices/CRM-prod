@@ -108,11 +108,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No Employee profile for the signed-in user" }, { status: 409 });
     }
 
+    const assigneeId = data.assigneeId ?? creator.id;
     const task = await db.task.create({
       data: {
         title: data.title,
         description: data.description,
-        assigneeId: data.assigneeId ?? creator.id,
+        assigneeId,
         createdById: creator.id,
         priority: data.priority,
         status: "NOT_STARTED",
@@ -126,6 +127,31 @@ export async function POST(req: NextRequest) {
         estimatedMinutes: data.estimatedMinutes,
       },
     });
+
+    // Spec Tasks §11 — notify the assignee when a task is created for someone
+    // other than the creator. Silent failure keeps the create response 201.
+    if (assigneeId !== creator.id) {
+      try {
+        const assigneeUser = await db.employee.findUnique({
+          where: { id: assigneeId },
+          select: { userId: true },
+        });
+        if (assigneeUser?.userId) {
+          await db.notification.create({
+            data: {
+              userId: assigneeUser.userId,
+              title: "New task assigned",
+              message: task.title,
+              type: "TASK_ASSIGNED",
+              link: `/tasks?taskId=${task.id}`,
+            },
+          });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
+
     return NextResponse.json(task, { status: 201 });
   } catch (err) {
     console.error("[POST /api/tasks]", err);

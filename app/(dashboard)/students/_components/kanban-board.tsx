@@ -47,6 +47,8 @@ const COLUMN_CONFIG: Record<
   LOST:                  { headerBg: "bg-gray-50",    headerText: "text-gray-600",    countBg: "bg-gray-200",    countText: "text-gray-700",    borderColor: "border-gray-200" },
   DEFERRED:              { headerBg: "bg-orange-50",  headerText: "text-orange-700",  countBg: "bg-orange-200",  countText: "text-orange-800",  borderColor: "border-orange-200" },
   APPLICATION_REJECTED:  { headerBg: "bg-red-50",     headerText: "text-red-700",     countBg: "bg-red-200",     countText: "text-red-800",     borderColor: "border-red-200" },
+  WITHDRAWN:             { headerBg: "bg-zinc-50",    headerText: "text-zinc-700",    countBg: "bg-zinc-200",    countText: "text-zinc-800",    borderColor: "border-zinc-200" },
+  VISA_REFUSED:          { headerBg: "bg-rose-50",    headerText: "text-rose-700",    countBg: "bg-rose-200",    countText: "text-rose-800",    borderColor: "border-rose-200" },
 };
 
 // ─── Column component ─────────────────────────────────────────────────────────

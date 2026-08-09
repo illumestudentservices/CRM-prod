@@ -112,6 +112,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Spec §7 (Recruitment Network) — the tier is auto-calculated by the
+    // network-automation cron. Reject manual `tier` writes once the cron has
+    // stamped tierCalculatedAt, so a user override can't shadow the daily
+    // recompute. First-time creates before the cron has ever run still allow
+    // an initial tier so early rows aren't blocked.
+    const existing = await db.agentProfile.findUnique({
+      where: { sourceId },
+      select: { tierCalculatedAt: true },
+    });
+    const tierIsAutoCalculated = !!existing?.tierCalculatedAt;
+    if (tierIsAutoCalculated && tier !== undefined && session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        {
+          error:
+            "Agent tier is calculated automatically and cannot be set manually.",
+        },
+        { status: 409 }
+      );
+    }
+    // Spec §9 — Leads / Applications / Offers / Deposits / Enrolments /
+    // Yield are derived from student records and must not be entered manually.
+    // Refuse if the caller tried to. Legacy admins can force a value.
+    const manualMetricAttempt =
+      offers !== undefined ||
+      deposits !== undefined ||
+      enrolments !== undefined ||
+      visaApprovals !== undefined ||
+      yieldRate !== undefined;
+    if (manualMetricAttempt && session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        {
+          error:
+            "Agent performance metrics (leads, offers, deposits, enrolments, yield) are auto-calculated. Manual writes are not accepted.",
+        },
+        { status: 409 }
+      );
+    }
+
     // Upsert: create or update agent profile
     const agentProfile = await db.agentProfile.upsert({
       where: { sourceId },
@@ -125,37 +163,43 @@ export async function POST(req: NextRequest) {
         contractExpiryDate: contractExpiryDate
           ? new Date(contractExpiryDate)
           : null,
-        offers: offers ? parseInt(offers, 10) : 0,
-        deposits: deposits ? parseInt(deposits, 10) : 0,
-        enrolments: enrolments ? parseInt(enrolments, 10) : 0,
-        visaApprovals: visaApprovals ? parseInt(visaApprovals, 10) : 0,
-        yieldRate: yieldRate ? parseFloat(yieldRate) : null,
+        // Metric columns keep their defaults on create. Cron populates them.
+        offers: 0,
+        deposits: 0,
+        enrolments: 0,
+        visaApprovals: 0,
+        yieldRate: null,
         notes: notes || null,
       },
       update: {
         ...(certificationStatus !== undefined && { certificationStatus }),
         ...(icefMembership !== undefined && { icefMembership }),
         ...(countryCoverage !== undefined && { countryCoverage }),
-        ...(tier !== undefined && { tier }),
+        // Only accepted for SUPER_ADMIN once cron has stamped tierCalculatedAt.
+        ...(tier !== undefined && (!tierIsAutoCalculated || session.user.role === "SUPER_ADMIN")
+          ? { tier }
+          : {}),
         ...(contractUrl !== undefined && { contractUrl }),
         ...(contractExpiryDate !== undefined && {
           contractExpiryDate: contractExpiryDate
             ? new Date(contractExpiryDate)
             : null,
         }),
-        ...(offers !== undefined && {
+        // SUPER_ADMIN escape hatch for manual metric overrides (rare — e.g.
+        // legacy import fix). Non-admins can't reach this branch.
+        ...(offers !== undefined && session.user.role === "SUPER_ADMIN" && {
           offers: parseInt(offers, 10),
         }),
-        ...(deposits !== undefined && {
+        ...(deposits !== undefined && session.user.role === "SUPER_ADMIN" && {
           deposits: parseInt(deposits, 10),
         }),
-        ...(enrolments !== undefined && {
+        ...(enrolments !== undefined && session.user.role === "SUPER_ADMIN" && {
           enrolments: parseInt(enrolments, 10),
         }),
-        ...(visaApprovals !== undefined && {
+        ...(visaApprovals !== undefined && session.user.role === "SUPER_ADMIN" && {
           visaApprovals: parseInt(visaApprovals, 10),
         }),
-        ...(yieldRate !== undefined && {
+        ...(yieldRate !== undefined && session.user.role === "SUPER_ADMIN" && {
           yieldRate: parseFloat(yieldRate),
         }),
         ...(notes !== undefined && { notes }),
