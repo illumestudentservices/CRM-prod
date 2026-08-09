@@ -9,6 +9,8 @@ const ALL_RESOURCES: Resource[] = [
   "erp", "erp_hr", "users", "settings", "announcements", "knowledge_base",
   "whatsapp", "markets", "stakeholders", "activities", "travel", "risk_compliance",
   "knowledge", "tasks",
+  // Redesign resources (Phases 2-7)
+  "recruitment_network", "recruitment_planning", "market_intelligence", "field_operations",
 ];
 const ALL_ACTIONS: Action[] = ["read", "write", "delete", "approve", "export"];
 
@@ -78,6 +80,10 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
   markets:             { resource: "markets",             action: "read" },
   stakeholders:        { resource: "stakeholders",        action: "read" },
   activities_field:    { resource: "activities",           action: "read" },
+  recruitment_network:  { resource: "recruitment_network",  action: "read" },
+  recruitment_planning: { resource: "recruitment_planning", action: "read" },
+  market_intelligence:  { resource: "market_intelligence",  action: "read" },
+  field_operations:     { resource: "field_operations",     action: "read" },
   tasks:               { resource: "tasks",               action: "read" },
   travel:              { resource: "travel",              action: "read" },
   risk_compliance:     { resource: "risk_compliance",     action: "read" },
