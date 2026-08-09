@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { stripNullBytes } from "@/lib/sanitize-text";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 const blankToUndefined = (v: unknown) =>
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 422 });
     }
-    const data = parsed.data;
+    const data = stripNullBytes(parsed.data);
 
     const partner = await db.source.findUnique({ where: { id: data.partnerId }, select: { id: true } });
     if (!partner) return NextResponse.json({ error: "Recruitment partner not found" }, { status: 404 });

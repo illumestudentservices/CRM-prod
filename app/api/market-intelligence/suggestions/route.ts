@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { stripNullBytes } from "@/lib/sanitize-text";
 
 const createSchema = z.object({
   marketId: z.string().min(1),

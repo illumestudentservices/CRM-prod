@@ -62,14 +62,20 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const plan = await db.quarterlyRecruitmentPlan.findUnique({ where: { id }, select: { status: true, icrId: true } });
     if (!plan) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    // Ownership check FIRST — an ICR who does not own this plan should get 403
+    // regardless of the plan's lock state (avoids leaking APPROVED-vs-DRAFT to
+    // an unauthorised user).
+    if (role === "ICR" && plan.icrId !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Spec §3: once APPROVED the plan is read-only.
     if (["APPROVED", "ACTIVE", "COMPLETED", "CLOSED"].includes(plan.status)) {
       return NextResponse.json({ error: "Plan is locked. Submit a Variation Request instead." }, { status: 409 });
     }
 
-    // ICRs may only edit their own DRAFT/RETURNED plans
+    // ICRs may only edit their own DRAFT/RETURNED plans (ownership already checked above)
     if (role === "ICR") {
-      if (plan.icrId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       if (!["DRAFT", "RETURNED"].includes(plan.status)) {
         return NextResponse.json({ error: "ICRs can only edit DRAFT or RETURNED plans" }, { status: 409 });
       }

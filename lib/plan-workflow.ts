@@ -21,9 +21,9 @@ type Transition = {
 
 export const PLAN_TRANSITIONS: Record<RecruitmentPlanStatus, Transition> = {
   DRAFT: { from: ["RETURNED"], allowedRoles: ["ICR", "SUPER_ADMIN"] },
-  SUBMITTED: { from: ["DRAFT"], allowedRoles: ["ICR", "SUPER_ADMIN"] },
+  SUBMITTED: { from: ["DRAFT", "RETURNED"], allowedRoles: ["ICR", "SUPER_ADMIN"] },
   REGIONAL_MANAGER_REVIEW: {
-    from: ["SUBMITTED"],
+    from: ["SUBMITTED", "RETURNED"],
     allowedRoles: ["REGIONAL_MANAGER", "SUPER_ADMIN"],
     timestampField: "regionalReviewedAt",
   },

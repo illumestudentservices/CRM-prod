@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 
 const blankToUndefined = (v: unknown) =>
@@ -22,7 +23,7 @@ const createSchema = z.object({
 const listSchema = z.object({
   leadId: z.string().optional(),
   institutionId: z.string().optional(),
-  stage: z.string().optional(),
+  stage: z.enum(["NEW_LEAD","CONTACTED","QUALIFIED","APPLICATION_SUBMITTED","AWAITING_DECISION","OFFER_RECEIVED","DEPOSIT_PAID","ENROLLED","LOST","DEFERRED","APPLICATION_REJECTED"]).optional(),
   assignedICRId: z.string().optional(),
   onlyOpen: z.enum(["true", "false"]).default("true"),
   page: z.coerce.number().int().min(1).default(1),
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 422 });
     }
-    const data = parsed.data;
+    const data = stripNullBytes(parsed.data);
 
     const lead = await db.lead.findFirst({ where: { id: data.leadId, deletedAt: null }, select: { id: true } });
     if (!lead) return NextResponse.json({ error: "Student not found" }, { status: 404 });
