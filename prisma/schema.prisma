@@ -95,6 +95,18 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+/// Result of the Qualified-stage eligibility check for an institution interest.
+/// Spec §6 requires "Eligible / Provisionally Eligible / Further Information
+/// Required / Not Eligible" as distinct outcomes so downstream reporting can
+/// distinguish an ICR who cleared a student from one who is still gathering
+/// documents.
+enum EligibilityOutcome {
+  ELIGIBLE
+  PROVISIONALLY_ELIGIBLE
+  FURTHER_INFO_REQUIRED
+  NOT_ELIGIBLE
+}
+
 enum OfferType {
   UNCONDITIONAL
   CONDITIONAL
@@ -196,11 +208,7 @@ enum ApprovalAction {
   ESCALATED
 }
 
-enum ConfidenceLevel {
-  HIGH
-  MEDIUM
-  LOW
-}
+// ConfidenceLevel enum removed 2026-08-09 alongside ForecastEntry (Phase 7).
 
 // Mandatory weekly activities tracked per ICR (Weekly Activity Planner)
 enum WeeklyActivityType {
@@ -257,9 +265,58 @@ enum TaskPriority {
 
 enum TaskStatus {
   TODO
+  NOT_STARTED
   IN_PROGRESS
+  WAITING_ON_EXTERNAL_PARTY
   DONE
+  COMPLETED
   CANCELLED
+}
+
+/// Spec §1 — Tasks Module: every task has a category, used for reporting
+/// and workflow automation. PERSONAL is the only category where a parent
+/// record link is optional.
+enum TaskCategory {
+  STUDENT_FOLLOW_UP
+  CLIENT_FOLLOW_UP
+  RECRUITMENT_PARTNER
+  SCHOOL_ENGAGEMENT
+  EVENT_PREPARATION
+  EVENT_FOLLOW_UP
+  MARKETING
+  ADMINISTRATION
+  REPORTING
+  COMPLIANCE
+  INTERNAL
+  PERSONAL
+  OTHER
+}
+
+/// Polymorphic parent for a Task. Enforced at the API layer:
+/// (parentType, parentId) must resolve to a live row, and category=PERSONAL
+/// is the only combination allowed without a parent.
+enum TaskParentType {
+  STUDENT
+  INSTITUTION_INTEREST
+  INSTITUTION
+  RECRUITMENT_PARTNER
+  RECRUITMENT_EVENT
+  MARKETING_CAMPAIGN
+  FIELD_OPERATION
+  MARKET
+  MONTHLY_REPORT
+  RECRUITMENT_PLAN
+  VARIATION_REQUEST
+  TRAVEL_RECORD
+  CLIENT_ISSUE
+}
+
+enum TaskRecurrence {
+  ONE_OFF
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
 }
 
 enum InteractionType {
@@ -309,6 +366,80 @@ enum MarketRiskLevel {
   MEDIUM_RISK
   HIGH_RISK
   CRITICAL
+}
+
+/// Spec §5 — Market Intelligence. Replaces the subjective numeric health
+/// score with a coarse-grained priority the RM can defend.
+enum MarketPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Spec §5 — Trajectory a market is on, independent of current priority.
+/// Growing markets may be Medium priority today but High tomorrow.
+enum MarketPotential {
+  EMERGING
+  GROWING
+  STABLE
+  DECLINING
+}
+
+/// Spec §7 — ICR-submitted market update goes through RM review before it
+/// becomes part of Market Intelligence.
+enum MarketUpdateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EDITED
+}
+
+enum MarketUpdateKind {
+  VISA_CHANGE
+  SCHOOL_UPDATE
+  COMPETITOR_OBSERVATION
+  NEW_OPPORTUNITY
+  GOVERNMENT_ANNOUNCEMENT
+  OTHER
+}
+
+/// Spec §3 — Approval workflow for Quarterly Recruitment Plans and Variation
+/// Requests. Once APPROVED the plan is read-only and further edits require a
+/// Variation Request.
+enum RecruitmentPlanStatus {
+  DRAFT
+  SUBMITTED
+  REGIONAL_MANAGER_REVIEW
+  ACCOUNT_MANAGER_REVIEW
+  INTERNAL_FINAL_REVIEW
+  CLIENT_REVIEW
+  APPROVED
+  ACTIVE
+  COMPLETED
+  CLOSED
+  RETURNED
+}
+
+/// Spec §9 — Variation Requests are typed so budget/scope changes can be
+/// approved with the right authority level.
+enum VariationType {
+  ADD_TRAVEL
+  CANCEL_TRAVEL
+  ADD_RECRUITMENT_EVENT
+  CANCEL_RECRUITMENT_EVENT
+  INCREASE_BUDGET
+  DECREASE_BUDGET
+  ADD_FIELD_ACTIVITY
+  REMOVE_FIELD_ACTIVITY
+  OTHER
+}
+
+/// Spec §4A — Ad-hoc field work is classified relative to the approved plan.
+enum FieldWorkPlanAlignment {
+  WITHIN_APPROVED_PLAN
+  APPROVED_VARIATION
+  UNPLANNED_NO_BUDGET
+  UNPLANNED_APPROVAL_REQUIRED
 }
 
 enum KPICategory {
@@ -446,6 +577,19 @@ model User {
   passwordHistory     PasswordHistory[]
 
   assignedLeads     Lead[]            @relation("AssignedICR")
+  assignedInterests InstitutionInterest[] @relation("InterestAssignedICR")
+
+  // ─── Redesign back-refs (Phase 4–7) ─────────────────────────────────────
+  managedMarkets      Market[]                 @relation("MarketRegionalManager")
+  submittedUpdates    MarketUpdateSuggestion[] @relation("MarketUpdateSubmitter")
+  reviewedUpdates     MarketUpdateSuggestion[] @relation("MarketUpdateReviewer")
+  ownedPlans          QuarterlyRecruitmentPlan[] @relation("PlanICR")
+  regionalReviewedPlans QuarterlyRecruitmentPlan[] @relation("PlanRegionalManager")
+  accountReviewedPlans  QuarterlyRecruitmentPlan[] @relation("PlanAccountManager")
+  vpReviewedPlans       QuarterlyRecruitmentPlan[] @relation("PlanVpReviewer")
+  requestedVariations VariationRequest[]       @relation("VariationRequester")
+  approvedVariations  VariationRequest[]       @relation("VariationApprover")
+  eventParticipations EventParticipation[]     @relation("EventParticipationICR")
   createdLeads      Lead[]            @relation("LeadCreatedBy")
   leadActivities    LeadActivity[]
   assignedEvents    Event[]
@@ -685,10 +829,12 @@ model Lead {
   activities            LeadActivity[]
   notesLog              LeadNote[]
   documents             LeadDocument[]
-  forecastEntries       ForecastEntry[]
   whatsappConversations WhatsAppConversation[]
   applications          LeadApplication[]
   checklistItems        LeadChecklistItem[]
+  /// The N institution journeys this student is pursuing. Populated by
+  /// migration 012; every existing Lead gets exactly one interest at rollout.
+  institutionInterests  InstitutionInterest[]
 
   @@index([email])
   @@index([stage])
@@ -725,6 +871,12 @@ model LeadActivity {
   /// and an activity booked in one stage is often completed in the next.
   stageAtCreation   LeadStage?
   stageAtCompletion LeadStage?
+
+  /// Which Institution Interest this activity relates to. Nullable means
+  /// "student-level" — e.g. initial counselling before any institution has
+  /// been chosen. Set when the activity is scoped to one journey.
+  institutionInterestId String?
+  institutionInterest   InstitutionInterest? @relation(fields: [institutionInterestId], references: [id], onDelete: SetNull)
   scheduledFor      DateTime?
   completedAt       DateTime?
   outcome           String?             @db.Text
@@ -750,6 +902,12 @@ model LeadApplication {
   institutionId String
   institution   Institution @relation(fields: [institutionId], references: [id])
   program       String
+
+  /// The Institution Interest this application attempt belongs to. Nullable
+  /// during the split rollout; migration 012 backfills, later phases enforce
+  /// NOT NULL and drop the direct `leadId` FK.
+  institutionInterestId String?
+  institutionInterest   InstitutionInterest? @relation("InterestApplications", fields: [institutionInterestId], references: [id], onDelete: SetNull)
 
   // Stage 4 — submission. The spec asks for both a user-entered date and a
   // system timestamp; they answer different questions.
@@ -786,7 +944,105 @@ model LeadApplication {
 
   @@index([leadId, isActive])
   @@index([institutionId])
+  @@index([institutionInterestId])
   @@map("lead_applications")
+}
+
+/// The recruitment journey for one student × institution pair.
+///
+/// Split out from `Lead` in migration 012. A single Student Profile (Lead) can
+/// pursue several institutions in parallel without the pipeline collapsing
+/// them into "the student's stage" — stage, eligibility, offer, deposit and
+/// enrolment all belong to the journey, not the person.
+///
+/// Lead retains the person-level fields (name, email, phone, initial intent,
+/// attribution, consent). InstitutionInterest carries everything downstream of
+/// "which institution?"
+///
+/// Rollout is additive: Lead.stage and Lead.institutionId stay populated
+/// during Phase 1 so the existing UI and analytics keep working. Later phases
+/// cut readers over, then drop those columns.
+///
+/// Enum reuse: this model reuses `LeadStage`. The rename to
+/// `InstitutionInterestStage` is deferred to a later migration once the split
+/// is fully cutover — renaming a shared enum while both tables read from it
+/// is safe in Postgres but easier to reason about in one pass.
+model InstitutionInterest {
+  id            String       @id @default(uuid())
+  leadId        String
+  lead          Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  institutionId String
+  institution   Institution  @relation(fields: [institutionId], references: [id])
+
+  /// Programme within the institution. Nullable because a student can express
+  /// interest before deciding the exact programme — populated by Qualified.
+  program     String?
+  intakeYear  Int
+  intakeMonth Int
+  studyLevel  StudyLevel
+
+  /// Per-institution owner. May differ from Lead.assignedICRId — e.g. the UAE
+  /// ICR owns the student, but a UK specialist owns the UCL interest.
+  assignedICRId String?
+  assignedICR   User?   @relation("InterestAssignedICR", fields: [assignedICRId], references: [id])
+
+  // ─── Pipeline mechanics ─────────────────────────────────────────────────
+  stage                  LeadStage  @default(NEW_LEAD)
+  stageEnteredAt         DateTime   @default(now())
+  stageBeforeClose       LeadStage?
+  lastContactedAt        DateTime?
+  lastProgressedAt       DateTime?
+  inactivity14NotifiedAt DateTime?
+  inactivity21NotifiedAt DateTime?
+
+  // ─── Stage 3: Qualified ─────────────────────────────────────────────────
+  eligibilityOutcome     EligibilityOutcome?
+  eligibilityConfirmedAt DateTime?
+  academicQualification  String?
+  englishStatus          EnglishStatus?
+
+  // ─── Stage 8: Enrolled ──────────────────────────────────────────────────
+  enrolmentDate      DateTime?
+  isConverted        Boolean   @default(false)
+  commissionEligible Boolean   @default(false)
+  convertedAt        DateTime?
+
+  // ─── Closed outcomes (per-interest) ─────────────────────────────────────
+  /// Lost / deferred / rejected outcomes apply to one journey at a time. A
+  /// student rejected by UofT may still be Offer Received at Manchester.
+  lostReason          LeadLostReason?
+  lostDate            DateTime?
+  lostNotes           String?         @db.Text
+  deferredIntakeYear  Int?
+  deferredIntakeMonth Int?
+  deferredReason      String?         @db.Text
+  deferredFollowUpAt  DateTime?
+  deferredReopenAt    DateTime?
+
+  /// Denorm pointer to the application attempt currently in play within this
+  /// interest. Mirrors the pattern already established on Lead.
+  activeApplicationId String?
+
+  /// Set when the interest closes (LOST, APPLICATION_REJECTED, ENROLLED).
+  /// A partial unique index in migration 012 enforces "only one open interest
+  /// per (student, institution)" — a re-attempt closes the old row and opens
+  /// a new one so history is preserved instead of overwritten.
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications   LeadApplication[]   @relation("InterestApplications")
+  activities     LeadActivity[]
+  checklistItems LeadChecklistItem[]
+
+  @@index([leadId])
+  @@index([institutionId])
+  @@index([stage])
+  @@index([assignedICRId])
+  /// Supports the inactivity cron and days-in-stage sort at interest level.
+  @@index([stage, stageEnteredAt])
+  @@map("institution_interests")
 }
 
 /// Checklist items generated on entering Qualified (documents) and
@@ -795,6 +1051,11 @@ model LeadChecklistItem {
   id         String                @id @default(uuid())
   leadId     String
   lead       Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// Which Institution Interest generated this checklist. Programme-specific
+  /// document lists (Qualified stage) and visa/pre-departure lists (Deposit
+  /// Paid) are per-interest, not per-student. Nullable during rollout.
+  institutionInterestId String?
+  institutionInterest   InstitutionInterest? @relation(fields: [institutionInterestId], references: [id], onDelete: SetNull)
   category   LeadChecklistCategory
   label      String
   isRequired Boolean               @default(true)
@@ -872,6 +1133,9 @@ model Source {
   agentProfile AgentProfile?
   activities   Activity[]    @relation("ActivitySource")
 
+  // Phase 2 — Recruitment Network
+  partnerContacts PartnerContact[]
+
   @@map("sources")
 }
 
@@ -929,6 +1193,7 @@ model Institution {
 
   leads             Lead[]
   leadApplications  LeadApplication[]
+  institutionInterests InstitutionInterest[]
   contacts          InstitutionContact[]
   contracts         Contract[]
   engagementLogs    EngagementLog[]
@@ -946,6 +1211,11 @@ model Institution {
   complianceItems ComplianceItem[]
   knowledgeBases  KnowledgeBase[]
   qbrs            QuarterlyBusinessReview[]
+
+  // Phase 2 / 4 redesign back-refs
+  eventParticipations       EventParticipation[]
+  plannedEventParticipations PlannedEventParticipation[]
+  recruitmentPlans          QuarterlyRecruitmentPlan[]
 
   @@map("institutions")
 }
@@ -1094,6 +1364,11 @@ model Event {
   leads        Lead[]
   expenses     EventExpense[]
 
+  // Phase 2 / 4 redesign back-refs
+  participations             EventParticipation[]
+  plannedTravelLinks         PlannedTravel[]
+  plannedEventParticipations PlannedEventParticipation[]
+
   @@map("events")
 }
 
@@ -1154,7 +1429,6 @@ model MonthlyReport {
   deletedAt DateTime?
 
   approvals       ReportApproval[]
-  forecastEntries ForecastEntry[]
 
   @@unique([icrId, institutionId, reportingMonth, reportingYear])
   @@map("monthly_reports")
@@ -1173,26 +1447,9 @@ model ReportApproval {
   @@map("report_approvals")
 }
 
-model ForecastEntry {
-  id             String          @id @default(uuid())
-  reportId       String?
-  report         MonthlyReport?  @relation(fields: [reportId], references: [id])
-  leadId         String?
-  lead           Lead?           @relation(fields: [leadId], references: [id])
-  studentName    String
-  institutionId  String
-  program        String
-  stage          LeadStage
-  expectedMonth  Int
-  expectedYear   Int
-  confidence     ConfidenceLevel
-  weightedProb   Float
-  actualEnrolled Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-
-  @@map("forecast_entries")
-}
+// ForecastEntry model removed 2026-08-09 (Phase 7). Orphaned since the
+// 2026-05-30 report simplification. Migration 018 drops the underlying
+// forecast_entries table after snapshotting its rows into audit_logs.
 
 // Weekly Activity Planner — one row per ICR per week per mandatory activity.
 // Tracked & viewed (no approval workflow); rolls up into the monthly report.
@@ -1446,12 +1703,33 @@ model Task {
   priority         TaskPriority @default(MEDIUM)
   status           TaskStatus   @default(TODO)
   dueDate          DateTime?
+  reminderDate     DateTime?
+  escalationDate   DateTime?
   completedAt      DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   deletedAt        DateTime?
 
+  // ─── Spec §1, §5: Tasks as workflow engine (added Phase 6) ──────────────
+  /// Polymorphic parent. Nullable ONLY when `category = PERSONAL`; the API
+  /// layer enforces "parent required unless personal" so the DB can stay
+  /// loose enough not to require a discriminated join.
+  parentType       TaskParentType?
+  parentId         String?
+  category         TaskCategory     @default(OTHER)
+  recurrence       TaskRecurrence   @default(ONE_OFF)
+  /// Where a recurring task was generated from a template, keep the pointer
+  /// so completing one occurrence doesn't retire the schedule.
+  templateId       String?
+  template         TaskTemplate?    @relation(fields: [templateId], references: [id])
+  estimatedMinutes Int?
+  actualMinutes    Int?
+
   @@index([sourceActivityId])
+  @@index([parentType, parentId])
+  @@index([category])
+  @@index([assigneeId, status])
+  @@index([templateId])
   @@map("tasks")
 }
 
@@ -1769,6 +2047,9 @@ model Market {
   currencyTrends           String?         @db.Text
   politicalRiskLevel       MarketRiskLevel @default(LOW)
   recruitmentOpportunities String?         @db.Text
+  /// Deprecated in favour of `priority` + `potential` + `politicalRiskLevel`
+  /// (spec §5). Kept nullable through Phase 5 rollout so historical values
+  /// remain readable; drop in a later migration once no reader references it.
   healthScore              Int?
   isActive                 Boolean         @default(true)
   createdAt                DateTime        @default(now())
@@ -1779,11 +2060,26 @@ model Market {
   govtStakeholders     String? @db.Text
   industryAssociations String? @db.Text
 
-  schools        School[]
-  activities     Activity[]
-  riskRegisters  RiskRegister[]
-  knowledgeBases KnowledgeBase[]
+  // ─── Spec §5: Market Classification (added Phase 5) ─────────────────────
+  priority               MarketPriority?  @default(MEDIUM)
+  potential              MarketPotential? @default(STABLE)
+  overview               String?          @db.Text
+  strategicRecommendations String?        @db.Text
 
+  /// Assigned Regional Manager. Nullable during rollout; new markets must be
+  /// created with a manager per spec §2.
+  regionalManagerId String?
+  regionalManager   User?   @relation("MarketRegionalManager", fields: [regionalManagerId], references: [id])
+
+  schools           School[]
+  activities        Activity[]
+  riskRegisters     RiskRegister[]
+  knowledgeBases    KnowledgeBase[]
+  updateSuggestions MarketUpdateSuggestion[]
+  recruitmentPlans  QuarterlyRecruitmentPlan[]
+
+  @@index([priority])
+  @@index([potential])
   @@map("markets")
 }
 
@@ -2069,4 +2365,371 @@ model QuarterlyBusinessReview {
 
   @@unique([institutionId, year, quarter])
   @@map("quarterly_business_reviews")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REDESIGN MODELS (Phases 2–6)
+//
+// Everything below is net-new against the pre-redesign schema. Existing
+// models above stay in place so line numbers are stable for other work.
+// Phases 2, 4, 5, 6 own the new tables; migrations 013–017 create them.
+//
+// SPEC RENAMES DEFERRED:
+//   Source → RecruitmentPartner: schema keeps `Source` for continuity because
+//   Prisma auto-derives relation field names (`lead.source`, `activity.source`)
+//   that would ripple through ~40 call sites on rename. A codebase-wide
+//   symbol rename is scheduled after the Phase 2 cutover.
+//   Activity → FieldOperation: same reasoning; @@map("activities") preserves
+//   the table, code migration is Phase 3.5.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── PHASE 2: RECRUITMENT NETWORK ─────────────────────────────────────────
+
+/// Spec §3–4 Stakeholders retirement + Spec §5 Contact-under-parent.
+///
+/// Every counsellor, agent owner, agent branch manager, referral-partner
+/// point of contact — all one entity today, all one model here. Migration 013
+/// copies `Counsellor` rows into this table (partnerId = the source row of
+/// type SCHOOL that the counsellor's school maps to) and marks the old table
+/// for drop in a later phase.
+///
+/// InstitutionContact is a peer, not a superset: it serves university-side
+/// stakeholders (director of international, admissions manager) which is a
+/// genuinely different domain.
+model PartnerContact {
+  id        String  @id @default(uuid())
+  partnerId String
+  partner   Source  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  fullName    String
+  position    String?
+  role        String? /// COUNSELLOR / OWNER / BRANCH_MANAGER / SENIOR_COUNSELLOR / ADVISOR / OTHER
+  email       String?
+  phone       String?
+  isPrimary   Boolean @default(false)
+  isActive    Boolean @default(true)
+  notes       String? @db.Text
+
+  /// Populated when migrated from the retiring `Counsellor` model, so a row
+  /// can be traced back if the migration needs auditing.
+  legacyCounsellorId String? @unique
+
+  lastEngagementDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([email])
+  @@map("partner_contacts")
+}
+
+/// Spec §7 (Recruitment Network / Events) — participation is a first-class
+/// record so one Recruitment Event supports N institutions with their own
+/// assigned ICR, participation status and outcome notes. Replaces the join
+/// row semantics of `EventInstitution` with explicit per-institution state.
+///
+/// Migration 013 backfills from existing `EventInstitution` rows so nothing
+/// on the old-style events pages breaks.
+model EventParticipation {
+  id            String @id @default(uuid())
+  eventId       String
+  event         Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  assignedICRId String?
+  assignedICR   User?   @relation("EventParticipationICR", fields: [assignedICRId], references: [id])
+
+  status                    String @default("CONFIRMED") /// INVITED / CONFIRMED / DECLINED / ATTENDED / NO_SHOW
+  attendanceConfirmed       Boolean @default(false)
+  activitySummary           String? @db.Text
+  institutionOutcomeNotes   String? @db.Text
+  participationCost         Float?
+  participationCostCurrency String? @default("USD")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, institutionId])
+  @@index([assignedICRId])
+  @@map("event_participations")
+}
+
+// ─── PHASE 4: RECRUITMENT PLANNING ────────────────────────────────────────
+
+/// Spec §1 — one plan per ICR per client assignment per quarter (unless
+/// multiple assignments are consolidated into one approved regional plan).
+///
+/// Owns the request-and-approval flow. Once APPROVED it becomes read-only;
+/// further changes go through a VariationRequest.
+model QuarterlyRecruitmentPlan {
+  id             String                @id @default(uuid())
+  icrId          String
+  icr            User                  @relation("PlanICR", fields: [icrId], references: [id])
+  institutionId  String?
+  institution    Institution?          @relation(fields: [institutionId], references: [id])
+  marketId       String?
+  market         Market?               @relation(fields: [marketId], references: [id])
+  quarter        Int /// 1..4
+  year           Int
+  reportingCurrency String              @default("USD")
+
+  status         RecruitmentPlanStatus @default(DRAFT)
+
+  // ─── Approval routing (spec §3) ────────────────────────────────────────
+  regionalManagerId     String?
+  regionalManager       User?     @relation("PlanRegionalManager", fields: [regionalManagerId], references: [id])
+  regionalReviewedAt    DateTime?
+  regionalReviewNotes   String?   @db.Text
+
+  accountManagerId      String?
+  accountManager        User?     @relation("PlanAccountManager", fields: [accountManagerId], references: [id])
+  accountReviewedAt     DateTime?
+  accountReviewNotes    String?   @db.Text
+
+  /// VP Global Sales role is mapped to HQ_EXECUTIVE for now (decision #5).
+  /// The reviewer here is whichever HQ_EXECUTIVE the workflow assigns.
+  vpReviewerId          String?
+  vpReviewer            User?     @relation("PlanVpReviewer", fields: [vpReviewerId], references: [id])
+  internalFinalReviewedAt DateTime?
+  internalFinalReviewNotes String? @db.Text
+
+  clientReviewedAt      DateTime?
+  clientReviewNotes     String?   @db.Text
+
+  approvedAt            DateTime?
+  activatedAt           DateTime?
+  completedAt           DateTime?
+  closedAt              DateTime?
+
+  // ─── Objectives (spec §4E) ─────────────────────────────────────────────
+  objectives            Json?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  plannedTravel        PlannedTravel[]
+  plannedEvents        PlannedEventParticipation[]
+  plannedFieldActivities PlannedFieldActivity[]
+  budgetItems          RecruitmentPlanBudgetItem[]
+  variationRequests    VariationRequest[]
+
+  @@unique([icrId, institutionId, quarter, year])
+  @@index([status])
+  @@index([quarter, year])
+  @@map("quarterly_recruitment_plans")
+}
+
+/// Spec §4A — planned travel. When the parent plan is approved, corresponding
+/// active TravelRecord rows should be created via the API; this table stores
+/// the request state.
+model PlannedTravel {
+  id           String @id @default(uuid())
+  planId       String
+  plan         QuarterlyRecruitmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  destination  String
+  country      String
+  city         String?
+  plannedStart DateTime
+  plannedEnd   DateTime
+  purpose      String  @db.Text
+  linkedEventId String?
+  linkedEvent   Event?  @relation(fields: [linkedEventId], references: [id])
+
+  estimatedCost         Float?
+  estimatedCurrency     String? @default("USD")
+
+  /// Set true when the parent plan reaches APPROVED — Travel API creates a
+  /// real TravelRequest and stamps the FK back.
+  activatedAt          DateTime?
+  activatedTravelRequestId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@map("planned_travel")
+}
+
+/// Spec §4B — participation request against a master Recruitment Event. Does
+/// NOT create a new Event; if the event doesn't exist, the ICR proposes a
+/// new master Event first (status = PROPOSED) and this row references it.
+model PlannedEventParticipation {
+  id           String @id @default(uuid())
+  planId       String
+  plan         QuarterlyRecruitmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  eventId      String
+  event        Event  @relation(fields: [eventId], references: [id])
+
+  institutionRepresentedId String
+  institutionRepresented   Institution @relation(fields: [institutionRepresentedId], references: [id])
+
+  purpose                String? @db.Text
+  estimatedCost          Float?
+  estimatedCurrency      String? @default("USD")
+  expectedLeads          Int?
+  expectedApplications   Int?
+  expectedEnrolments     Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([eventId])
+  @@map("planned_event_participations")
+}
+
+/// Spec §4C — planned quantities per activity type. Detailed scheduling
+/// happens later in Field Operations against these targets.
+model PlannedFieldActivity {
+  id             String @id @default(uuid())
+  planId         String
+  plan           QuarterlyRecruitmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  activityType   String /// SCHOOL_VISIT / AGENT_MEETING / COUNSELLOR_TRAINING / STUDENT_PRESENTATION / WEBINAR / CLIENT_MEETING / OTHER
+  plannedCount   Int
+  actualCount    Int    @default(0)
+  notes          String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@map("planned_field_activities")
+}
+
+/// Spec §4D + §10 — every line item carries original currency, converted
+/// currency and the rate used, so quarterly reconciliation is auditable.
+/// FX rates are ENTERED, not fetched — see decision #6.
+model RecruitmentPlanBudgetItem {
+  id                   String  @id @default(uuid())
+  planId               String
+  plan                 QuarterlyRecruitmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  category             String /// FLIGHTS / ACCOMMODATION / LOCAL_TRANSPORT / EVENT_REGISTRATION / MARKETING_MATERIALS / MEALS / MISCELLANEOUS
+  description          String?
+
+  amount               Float
+  currency             String
+  convertedAmount      Float?
+  reportingCurrency    String?
+  exchangeRate         Float?
+  exchangeRateDate     DateTime?
+  exchangeRateSource   String? /// free-text audit note e.g. "Bank of Baroda TT rate 2026-Q3-01"
+
+  approvedAmount       Float?
+  actualSpend          Float?
+
+  /// Spec §4D — cost allocation category. Prevents double-counting when the
+  /// same event registration lands in both a shared event cost and a
+  /// participation cost.
+  allocation           String @default("PLAN") /// SHARED_EVENT / INSTITUTION_PARTICIPATION / ICR_TRAVEL / GENERAL_ACTIVITY / PLAN
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@map("recruitment_plan_budget_items")
+}
+
+/// Spec §9 — approved plans are read-only; any change is a VariationRequest.
+/// Types are enumerated so the approval route can escalate on budget
+/// increases without escalating on scope reductions.
+model VariationRequest {
+  id           String        @id @default(uuid())
+  planId       String
+  plan         QuarterlyRecruitmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  type         VariationType
+  reason       String        @db.Text
+  requestedById String
+  requestedBy   User         @relation("VariationRequester", fields: [requestedById], references: [id])
+  requestedAt   DateTime     @default(now())
+
+  status        RecruitmentPlanStatus @default(SUBMITTED)
+  approvedById  String?
+  approvedBy    User?        @relation("VariationApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  reviewNotes   String?      @db.Text
+
+  /// Where a variation adds cost, this is the incremental request in the
+  /// plan's reporting currency. The API keeps the split-currency detail in
+  /// linked budget items if needed.
+  incrementalCost Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([status])
+  @@map("variation_requests")
+}
+
+// ─── PHASE 5: MARKET INTELLIGENCE ──────────────────────────────────────────
+
+/// Spec §7 — ICRs suggest, RMs approve. This model captures the suggestion
+/// with its original + reviewed content so an edit doesn't overwrite the
+/// submitter's words.
+model MarketUpdateSuggestion {
+  id           String @id @default(uuid())
+  marketId     String
+  market       Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  kind         MarketUpdateKind
+  originalText String @db.Text
+  editedText   String? @db.Text
+
+  submittedById String
+  submittedBy   User   @relation("MarketUpdateSubmitter", fields: [submittedById], references: [id])
+  submittedAt   DateTime @default(now())
+
+  status        MarketUpdateStatus @default(PENDING)
+  reviewedById  String?
+  reviewedBy    User?    @relation("MarketUpdateReviewer", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewNotes   String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([marketId, status])
+  @@index([submittedById])
+  @@map("market_update_suggestions")
+}
+
+// ─── PHASE 6: TASKS WORKFLOW ENGINE ────────────────────────────────────────
+
+/// Spec §16 — reusable task recipe. Instances are created via API when
+/// events fire (e.g. "student application submitted" → create the three
+/// document-request tasks from the SCHOOL_VISIT template).
+model TaskTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+
+  /// The trigger that generates instances from this template. Machine-readable
+  /// event name checked by the workflow layer, e.g. "STUDENT_APPLICATION_SUBMITTED".
+  triggerEvent String?
+
+  /// Which parent type the generated tasks are linked to.
+  parentType   TaskParentType?
+  category     TaskCategory    @default(OTHER)
+
+  /// Recurring cadence for templates that fire on a schedule instead of an
+  /// event (e.g. "submit monthly report" every 1st of the month).
+  recurrence   TaskRecurrence  @default(ONE_OFF)
+
+  /// Ordered set of task specs generated when the template fires.
+  /// Shape: [{title, description?, offsetDays?, priority?}, ...].
+  itemsJson    Json
+
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tasks Task[]
+
+  @@map("task_templates")
 }

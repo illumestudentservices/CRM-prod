@@ -1,4 +1,4 @@
-import { PrismaClient, Role, LeadStage, StudyLevel, SourceType, AccountStatus, EventType, EventStatus, ReportStatus, ConfidenceLevel, EmploymentType, LeaveType, InteractionType, ActivityType, SchoolType, AgentTier, RelationshipStatus, MarketRiskLevel, KPICategory, KPIPeriod, RiskType, RiskStatus, ComplianceType, TaskPriority, TaskStatus, TravelStatus, KnowledgeType, QBRStatus } from "@prisma/client";
+import { PrismaClient, Role, LeadStage, StudyLevel, SourceType, AccountStatus, EventType, EventStatus, ReportStatus, EmploymentType, LeaveType, InteractionType, ActivityType, SchoolType, AgentTier, RelationshipStatus, MarketRiskLevel, KPICategory, KPIPeriod, RiskType, RiskStatus, ComplianceType, TaskPriority, TaskStatus, TravelStatus, KnowledgeType, QBRStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
@@ -460,20 +460,8 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ─── FORECAST ENTRIES ──────────────────────────────────────────────────
-  const report = await db.monthlyReport.findFirst({ where: { status: ReportStatus.FINAL_APPROVED } });
-  if (report) {
-    await db.forecastEntry.createMany({
-      data: [
-        { reportId: report.id, studentName: "Muhammad Arif Hassan", institutionId: instUCL.id, program: "MSc Computer Science", stage: LeadStage.ENROLLED, expectedMonth: 9, expectedYear: 2025, confidence: ConfidenceLevel.HIGH, weightedProb: 0.8, actualEnrolled: true },
-        { reportId: report.id, studentName: "Priya Krishnaswamy", institutionId: instUOM.id, program: "MBA", stage: LeadStage.OFFER_RECEIVED, expectedMonth: 9, expectedYear: 2025, confidence: ConfidenceLevel.HIGH, weightedProb: 0.8 },
-        { reportId: report.id, studentName: "Nur Aisyah Binti Zulkifli", institutionId: instUCL.id, program: "BEng Civil Engineering", stage: LeadStage.QUALIFIED, expectedMonth: 9, expectedYear: 2025, confidence: ConfidenceLevel.MEDIUM, weightedProb: 0.5 },
-        { reportId: report.id, studentName: "Li Wei Zhang", institutionId: instUOM.id, program: "BSc Data Science", stage: LeadStage.CONTACTED, expectedMonth: 1, expectedYear: 2026, confidence: ConfidenceLevel.LOW, weightedProb: 0.25 },
-      ],
-      skipDuplicates: true,
-    });
-  }
-  console.log("✅ Knowledge base, assets, announcements, forecast entries created");
+  // Forecast entries removed 2026-08-09 (Phase 7 — orphaned model dropped).
+  console.log("✅ Knowledge base, assets, announcements created");
 
   // ─── PHASE 1: MARKETS ─────────────────────────────────────────────────
   const markets = await Promise.all([
