@@ -17,6 +17,7 @@ const TIER_COLOR: Record<string, string> = {
   GOLD: "bg-amber-100 text-amber-700 border-amber-200",
   SILVER: "bg-slate-100 text-slate-600 border-slate-200",
   EMERGING: "bg-green-100 text-green-700 border-green-200",
+  INACTIVE: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 
 interface AgentData {
@@ -41,12 +42,14 @@ interface Props {
 }
 
 export function AgentDashboard({ agents }: Props) {
-  // Tier distribution
-  const tierCounts = {
+  // Tier distribution — spec §7 adds INACTIVE for agents that have stopped
+  // producing.
+  const tierCounts: Record<AgentTier, number> = {
     PLATINUM: agents.filter((a) => a.tier === "PLATINUM").length,
-    GOLD: agents.filter((a) => a.tier === "GOLD").length,
-    SILVER: agents.filter((a) => a.tier === "SILVER").length,
+    GOLD:     agents.filter((a) => a.tier === "GOLD").length,
+    SILVER:   agents.filter((a) => a.tier === "SILVER").length,
     EMERGING: agents.filter((a) => a.tier === "EMERGING").length,
+    INACTIVE: agents.filter((a) => a.tier === "INACTIVE").length,
   };
 
   const totalAgents = agents.length;
@@ -88,7 +91,7 @@ export function AgentDashboard({ agents }: Props) {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             {(
-              ["PLATINUM", "GOLD", "SILVER", "EMERGING"] as AgentTier[]
+              ["PLATINUM", "GOLD", "SILVER", "EMERGING", "INACTIVE"] as AgentTier[]
             ).map((tier) => {
               const count = tierCounts[tier];
               const pct = totalAgents > 0 ? (count / totalAgents) * 100 : 0;

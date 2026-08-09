@@ -79,6 +79,9 @@ const ROLE_LABELS: Record<Role, string> = {
   INSTITUTION_CLIENT: "Institution",
   HR_MANAGER: "HR Manager",
   EMPLOYEE: "Employee",
+  ACCOUNT_MANAGER: "Account Manager",
+  ADMISSIONS_SUPPORT: "Admissions Support",
+  VP_GLOBAL_SALES: "VP Global Sales",
 };
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────

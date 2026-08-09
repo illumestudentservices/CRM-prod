@@ -12,7 +12,12 @@ import { type AccountStatus } from "@prisma/client";
 
 const STATUS_CONFIG: Record<AccountStatus, { label: string; className: string }> = {
   PROSPECT: { label: "Prospect", className: "bg-slate-100 text-slate-600 border-slate-200" },
+  ONBOARDING: { label: "Onboarding", className: "bg-sky-100 text-sky-700 border-sky-200" },
   ACTIVE: { label: "Active", className: "bg-green-100 text-green-700 border-green-200" },
+  INACTIVE: { label: "Inactive", className: "bg-gray-100 text-gray-600 border-gray-200" },
+  SUSPENDED: { label: "Suspended", className: "bg-amber-100 text-amber-800 border-amber-200" },
+  CLOSED: { label: "Closed", className: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+  // Legacy — pre-migration-019 rows. New writes should not use these.
   RENEWAL_DUE: { label: "Renewal Due", className: "bg-amber-100 text-amber-700 border-amber-200" },
   CHURNED: { label: "Churned", className: "bg-red-100 text-red-700 border-red-200" },
 };
