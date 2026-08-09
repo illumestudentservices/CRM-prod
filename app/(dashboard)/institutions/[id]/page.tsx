@@ -78,6 +78,8 @@ async function getInstitution(id: string) {
           contracts: true,
           engagementLogs: true,
           activities: true,
+          // Spec §9 (Clients) — open-issues count for the Governance summary.
+          issues: { where: { status: { notIn: ["RESOLVED", "CLOSED"] } } },
         },
       },
     },
@@ -229,10 +231,17 @@ export default async function InstitutionDetailPage({
             activitiesCount: institution._count.activities,
             openRisks: institution.riskRegisters.length,
             openCompliance: institution.complianceItems.length,
+            // Spec §9 — the real "Open Issues" count now comes from ClientIssue,
+            // no longer inferred from risks + compliance.
+            openIssues:
+              typeof institution._count.issues === "number"
+                ? institution._count.issues
+                : undefined,
             deliverablesPending,
             deliverablesCompleted,
           },
-          budget: { total: institution.budgetTotal, used: institution.budgetUsed },
+          // Spec §11 — Account Health traffic-light.
+          accountHealth: institution.accountHealth,
           kpis: institution.clientKPIs.map((k) => ({
             id: k.id,
             name: k.name,

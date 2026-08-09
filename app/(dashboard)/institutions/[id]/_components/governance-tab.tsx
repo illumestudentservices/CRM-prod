@@ -15,10 +15,14 @@ interface GovernanceTabProps {
     activitiesCount: number;
     openRisks: number;
     openCompliance: number;
+    openIssues?: number;
     deliverablesPending: number;
     deliverablesCompleted: number;
   };
-  budget: { total: number | null; used: number | null };
+  /// Spec §11 — traffic-light account health, replacing the old numeric
+  /// healthScore. `null` for GREY (not assessed). Optional to keep this
+  /// component tolerant during rollout.
+  accountHealth?: "GREEN" | "AMBER" | "RED" | "GREY" | null;
   kpis: Array<{
     id: string;
     name: string;
@@ -36,10 +40,39 @@ interface GovernanceTabProps {
   }>;
 }
 
-export function GovernanceTab({ stats, budget, kpis, recentActivities }: GovernanceTabProps) {
-  const budgetPct = budget.total && budget.total > 0
-    ? (budget.used ?? 0) / budget.total
-    : null;
+// Spec §11 — traffic-light presentation.
+const HEALTH_CONFIG: Record<
+  "GREEN" | "AMBER" | "RED" | "GREY",
+  { label: string; className: string; caption: string }
+> = {
+  GREEN: {
+    label: "Healthy",
+    className: "bg-green-100 text-green-700 border-green-200",
+    caption: "On track",
+  },
+  AMBER: {
+    label: "Attention",
+    className: "bg-amber-100 text-amber-700 border-amber-200",
+    caption: "Needs review",
+  },
+  RED: {
+    label: "At Risk",
+    className: "bg-red-100 text-red-700 border-red-200",
+    caption: "Action required",
+  },
+  GREY: {
+    label: "Not Assessed",
+    className: "bg-slate-100 text-slate-500 border-slate-200",
+    caption: "Set by Account Manager",
+  },
+};
+
+export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: GovernanceTabProps) {
+  const health = accountHealth ?? "GREY";
+  const healthCfg = HEALTH_CONFIG[health];
+  // Prefer the new dedicated open-issues count if present, else fall back to
+  // the legacy risks+compliance stand-in.
+  const openIssues = stats.openIssues ?? stats.openRisks + stats.openCompliance;
 
   return (
     <div className="space-y-6">
@@ -65,20 +98,17 @@ export function GovernanceTab({ stats, budget, kpis, recentActivities }: Governa
             <p className="text-xs text-slate-500 mt-1">delivered</p>
           </CardContent>
         </Card>
+        {/* Spec §11 — Account Health replaces the (spec-forbidden) Budget card. */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs text-slate-500">Budget</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs text-slate-500">Account Health</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">
-              {budget.total ? formatCurrency(budget.used ?? 0) : "—"}
-            </p>
-            {budgetPct !== null && (
-              <p className={`text-xs mt-1 ${budgetPct > 0.9 ? "text-red-600" : "text-slate-500"}`}>
-                {formatPercent(budgetPct)} of {formatCurrency(budget.total!)}
-              </p>
-            )}
+            <Badge variant="outline" className={healthCfg.className}>
+              {healthCfg.label}
+            </Badge>
+            <p className="text-xs text-slate-500 mt-2">{healthCfg.caption}</p>
           </CardContent>
         </Card>
         <Card>
@@ -87,9 +117,11 @@ export function GovernanceTab({ stats, budget, kpis, recentActivities }: Governa
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <span className="text-xs text-slate-500">Open Issues</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">{stats.openRisks + stats.openCompliance}</p>
+            <p className="text-2xl font-bold text-slate-900">{openIssues}</p>
             <p className="text-xs text-slate-500 mt-1">
-              {stats.openRisks} risks · {stats.openCompliance} compliance
+              {stats.openIssues !== undefined
+                ? "client issues"
+                : `${stats.openRisks} risks · ${stats.openCompliance} compliance`}
             </p>
           </CardContent>
         </Card>
