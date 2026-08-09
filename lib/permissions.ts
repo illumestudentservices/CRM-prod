@@ -21,7 +21,12 @@ type Resource =
   | "travel"
   | "risk_compliance"
   | "knowledge"
-  | "tasks";
+  | "tasks"
+  // ─── Redesign resources (Phases 2–7) ─────────────────────────────────────
+  | "recruitment_network"
+  | "recruitment_planning"
+  | "market_intelligence"
+  | "field_operations";
 
 type Action = "read" | "write" | "delete" | "approve" | "export";
 
@@ -48,6 +53,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: ["read", "write", "delete", "approve", "export"],
     knowledge: ["read", "write", "delete", "approve", "export"],
     tasks: ["read", "write", "delete", "approve", "export"],
+    recruitment_network: ["read", "write", "delete", "approve", "export"],
+    recruitment_planning: ["read", "write", "delete", "approve", "export"],
+    market_intelligence: ["read", "write", "delete", "approve", "export"],
+    field_operations: ["read", "write", "delete", "approve", "export"],
   },
   HQ_EXECUTIVE: {
     leads: ["read", "export"],
@@ -71,6 +80,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: ["read", "export"],
     knowledge: ["read"],
     tasks: ["read"],
+    recruitment_network: ["read", "export"],
+    recruitment_planning: ["read", "approve", "export"],
+    market_intelligence: ["read", "export"],
+    field_operations: ["read", "export"],
   },
   HQ_ANALYTICS: {
     leads: ["read", "export"],
@@ -94,6 +107,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: ["read", "export"],
     knowledge: ["read"],
     tasks: ["read"],
+    recruitment_network: ["read", "export"],
+    recruitment_planning: ["read", "export"],
+    market_intelligence: ["read", "export"],
+    field_operations: ["read", "export"],
   },
   REGIONAL_MANAGER: {
     leads: ["read", "write", "export"],
@@ -117,6 +134,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: ["read", "export"],
     knowledge: ["read", "write"],
     tasks: ["read", "write"],
+    recruitment_network: ["read", "write", "export"],
+    recruitment_planning: ["read", "write", "approve", "export"],
+    market_intelligence: ["read", "write", "approve", "export"],
+    field_operations: ["read", "write", "export"],
   },
   ICR: {
     leads: ["read", "write", "export"],
@@ -140,6 +161,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: ["read"],
     knowledge: ["read", "write"],
     tasks: ["read", "write"],
+    recruitment_network: ["read", "write"],
+    recruitment_planning: ["read", "write"],
+    market_intelligence: ["read", "write"],
+    field_operations: ["read", "write"],
   },
   INSTITUTION_CLIENT: {
     leads: ["read"],
@@ -163,6 +188,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: [],
     knowledge: [],
     tasks: [],
+    recruitment_network: [],
+    recruitment_planning: [],
+    market_intelligence: [],
+    field_operations: [],
   },
   HR_MANAGER: {
     leads: [],
@@ -186,6 +215,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: [],
     knowledge: ["read", "write", "delete", "approve", "export"],
     tasks: ["read", "write"],
+    recruitment_network: [],
+    recruitment_planning: ["read", "write"],
+    market_intelligence: [],
+    field_operations: [],
   },
   EMPLOYEE: {
     leads: [],
@@ -209,6 +242,10 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     risk_compliance: [],
     knowledge: ["read"],
     tasks: ["read", "write"],
+    recruitment_network: [],
+    recruitment_planning: [],
+    market_intelligence: [],
+    field_operations: [],
   },
 };
 
@@ -285,6 +322,11 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
   settings:     ["SUPER_ADMIN"],
   activity_log: ["SUPER_ADMIN"],
+  // ─── Redesign nav (Phases 2–7) ───────────────────────────────────────────
+  recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  recruitment_planning: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR"],
+  market_intelligence:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
 };
 
 export type { Role, Resource, Action };
