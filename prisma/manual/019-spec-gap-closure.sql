@@ -334,6 +334,10 @@ ALTER TABLE "tasks"
 CREATE INDEX IF NOT EXISTS "tasks_reminderDate_idx"   ON "tasks"("reminderDate");
 CREATE INDEX IF NOT EXISTS "tasks_escalationDate_idx" ON "tasks"("escalationDate");
 
+-- PlannedFieldActivity: activatedAt so plan-activation is idempotent.
+ALTER TABLE "planned_field_activities"
+  ADD COLUMN IF NOT EXISTS "activatedAt" TIMESTAMP;
+
 -- ── 4. New tables (client_issues, account_interventions) ───────────────────
 
 CREATE TABLE IF NOT EXISTS "client_issues" (

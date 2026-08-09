@@ -160,7 +160,20 @@ export async function POST(req: NextRequest) {
         assignedICRId: assignedICRId || null,
         notes: notes || null,
         createdById: session.user.id,
-        // Link institutions
+        // Spec §7 (Recruitment Events) — write the RICH EventParticipation
+        // record (per-institution ICR, status, notes) as the primary join.
+        // We keep the flat EventInstitution join in sync for the older
+        // readers that still hit it; migration 020 will drop that once the
+        // remaining call-sites are cut over.
+        participations:
+          Array.isArray(institutionIds) && institutionIds.length > 0
+            ? {
+                create: institutionIds.map((iid: string) => ({
+                  institutionId: iid,
+                  status: "CONFIRMED" as const,
+                })),
+              }
+            : undefined,
         institutions:
           Array.isArray(institutionIds) && institutionIds.length > 0
             ? {
@@ -172,6 +185,9 @@ export async function POST(req: NextRequest) {
       },
       include: {
         institutions: {
+          include: { institution: { select: { id: true, name: true } } },
+        },
+        participations: {
           include: { institution: { select: { id: true, name: true } } },
         },
       },

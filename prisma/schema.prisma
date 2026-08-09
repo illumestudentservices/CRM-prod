@@ -3222,6 +3222,10 @@ model PlannedFieldActivity {
   plannedCount   Int
   actualCount    Int    @default(0)
   notes          String? @db.Text
+  /// Spec §7 — set once the plan activation cron materialises a stub
+  /// Field Operation row for this planned activity. Prevents double-creation
+  /// on re-runs.
+  activatedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
