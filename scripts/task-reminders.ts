@@ -11,6 +11,9 @@
  * failure in one automation domain never masks the other.
  */
 
+// Next.js loads .env itself; a standalone script does not, and without this
+// DATABASE_URL is undefined and Prisma fails on an empty password.
+import "dotenv/config";
 import { runTaskReminders } from "@/lib/task-reminders";
 
 const dryRun = process.argv.includes("--dry-run");
