@@ -56,11 +56,27 @@ export async function recalcAgentTiers(opts: { dryRun?: boolean } = {}): Promise
 
     if (newTier !== ap.tier) {
       if (!dryRun) {
-        await db.agentProfile.update({ where: { id: ap.id }, data: { tier: newTier, enrolments } });
+        // Stamp tierCalculatedAt so subsequent manual PUTs to /api/stakeholders/agents
+        // are refused. This is what turns Agent Tier from a manual dropdown
+        // into an auto-derived value per spec §7.
+        await db.agentProfile.update({
+          where: { id: ap.id },
+          data: { tier: newTier, enrolments, tierCalculatedAt: new Date() },
+        });
       }
       summary.tierChanges++;
     } else if (!dryRun && enrolments !== ap.enrolments) {
-      await db.agentProfile.update({ where: { id: ap.id }, data: { enrolments } });
+      await db.agentProfile.update({
+        where: { id: ap.id },
+        data: { enrolments, tierCalculatedAt: new Date() },
+      });
+    } else if (!dryRun && !ap.tierCalculatedAt) {
+      // First-time run for an existing agent: stamp so we can start refusing
+      // manual overrides even though the tier didn't change.
+      await db.agentProfile.update({
+        where: { id: ap.id },
+        data: { tierCalculatedAt: new Date() },
+      });
     }
   }
 

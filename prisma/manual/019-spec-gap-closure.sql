@@ -324,6 +324,16 @@ ALTER TABLE "agent_profiles"
   ADD COLUMN IF NOT EXISTS "tierCalculatedAt" TIMESTAMP,
   ADD COLUMN IF NOT EXISTS "lastMeetingDate"  TIMESTAMP;
 
+-- Task: startedAt, closedById, reminderSentAt, escalatedAt (spec Tasks §7, §8)
+ALTER TABLE "tasks"
+  ADD COLUMN IF NOT EXISTS "startedAt"      TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "closedById"     TEXT,
+  ADD COLUMN IF NOT EXISTS "reminderSentAt" TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "escalatedAt"    TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS "tasks_reminderDate_idx"   ON "tasks"("reminderDate");
+CREATE INDEX IF NOT EXISTS "tasks_escalationDate_idx" ON "tasks"("escalationDate");
+
 -- ── 4. New tables (client_issues, account_interventions) ───────────────────
 
 CREATE TABLE IF NOT EXISTS "client_issues" (

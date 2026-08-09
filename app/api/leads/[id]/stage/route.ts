@@ -267,6 +267,28 @@ export async function PATCH(
       },
     });
 
+    // Spec Tasks §10 — workflow automation. When a lead reaches a significant
+    // stage (Application Submitted / Offer Received / Deposit Paid / Enrolled),
+    // fire task templates whose triggerEvent matches "LEAD_STAGE_<newStage>".
+    // Best-effort — a template misconfig never blocks the stage change.
+    try {
+      const { fireEventTriggers } = await import("@/lib/task-workflow");
+      const creator = await db.employee.findFirst({
+        where: { userId },
+        select: { id: true },
+      });
+      if (creator) {
+        await fireEventTriggers(`LEAD_STAGE_${newStage}`, {
+          createdById: creator.id,
+          assigneeId: creator.id,
+          parentType: "STUDENT",
+          parentId: id,
+        });
+      }
+    } catch (triggerErr) {
+      console.error("[lead stage trigger] failed to fire task templates", triggerErr);
+    }
+
     return NextResponse.json({ data: updatedLead, overrode: overrodeGate });
   } catch (error) {
     console.error("[PATCH /api/leads/[id]/stage]", error);

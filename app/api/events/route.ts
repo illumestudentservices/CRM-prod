@@ -89,12 +89,61 @@ export async function POST(req: NextRequest) {
       assignedICRId,
       institutionIds,
       notes,
+      // Spec §3 (Recruitment Events) — duplicate-prevention escape hatch.
+      // Only SUPER_ADMIN may bypass ("Create New Event (System Administrator only)").
+      forceCreate,
     } = body;
 
     if (!name || !type || !date || !city || !country) {
       return NextResponse.json(
         { error: "Name, type, date, city and country are required" },
         { status: 400 }
+      );
+    }
+
+    // Spec §3 — duplicate check by (Event Name + Date + City + Country) with
+    // a ±14-day date window. Returns 409 with "Join Existing" info; only
+    // SUPER_ADMIN + forceCreate:true proceeds.
+    const eventDate = new Date(date);
+    const dupWindowMs = 14 * 24 * 60 * 60 * 1000;
+    const existing = await db.event.findFirst({
+      where: {
+        deletedAt: null,
+        name: { equals: name, mode: "insensitive" },
+        city: { equals: city, mode: "insensitive" },
+        country: { equals: country, mode: "insensitive" },
+        date: {
+          gte: new Date(eventDate.getTime() - dupWindowMs),
+          lte: new Date(eventDate.getTime() + dupWindowMs),
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+        city: true,
+        country: true,
+        status: true,
+      },
+    });
+
+    if (existing && !forceCreate) {
+      return NextResponse.json(
+        {
+          error: "Similar Recruitment Event already exists.",
+          existing,
+          options: {
+            joinExisting: true,
+            createNewRequiresAdmin: true,
+          },
+        },
+        { status: 409 }
+      );
+    }
+    if (existing && forceCreate && session.user.role !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "Only administrators may create a duplicate event." },
+        { status: 403 }
       );
     }
 

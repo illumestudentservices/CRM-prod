@@ -2284,12 +2284,26 @@ model Task {
   template         TaskTemplate?    @relation(fields: [templateId], references: [id])
   estimatedMinutes Int?
   actualMinutes    Int?
+  /// Spec Tasks §7 — stamp when the task moves from NOT_STARTED to
+  /// IN_PROGRESS. Complements `completedAt` for cycle-time reporting.
+  startedAt        DateTime?
+  /// Spec Tasks §7 — who closed the task. Denorm off the Employee model so
+  /// the audit trail survives assignee changes.
+  closedById       String?
+  /// Spec Tasks §8 — the reminder cron sets this when a reminder or a
+  /// due-soon notification was sent, so we don't nag twice.
+  reminderSentAt   DateTime?
+  /// Spec Tasks §8 — the reminder cron sets this when an overdue task was
+  /// escalated to the RM.
+  escalatedAt      DateTime?
 
   @@index([sourceActivityId])
   @@index([parentType, parentId])
   @@index([category])
   @@index([assigneeId, status])
   @@index([templateId])
+  @@index([reminderDate])
+  @@index([escalationDate])
   @@map("tasks")
 }
 
