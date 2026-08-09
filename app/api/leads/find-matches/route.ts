@@ -24,6 +24,10 @@ const schema = z.object({
   email: z.string().optional(),
   phone: z.string().optional(),
   countryOfResidence: z.string().optional(),
+  /// Spec §2 — DOB and passport are the two strongest identity signals
+  /// after email. When present, treat an exact match as HIGH confidence.
+  dateOfBirth: z.string().optional(),
+  passportNumber: z.string().optional(),
 });
 
 interface MatchResult {
@@ -53,9 +57,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 422 });
     }
-    const { firstName, lastName, email, phone, countryOfResidence } = parsed.data;
+    const { firstName, lastName, email, phone, countryOfResidence, dateOfBirth, passportNumber } = parsed.data;
 
-    if (!email && !phone && !firstName) {
+    if (!email && !phone && !firstName && !passportNumber && !dateOfBirth) {
       return NextResponse.json({ matches: [] });
     }
 
@@ -64,6 +68,19 @@ export async function POST(req: NextRequest) {
     const orConditions: any[] = [];
     if (email && email.length > 3) orConditions.push({ email: { equals: email, mode: "insensitive" } });
     if (phone && phone.length > 5) orConditions.push({ phone: { equals: phone } });
+    if (passportNumber && passportNumber.length >= 3) {
+      orConditions.push({ passportNumber: { equals: passportNumber, mode: "insensitive" } });
+    }
+    if (dateOfBirth) {
+      // Match date only (ignore time-of-day noise from timezone-shifted inputs).
+      const d = new Date(dateOfBirth);
+      if (!Number.isNaN(d.getTime())) {
+        const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const next = new Date(day);
+        next.setDate(next.getDate() + 1);
+        orConditions.push({ dateOfBirth: { gte: day, lt: next } });
+      }
+    }
     if (firstName && lastName) {
       orConditions.push({
         AND: [
@@ -79,6 +96,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true, firstName: true, lastName: true, email: true, phone: true,
         countryOfResidence: true,
+        dateOfBirth: true, passportNumber: true,
         assignedICR: { select: { id: true, name: true } },
         _count: { select: { institutionInterests: true } },
       },
@@ -90,6 +108,17 @@ export async function POST(req: NextRequest) {
       let confidence: "HIGH" | "MEDIUM" | "LOW" = "LOW";
       if (email && c.email?.toLowerCase() === email.toLowerCase()) { matched.push("email"); confidence = "HIGH"; }
       if (phone && c.phone === phone) { matched.push("phone"); confidence = "HIGH"; }
+      if (passportNumber && c.passportNumber && c.passportNumber.toLowerCase() === passportNumber.toLowerCase()) {
+        matched.push("passport"); confidence = "HIGH";
+      }
+      if (dateOfBirth && c.dateOfBirth) {
+        const inD = new Date(dateOfBirth);
+        const rowD = new Date(c.dateOfBirth);
+        if (inD.getFullYear() === rowD.getFullYear() && inD.getMonth() === rowD.getMonth() && inD.getDate() === rowD.getDate()) {
+          matched.push("dob");
+          if (confidence !== "HIGH") confidence = "MEDIUM";
+        }
+      }
       if (firstName && lastName && c.firstName.toLowerCase() === firstName.toLowerCase() && c.lastName.toLowerCase() === lastName.toLowerCase()) {
         matched.push("name");
         if (confidence !== "HIGH") {

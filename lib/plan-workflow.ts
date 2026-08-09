@@ -70,7 +70,11 @@ export function canTransition(role: Role, from: RecruitmentPlanStatus, to: Recru
 export async function activatePlan(planId: string): Promise<void> {
   const plan = await db.quarterlyRecruitmentPlan.findUnique({
     where: { id: planId },
-    include: { plannedFieldActivities: true, plannedTravel: true },
+    include: {
+      plannedFieldActivities: true,
+      plannedTravel: true,
+      icr: { select: { id: true } },
+    },
   });
   if (!plan || plan.status !== "APPROVED") return;
 
@@ -96,8 +100,88 @@ export async function activatePlan(planId: string): Promise<void> {
     });
   }
 
+  // Spec §7 (Recruitment Planning) — materialise a PLANNED Field Operation
+  // stub for each PlannedFieldActivity that hasn't produced one yet. This is
+  // the promised auto-scheduling: Field Ops now has one row per planned
+  // activity, ready for the ICR to schedule against.
+  const quarterStart = new Date(plan.year, (plan.quarter - 1) * 3, 1);
+  for (const pfa of plan.plannedFieldActivities) {
+    if (pfa.activatedAt) continue;
+    try {
+      await db.activity.create({
+        data: {
+          type: mapPlannedTypeToActivityType(pfa.activityType),
+          status: "PLANNED",
+          planAlignment: "WITHIN_APPROVED_PLAN",
+          title: `Planned: ${pfa.activityType} (Q${plan.quarter} ${plan.year})`,
+          description: pfa.notes ?? undefined,
+          date: quarterStart,
+          userId: plan.icrId,
+          institutionId: plan.institutionId,
+          marketId: plan.marketId,
+        },
+      });
+      await db.plannedFieldActivity.update({
+        where: { id: pfa.id },
+        data: { activatedAt: new Date() },
+      });
+    } catch (err) {
+      console.error("[activatePlan] failed to materialise planned activity", pfa.id, err);
+    }
+  }
+
+  // Spec Tasks §10 — fire task templates on plan activation ("Submit Plan",
+  // "Update Budget", "Upload Client Approval", "Prepare Materials" etc.).
+  // Task.createdById references Employee (not User), so resolve the ICR's
+  // employee row before firing.
+  try {
+    const icrEmployee = await db.employee.findFirst({
+      where: { userId: plan.icrId },
+      select: { id: true },
+    });
+    if (icrEmployee) {
+      const { fireEventTriggers } = await import("./task-workflow");
+      await fireEventTriggers("RECRUITMENT_PLAN_ACTIVATED", {
+        createdById: icrEmployee.id,
+        assigneeId: icrEmployee.id,
+        parentType: "RECRUITMENT_PLAN",
+        parentId: plan.id,
+      });
+    }
+  } catch (err) {
+    console.error("[activatePlan] fireEventTriggers failed", err);
+  }
+
   await db.quarterlyRecruitmentPlan.update({
     where: { id: planId },
     data: { status: "ACTIVE", activatedAt: new Date() },
   });
+}
+
+/// PlannedFieldActivity stores `activityType` as a free-text string per the
+/// deferred enum-conversion note in migration 015. Map whatever the plan
+/// contains onto a real ActivityType enum value, falling back to OTHER.
+function mapPlannedTypeToActivityType(input: string): import("@prisma/client").ActivityType {
+  const normalised = input.toUpperCase().replace(/\s+/g, "_");
+  const known: Record<string, import("@prisma/client").ActivityType> = {
+    SCHOOL_VISIT: "SCHOOL_VISIT",
+    AGENT_MEETING: "AGENT_MEETING",
+    AGENT_TRAINING: "AGENT_TRAINING",
+    SCHOOL_PRESENTATION: "SCHOOL_PRESENTATION",
+    CLIENT_MEETING: "CLIENT_MEETING",
+    PARTNER_MEETING: "PARTNER_MEETING",
+    MARKET_RESEARCH: "MARKET_RESEARCH",
+    STUDENT_FOLLOW_UP_SESSION: "STUDENT_FOLLOW_UP_SESSION",
+    EVENT_PREPARATION: "EVENT_PREPARATION",
+    EVENT_FOLLOW_UP: "EVENT_FOLLOW_UP",
+    REPORT_SUBMISSION: "REPORT_SUBMISSION",
+    DELEGATION_SUPPORT: "DELEGATION_SUPPORT",
+    INTERNAL_REVIEW: "INTERNAL_REVIEW",
+    // Common plan spellings that don't map 1:1 to ActivityType (which
+    // deliberately omits event-attendance types per spec §4).
+    WEBINAR: "AGENT_TRAINING",
+    COUNSELLOR_TRAINING: "AGENT_TRAINING",
+    STUDENT_PRESENTATION: "STUDENT_FOLLOW_UP_SESSION",
+  };
+  return known[normalised] ?? "OTHER";
 }

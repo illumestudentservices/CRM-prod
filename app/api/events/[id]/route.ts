@@ -135,6 +135,34 @@ export async function PATCH(
       },
     });
 
+    // Spec Tasks §10 — event lifecycle triggers. When the status transitions
+    // to COMPLETED or CLOSED, fire task templates keyed on
+    // "RECRUITMENT_EVENT_<status>" so the "Upload Outcome" / "Schedule
+    // Follow-up Webinar" workflow the spec describes runs automatically.
+    if (
+      status &&
+      status !== existing.status &&
+      (status === "COMPLETED" || status === "CLOSED")
+    ) {
+      try {
+        const { fireEventTriggers } = await import("@/lib/task-workflow");
+        const creator = await db.employee.findFirst({
+          where: { userId: session.user.id },
+          select: { id: true },
+        });
+        if (creator) {
+          await fireEventTriggers(`RECRUITMENT_EVENT_${status}`, {
+            createdById: creator.id,
+            assigneeId: creator.id,
+            parentType: "RECRUITMENT_EVENT",
+            parentId: id,
+          });
+        }
+      } catch (triggerErr) {
+        console.error("[event trigger] failed to fire task templates", triggerErr);
+      }
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[PATCH /api/events/:id]", error);

@@ -103,6 +103,8 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   LOST: "Lost",
   DEFERRED: "Deferred",
   APPLICATION_REJECTED: "Application Rejected",
+  WITHDRAWN: "Withdrawn",
+  VISA_REFUSED: "Visa Refused",
 };
 
 /** What the stage means, shown as help text on the pipeline stepper. */
@@ -118,6 +120,8 @@ export const STAGE_OBJECTIVES: Record<LeadStage, string> = {
   LOST: "Student is no longer proceeding",
   DEFERRED: "Student postponed to a future intake",
   APPLICATION_REJECTED: "Application unsuccessful at this institution",
+  WITHDRAWN: "Student withdrew from the process",
+  VISA_REFUSED: "Visa refused; alternative outcome required",
 };
 
 /** Tailwind classes for badges. */
@@ -133,6 +137,8 @@ export const STAGE_BADGE_CLASSES: Record<LeadStage, string> = {
   LOST: "bg-gray-100 text-gray-600 border-gray-200",
   DEFERRED: "bg-orange-100 text-orange-700 border-orange-200",
   APPLICATION_REJECTED: "bg-red-100 text-red-700 border-red-200",
+  WITHDRAWN: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  VISA_REFUSED: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
 /** Hex values, for chart libraries that can't take Tailwind classes. */
@@ -148,6 +154,8 @@ export const STAGE_HEX: Record<LeadStage, string> = {
   LOST: "#94A3B8",
   DEFERRED: "#F97316",
   APPLICATION_REJECTED: "#EF4444",
+  WITHDRAWN: "#71717A",
+  VISA_REFUSED: "#E11D48",
 };
 
 /**

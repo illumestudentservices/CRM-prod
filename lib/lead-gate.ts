@@ -256,6 +256,12 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
   LOST: { requiredFields: [], requiredCompletedTypes: [], allowedNext: [], requireCompletedActivity: false, requireFutureActivity: false },
   DEFERRED: { requiredFields: [], requiredCompletedTypes: [], allowedNext: [], requireCompletedActivity: false, requireFutureActivity: false },
   APPLICATION_REJECTED: { requiredFields: [], requiredCompletedTypes: [], allowedNext: [], requireCompletedActivity: false, requireFutureActivity: false },
+  // Spec §15 — WITHDRAWN is entered via the close endpoint; treated like LOST
+  // for gate purposes.
+  WITHDRAWN: { requiredFields: [], requiredCompletedTypes: [], allowedNext: [], requireCompletedActivity: false, requireFutureActivity: false },
+  // Spec §15 — VISA_REFUSED is a specialised close outcome. Handled entirely
+  // by the close endpoint's discriminated union.
+  VISA_REFUSED: { requiredFields: [], requiredCompletedTypes: [], allowedNext: [], requireCompletedActivity: false, requireFutureActivity: false },
 };
 
 /** Human-readable names for the typed Required Tasks. */

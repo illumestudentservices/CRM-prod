@@ -65,7 +65,10 @@ export async function validateTaskParent(
       return r ? null : "Travel Record not found";
     }
     case "CLIENT_ISSUE": {
-      const r = await db.riskRegister.findUnique({ where: { id: parentId }, select: { id: true } });
+      // Spec §9 (Clients) — CLIENT_ISSUE now points at the new ClientIssue
+      // model (created in migration 019). The pre-migration path used
+      // RiskRegister as a stand-in.
+      const r = await db.clientIssue.findUnique({ where: { id: parentId }, select: { id: true } });
       return r ? null : "Client Issue not found";
     }
     default:

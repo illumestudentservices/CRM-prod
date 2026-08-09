@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { generateFollowUpTasks } from "@/lib/auto-tasks";
+import { propagateActivityCompletion } from "@/lib/activity-propagation";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -164,13 +166,33 @@ export async function POST(req: NextRequest) {
       roi = data.leadsGenerated / data.cost;
     }
 
+    // Spec §3 (Field Operations) — derive lifecycle status. An activity with
+    // its endDate already in the past is COMPLETED (someone logged it after
+    // the fact). A future date is PLANNED. Everything else is IN_PROGRESS.
+    const now = new Date();
+    const activityDate = new Date(data.date);
+    const activityEndDate = data.endDate ? new Date(data.endDate) : null;
+    const isCompleted = activityEndDate ? activityEndDate < now : activityDate < now;
+    const isPlanned = activityDate > now;
+    const status = isCompleted
+      ? ("COMPLETED" as const)
+      : isPlanned
+      ? ("PLANNED" as const)
+      : ("IN_PROGRESS" as const);
+
     const activity = await db.activity.create({
       data: {
         type: data.type,
+        status,
         title: data.title,
         description: data.description ?? null,
-        date: new Date(data.date),
-        endDate: data.endDate ? new Date(data.endDate) : null,
+        date: activityDate,
+        endDate: activityEndDate,
+        // Spec §8 — actualDate is authoritative for "when did the work
+        // happen"; endDate has been used as a proxy but was inconsistent.
+        // Stamp it when the activity is logged as already done.
+        actualDate: isCompleted ? (activityEndDate ?? activityDate) : null,
+        outcomeSummary: isCompleted ? (data.outcomes ?? null) : null,
         location: data.location ?? null,
         city: data.city ?? null,
         country: data.country ?? null,
@@ -213,6 +235,50 @@ export async function POST(req: NextRequest) {
         _count: { select: { attendees: true } },
       },
     });
+
+    // Spec §11 (Field Operations) — cross-record propagation. Completing an
+    // activity updates its linked partner/school "last engagement" so relationship
+    // dashboards don't lie.
+    if (isCompleted) {
+      try {
+        await propagateActivityCompletion(activity);
+      } catch (propagationError) {
+        // Never block the activity create on a propagation hiccup — the
+        // authoritative record is the Activity row. Log for debugging only.
+        console.error("[activity propagation failed]", propagationError);
+      }
+    }
+
+    // Spec §12 (Field Operations) — fire the follow-up task templates that
+    // were previously dead code (lib/auto-tasks.ts). Best-effort: don't fail
+    // the activity create if the auto-tasks path errors.
+    try {
+      const suggestions = generateFollowUpTasks(activity.type, activity.title, activity.id);
+      if (suggestions.length > 0) {
+        const creator = await db.employee.findFirst({
+          where: { userId },
+          select: { id: true },
+        });
+        if (creator) {
+          await db.task.createMany({
+            data: suggestions.map((s) => ({
+              title: s.title,
+              description: s.description,
+              priority: s.priority as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+              status: "NOT_STARTED",
+              category: "OTHER",
+              sourceActivityId: activity.id,
+              parentType: "FIELD_OPERATION",
+              parentId: activity.id,
+              createdById: creator.id,
+              assigneeId: creator.id,
+            })),
+          });
+        }
+      }
+    } catch (taskError) {
+      console.error("[activity auto-tasks failed]", taskError);
+    }
 
     return NextResponse.json({ data: activity }, { status: 201 });
   } catch (error) {

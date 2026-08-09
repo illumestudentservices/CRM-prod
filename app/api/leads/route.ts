@@ -23,6 +23,23 @@ const createLeadSchema = z.object({
   phone: z.string().min(6, "Phone number is required"),
   nationality: z.string().min(2, "Nationality is required"),
   countryOfResidence: z.string().min(2, "Country of residence is required"),
+  // Spec §2 dedup keys. Optional at capture; forms should ask for them where
+  // possible (offline booth can't always).
+  dateOfBirth: z.preprocess(blankToUndefined, z.string().datetime().optional()),
+  passportNumber: z.preprocess(blankToUndefined, z.string().min(3).optional()),
+  // Spec Recruitment Network — how the lead entered the CRM.
+  channel: z.preprocess(
+    blankToUndefined,
+    z.enum([
+      "AGENT_REFERRAL", "SCHOOL_REFERRAL", "WEBSITE", "WALK_IN",
+      "STUDENT_REFERRAL", "STAFF_REFERRAL", "GOOGLE_ADS", "META_ADS",
+      "ORGANIC_SOCIAL", "QR_CODE", "OTHER"
+    ]).optional()
+  ),
+  // Spec §16 — first-touch date, defaults to server-now if the form doesn't
+  // send it (which is right for online capture; offline uploads pass a
+  // back-dated timestamp).
+  firstTouchDate: z.preprocess(blankToUndefined, z.string().datetime().optional()),
   interestedProgram: z.string().min(2, "Interested program is required"),
   faculty: z.string().optional(),
   studyLevel: z.enum(["UNDERGRADUATE", "POSTGRADUATE", "PATHWAY", "FOUNDATION"]),
@@ -247,6 +264,15 @@ export async function POST(req: NextRequest) {
       data.regionId ??
       (role === "ICR" || role === "REGIONAL_MANAGER" ? regionId ?? undefined : undefined);
 
+    // Spec §4 (Student Pipeline) — first-response SLA. Default 24h from capture
+    // to first contact; the inactivity cron reads this and escalates if
+    // firstContactAt is still null when we cross it.
+    const FIRST_RESPONSE_SLA_HOURS = 24;
+    const capturedAt = new Date();
+    const firstResponseDueAt = new Date(
+      capturedAt.getTime() + FIRST_RESPONSE_SLA_HOURS * 60 * 60 * 1000
+    );
+
     const lead = await db.lead.create({
       data: {
         firstName: data.firstName,
@@ -255,6 +281,9 @@ export async function POST(req: NextRequest) {
         phone: data.phone,
         nationality: data.nationality,
         countryOfResidence: data.countryOfResidence,
+        // Spec §2 — dedup keys captured at creation.
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+        passportNumber: data.passportNumber,
         interestedProgram: data.interestedProgram,
         faculty: data.faculty,
         studyLevel: data.studyLevel,
@@ -268,8 +297,18 @@ export async function POST(req: NextRequest) {
         institutionId: data.institutionId,
         sourceId: data.sourceId,
         eventId: data.eventId,
+        // Spec §16 — pin the original attribution. Never overwritten by later
+        // engagements. sourceId/eventId above remain mutable (current
+        // relationship owner); these are the audit trail.
+        originalSourceId: data.sourceId,
+        originalEventId: data.eventId,
+        firstTouchDate: data.firstTouchDate ? new Date(data.firstTouchDate) : capturedAt,
+        channel: data.channel,
         isDuplicate: !!duplicate,
         duplicateOfId: duplicate?.id,
+
+        // Spec §4 — first-response SLA clock starts now.
+        firstResponseDueAt,
 
         // Mapped explicitly like everything else above; spreading `data` here
         // would quietly widen what a caller can set on creation.
@@ -316,6 +355,26 @@ export async function POST(req: NextRequest) {
         changes: { stage: "NEW_LEAD", email: data.email },
       },
     });
+
+    // Spec §4 (Student Pipeline) System Automation — "Notify the assigned
+    // owner". Only fire if the owner is someone other than the person creating
+    // the lead (an ICR creating their own lead doesn't need to be told about
+    // it). Best-effort: silent failure keeps the create response 201.
+    if (lead.assignedICRId && lead.assignedICRId !== userId) {
+      try {
+        await db.notification.create({
+          data: {
+            userId: lead.assignedICRId,
+            title: "New lead assigned",
+            message: `"${displayName(lead)}" was captured and assigned to you`,
+            type: "LEAD_ASSIGNED",
+            link: `/students/${lead.id}`,
+          },
+        });
+      } catch {
+        /* non-fatal */
+      }
+    }
 
     return NextResponse.json(
       {
