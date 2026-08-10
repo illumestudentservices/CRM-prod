@@ -8,6 +8,8 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActivitiesClient } from "../activities/_components/activities-client";
+import { RoleDashboard } from "./_components/role-dashboard";
+import type { Role } from "@prisma/client";
 
 async function getActivities() {
   return db.activity.findMany({
@@ -81,6 +83,14 @@ export default async function FieldOperationsPage() {
       <PageHeader
         title="Field Operations"
         description="Planned service-delivery activities linked to Clients, Recruitment Partners, Events and Markets."
+      />
+      {/* Spec §13 — role-scoped dashboard sits above the shared activity
+          list. ICR sees a personal panel, RM sees a per-ICR breakdown,
+          senior management sees org-wide aggregates. */}
+      <RoleDashboard
+        userId={session.user.id}
+        role={session.user.role as Role}
+        regionId={session.user.regionId ?? null}
       />
       <ActivitiesClient activities={activities} stats={stats} lookups={lookups} />
     </div>
