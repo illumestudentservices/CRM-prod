@@ -35,6 +35,35 @@ async function getStats() {
   return { total, thisMonth, byType: byType.map((b) => ({ type: b.type, count: b._count })) };
 }
 
+// Spec §6 (Field Operations) — Lookup Before Create. Load the option lists
+// server-side so the client renders real dropdowns.
+async function getLookups() {
+  const [institutions, schools, sources] = await Promise.all([
+    db.institution.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, country: true },
+      orderBy: { name: "asc" },
+    }),
+    db.school.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, name: true, country: true },
+      orderBy: { name: "asc" },
+    }),
+    db.source.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        type: {
+          in: ["AGENT", "PARTNER", "REFERRAL_PARTNER", "EDUCATION_PARTNER"] as never,
+        },
+      },
+      select: { id: true, name: true, country: true, type: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  return { institutions, schools, sources };
+}
+
 export default async function FieldOperationsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -42,14 +71,18 @@ export default async function FieldOperationsPage() {
   if (!(await effectiveHasPermission(session.user.role as any, "field_operations", "read"))) {
     redirect("/dashboard");
   }
-  const [activities, stats] = await Promise.all([getActivities(), getStats()]);
+  const [activities, stats, lookups] = await Promise.all([
+    getActivities(),
+    getStats(),
+    getLookups(),
+  ]);
   return (
     <div className="p-6">
       <PageHeader
         title="Field Operations"
         description="Planned service-delivery activities linked to Clients, Recruitment Partners, Events and Markets."
       />
-      <ActivitiesClient activities={activities} stats={stats} />
+      <ActivitiesClient activities={activities} stats={stats} lookups={lookups} />
     </div>
   );
 }
