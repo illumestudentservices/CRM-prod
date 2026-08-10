@@ -7,12 +7,26 @@ const TD_R = 'style="padding:10px 14px;font-size:13px;color:#1e293b;border-botto
 const TD_BOLD = 'style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;font-weight:600;"';
 const TABLE = 'cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;"';
 
-function esc(text: string): string {
-  return text
+// Historical JSON columns on monthly_reports carry inconsistent shapes across
+// versions of the auto-populate cron. Rendering must not throw on any of them.
+// Every accessor here is defensive.
+
+function esc(text: unknown): string {
+  const s = typeof text === "string" ? text : text == null ? "" : String(text);
+  return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Render `?` for missing dashes so table cells don't collapse. */
+function dash(v: unknown): string {
+  return v == null || v === "" ? "—" : String(v);
+}
+
+function money(v: unknown): string {
+  return typeof v === "number" && v > 0 ? `$${v.toLocaleString()}` : "—";
 }
 
 function kpiBox(value: string, label: string, bg = "#f8fafc", border = "#e2e8f0", color = "#1E3A5F"): string {
@@ -24,32 +38,30 @@ function kpiBox(value: string, label: string, bg = "#f8fafc", border = "#e2e8f0"
   </td>`;
 }
 
-export function renderKpiHtml(kpi: {
-  totalLeads?: number;
-  enrolled?: number;
-  conversionRate?: number;
-  contactRate?: number;
-  eventsCount?: number;
-  totalEventCost?: number;
-}): string {
+export function renderKpiHtml(kpi: Record<string, unknown> | null | undefined): string {
   // Older reports were saved with only 3 KPI fields (totalLeads / conversionRate
   // / avgTimeToOffer). Rendering must not throw on missing fields — undefined
   // becomes "—" and the box still displays. Missing totalEventCost was the
   // exact case that returned 500 on /reports/[id] in production.
-  const n = (v: number | undefined) => (typeof v === "number" ? v : null);
-  const pct = (v: number | undefined) => (typeof v === "number" ? `${v}%` : "—");
-  const money = (v: number | undefined) =>
-    typeof v === "number" ? `$${v.toLocaleString()}` : "—";
+  const k = (kpi ?? {}) as Record<string, unknown>;
+  const num = (key: string): string => {
+    const v = k[key];
+    return typeof v === "number" ? String(v) : "—";
+  };
+  const pct = (key: string): string => {
+    const v = k[key];
+    return typeof v === "number" ? `${v}%` : "—";
+  };
   return `<table cellpadding="0" cellspacing="0" style="width:100%;">
     <tr>
-      ${kpiBox(n(kpi.totalLeads) === null ? "—" : String(kpi.totalLeads), "Total Leads")}
-      ${kpiBox(n(kpi.enrolled) === null ? "—" : String(kpi.enrolled), "Enrolled", "#f0fdf4", "#bbf7d0", "#22C55E")}
-      ${kpiBox(pct(kpi.conversionRate), "Conversion", "#eff6ff", "#bfdbfe", "#0369A1")}
+      ${kpiBox(num("totalLeads"), "Total Leads")}
+      ${kpiBox(num("enrolled"), "Enrolled", "#f0fdf4", "#bbf7d0", "#22C55E")}
+      ${kpiBox(pct("conversionRate"), "Conversion", "#eff6ff", "#bfdbfe", "#0369A1")}
     </tr>
     <tr>
-      ${kpiBox(pct(kpi.contactRate), "Contact Rate")}
-      ${kpiBox(n(kpi.eventsCount) === null ? "—" : String(kpi.eventsCount), "Events", "#fefce8", "#fde68a", "#F59E0B")}
-      ${kpiBox(money(kpi.totalEventCost), "Event Cost")}
+      ${kpiBox(pct("contactRate"), "Contact Rate")}
+      ${kpiBox(num("eventsCount"), "Events", "#fefce8", "#fde68a", "#F59E0B")}
+      ${kpiBox(money(k.totalEventCost), "Event Cost")}
     </tr>
   </table>`;
 }
@@ -60,14 +72,14 @@ export function renderLeadsHtml(leads: Array<SnapshotName & {
   studyLevel: string;
   stage: string;
 }>): string {
-  if (leads.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No leads recorded.</p>';
+  if (!Array.isArray(leads) || leads.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No leads recorded.</p>';
   const rows = leads.slice(0, 25).map((l, i) =>
     `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
       <td ${TD_BOLD}>${esc(snapshotName(l))}</td>
-      <td ${TD}>${esc(l.nationality)}</td>
-      <td ${TD}>${esc(l.interestedProgram)}</td>
-      <td ${TD}>${l.studyLevel}</td>
-      <td ${TD}>${l.stage.replace(/_/g, " ")}</td>
+      <td ${TD}>${esc(l?.nationality)}</td>
+      <td ${TD}>${esc(l?.interestedProgram)}</td>
+      <td ${TD}>${esc(l?.studyLevel)}</td>
+      <td ${TD}>${esc(typeof l?.stage === "string" ? l.stage.replace(/_/g, " ") : "")}</td>
     </tr>`
   ).join("");
   const more = leads.length > 25
@@ -84,35 +96,38 @@ export function renderProgramsHtml(programs: Array<{
   count: number;
   levels: Record<string, number>;
 }>): string {
-  if (programs.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No program data.</p>';
-  const rows = programs.map((p, i) =>
-    `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
-      <td ${TD_BOLD}>${esc(p.program)}</td>
-      <td ${TD_R}>${p.count}</td>
-      <td ${TD_R}>${p.levels?.["UNDERGRADUATE"] ?? 0}</td>
-      <td ${TD_R}>${p.levels?.["POSTGRADUATE"] ?? 0}</td>
-      <td ${TD_R}>${p.levels?.["FOUNDATION"] ?? 0}</td>
-      <td ${TD_R}>${p.levels?.["PATHWAY"] ?? 0}</td>
-    </tr>`
-  ).join("");
+  if (!Array.isArray(programs) || programs.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No program data.</p>';
+  const rows = programs.map((p, i) => {
+    // Older shape stored a single `level` string instead of a `levels` record.
+    const levels = (p?.levels && typeof p.levels === "object") ? p.levels : {};
+    return `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
+      <td ${TD_BOLD}>${esc(p?.program)}</td>
+      <td ${TD_R}>${dash(p?.count)}</td>
+      <td ${TD_R}>${levels?.["UNDERGRADUATE"] ?? 0}</td>
+      <td ${TD_R}>${levels?.["POSTGRADUATE"] ?? 0}</td>
+      <td ${TD_R}>${levels?.["FOUNDATION"] ?? 0}</td>
+      <td ${TD_R}>${levels?.["PATHWAY"] ?? 0}</td>
+    </tr>`;
+  }).join("");
   return `<table ${TABLE}>
     <thead><tr><th ${TH}>Program</th><th ${TH_R}>Total</th><th ${TH_R}>UG</th><th ${TH_R}>PG</th><th ${TH_R}>Foundation</th><th ${TH_R}>Pathway</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
 
-export function renderSourcesHtml(sources: Array<{
-  name: string;
-  leads: number;
-  enrolled: number;
-}>): string {
-  if (sources.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No source data.</p>';
-  const rows = sources.map((s, i) => {
-    const conv = s.leads > 0 ? `${Math.round((s.enrolled / s.leads) * 100)}%` : "—";
+export function renderSourcesHtml(sources: Array<Record<string, unknown>>): string {
+  if (!Array.isArray(sources) || sources.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No source data.</p>';
+  const rows = sources.map((rawS, i) => {
+    // Legacy field name was `source`, current shape uses `name` — accept both.
+    const s = rawS as { name?: unknown; source?: unknown; leads?: unknown; enrolled?: unknown };
+    const name = s?.name ?? s?.source;
+    const leads = typeof s?.leads === "number" ? s.leads : 0;
+    const enrolled = typeof s?.enrolled === "number" ? s.enrolled : 0;
+    const conv = leads > 0 ? `${Math.round((enrolled / leads) * 100)}%` : "—";
     return `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
-      <td ${TD_BOLD}>${esc(s.name)}</td>
-      <td ${TD_R}>${s.leads}</td>
-      <td ${TD_R} style="padding:10px 14px;font-size:13px;color:#22C55E;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${s.enrolled}</td>
+      <td ${TD_BOLD}>${esc(name)}</td>
+      <td ${TD_R}>${leads}</td>
+      <td ${TD_R} style="padding:10px 14px;font-size:13px;color:#22C55E;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:600;">${enrolled}</td>
       <td ${TD_R}>${conv}</td>
     </tr>`;
   }).join("");
@@ -122,24 +137,18 @@ export function renderSourcesHtml(sources: Array<{
   </table>`;
 }
 
-export function renderEventsHtml(events: Array<{
-  name: string;
-  type: string;
-  location: string;
-  cost: number;
-  leadsGenerated: number;
-  roi: number | null;
-}>): string {
-  if (events.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No events this period.</p>';
-  const rows = events.map((e, i) =>
-    `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
-      <td ${TD_BOLD}>${esc(e.name)}</td>
-      <td ${TD}>${esc(e.location)}</td>
-      <td ${TD_R}>${e.leadsGenerated}</td>
-      <td ${TD_R}>${e.cost > 0 ? "$" + e.cost.toLocaleString() : "—"}</td>
-      <td ${TD_R}>${e.roi !== null ? e.roi : "—"}</td>
-    </tr>`
-  ).join("");
+export function renderEventsHtml(events: Array<Record<string, unknown>>): string {
+  if (!Array.isArray(events) || events.length === 0) return '<p style="color:#94a3b8;font-size:13px;">No events this period.</p>';
+  const rows = events.map((rawE, i) => {
+    const e = rawE as { name?: unknown; location?: unknown; leadsGenerated?: unknown; cost?: unknown; roi?: unknown };
+    return `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f8fafc"};">
+      <td ${TD_BOLD}>${esc(e?.name)}</td>
+      <td ${TD}>${esc(e?.location)}</td>
+      <td ${TD_R}>${typeof e?.leadsGenerated === "number" ? e.leadsGenerated : "—"}</td>
+      <td ${TD_R}>${money(e?.cost)}</td>
+      <td ${TD_R}>${typeof e?.roi === "number" ? e.roi : "—"}</td>
+    </tr>`;
+  }).join("");
   return `<table ${TABLE}>
     <thead><tr><th ${TH}>Event</th><th ${TH}>Location</th><th ${TH_R}>Leads</th><th ${TH_R}>Cost</th><th ${TH_R}>ROI</th></tr></thead>
     <tbody>${rows}</tbody>
