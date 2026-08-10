@@ -162,11 +162,20 @@ export function ReportDetailClient({
     fill: stageHex(stage),
   }));
 
-  const sourceChartData = sources.slice(0, 8).map((s) => ({
-    name: s.name.length > 15 ? s.name.slice(0, 15) + "..." : s.name,
-    Leads: s.leads,
-    Enrolled: s.enrolled,
-  }));
+  // Older reports store this array under `source` instead of `name`. Both
+  // shapes coexist in prod; treat either as a display name and fall back to a
+  // placeholder rather than crashing on undefined.
+  const sourceChartData = sources.slice(0, 8).map((s) => {
+    const rawName =
+      (s as { name?: string; source?: string }).name ??
+      (s as { source?: string }).source ??
+      "Unknown";
+    return {
+      name: rawName.length > 15 ? rawName.slice(0, 15) + "..." : rawName,
+      Leads: s.leads ?? 0,
+      Enrolled: s.enrolled ?? 0,
+    };
+  });
 
   async function handleSendReport() {
     if (!emailTo.trim()) return;
@@ -355,19 +364,22 @@ export function ReportDetailClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.slice(0, 20).map((lead, i) => (
-                    <tr key={lead.id} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
-                      <td className="py-2 px-4 font-medium text-slate-800 dark:text-slate-200">{snapshotName(lead)}</td>
-                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{lead.nationality}</td>
-                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400 max-w-[140px] truncate">{lead.interestedProgram}</td>
-                      <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{lead.studyLevel}</td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${stageHex(lead.stage)}15`, color: stageHex(lead.stage) }}>
-                          {lead.stage.replace(/_/g, " ")}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {leads.slice(0, 20).map((lead, i) => {
+                    const stage = typeof lead.stage === "string" ? lead.stage : "";
+                    return (
+                      <tr key={lead.id ?? i} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                        <td className="py-2 px-4 font-medium text-slate-800 dark:text-slate-200">{snapshotName(lead)}</td>
+                        <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{lead.nationality}</td>
+                        <td className="py-2 px-3 text-slate-600 dark:text-slate-400 max-w-[140px] truncate">{lead.interestedProgram}</td>
+                        <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{lead.studyLevel}</td>
+                        <td className="py-2 px-3">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${stageHex(stage)}15`, color: stageHex(stage) }}>
+                            {stage.replace(/_/g, " ") || "—"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {leads.length > 20 && (
@@ -443,14 +455,22 @@ export function ReportDetailClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {sources.map((src, i) => (
-                    <tr key={src.name} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
-                      <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{src.name}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{src.leads}</td>
-                      <td className="py-2.5 px-4 text-right text-[#22C55E] font-semibold">{src.enrolled}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{src.leads > 0 ? `${Math.round((src.enrolled / src.leads) * 100)}%` : "—"}</td>
-                    </tr>
-                  ))}
+                  {sources.map((src, i) => {
+                    const name =
+                      (src as { name?: string; source?: string }).name ??
+                      (src as { source?: string }).source ??
+                      "Unknown";
+                    const leads = src.leads ?? 0;
+                    const enrolled = src.enrolled ?? 0;
+                    return (
+                      <tr key={`${name}-${i}`} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                        <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{name}</td>
+                        <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{leads}</td>
+                        <td className="py-2.5 px-4 text-right text-[#22C55E] font-semibold">{enrolled}</td>
+                        <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{leads > 0 ? `${Math.round((enrolled / leads) * 100)}%` : "—"}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
