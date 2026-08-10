@@ -51,7 +51,7 @@ async function getLookups() {
       select: { id: true, name: true, country: true },
       orderBy: { name: "asc" },
     }),
-    db.source.findMany({
+    db.recruitmentPartner.findMany({
       where: {
         deletedAt: null,
         isActive: true,

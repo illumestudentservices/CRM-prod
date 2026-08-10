@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const { kind, name, country, city, date } = parsed.data;
 
     if (kind === "PARTNER") {
-      const matches = await db.source.findMany({
+      const matches = await db.recruitmentPartner.findMany({
         where: {
           deletedAt: null,
           name: { contains: name, mode: "insensitive" },

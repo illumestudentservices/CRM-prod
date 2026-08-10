@@ -1013,7 +1013,10 @@ model Region {
 
   users            User[]
   leads            Lead[]
-  sources          Source[]
+  // Renamed from Source[] to RecruitmentPartner[]. Kept field name `sources`
+  // so existing readers (e.g. `region.sources.map(...)`) don't break; only
+  // the type behind it changed.
+  sources          RecruitmentPartner[]
   events           Event[]
   institutions     Institution[]
   monthlyReports   MonthlyReport[]
@@ -1131,7 +1134,7 @@ model Lead {
   institutionId String?
   institution   Institution? @relation(fields: [institutionId], references: [id])
   sourceId      String?
-  source        Source?      @relation(fields: [sourceId], references: [id])
+  source        RecruitmentPartner? @relation(fields: [sourceId], references: [id])
   eventId       String?
   event         Event?       @relation(fields: [eventId], references: [id])
 
@@ -1140,7 +1143,7 @@ model Lead {
   /// events / agents / partners. `sourceId` remains mutable (current
   /// relationship owner), `originalSourceId` is the audit trail.
   originalSourceId   String?
-  originalSource     Source?      @relation("OriginalSource", fields: [originalSourceId], references: [id])
+  originalSource     RecruitmentPartner? @relation("OriginalSource", fields: [originalSourceId], references: [id])
   /// Spec §16 — the specific event that originally captured this lead. Pinned
   /// at creation like `originalSourceId`.
   originalEventId    String?
@@ -1490,7 +1493,19 @@ model LeadDocument {
 
 // ─── PILLAR 2: SOURCES ─────────────────────────────────────────────────────
 
-model Source {
+/// Spec §1 (Recruitment Network) — rename Source → RecruitmentPartner.
+///
+/// This is a Prisma-only rename: `@@map("sources")` keeps the underlying
+/// Postgres table exactly where it was, so no data migration is needed and
+/// every existing FK (`sourceId` columns on Lead, Campaign, Activity, etc.)
+/// keeps pointing at the same rows. What changed is the JS API: what was
+/// `db.source.*` is now `db.recruitmentPartner.*`.
+///
+/// FK column names (`sourceId`, `originalSourceId`) stay as-is to avoid
+/// the multi-table rename cascade — the JS field name and the DB column
+/// name can differ, and the code has been updated to use the property
+/// names consistent with the new model.
+model RecruitmentPartner {
   id              String     @id @default(uuid())
   name            String
   type            SourceType
@@ -1563,7 +1578,7 @@ model Campaign {
   createdById    String
 
   sourceId String?
-  source   Source? @relation(fields: [sourceId], references: [id])
+  source   RecruitmentPartner? @relation(fields: [sourceId], references: [id])
 
   /// Field Ops activities linked to this campaign.
   activities Activity[] @relation("ActivityCampaign")
@@ -2719,7 +2734,7 @@ model Counsellor {
 model AgentProfile {
   id                  String    @id @default(uuid())
   sourceId            String    @unique
-  source              Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source              RecruitmentPartner @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   certificationStatus String?
   icefMembership      Boolean   @default(false)
   countryCoverage     String[]
@@ -2812,7 +2827,7 @@ model Activity {
   schoolId      String?
   school        School?      @relation("ActivitySchool", fields: [schoolId], references: [id])
   sourceId      String?
-  source        Source?      @relation("ActivitySource", fields: [sourceId], references: [id])
+  source        RecruitmentPartner? @relation("ActivitySource", fields: [sourceId], references: [id])
   /// Spec §7 (Field Operations) — multi-entity linking. Activity → Student
   /// where applicable (student follow-up sessions, offer discussions).
   leadId        String?
@@ -3032,7 +3047,7 @@ model QuarterlyBusinessReview {
 model PartnerContact {
   id        String  @id @default(uuid())
   partnerId String
-  partner   Source  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partner   RecruitmentPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
   fullName    String
   position    String?

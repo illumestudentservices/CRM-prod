@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
 
     // ── Source performance formatted ────────────────────────────────────────
     const sourceIds = sourceGroupsRaw.map((g) => g.sourceId).filter(Boolean) as string[];
-    const sourcesData = await db.source.findMany({
+    const sourcesData = await db.recruitmentPartner.findMany({
       where: { id: { in: sourceIds } },
       select: { id: true, name: true, type: true },
     });

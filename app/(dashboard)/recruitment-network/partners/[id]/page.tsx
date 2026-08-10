@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const partner = await db.source.findFirst({
+  const partner = await db.recruitmentPartner.findFirst({
     where: { id, deletedAt: null },
     include: {
       partnerContacts: { where: { isActive: true }, orderBy: [{ isPrimary: "desc" }, { fullName: "asc" }] },

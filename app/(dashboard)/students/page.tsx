@@ -29,7 +29,7 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
       },
       orderBy: { createdAt: "desc" },
     }),
-    db.source.findMany({
+    db.recruitmentPartner.findMany({
       where: { deletedAt: null, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: "asc" },

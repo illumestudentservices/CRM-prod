@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
 
     // ── Top sources formatted ──────────────────────────────────────────────
     const sourceIds = topSourceGroups.map((g) => g.sourceId).filter(Boolean) as string[];
-    const sources = await db.source.findMany({
+    const sources = await db.recruitmentPartner.findMany({
       where: { id: { in: sourceIds } },
       select: { id: true, name: true },
     });
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // ── Active partners (sources) ──────────────────────────────────────────
-    const activePartners = await db.source.count({
+    const activePartners = await db.recruitmentPartner.count({
       where: {
         isActive: true,
         deletedAt: null,

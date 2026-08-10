@@ -29,7 +29,7 @@ export async function validateTaskParent(
       return r ? null : "Institution not found";
     }
     case "RECRUITMENT_PARTNER": {
-      const r = await db.source.findFirst({ where: { id: parentId, deletedAt: null }, select: { id: true } });
+      const r = await db.recruitmentPartner.findFirst({ where: { id: parentId, deletedAt: null }, select: { id: true } });
       return r ? null : "Recruitment Partner not found";
     }
     case "RECRUITMENT_EVENT": {

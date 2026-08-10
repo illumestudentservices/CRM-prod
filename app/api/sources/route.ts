@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const isActive = searchParams.get("isActive");
 
-    const sources = await db.source.findMany({
+    const sources = await db.recruitmentPartner.findMany({
       where: {
         deletedAt: null,
         ...(type ? { type } : {}),
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name, type and country are required" }, { status: 400 });
     }
 
-    const source = await db.source.create({
+    const source = await db.recruitmentPartner.create({
       data: {
         name,
         type,

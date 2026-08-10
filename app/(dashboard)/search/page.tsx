@@ -60,7 +60,7 @@ export default async function SearchPage({
       },
       take: 10,
     }),
-    db.source.findMany({
+    db.recruitmentPartner.findMany({
       where: {
         deletedAt: null,
         OR: [{ name: like }, { country: like }, { city: like }],

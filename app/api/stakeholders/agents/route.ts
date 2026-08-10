@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify source exists and is an agent
-    const source = await db.source.findUnique({ where: { id: sourceId } });
+    const source = await db.recruitmentPartner.findUnique({ where: { id: sourceId } });
     if (!source || source.deletedAt) {
       return NextResponse.json(
         { error: "Source not found" },

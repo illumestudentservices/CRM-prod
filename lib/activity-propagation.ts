@@ -48,7 +48,7 @@ export async function propagateActivityCompletion(activity: {
   // Source.lastActiveAt + AgentProfile.lastMeetingDate — bump on any partner engagement.
   if (activity.sourceId) {
     updates.push(
-      db.source.updateMany({
+      db.recruitmentPartner.updateMany({
         where: {
           id: activity.sourceId,
           OR: [{ lastActiveAt: null }, { lastActiveAt: { lt: engagedAt } }],
