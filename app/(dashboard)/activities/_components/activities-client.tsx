@@ -28,27 +28,60 @@ import type { ActivityType } from "@prisma/client";
 
 // ─── Type configuration ──────────────────────────────────────────────────────
 
+// Spec §4 (Field Operations) — 14 activity types. STUDENT_EVENT + FAIR remain
+// in the enum for legacy rows created before migration 019 but are hidden from
+// the create form: event attendance is captured through Event Participation.
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   SCHOOL_VISIT: { label: "School Visit", color: "bg-blue-100 text-blue-700", icon: School },
   AGENT_MEETING: { label: "Agent Meeting", color: "bg-amber-100 text-amber-700", icon: Handshake },
-  STUDENT_EVENT: { label: "Student Event", color: "bg-cyan-100 text-cyan-700", icon: Users },
-  FAIR: { label: "Fair", color: "bg-violet-100 text-violet-700", icon: Flag },
+  AGENT_TRAINING: { label: "Agent Training", color: "bg-orange-100 text-orange-700", icon: Handshake },
+  SCHOOL_PRESENTATION: { label: "School Presentation", color: "bg-sky-100 text-sky-700", icon: School },
+  CLIENT_MEETING: { label: "Client Meeting", color: "bg-emerald-100 text-emerald-700", icon: Handshake },
   PARTNER_MEETING: { label: "Partner Meeting", color: "bg-green-100 text-green-700", icon: Handshake },
+  MARKET_RESEARCH: { label: "Market Research", color: "bg-indigo-100 text-indigo-700", icon: ClipboardList },
+  STUDENT_FOLLOW_UP_SESSION: { label: "Student Follow-up", color: "bg-cyan-100 text-cyan-700", icon: Users },
+  EVENT_PREPARATION: { label: "Event Preparation", color: "bg-violet-100 text-violet-700", icon: Flag },
+  EVENT_FOLLOW_UP: { label: "Event Follow-up", color: "bg-fuchsia-100 text-fuchsia-700", icon: Flag },
+  REPORT_SUBMISSION: { label: "Report Submission", color: "bg-slate-100 text-slate-700", icon: ClipboardList },
+  DELEGATION_SUPPORT: { label: "Delegation Support", color: "bg-purple-100 text-purple-700", icon: Users },
+  INTERNAL_REVIEW: { label: "Internal Review", color: "bg-zinc-100 text-zinc-700", icon: ClipboardList },
+  OTHER: { label: "Other", color: "bg-slate-100 text-slate-600", icon: ClipboardList },
+  // Legacy — kept so old rows render but not offered in the create form.
+  STUDENT_EVENT: { label: "Student Event (legacy)", color: "bg-cyan-100 text-cyan-700", icon: Users },
+  FAIR: { label: "Fair (legacy)", color: "bg-violet-100 text-violet-700", icon: Flag },
 };
 
 const ACTIVITY_TYPES = [
   { value: "SCHOOL_VISIT", label: "School Visit" },
+  { value: "SCHOOL_PRESENTATION", label: "School Presentation" },
   { value: "AGENT_MEETING", label: "Agent Meeting" },
-  { value: "STUDENT_EVENT", label: "Student Event" },
-  { value: "FAIR", label: "Fair" },
+  { value: "AGENT_TRAINING", label: "Agent Training" },
+  { value: "CLIENT_MEETING", label: "Client Meeting" },
   { value: "PARTNER_MEETING", label: "Partner Meeting" },
+  { value: "MARKET_RESEARCH", label: "Market Research" },
+  { value: "STUDENT_FOLLOW_UP_SESSION", label: "Student Follow-up Session" },
+  { value: "EVENT_PREPARATION", label: "Event Preparation" },
+  { value: "EVENT_FOLLOW_UP", label: "Event Follow-up" },
+  { value: "REPORT_SUBMISSION", label: "Report Submission" },
+  { value: "DELEGATION_SUPPORT", label: "Delegation Support" },
+  { value: "INTERNAL_REVIEW", label: "Internal Review" },
+  { value: "OTHER", label: "Other" },
 ] as const;
+
+const STATUS_BADGE: Record<string, string> = {
+  PLANNED: "bg-slate-100 text-slate-700 border-slate-200",
+  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
+  COMPLETED: "bg-green-100 text-green-700 border-green-200",
+  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface ActivityItem {
   id: string;
   type: ActivityType;
+  status?: string | null;
   title: string;
   date: Date | string;
   city: string | null;
@@ -62,6 +95,18 @@ interface ActivityItem {
   market: { id: string; name: string } | null;
   school: { id: string; name: string } | null;
   _count: { attendees: number };
+}
+
+interface LookupOption {
+  id: string;
+  name: string;
+  country?: string | null;
+  type?: string;
+}
+interface Lookups {
+  institutions: LookupOption[];
+  schools: LookupOption[];
+  sources: LookupOption[];
 }
 
 interface Stats {
@@ -79,10 +124,19 @@ interface ActionItem {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ActivitiesClient({ activities, stats }: { activities: ActivityItem[]; stats: Stats }) {
+export function ActivitiesClient({
+  activities,
+  stats,
+  lookups,
+}: {
+  activities: ActivityItem[];
+  stats: Stats;
+  lookups: Lookups;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Form state
   const [type, setType] = useState<string>("SCHOOL_VISIT");
@@ -394,12 +448,29 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Institution ID</Label>
-                      <Input
-                        value={institutionId}
-                        onChange={(e) => setInstitutionId(e.target.value)}
-                        placeholder="Institution ID (optional)"
-                      />
+                      <Label className="text-slate-700">Institution</Label>
+                      {/* Spec §6 (Field Operations) — "Lookup Before Create".
+                          Radix Select can't use "" as an item value, so
+                          "__none" round-trips to null on submit. */}
+                      <Select
+                        value={institutionId || "__none"}
+                        onValueChange={(v) => setInstitutionId(v === "__none" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select institution…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">— None —</SelectItem>
+                          {lookups.institutions.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>
+                              {i.name}
+                              {i.country && (
+                                <span className="text-muted-foreground"> · {i.country}</span>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -419,12 +490,26 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
                       <p className="text-sm font-medium text-blue-700">School Visit Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">School ID</Label>
-                          <Input
-                            value={schoolId}
-                            onChange={(e) => setSchoolId(e.target.value)}
-                            placeholder="School ID"
-                          />
+                          <Label className="text-slate-700">School</Label>
+                          <Select
+                            value={schoolId || "__none"}
+                            onValueChange={(v) => setSchoolId(v === "__none" ? "" : v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select school…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">— None —</SelectItem>
+                              {lookups.schools.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name}
+                                  {s.country && (
+                                    <span className="text-muted-foreground"> · {s.country}</span>
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-slate-700">Students Engaged</Label>
@@ -465,12 +550,27 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
                       <p className="text-sm font-medium text-amber-700">Agent Meeting Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Source / Agent ID</Label>
-                          <Input
-                            value={sourceId}
-                            onChange={(e) => setSourceId(e.target.value)}
-                            placeholder="Source ID"
-                          />
+                          <Label className="text-slate-700">Agent / Partner</Label>
+                          <Select
+                            value={sourceId || "__none"}
+                            onValueChange={(v) => setSourceId(v === "__none" ? "" : v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select agent or partner…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">— None —</SelectItem>
+                              {lookups.sources.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.name}
+                                  <span className="text-muted-foreground">
+                                    {" · "}
+                                    {s.type?.replace(/_/g, " ")}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-slate-700">Topics Discussed</Label>
@@ -662,29 +762,81 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
             </Dialog>
           </div>
 
+          {/* Spec §3 (Field Operations) — status filter. Rows with a NULL
+              status (pre-migration-019 data) group under "Unclassified". */}
+          {(() => {
+            const statusCounts: Record<string, number> = { all: activities.length };
+            for (const a of activities) {
+              const k = a.status ?? "UNSET";
+              statusCounts[k] = (statusCounts[k] ?? 0) + 1;
+            }
+            const tabs: Array<{ key: string; label: string }> = [
+              { key: "all", label: "All" },
+              { key: "PLANNED", label: "Planned" },
+              { key: "IN_PROGRESS", label: "In Progress" },
+              { key: "COMPLETED", label: "Completed" },
+              { key: "CLOSED", label: "Closed" },
+              { key: "CANCELLED", label: "Cancelled" },
+            ];
+            if ((statusCounts.UNSET ?? 0) > 0) {
+              tabs.push({ key: "UNSET", label: "Unclassified" });
+            }
+            return (
+              <div className="flex flex-wrap items-center gap-1 mb-3">
+                {tabs.map((t) => {
+                  const active = statusFilter === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setStatusFilter(t.key)}
+                      className={
+                        "text-xs px-2.5 py-1 rounded-full border transition-colors " +
+                        (active
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                      }
+                    >
+                      {t.label} <span className="opacity-70">{statusCounts[t.key] ?? 0}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/80">
                 <TableHead>Activity</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>By</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead className="text-center">Attendees</TableHead>
                 <TableHead className="text-center">Leads</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {activities.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-slate-400 py-8">
-                    No activities recorded yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                activities.map((a) => {
+              {(() => {
+                const filtered = activities.filter((a) => {
+                  if (statusFilter === "all") return true;
+                  if (statusFilter === "UNSET") return a.status == null;
+                  return a.status === statusFilter;
+                });
+                if (filtered.length === 0) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-slate-400 py-8">
+                        No activities match the current filter.
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                return filtered.map((a) => {
                   const cfg = TYPE_CONFIG[a.type];
+                  const statusCls = a.status ? STATUS_BADGE[a.status] ?? "" : "bg-slate-50 text-slate-500 border-slate-200";
                   return (
                     <TableRow key={a.id}>
                       <TableCell>
@@ -697,6 +849,11 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
                         <Badge variant="outline" className={cfg?.color ?? ""}>
                           {cfg?.label ?? a.type}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${statusCls}`}>
+                          {a.status ? a.status.replace(/_/g, " ") : "Unset"}
+                        </span>
                       </TableCell>
                       <TableCell className="text-sm text-slate-600">{formatDate(a.date)}</TableCell>
                       <TableCell>
@@ -715,12 +872,11 @@ export function ActivitiesClient({ activities, stats }: { activities: ActivityIt
                       <TableCell className="text-sm text-slate-500">
                         {[a.city, a.country].filter(Boolean).join(", ") || "—"}
                       </TableCell>
-                      <TableCell className="text-center text-sm">{a._count.attendees}</TableCell>
                       <TableCell className="text-center text-sm">{a.leadsGenerated ?? "—"}</TableCell>
                     </TableRow>
                   );
-                })
-              )}
+                });
+              })()}
             </TableBody>
           </Table>
         </CardContent>
