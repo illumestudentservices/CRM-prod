@@ -61,12 +61,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       name,
+      legalName,
       country,
       type,
       website,
       primaryContact,
       accountStatus,
       regionId,
+      reportingFrequency,
+      serviceScope,
+      regionalManagerId,
       notes,
     } = body;
 
@@ -80,12 +84,17 @@ export async function POST(req: NextRequest) {
     const institution = await db.institution.create({
       data: {
         name,
+        legalName: legalName || null,
         country,
         type,
         website: website || null,
         primaryContact: primaryContact || null,
         accountStatus: (accountStatus as AccountStatus) ?? "PROSPECT",
         regionId: regionId || null,
+        // Spec §3 (Clients) — reporting cadence + service scope multi-select
+        reportingFrequency: reportingFrequency ?? null,
+        serviceScope: Array.isArray(serviceScope) ? serviceScope : [],
+        regionalManagerId: regionalManagerId || null,
         notes: notes || null,
         createdById: session.user.id,
       },

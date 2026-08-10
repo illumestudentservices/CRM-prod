@@ -263,6 +263,7 @@ export default async function InstitutionDetailPage({
           assignedUsers,
         }}
         strategicObjectives={institution.strategicObjectives}
+        leads={institution.leads.map((l) => ({ id: l.id, stage: l.stage }))}
       />
     </div>
   );

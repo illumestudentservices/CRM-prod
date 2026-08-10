@@ -80,6 +80,7 @@ export async function PATCH(
     const body = await req.json();
     const {
       name,
+      legalName,
       country,
       type,
       website,
@@ -89,17 +90,24 @@ export async function PATCH(
       notes,
       contractValue,
       renewalDate,
+      // Legacy — accepted for backwards compatibility with any UI that still
+      // sends them, but no longer surfaced. Spec §2 removed the Budget card.
       budgetTotal,
       budgetUsed,
       strategicObjectives,
       overview,
       accountManagerId,
+      // Spec §3 / §11 additions
+      reportingFrequency,
+      serviceScope,
+      regionalManagerId,
     } = body;
 
     const updated = await db.institution.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
+        ...(legalName !== undefined && { legalName: legalName || null }),
         ...(country !== undefined && { country }),
         ...(type !== undefined && { type }),
         ...(website !== undefined && { website }),
@@ -116,6 +124,15 @@ export async function PATCH(
         ...(strategicObjectives !== undefined && { strategicObjectives }),
         ...(overview !== undefined && { overview }),
         ...(accountManagerId !== undefined && { accountManagerId: accountManagerId || null }),
+        ...(reportingFrequency !== undefined && {
+          reportingFrequency: reportingFrequency || null,
+        }),
+        ...(serviceScope !== undefined && {
+          serviceScope: Array.isArray(serviceScope) ? serviceScope : [],
+        }),
+        ...(regionalManagerId !== undefined && {
+          regionalManagerId: regionalManagerId || null,
+        }),
       },
     });
 

@@ -15,6 +15,8 @@ import { EngagementLog } from "./engagement-log";
 import { GovernanceTab } from "./governance-tab";
 import { TeamTab } from "./team-tab";
 import { KpiManager } from "./kpi-manager";
+import { PipelinePanel } from "./pipeline-panel";
+import type { LeadStage } from "@prisma/client";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +117,8 @@ interface InstitutionTabsClientProps {
     assignedUsers: TeamMember[];
   };
   strategicObjectives: string | null;
+  /// Spec §2 (Clients) — student pipeline panel data (all leads with stage).
+  leads: Array<{ id: string; stage: LeadStage }>;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -132,6 +136,7 @@ export function InstitutionTabsClient({
   governanceData,
   teamData,
   strategicObjectives,
+  leads,
 }: InstitutionTabsClientProps) {
   return (
     <Tabs defaultValue="governance">
@@ -158,6 +163,10 @@ export function InstitutionTabsClient({
 
       {/* Overview */}
       <TabsContent value="overview" className="mt-4 space-y-6">
+        {/* Spec §2 (Clients) — 8-stage pipeline panel. Sits above the summary
+            tiles so an AM opening the tab sees the live pipeline immediately. */}
+        <PipelinePanel leads={leads} />
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: "Total Leads", value: counts.leads, cls: "text-slate-900" },
@@ -258,7 +267,20 @@ export function InstitutionTabsClient({
       </TabsContent>
 
       {/* KPIs */}
-      <TabsContent value="kpis" className="mt-4">
+      <TabsContent value="kpis" className="mt-4 space-y-6">
+        {/* Spec §8 (Clients) — auto-computed metrics from student records
+            appear above the manual KPI tracker. The disclaimer text is
+            spec-mandated: "Based on student records maintained within Illume
+            CRM." */}
+        <PipelinePanel leads={leads} />
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <p className="font-medium text-slate-700">Manual KPI targets</p>
+          <p className="mt-0.5">
+            The auto-computed pipeline above comes from student records. Use
+            the section below to record manual KPI targets your Account Manager
+            tracks separately (e.g. quarterly enquiry targets).
+          </p>
+        </div>
         <KpiManager institutionId={institutionId} />
       </TabsContent>
 
