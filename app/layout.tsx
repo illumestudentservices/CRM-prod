@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
+import { ThemeProvider, ThemeInitScript } from "@/components/theme/provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,14 +46,27 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      // suppressHydrationWarning: the ThemeInitScript modifies the html
+      // element (adding/removing `dark`, setting data-theme + color-scheme)
+      // before React hydrates. Without this, React logs a mismatch warning
+      // on every load — the actual output is what we want.
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="h-full bg-background">
-        <SessionProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </SessionProvider>
+      <head>
+        {/* Runs synchronously in <head> before body renders, so the very
+            first paint already matches the saved theme. Without this we get
+            a light-mode flash for dark-mode users. */}
+        <ThemeInitScript />
+      </head>
+      <body className="h-full bg-background text-foreground">
+        <ThemeProvider>
+          <SessionProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
