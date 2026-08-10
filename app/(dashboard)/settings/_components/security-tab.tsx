@@ -19,14 +19,14 @@ const ROLES = ["SUPER_ADMIN","HQ_EXECUTIVE","HQ_ANALYTICS","REGIONAL_MANAGER","I
 type RoleKey = typeof ROLES[number];
 
 const ROLE_META: Record<RoleKey, { label: string; short: string; color: string; badge: string; description: string }> = {
-  SUPER_ADMIN:        { label: "Super Admin",         short: "SA",   color: "#EF4444", badge: "bg-red-100 text-red-800",       description: "Full unrestricted access to all modules" },
-  HQ_EXECUTIVE:       { label: "HQ Executive",         short: "HQE",  color: "#8B5CF6", badge: "bg-violet-100 text-violet-800", description: "Executive read & approval access" },
-  HQ_ANALYTICS:       { label: "HQ Analytics",         short: "HQA",  color: "#3B82F6", badge: "bg-blue-100 text-blue-800",     description: "Analytics and reporting focus" },
-  REGIONAL_MANAGER:   { label: "Regional Manager",     short: "RM",   color: "#6366F1", badge: "bg-indigo-100 text-indigo-800", description: "Manages a geographic region" },
-  ICR:                { label: "ICR",                  short: "ICR",  color: "#14B8A6", badge: "bg-teal-100 text-teal-800",     description: "Institutional client representative" },
-  INSTITUTION_CLIENT: { label: "Institution Client",   short: "INST", color: "#F59E0B", badge: "bg-amber-100 text-amber-800",   description: "Partner institution user" },
-  HR_MANAGER:         { label: "HR Manager",           short: "HRM",  color: "#F97316", badge: "bg-orange-100 text-orange-800", description: "Manages HR and ERP functions" },
-  EMPLOYEE:           { label: "Employee",             short: "EMP",  color: "#64748B", badge: "bg-slate-100 text-slate-700",   description: "General staff self-service access" },
+  SUPER_ADMIN:        { label: "Super Admin",         short: "SA",   color: "#EF4444", badge: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300",       description: "Full unrestricted access to all modules" },
+  HQ_EXECUTIVE:       { label: "HQ Executive",         short: "HQE",  color: "#8B5CF6", badge: "bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-300", description: "Executive read & approval access" },
+  HQ_ANALYTICS:       { label: "HQ Analytics",         short: "HQA",  color: "#3B82F6", badge: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300",     description: "Analytics and reporting focus" },
+  REGIONAL_MANAGER:   { label: "Regional Manager",     short: "RM",   color: "#6366F1", badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300", description: "Manages a geographic region" },
+  ICR:                { label: "ICR",                  short: "ICR",  color: "#14B8A6", badge: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-300",     description: "Institutional client representative" },
+  INSTITUTION_CLIENT: { label: "Institution Client",   short: "INST", color: "#F59E0B", badge: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",   description: "Partner institution user" },
+  HR_MANAGER:         { label: "HR Manager",           short: "HRM",  color: "#F97316", badge: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300", description: "Manages HR and ERP functions" },
+  EMPLOYEE:           { label: "Employee",             short: "EMP",  color: "#64748B", badge: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300",   description: "General staff self-service access" },
 };
 
 const RESOURCE_GROUPS = [
@@ -68,9 +68,9 @@ const ACTIONS = [
 ];
 
 const RISK_STYLE = {
-  low:    "text-emerald-600",
-  medium: "text-amber-600",
-  high:   "text-red-600",
+  low:    "text-emerald-600 dark:text-emerald-400",
+  medium: "text-amber-600 dark:text-amber-400",
+  high:   "text-red-600 dark:text-red-400",
 };
 
 type PermMatrix = Record<string, Record<string, Record<string, boolean>>>;
@@ -90,8 +90,8 @@ function PermCell({
       className={cn(
         "w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-150 border-2",
         granted
-          ? "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
-          : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100",
+          ? "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+          : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800",
         isOverride && !isDefault && "ring-2 ring-amber-400 ring-offset-1",
         disabled && "opacity-50 cursor-not-allowed"
       )}
@@ -248,9 +248,9 @@ export function SecurityTab() {
     <div className="space-y-5">
 
       {/* ── Enforcement notice ── */}
-      <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-amber-800">
+      <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 rounded-lg text-sm">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
+        <p className="text-amber-800 dark:text-amber-300">
           <strong>Permission changes take effect immediately.</strong>{" "}
           Overrides are saved to the database and enforced on all API routes and sidebar navigation in real time.
           Super Admin always retains full access and cannot be restricted.
@@ -267,7 +267,7 @@ export function SecurityTab() {
               <span className={cn("text-xs font-semibold px-1.5 py-0.5 rounded whitespace-nowrap", meta.badge)}>
                 {meta.short}
               </span>
-              <div className="relative h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="relative h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
                   style={{
@@ -289,11 +289,11 @@ export function SecurityTab() {
           <span>
             {totalOverrides === 0
               ? "All permissions match system defaults"
-              : <><strong className="text-amber-600">{totalOverrides}</strong> override{totalOverrides !== 1 ? "s" : ""} from defaults</>
+              : <><strong className="text-amber-600 dark:text-amber-300">{totalOverrides}</strong> override{totalOverrides !== 1 ? "s" : ""} from defaults</>
             }
           </span>
           {hasChanges && (
-            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-500/40 dark:bg-amber-500/10">
               Unsaved changes
             </Badge>
           )}
@@ -314,15 +314,15 @@ export function SecurityTab() {
       {/* ── Legend ── */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center"><Check className="h-3 w-3 text-emerald-600" /></span>
+          <span className="w-5 h-5 rounded bg-emerald-50 border-2 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 flex items-center justify-center"><Check className="h-3 w-3 text-emerald-600 dark:text-emerald-300" /></span>
           Granted
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-slate-50 border-2 border-slate-200 flex items-center justify-center"><X className="h-3 w-3 text-slate-400" /></span>
+          <span className="w-5 h-5 rounded bg-slate-50 border-2 border-slate-200 dark:bg-slate-800/40 dark:border-slate-700 flex items-center justify-center"><X className="h-3 w-3 text-slate-400 dark:text-slate-500" /></span>
           Denied
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded bg-emerald-50 border-2 border-emerald-200 ring-2 ring-amber-400 ring-offset-1" />
+          <span className="w-5 h-5 rounded bg-emerald-50 border-2 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 ring-2 ring-amber-400 ring-offset-1" />
           Overridden from default
         </span>
         <span className="flex items-center gap-2 ml-2">
@@ -379,7 +379,7 @@ export function SecurityTab() {
                 <React.Fragment key={group.group}>
                   {/* Group header row */}
                   <tr
-                    className="bg-slate-100 cursor-pointer select-none"
+                    className="bg-slate-100 dark:bg-slate-800 cursor-pointer select-none"
                     onClick={() => setCollapsedGroups((prev) => {
                       const next = new Set(prev);
                       if (next.has(group.group)) next.delete(group.group);
@@ -389,16 +389,16 @@ export function SecurityTab() {
                   >
                     <td
                       colSpan={ROLES.length + 1}
-                      className="py-2.5 px-4 bg-slate-100"
+                      className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800"
                       style={{ position: "sticky", left: 0 }}
                     >
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-600 uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                         {isCollapsed
                           ? <ChevronRight className="h-4 w-4" />
                           : <ChevronDown className="h-4 w-4" />
                         }
                         {group.group}
-                        <span className="font-normal text-slate-400 normal-case tracking-normal">({group.resources.length} resources)</span>
+                        <span className="font-normal text-slate-400 dark:text-slate-500 normal-case tracking-normal">({group.resources.length} resources)</span>
                       </div>
                     </td>
                   </tr>
@@ -414,7 +414,7 @@ export function SecurityTab() {
                         >
                           <div className="flex items-center gap-2">
                             <resource.icon className="h-4 w-4 text-[#0EA5E9] shrink-0" />
-                            <span className="text-sm font-semibold text-slate-700">{resource.label}</span>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{resource.label}</span>
                             <span className="text-xs text-muted-foreground hidden sm:inline">{resource.description}</span>
                           </div>
                         </td>
@@ -437,12 +437,12 @@ export function SecurityTab() {
                               style={{ position: "sticky", left: 0, zIndex: 10, backgroundColor: rowBg }}
                             >
                               <div className="flex items-center gap-2">
-                                <span className="text-sm text-slate-600 w-24">{action.label}</span>
+                                <span className="text-sm text-slate-600 dark:text-slate-300 w-24">{action.label}</span>
                                 <span className={cn("text-xs font-medium", RISK_STYLE[action.risk])}>
                                   {action.risk}
                                 </span>
                                 <span title={action.description}>
-                                  <Info className="h-3.5 w-3.5 text-slate-300 hover:text-slate-500 cursor-help" />
+                                  <Info className="h-3.5 w-3.5 text-slate-300 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-300 cursor-help" />
                                 </span>
                               </div>
                             </td>

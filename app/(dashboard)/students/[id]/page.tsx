@@ -56,12 +56,12 @@ function DetailRow({
   if (!value) return null;
   return (
     <div className="flex items-start gap-2.5">
-      <div className="h-7 w-7 rounded-md bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-        <Icon className="h-3.5 w-3.5 text-slate-500" />
+      <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{label}</p>
-        <p className="text-sm text-slate-800 mt-0.5 break-words">{value}</p>
+        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">{label}</p>
+        <p className="text-sm text-slate-800 dark:text-slate-200 mt-0.5 break-words">{value}</p>
       </div>
     </div>
   );
@@ -198,14 +198,14 @@ export default async function LeadDetailPage({
       <div className="flex items-start gap-4">
         <Link
           href="/students"
-          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 transition-colors shrink-0 mt-0.5"
+          className="h-8 w-8 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shrink-0 mt-0.5"
         >
-          <ArrowLeft className="h-4 w-4 text-slate-600" />
+          <ArrowLeft className="h-4 w-4 text-slate-600 dark:text-slate-400" />
         </Link>
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{displayName(lead)}</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{displayName(lead)}</h1>
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
@@ -215,13 +215,13 @@ export default async function LeadDetailPage({
               {STAGE_LABELS[lead.stage]}
             </span>
             {lead.isDuplicate && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium border border-amber-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">
                 <AlertTriangle className="h-3 w-3" />
                 Possible duplicate
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Added {formatDate(lead.createdAt)}
             {lead.institution && ` · ${lead.institution.name}`}
           </p>
@@ -243,7 +243,7 @@ export default async function LeadDetailPage({
           {/* Stage timeline */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Pipeline Stage</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pipeline Stage</CardTitle>
             </CardHeader>
             <CardContent>
               <StageSelector
@@ -259,7 +259,7 @@ export default async function LeadDetailPage({
           {/* Engagements — these are what satisfy the pipeline gates */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Activities &amp; Follow-ups
               </CardTitle>
             </CardHeader>
@@ -272,7 +272,7 @@ export default async function LeadDetailPage({
               is considering. Replaces the "one stage per lead" model. */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Institution Interests</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Institution Interests</CardTitle>
             </CardHeader>
             <CardContent>
               <InstitutionInterestsPanel
@@ -289,7 +289,7 @@ export default async function LeadDetailPage({
           {/* Applications — Stages 4, 6 and 7 read their required fields here */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Applications</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Applications</CardTitle>
             </CardHeader>
             <CardContent>
               <ApplicationPanel
@@ -303,7 +303,7 @@ export default async function LeadDetailPage({
           {/* Checklists, generated on reaching Qualified and Deposit Paid */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Checklists</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Checklists</CardTitle>
             </CardHeader>
             <CardContent>
               <ChecklistPanel leadId={lead.id} />
@@ -313,7 +313,7 @@ export default async function LeadDetailPage({
           {/* Audit trail */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">History</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">History</CardTitle>
             </CardHeader>
             <CardContent>
               <ActivityTimeline activities={activities} />
@@ -323,7 +323,7 @@ export default async function LeadDetailPage({
           {/* Notes */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Notes</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <AddNoteForm
@@ -338,7 +338,7 @@ export default async function LeadDetailPage({
           {lead.documents.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-800">
+                <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                   Documents ({lead.documents.length})
                 </CardTitle>
               </CardHeader>
@@ -350,14 +350,14 @@ export default async function LeadDetailPage({
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 transition-colors"
                     >
                       <div className="h-8 w-8 rounded-md bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
-                        <FileText className="h-4 w-4 text-[#1E3A5F]" />
+                        <FileText className="h-4 w-4 text-[#1E3A5F] dark:text-sky-300" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{doc.name}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
                           {doc.type} · {formatDate(doc.uploadedAt)}
                         </p>
                       </div>
@@ -374,7 +374,7 @@ export default async function LeadDetailPage({
           {/* Lead details */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold text-slate-800">Lead Details</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Lead Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <DetailRow icon={Mail} label="Email" value={lead.email} />
@@ -417,7 +417,7 @@ export default async function LeadDetailPage({
           {lead.source && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-800">Source</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Source</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2.5">
@@ -425,8 +425,8 @@ export default async function LeadDetailPage({
                     <Building2 className="h-3.5 w-3.5 text-[#0EA5E9]" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-800">{lead.source.name}</p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{lead.source.name}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
                       {lead.source.type.replace(/_/g, " ")} · {lead.source.country}
                     </p>
                   </div>
@@ -442,16 +442,16 @@ export default async function LeadDetailPage({
           {lead.institution && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-800">Institution</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Institution</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-md bg-violet-100 flex items-center justify-center shrink-0">
-                    <Building2 className="h-4 w-4 text-violet-600" />
+                  <div className="h-8 w-8 rounded-md bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center shrink-0">
+                    <Building2 className="h-4 w-4 text-violet-600 dark:text-violet-300" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{lead.institution.name}</p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{lead.institution.name}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
                       {lead.institution.type} · {lead.institution.country}
                     </p>
                   </div>
@@ -475,8 +475,8 @@ export default async function LeadDetailPage({
                   className={cn(
                     "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
                     lead.institution.accountStatus === "ACTIVE"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                      : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                   )}
                 >
                   {lead.institution.accountStatus}
@@ -489,7 +489,7 @@ export default async function LeadDetailPage({
           {lead.assignedICR ? (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-800">Assigned ICR</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Assigned ICR</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
@@ -500,8 +500,8 @@ export default async function LeadDetailPage({
                     <AvatarFallback>{getInitials(lead.assignedICR.name)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{lead.assignedICR.name}</p>
-                    <p className="text-xs text-slate-500">{lead.assignedICR.email}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{lead.assignedICR.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{lead.assignedICR.email}</p>
                   </div>
                 </div>
               </CardContent>
@@ -509,7 +509,7 @@ export default async function LeadDetailPage({
           ) : (
             <Card>
               <CardContent className="py-4">
-                <p className="text-xs text-slate-400 text-center">No ICR assigned</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center">No ICR assigned</p>
               </CardContent>
             </Card>
           )}

@@ -108,7 +108,7 @@ function AssignICRModal({
           <DialogTitle>Assign ICR</DialogTitle>
         </DialogHeader>
         <div className="py-2 space-y-3">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Assign {selectedLeads.length} selected lead(s) to an ICR.
           </p>
           <Select value={icrId} onValueChange={setIcrId}>
@@ -169,14 +169,14 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       cell: ({ row }) => (
         <div className="flex items-center gap-2.5">
           <div className="h-7 w-7 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
-            <span className="text-[10px] font-bold text-[#1E3A5F]">
+            <span className="text-[10px] font-bold text-[#1E3A5F] dark:text-sky-300">
               {initials(row.original)}
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">{displayName(row.original)}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{displayName(row.original)}</p>
             {row.original.isDuplicate && (
-              <p className="text-[10px] text-amber-600 font-medium">Possible duplicate</p>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Possible duplicate</p>
             )}
           </div>
         </div>
@@ -187,7 +187,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       accessorKey: "email",
       header: "Email",
       cell: ({ getValue }) => (
-        <span className="text-sm text-slate-600 truncate">{getValue() as string}</span>
+        <span className="text-sm text-slate-600 dark:text-slate-400 truncate">{getValue() as string}</span>
       ),
       size: 200,
     },
@@ -196,8 +196,8 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       header: "Program",
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="text-sm text-slate-700 truncate">{row.original.interestedProgram}</p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-sm text-slate-700 dark:text-slate-300 truncate">{row.original.interestedProgram}</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
             {row.original.studyLevel.replace(/_/g, " ")}
           </p>
         </div>
@@ -223,9 +223,9 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
         isInactiveStage(row.stage) ? -1 : (daysSince(row.stageEnteredAt) ?? 0),
       cell: ({ row }) => {
         const lead = row.original;
-        if (isInactiveStage(lead.stage)) return <span className="text-slate-300">—</span>;
+        if (isInactiveStage(lead.stage)) return <span className="text-slate-300 dark:text-slate-600">—</span>;
         const d = daysSince(lead.stageEnteredAt);
-        if (d === null) return <span className="text-slate-300">—</span>;
+        if (d === null) return <span className="text-slate-300 dark:text-slate-600">—</span>;
         const escalated = d >= INACTIVITY_ESCALATION_DAYS;
         const overdue = d >= INACTIVITY_REMINDER_DAYS;
         return (
@@ -233,10 +233,10 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
             className={cn(
               "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium tabular-nums",
               escalated
-                ? "bg-red-100 text-red-700"
+                ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
                 : overdue
-                  ? "bg-amber-100 text-amber-700"
-                  : "text-slate-500"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                  : "text-slate-500 dark:text-slate-400"
             )}
             title={
               escalated
@@ -258,7 +258,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       accessorFn: (row) => row.source?.name ?? "",
       header: "Source",
       cell: ({ row }) => (
-        <span className="text-sm text-slate-600">{row.original.source?.name ?? "—"}</span>
+        <span className="text-sm text-slate-600 dark:text-slate-400">{row.original.source?.name ?? "—"}</span>
       ),
       size: 140,
     },
@@ -267,7 +267,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       accessorFn: (row) => row.institution?.name ?? "",
       header: "Institution",
       cell: ({ row }) => (
-        <span className="text-sm text-slate-600 truncate">
+        <span className="text-sm text-slate-600 dark:text-slate-400 truncate">
           {row.original.institution?.name ?? "—"}
         </span>
       ),
@@ -288,12 +288,12 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
                 {getInitials(row.original.assignedICR.name)}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-slate-600 truncate">
+            <span className="text-xs text-slate-600 dark:text-slate-400 truncate">
               {row.original.assignedICR.name}
             </span>
           </div>
         ) : (
-          <span className="text-xs text-slate-400">Unassigned</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">Unassigned</span>
         ),
       size: 140,
     },
@@ -302,7 +302,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       accessorFn: (row) => `${row.intakeMonth}/${row.intakeYear}`,
       header: "Intake",
       cell: ({ row }) => (
-        <span className="text-xs text-slate-600 whitespace-nowrap">
+        <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
           {getMonthName(row.original.intakeMonth).slice(0, 3)} {row.original.intakeYear}
         </span>
       ),
@@ -312,7 +312,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ getValue }) => (
-        <span className="text-xs text-slate-500 whitespace-nowrap">
+        <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
           {formatDate(getValue() as Date)}
         </span>
       ),

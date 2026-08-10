@@ -37,19 +37,19 @@ const TYPE_GROUPS: Record<string, { label: string; types: string[] }> = {
 const PARTNER_TAB_TYPES = ["AGENT", "SCHOOL", "REFERRAL_PARTNER", "PARTNER", "EDUCATION_PARTNER"];
 
 const TYPE_BADGE: Record<string, string> = {
-  AGENT: "bg-blue-100 text-blue-700 border-blue-200",
-  SCHOOL: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  REFERRAL_PARTNER: "bg-orange-100 text-orange-700 border-orange-200",
-  PARTNER: "bg-amber-100 text-amber-700 border-amber-200",
-  EDUCATION_PARTNER: "bg-teal-100 text-teal-700 border-teal-200",
+  AGENT: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+  SCHOOL: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
+  REFERRAL_PARTNER: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30",
+  PARTNER: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+  EDUCATION_PARTNER: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-500/30",
 };
 
 const TIER_BADGE: Record<string, string> = {
-  PLATINUM: "bg-violet-100 text-violet-700 border-violet-200",
-  GOLD: "bg-amber-100 text-amber-700 border-amber-200",
-  SILVER: "bg-slate-100 text-slate-600 border-slate-200",
-  EMERGING: "bg-green-100 text-green-700 border-green-200",
-  INACTIVE: "bg-zinc-100 text-zinc-500 border-zinc-200",
+  PLATINUM: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
+  GOLD: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+  SILVER: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  EMERGING: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+  INACTIVE: "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
 };
 
 export default async function PartnersPage({ searchParams }: Props) {
@@ -136,8 +136,8 @@ export default async function PartnersPage({ searchParams }: Props) {
               className={
                 "text-xs px-2.5 py-1 rounded-full border transition-colors " +
                 (active
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                  ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
               }
             >
               {group.label} <span className="opacity-70">{count}</span>
@@ -162,14 +162,14 @@ export default async function PartnersPage({ searchParams }: Props) {
           </thead>
           <tbody>
             {partners.map((p) => {
-              const typeCls = TYPE_BADGE[p.type] ?? "bg-slate-100 text-slate-700 border-slate-200";
+              const typeCls = TYPE_BADGE[p.type] ?? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
               const tierCls = p.agentProfile?.tier
-                ? TIER_BADGE[p.agentProfile.tier] ?? "bg-slate-100 text-slate-700 border-slate-200"
+                ? TIER_BADGE[p.agentProfile.tier] ?? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
                 : null;
               return (
                 <tr key={p.id} className="border-t hover:bg-muted/50">
                   <td className="p-2">
-                    <Link href={`/recruitment-network/partners/${p.id}`} className="text-blue-600 hover:underline font-medium">
+                    <Link href={`/recruitment-network/partners/${p.id}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                       {p.name}
                     </Link>
                   </td>

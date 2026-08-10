@@ -32,13 +32,13 @@ const CustomTooltip = ({
 }) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-sm">
-      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-sm">
+      <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">{label}</p>
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-slate-500">{entry.name}:</span>
-          <span className="font-semibold text-slate-800">{entry.value}</span>
+          <span className="text-slate-500 dark:text-slate-400">{entry.name}:</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200">{entry.value}</span>
         </div>
       ))}
     </div>

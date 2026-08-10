@@ -135,9 +135,9 @@ export function StudentsClientPage({
       {/* Offline capture limit. Shown to everyone rather than only when a queue
           exists: an ICR needs to know the ceiling before they leave for an
           event, which is exactly when they have nothing queued yet. */}
-      <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5">
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-900 leading-relaxed">
+      <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3.5 py-2.5">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
           {OFFLINE_CAPTURE_WARNING}
         </p>
       </div>
@@ -145,14 +145,14 @@ export function StudentsClientPage({
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         {/* Tab switcher */}
-        <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5 gap-0.5 w-fit">
+        <div className="flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-0.5 gap-0.5 w-fit">
           <button
             onClick={() => setActiveTab("kanban")}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
               activeTab === "kanban"
                 ? "bg-[#1E3A5F] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+                : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200"
             )}
           >
             <LayoutGrid className="h-4 w-4" />
@@ -164,7 +164,7 @@ export function StudentsClientPage({
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
               activeTab === "list"
                 ? "bg-[#1E3A5F] text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+                : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200"
             )}
           >
             <List className="h-4 w-4" />
@@ -197,12 +197,12 @@ export function StudentsClientPage({
       <div className="flex flex-wrap gap-2 items-center">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <Input
             placeholder="Search leads..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm bg-white"
+            className="pl-8 h-8 text-sm bg-white dark:bg-slate-900"
           />
         </div>
 
@@ -211,7 +211,7 @@ export function StudentsClientPage({
           value={stageFilter}
           onValueChange={(v) => setStageFilter(v as LeadStage | "ALL")}
         >
-          <SelectTrigger className="h-8 w-[160px] text-sm bg-white">
+          <SelectTrigger className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900">
             <SelectValue placeholder="All Stages" />
           </SelectTrigger>
           <SelectContent>
@@ -226,7 +226,7 @@ export function StudentsClientPage({
         {/* Institution filter */}
         {institutions.length > 0 && (
           <Select value={institutionFilter} onValueChange={setInstitutionFilter}>
-            <SelectTrigger className="h-8 w-[180px] text-sm bg-white">
+            <SelectTrigger className="h-8 w-[180px] text-sm bg-white dark:bg-slate-900">
               <SelectValue placeholder="All Institutions" />
             </SelectTrigger>
             <SelectContent>
@@ -243,7 +243,7 @@ export function StudentsClientPage({
         {/* ICR filter (managers only) */}
         {isManager && icrUsers.length > 0 && (
           <Select value={icrFilter} onValueChange={setIcrFilter}>
-            <SelectTrigger className="h-8 w-[160px] text-sm bg-white">
+            <SelectTrigger className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900">
               <SelectValue placeholder="All ICRs" />
             </SelectTrigger>
             <SelectContent>
@@ -263,7 +263,7 @@ export function StudentsClientPage({
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="h-8 gap-1.5 text-slate-500 hover:text-slate-700"
+            className="h-8 gap-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
             <X className="h-3.5 w-3.5" />
             Clear filters
@@ -271,7 +271,7 @@ export function StudentsClientPage({
         )}
 
         {/* Result count */}
-        <span className="text-xs text-slate-500 ml-1">
+        <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
           {filteredLeads.length} lead{filteredLeads.length !== 1 ? "s" : ""}
         </span>
       </div>

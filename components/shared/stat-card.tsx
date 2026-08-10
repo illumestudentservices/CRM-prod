@@ -72,7 +72,7 @@ export function StatCard({
     ? "text-[#22C55E]"
     : isNegative
     ? "text-[#EF4444]"
-    : "text-slate-500";
+    : "text-slate-500 dark:text-slate-400";
 
   const ChangeTrendIcon = isPositive
     ? TrendingUp
@@ -85,9 +85,9 @@ export function StatCard({
       <Card className={cn("overflow-hidden", className)}>
         <CardContent className="p-5">
           <div className="animate-pulse space-y-3">
-            <div className="h-4 w-24 bg-slate-100 rounded" />
-            <div className="h-8 w-32 bg-slate-100 rounded" />
-            <div className="h-3 w-20 bg-slate-100 rounded" />
+            <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded" />
+            <div className="h-8 w-32 bg-slate-100 dark:bg-slate-800 rounded" />
+            <div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" />
           </div>
         </CardContent>
       </Card>
@@ -106,8 +106,8 @@ export function StatCard({
       <CardContent className="p-5 h-full">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-500 truncate">{title}</p>
-            <p className="mt-1.5 text-2xl font-bold text-slate-900 tracking-tight">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{title}</p>
+            <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {value}
             </p>
 
@@ -118,7 +118,7 @@ export function StatCard({
                   {isPositive ? "+" : ""}
                   {change.toFixed(1)}%
                 </span>
-                <span className="text-xs text-slate-400">{changeLabel}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{changeLabel}</span>
               </div>
             )}
           </div>

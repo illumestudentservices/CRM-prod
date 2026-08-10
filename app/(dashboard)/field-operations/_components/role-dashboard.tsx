@@ -95,7 +95,7 @@ async function renderRegionalManagerDashboard(regionId: string | null, now: Date
 
   if (icrs.length === 0) {
     return (
-      <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+      <div className="mb-4 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3 text-sm text-slate-500 dark:text-slate-400">
         No ICRs in your region yet.
       </div>
     );
@@ -126,12 +126,12 @@ async function renderRegionalManagerDashboard(regionId: string | null, now: Date
   );
 
   return (
-    <div className="mb-4 rounded border border-slate-200 overflow-hidden">
-      <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 text-xs font-medium text-slate-600">
+    <div className="mb-4 rounded border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300">
         Team activity — {icrs.length} ICR{icrs.length === 1 ? "" : "s"} in your region
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-slate-50/60 text-slate-500 text-xs">
+        <thead className="bg-slate-50/60 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 text-xs">
           <tr>
             <th className="text-left p-2">ICR</th>
             <th className="text-right p-2">Planned</th>
@@ -145,8 +145,8 @@ async function renderRegionalManagerDashboard(regionId: string | null, now: Date
             <tr key={icr.id} className="border-t">
               <td className="p-2">{icr.name ?? icr.id}</td>
               <td className="p-2 text-right tabular-nums">{planned}</td>
-              <td className="p-2 text-right tabular-nums text-green-700">{completed}</td>
-              <td className={`p-2 text-right tabular-nums ${overdue > 0 ? "text-red-600" : "text-slate-400"}`}>{overdue}</td>
+              <td className="p-2 text-right tabular-nums text-green-700 dark:text-green-400">{completed}</td>
+              <td className={`p-2 text-right tabular-nums ${overdue > 0 ? "text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>{overdue}</td>
               <td className="p-2 text-right tabular-nums">{rate}%</td>
             </tr>
           ))}
@@ -194,30 +194,30 @@ async function renderSeniorDashboard(now: Date) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-      <div className="rounded border border-slate-200 p-3">
-        <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">
+      <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
           Last 30 days — org-wide
         </p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <p className="text-2xl font-semibold tabular-nums text-slate-800">{totalCompleted30d}</p>
-            <p className="text-xs text-slate-500">completed</p>
+            <p className="text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{totalCompleted30d}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">completed</p>
           </div>
           <div>
-            <p className={`text-2xl font-semibold tabular-nums ${totalOverdue > 0 ? "text-red-700" : "text-slate-800"}`}>
+            <p className={`text-2xl font-semibold tabular-nums ${totalOverdue > 0 ? "text-red-700 dark:text-red-400" : "text-slate-800 dark:text-slate-100"}`}>
               {totalOverdue}
             </p>
-            <p className="text-xs text-slate-500">overdue</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">overdue</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded border border-slate-200 p-3">
-        <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">
+      <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
           By market (30d completed)
         </p>
         {byRegion.length === 0 ? (
-          <p className="text-sm text-slate-400">No activity yet.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
         ) : (
           <ul className="space-y-0.5 text-sm">
             {byRegion
@@ -225,7 +225,7 @@ async function renderSeniorDashboard(now: Date) {
               .slice(0, 6)
               .map((r) => (
                 <li key={r.marketId ?? "unassigned"} className="flex justify-between">
-                  <span className="text-slate-600">{marketName(r.marketId)}</span>
+                  <span className="text-slate-600 dark:text-slate-400">{marketName(r.marketId)}</span>
                   <span className="tabular-nums">{r._count._all}</span>
                 </li>
               ))}
@@ -233,12 +233,12 @@ async function renderSeniorDashboard(now: Date) {
         )}
       </div>
 
-      <div className="rounded border border-slate-200 p-3">
-        <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">
+      <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
           By type (30d completed)
         </p>
         {byType.length === 0 ? (
-          <p className="text-sm text-slate-400">No activity yet.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
         ) : (
           <ul className="space-y-0.5 text-sm">
             {byType
@@ -246,7 +246,7 @@ async function renderSeniorDashboard(now: Date) {
               .slice(0, 6)
               .map((t) => (
                 <li key={t.type} className="flex justify-between">
-                  <span className="text-slate-600">{t.type.replace(/_/g, " ")}</span>
+                  <span className="text-slate-600 dark:text-slate-400">{t.type.replace(/_/g, " ")}</span>
                   <span className="tabular-nums">{t._count._all}</span>
                 </li>
               ))}
@@ -259,11 +259,11 @@ async function renderSeniorDashboard(now: Date) {
 
 function Tile({ label, value, tone }: { label: string; value: number | string; tone: "slate" | "green" | "blue" | "red" | "cyan" }) {
   const toneCls: Record<string, string> = {
-    slate: "bg-slate-50 text-slate-800 border-slate-200",
-    green: "bg-green-50 text-green-800 border-green-200",
-    blue: "bg-blue-50 text-blue-800 border-blue-200",
-    red: "bg-red-50 text-red-800 border-red-200",
-    cyan: "bg-cyan-50 text-cyan-800 border-cyan-200",
+    slate: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-700",
+    green: "bg-green-50 text-green-800 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+    blue: "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+    red: "bg-red-50 text-red-800 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
+    cyan: "bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30",
   };
   return (
     <div className={`rounded border p-3 ${toneCls[tone]}`}>

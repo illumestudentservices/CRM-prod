@@ -82,17 +82,17 @@ interface EmployeeItem {
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 const PRIORITY_BADGE: Record<string, string> = {
-  LOW: "bg-slate-100 text-slate-700 border-slate-200",
-  MEDIUM: "bg-blue-100 text-blue-700 border-blue-200",
-  HIGH: "bg-amber-100 text-amber-700 border-amber-200",
-  URGENT: "bg-red-100 text-red-700 border-red-200",
+  LOW: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  MEDIUM: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30",
+  HIGH: "bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30",
+  URGENT: "bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
 };
 
 const STATUS_BADGE: Record<string, string> = {
-  TODO: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 border-blue-200",
-  DONE: "bg-green-100 text-green-700 border-green-200",
-  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  TODO: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  IN_PROGRESS: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30",
+  DONE: "bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30",
+  CANCELLED: "bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -264,13 +264,13 @@ export function TasksClient({
         <Card>
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">To Do</p>
-            <p className="text-2xl font-bold text-slate-600">{counts.todo}</p>
+            <p className="text-2xl font-bold text-slate-600 dark:text-slate-300">{counts.todo}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">In Progress</p>
-            <p className="text-2xl font-bold text-blue-600">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {counts.inProgress}
             </p>
           </CardContent>
@@ -278,7 +278,7 @@ export function TasksClient({
         <Card>
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">Done</p>
-            <p className="text-2xl font-bold text-green-600">{counts.done}</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{counts.done}</p>
           </CardContent>
         </Card>
       </div>
@@ -570,7 +570,7 @@ export function TasksClient({
                             new Date(task.dueDate) < new Date() &&
                             task.status !== "DONE" &&
                             task.status !== "CANCELLED"
-                              ? "text-red-600 font-medium"
+                              ? "text-red-600 dark:text-red-400 font-medium"
                               : ""
                           }`}
                         >
@@ -588,7 +588,7 @@ export function TasksClient({
                       {task.sourceActivity ? (
                         <Link
                           href={`/activities`}
-                          className="text-sm text-[#0EA5E9] hover:underline flex items-center gap-1"
+                          className="text-sm text-[#0EA5E9] dark:text-cyan-400 hover:underline flex items-center gap-1"
                         >
                           <ExternalLink className="h-3 w-3" />
                           <span className="line-clamp-1">
@@ -624,7 +624,7 @@ export function TasksClient({
                             </DropdownMenuItem>
                           ))}
                           <DropdownMenuItem
-                            className="text-red-600"
+                            className="text-red-600 dark:text-red-400"
                             disabled={deletingId === task.id}
                             onClick={() => handleDelete(task.id)}
                           >

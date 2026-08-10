@@ -47,14 +47,14 @@ const ROLES = [
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  SUPER_ADMIN: "bg-red-100 text-red-700",
-  HQ_EXECUTIVE: "bg-purple-100 text-purple-700",
-  HQ_ANALYTICS: "bg-indigo-100 text-indigo-700",
-  REGIONAL_MANAGER: "bg-blue-100 text-blue-700",
-  ICR: "bg-teal-100 text-teal-700",
-  INSTITUTION_CLIENT: "bg-amber-100 text-amber-700",
-  HR_MANAGER: "bg-green-100 text-green-700",
-  EMPLOYEE: "bg-gray-100 text-gray-700",
+  SUPER_ADMIN: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  HQ_EXECUTIVE: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
+  HQ_ANALYTICS: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  REGIONAL_MANAGER: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  ICR: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  INSTITUTION_CLIENT: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  HR_MANAGER: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
+  EMPLOYEE: "bg-gray-100 text-gray-700 dark:bg-slate-700/60 dark:text-slate-300",
 };
 
 export function UsersSettingsTab() {
@@ -186,7 +186,7 @@ export function UsersSettingsTab() {
     {
       header: "Role",
       cell: ({ row }) => (
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_COLORS[row.original.role] ?? "bg-gray-100 text-gray-700"}`}>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_COLORS[row.original.role] ?? "bg-gray-100 text-gray-700 dark:bg-slate-700/60 dark:text-slate-300"}`}>
           {row.original.role.replace(/_/g, " ")}
         </span>
       ),
@@ -207,11 +207,11 @@ export function UsersSettingsTab() {
       header: "MFA",
       cell: ({ row }) =>
         row.original.twoFactorEnabled ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
             <ShieldCheck className="h-3.5 w-3.5" /> On
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 dark:text-slate-500">
             <ShieldOff className="h-3.5 w-3.5" /> Off
           </span>
         ),
@@ -260,7 +260,7 @@ export function UsersSettingsTab() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 text-slate-600"
+            className="gap-1.5 text-slate-600 dark:text-slate-300"
             onClick={() => setShowDeleted((v) => !v)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -268,20 +268,20 @@ export function UsersSettingsTab() {
           </Button>
 
           {showDeleted && (
-            <div className="mt-3 rounded-lg border border-slate-200 divide-y">
+            <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-800 divide-y dark:divide-slate-800">
               {deletedUsers.map((u) => {
                 const left = u.deletedAt ? daysLeft(u.deletedAt) : 0;
                 return (
                   <div key={u.id} className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800">{u.name ?? u.email}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{u.name ?? u.email}</p>
                       <p className="text-xs text-muted-foreground">{u.email}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span
                         className={
                           "text-xs flex items-center gap-1 " +
-                          (left <= 7 ? "text-red-600 font-medium" : "text-slate-500")
+                          (left <= 7 ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-500 dark:text-slate-400")
                         }
                       >
                         <Clock className="h-3.5 w-3.5" />
@@ -318,7 +318,7 @@ export function UsersSettingsTab() {
           {editing && (
             <div className="space-y-4 py-2">
               <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-slate-900">{editing.name}</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">{editing.name}</p>
                 <p>{editing.email}</p>
               </div>
 
@@ -342,13 +342,13 @@ export function UsersSettingsTab() {
               </div>
 
               {editing.twoFactorEnabled && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2">
-                  <p className="text-xs font-medium text-amber-800 flex items-center gap-1.5">
+                <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-3 space-y-2">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
                     <ShieldOff className="h-3.5 w-3.5" /> Two-factor authentication is enabled
                   </p>
                   {confirmMfaReset ? (
                     <div className="space-y-2">
-                      <p className="text-xs text-amber-700">This will disable MFA and clear all backup codes. The user will need to re-enrol. Are you sure?</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">This will disable MFA and clear all backup codes. The user will need to re-enrol. Are you sure?</p>
                       <div className="flex gap-2">
                         <Button size="sm" variant="destructive" onClick={handleResetMfa} disabled={resettingMfa}>
                           {resettingMfa ? "Resetting..." : "Yes, reset MFA"}
@@ -357,19 +357,19 @@ export function UsersSettingsTab() {
                       </div>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-100" onClick={() => setConfirmMfaReset(true)}>
+                    <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/20" onClick={() => setConfirmMfaReset(true)}>
                       Reset MFA
                     </Button>
                   )}
                 </div>
               )}
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-2">
-                <p className="text-xs font-medium text-red-800 flex items-center gap-1.5">
+              <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30 p-3 space-y-2">
+                <p className="text-xs font-medium text-red-800 dark:text-red-300 flex items-center gap-1.5">
                   <Trash2 className="h-3.5 w-3.5" /> Delete account
                 </p>
                 {confirmDelete ? (
                   <div className="space-y-2">
-                    <p className="text-xs text-red-700">
+                    <p className="text-xs text-red-700 dark:text-red-300">
                       {editing.name ?? editing.email} will be signed out immediately and
                       hidden from this list. You can restore them for{" "}
                       {RECOVERY_WINDOW_DAYS} days, after which their personal data is
@@ -384,13 +384,13 @@ export function UsersSettingsTab() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs text-red-700">
+                    <p className="text-xs text-red-700 dark:text-red-300">
                       Signs them out at once. Recoverable for {RECOVERY_WINDOW_DAYS} days.
                     </p>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-red-700 border-red-300 hover:bg-red-100"
+                      className="text-red-700 border-red-300 hover:bg-red-100 dark:text-red-300 dark:border-red-500/40 dark:hover:bg-red-500/20"
                       onClick={() => setConfirmDelete(true)}
                     >
                       Delete account

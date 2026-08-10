@@ -58,10 +58,10 @@ function calcChange(current: number, previous: number): number {
 const stageOrder = ALL_STAGES;
 
 const accountStatusColors: Record<string, string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-700",
-  RENEWAL_DUE: "bg-amber-100 text-amber-700",
-  CHURNED: "bg-red-100 text-red-700",
-  PROSPECT: "bg-blue-100 text-blue-700",
+  ACTIVE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  RENEWAL_DUE: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  CHURNED: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  PROSPECT: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
 };
 
 // ─── Executive data loader ─────────────────────────────────────────────────────
@@ -442,22 +442,22 @@ function RecentLeadsCard({
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base font-semibold text-slate-900">Recent Leads</CardTitle>
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">Recent Leads</CardTitle>
         <Link href="/students" className="text-xs text-[#0EA5E9] hover:underline font-medium">
           View all →
         </Link>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {leads.map((lead) => (
             <Link
               key={lead.id}
               href={`/students/${lead.id}`}
-              className="flex items-center justify-between px-6 py-3 gap-4 hover:bg-slate-50 transition-colors"
+              className="flex items-center justify-between px-6 py-3 gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-8 w-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-semibold text-[#1E3A5F]">
+                  <span className="text-xs font-semibold text-[#1E3A5F] dark:text-sky-300">
                     {displayName(lead)
                       .split(" ")
                       .map((n) => n[0])
@@ -467,11 +467,11 @@ function RecentLeadsCard({
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{displayName(lead)}</p>
-                  <p className="text-xs text-slate-500 truncate">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{displayName(lead)}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                     {lead.institution?.name ?? "No institution"}
                     {showICR && lead.assignedICR?.name && (
-                      <span className="ml-1 text-slate-400">· {lead.assignedICR.name}</span>
+                      <span className="ml-1 text-slate-400 dark:text-slate-500">· {lead.assignedICR.name}</span>
                     )}
                   </p>
                 </div>
@@ -480,18 +480,18 @@ function RecentLeadsCard({
                 <span
                   className={[
                     "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                    stageBadgeClass(lead.stage) ?? "bg-slate-100 text-slate-700",
+                    stageBadgeClass(lead.stage) ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
                   ].join(" ")}
                 >
                   {stageLabel(lead.stage)}
                 </span>
-                <span className="text-xs text-slate-400 hidden sm:block">{formatDate(lead.createdAt)}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">{formatDate(lead.createdAt)}</span>
               </div>
             </Link>
           ))}
         </div>
         {leads.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-10">No leads yet</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-10">No leads yet</p>
         )}
       </CardContent>
     </Card>
@@ -504,8 +504,8 @@ function PipelineCard({ pipeline, total }: { pipeline: Record<string, number>; t
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-slate-400" />
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           Pipeline Snapshot
         </CardTitle>
       </CardHeader>
@@ -518,24 +518,24 @@ function PipelineCard({ pipeline, total }: { pipeline: Record<string, number>; t
             <Link
               key={stage}
               href={`/students?stage=${stage}`}
-              className="block space-y-1 rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 transition-colors"
+              className="block space-y-1 rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
             >
               <div className="flex items-center justify-between text-xs">
                 <span
                   className={[
                     "inline-flex items-center rounded-full px-2 py-0.5 font-medium",
-                    stageBadgeClass(stage) ?? "bg-slate-100 text-slate-700",
+                    stageBadgeClass(stage) ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
                   ].join(" ")}
                 >
                   {stageLabel(stage)}
                 </span>
-                <span className="text-slate-600 font-medium tabular-nums">
-                  {count} <span className="text-slate-400">({pct}%)</span>
+                <span className="text-slate-600 dark:text-slate-400 font-medium tabular-nums">
+                  {count} <span className="text-slate-400 dark:text-slate-500">({pct}%)</span>
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[#1E3A5F]/60 transition-all"
+                  className="h-full rounded-full bg-[#1E3A5F]/60 dark:bg-sky-500/60 transition-all"
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -543,7 +543,7 @@ function PipelineCard({ pipeline, total }: { pipeline: Record<string, number>; t
           );
         })}
         {Object.keys(pipeline).length === 0 && (
-          <p className="text-xs text-slate-400 text-center py-4">No pipeline data</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No pipeline data</p>
         )}
       </CardContent>
     </Card>
@@ -553,10 +553,10 @@ function PipelineCard({ pipeline, total }: { pipeline: Record<string, number>; t
 // ─── Shared personal UI cards ─────────────────────────────────────────────────
 
 const leaveStatusColors: Record<string, string> = {
-  PENDING:  "bg-amber-100 text-amber-700",
-  APPROVED: "bg-emerald-100 text-emerald-700",
-  REJECTED: "bg-red-100 text-red-700",
-  CANCELLED:"bg-gray-100 text-gray-500",
+  PENDING:  "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  APPROVED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  REJECTED: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  CANCELLED:"bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400",
 };
 
 function LeaveBalancesCard({
@@ -567,14 +567,14 @@ function LeaveBalancesCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-slate-400" />
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           Leave Balance
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {balances.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-4">No leave balance data</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No leave balance data</p>
         ) : (
           balances.map((lb) => {
             const remaining = lb.totalDays - lb.usedDays - lb.pendingDays;
@@ -582,14 +582,14 @@ function LeaveBalancesCard({
             return (
               <div key={lb.leaveType} className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-700 capitalize">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 capitalize">
                     {lb.leaveType.replace(/_/g, " ").toLowerCase()} Leave
                   </span>
-                  <span className="text-xs text-slate-500 tabular-nums">
-                    <span className="font-semibold text-slate-800">{remaining}</span>d left of {lb.totalDays}d
+                  <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{remaining}</span>d left of {lb.totalDays}d
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
                     className={[
                       "h-full rounded-full transition-all",
@@ -598,9 +598,9 @@ function LeaveBalancesCard({
                     style={{ width: `${usedPct}%` }}
                   />
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   {lb.usedDays}d used
-                  {lb.pendingDays > 0 && <span className="text-amber-500"> · {lb.pendingDays}d pending approval</span>}
+                  {lb.pendingDays > 0 && <span className="text-amber-500 dark:text-amber-400"> · {lb.pendingDays}d pending approval</span>}
                 </p>
               </div>
             );
@@ -622,8 +622,8 @@ function LeaveRequestsCard({
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-          <CalendarCheck className="h-4 w-4 text-slate-400" />
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <CalendarCheck className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           My Leave Requests
         </CardTitle>
         <Link href="/hr/leave" className="text-xs text-[#0EA5E9] hover:underline font-medium">
@@ -632,23 +632,23 @@ function LeaveRequestsCard({
       </CardHeader>
       <CardContent className="p-0">
         {requests.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-8">No leave requests yet</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-8">No leave requests yet</p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {requests.map((req) => (
               <div key={req.id} className="flex items-center justify-between px-6 py-3 gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 capitalize">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 capitalize">
                     {req.leaveType.replace(/_/g, " ").toLowerCase()} Leave
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {formatDate(req.startDate)} → {formatDate(req.endDate)}
-                    <span className="ml-1 text-slate-400">({req.days}d)</span>
+                    <span className="ml-1 text-slate-400 dark:text-slate-500">({req.days}d)</span>
                   </p>
                 </div>
                 <span className={[
                   "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                  leaveStatusColors[req.status] ?? "bg-slate-100 text-slate-600",
+                  leaveStatusColors[req.status] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
                 ].join(" ")}>
                   {req.status.charAt(0) + req.status.slice(1).toLowerCase()}
                 </span>
@@ -670,37 +670,37 @@ function HolidaysCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Sun className="h-4 w-4 text-amber-400" />
           Upcoming Holidays
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {holidays.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-4">No holidays in the next 60 days</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No holidays in the next 60 days</p>
         ) : (
           holidays.map((h) => {
             const daysUntil = Math.ceil((h.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             return (
               <div key={h.id} className="flex items-center justify-between gap-3 py-1.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="h-7 w-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                    <Sun className="h-3.5 w-3.5 text-amber-500" />
+                  <div className="h-7 w-7 rounded-lg bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
+                    <Sun className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{h.name}</p>
-                    <p className="text-xs text-slate-500">{formatDate(h.date)}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{h.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(h.date)}</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <span className={[
                     "text-xs font-medium",
-                    daysUntil <= 7 ? "text-emerald-600" : "text-slate-500",
+                    daysUntil <= 7 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400",
                   ].join(" ")}>
                     {daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `${daysUntil}d`}
                   </span>
                   {!h.isGlobal && (
-                    <p className="text-xs text-slate-400">Regional</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Regional</p>
                   )}
                 </div>
               </div>
@@ -724,34 +724,34 @@ function AssetsCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-          <Laptop className="h-4 w-4 text-slate-400" />
+        <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <Laptop className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           My Assets
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {assets.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-4">No assets assigned</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No assets assigned</p>
         ) : (
           assets.map(({ id, assignedAt, asset }) => (
             <div key={id} className="flex items-center gap-3 py-1.5">
               <div className="h-8 w-8 rounded-lg bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
-                <Laptop className="h-4 w-4 text-[#1E3A5F]" />
+                <Laptop className="h-4 w-4 text-[#1E3A5F] dark:text-sky-300" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-900 truncate">{asset.name}</p>
-                <p className="text-xs text-slate-500 truncate">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{asset.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                   {[asset.brand, asset.model].filter(Boolean).join(" · ")}
                   {asset.serialNumber && (
-                    <span className="ml-1 text-slate-400">#{asset.serialNumber}</span>
+                    <span className="ml-1 text-slate-400 dark:text-slate-500">#{asset.serialNumber}</span>
                   )}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700">
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                   {asset.type}
                 </span>
-                <p className="text-xs text-slate-400 mt-0.5">Since {formatDate(assignedAt)}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Since {formatDate(assignedAt)}</p>
               </div>
             </div>
           ))
@@ -831,7 +831,7 @@ async function ExecutiveDashboard({
           {/* Top Performing Institutions */}
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Star className="h-4 w-4 text-amber-400" />
                 Top Performing Institutions
               </CardTitle>
@@ -841,40 +841,40 @@ async function ExecutiveDashboard({
             </CardHeader>
             <CardContent className="p-0">
               {topInstitutions.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-10">No enrollment data yet</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-10">No enrollment data yet</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100">
-                        <th className="text-left text-xs font-medium text-slate-500 px-6 py-2.5">#</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2.5">Institution</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2.5">Country</th>
-                        <th className="text-right text-xs font-medium text-slate-500 px-3 py-2.5">Enrolled</th>
-                        <th className="text-right text-xs font-medium text-slate-500 px-6 py-2.5">vs Target</th>
+                      <tr className="border-b border-slate-100 dark:border-slate-800">
+                        <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 px-6 py-2.5">#</th>
+                        <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">Institution</th>
+                        <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">Country</th>
+                        <th className="text-right text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">Enrolled</th>
+                        <th className="text-right text-xs font-medium text-slate-500 dark:text-slate-400 px-6 py-2.5">vs Target</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                       {topInstitutions.map((inst, i) => {
                         const pctOfTarget =
                           inst.target != null && inst.target > 0
                             ? Math.round((inst.enrolled / inst.target) * 100)
                             : null;
                         return (
-                          <tr key={inst.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-3 text-xs font-bold text-slate-400">
+                          <tr key={inst.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                            <td className="px-6 py-3 text-xs font-bold text-slate-400 dark:text-slate-500">
                               {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                             </td>
                             <td className="px-3 py-3">
                               <Link
                                 href={`/institutions/${inst.id}`}
-                                className="font-medium text-slate-900 hover:text-[#0EA5E9] transition-colors"
+                                className="font-medium text-slate-900 dark:text-slate-100 hover:text-[#0EA5E9] dark:hover:text-sky-400 transition-colors"
                               >
                                 {inst.name}
                               </Link>
                             </td>
-                            <td className="px-3 py-3 text-slate-500 text-xs">{inst.country}</td>
-                            <td className="px-3 py-3 text-right font-semibold text-slate-900">
+                            <td className="px-3 py-3 text-slate-500 dark:text-slate-400 text-xs">{inst.country}</td>
+                            <td className="px-3 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                               {inst.enrolled}
                             </td>
                             <td className="px-6 py-3 text-right">
@@ -883,16 +883,16 @@ async function ExecutiveDashboard({
                                   className={[
                                     "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
                                     pctOfTarget >= 100
-                                      ? "bg-emerald-100 text-emerald-700"
+                                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                                       : pctOfTarget >= 60
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-red-100 text-red-700",
+                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                                      : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
                                   ].join(" ")}
                                 >
                                   {pctOfTarget}% of {inst.target}
                                 </span>
                               ) : (
-                                <span className="text-xs text-slate-400">No target</span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500">No target</span>
                               )}
                             </td>
                           </tr>
@@ -908,52 +908,52 @@ async function ExecutiveDashboard({
           {/* Top ICR Performers */}
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-[#0EA5E9]" />
                 Top ICR Performers
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {topICRs.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-10">No ICR data yet</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-10">No ICR data yet</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100">
-                        <th className="text-left text-xs font-medium text-slate-500 px-6 py-2.5">#</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2.5">ICR</th>
-                        <th className="text-right text-xs font-medium text-slate-500 px-3 py-2.5">Total Leads</th>
-                        <th className="text-right text-xs font-medium text-slate-500 px-3 py-2.5">Enrolled</th>
-                        <th className="text-right text-xs font-medium text-slate-500 px-6 py-2.5">Conversion</th>
+                      <tr className="border-b border-slate-100 dark:border-slate-800">
+                        <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 px-6 py-2.5">#</th>
+                        <th className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">ICR</th>
+                        <th className="text-right text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">Total Leads</th>
+                        <th className="text-right text-xs font-medium text-slate-500 dark:text-slate-400 px-3 py-2.5">Enrolled</th>
+                        <th className="text-right text-xs font-medium text-slate-500 dark:text-slate-400 px-6 py-2.5">Conversion</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                       {topICRs.map((icr, i) => (
-                        <tr key={icr.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="px-6 py-3 text-xs font-bold text-slate-400">
+                        <tr key={icr.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors group">
+                          <td className="px-6 py-3 text-xs font-bold text-slate-400 dark:text-slate-500">
                             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                           </td>
-                          <td className="px-3 py-3 font-medium text-slate-900">
-                            <Link href={`/students?icr=${icr.id}`} className="hover:text-[#0EA5E9] transition-colors">
+                          <td className="px-3 py-3 font-medium text-slate-900 dark:text-slate-100">
+                            <Link href={`/students?icr=${icr.id}`} className="hover:text-[#0EA5E9] dark:hover:text-sky-400 transition-colors">
                               {icr.name}
                             </Link>
                           </td>
-                          <td className="px-3 py-3 text-right text-slate-600">
+                          <td className="px-3 py-3 text-right text-slate-600 dark:text-slate-400">
                             <Link href={`/students?icr=${icr.id}`} className="block">{icr.total}</Link>
                           </td>
-                          <td className="px-3 py-3 text-right font-semibold text-emerald-700">
+                          <td className="px-3 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400">
                             <Link href={`/students?icr=${icr.id}&stage=ENROLLED`} className="block hover:underline">{icr.enrolled}</Link>
                           </td>
                           <td className="px-6 py-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-emerald-500"
                                   style={{ width: `${Math.min(icr.conversionRate, 100)}%` }}
                                 />
                               </div>
-                              <span className="text-xs font-medium text-slate-700 tabular-nums w-8 text-right">
+                              <span className="text-xs font-medium text-slate-700 dark:text-slate-300 tabular-nums w-8 text-right">
                                 {icr.conversionRate}%
                               </span>
                             </div>
@@ -976,29 +976,29 @@ async function ExecutiveDashboard({
           {/* Institutions Needing Attention */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 Needs Attention
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {attentionInstitutions.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">All institutions are on track ✓</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">All institutions are on track ✓</p>
               ) : (
                 attentionInstitutions.map((inst) => (
                   <Link
                     key={inst.id}
                     href={`/institutions/${inst.id}`}
-                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-colors"
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/60 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{inst.name}</p>
-                      <p className="text-xs text-slate-500">{inst.country}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{inst.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{inst.country}</p>
                     </div>
                     <span
                       className={[
                         "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        accountStatusColors[inst.accountStatus] ?? "bg-slate-100 text-slate-700",
+                        accountStatusColors[inst.accountStatus] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
                       ].join(" ")}
                     >
                       {inst.accountStatus.replace(/_/g, " ")}
@@ -1079,12 +1079,12 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
 
       {/* Pending reports alert */}
       {pendingReports > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
-          <FileText className="h-5 w-5 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-800 font-medium flex-1">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30">
+          <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-200 font-medium flex-1">
             You have <span className="font-bold">{pendingReports}</span> monthly report{pendingReports > 1 ? "s" : ""} pending submission or review.
           </p>
-          <Link href="/reports" className="text-xs font-semibold text-amber-700 underline shrink-0">
+          <Link href="/reports" className="text-xs font-semibold text-amber-700 dark:text-amber-300 underline shrink-0">
             View reports →
           </Link>
         </div>
@@ -1102,8 +1102,8 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           {/* My Performance */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-slate-400" />
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 My Performance
               </CardTitle>
             </CardHeader>
@@ -1111,28 +1111,28 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
               {/* Conversion rate */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-slate-500">Conversion Rate</span>
-                  <span className="text-sm font-bold text-slate-900">{stats.conversionRate}%</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Conversion Rate</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{stats.conversionRate}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all"
                     style={{ width: `${Math.min(stats.conversionRate, 100)}%` }}
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   {stats.enrolled} enrolled of {stats.totalLeads} leads
                 </p>
               </div>
 
-              <div className="border-t border-slate-100 pt-4 space-y-3">
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Upcoming Events</span>
-                  <span className="text-sm font-semibold text-slate-900">{stats.upcomingEvents}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Upcoming Events</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{stats.upcomingEvents}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Active in Pipeline</span>
-                  <span className="text-sm font-semibold text-slate-900">{stats.inProgress}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Active in Pipeline</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{stats.inProgress}</span>
                 </div>
               </div>
             </CardContent>
@@ -1220,12 +1220,12 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
 
       {/* Pending leaves alert */}
       {stats && stats.pendingLeaves > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200">
-          <Bell className="h-5 w-5 text-blue-600 shrink-0" />
-          <p className="text-sm text-blue-800 font-medium flex-1">
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30">
+          <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <p className="text-sm text-blue-800 dark:text-blue-200 font-medium flex-1">
             You have <span className="font-bold">{stats.pendingLeaves}</span> leave request{stats.pendingLeaves > 1 ? "s" : ""} awaiting approval.
           </p>
-          <Link href="/hr/leave" className="text-xs font-semibold text-blue-700 underline shrink-0">
+          <Link href="/hr/leave" className="text-xs font-semibold text-blue-700 dark:text-blue-300 underline shrink-0">
             View →
           </Link>
         </div>
@@ -1251,14 +1251,14 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
 
 function DashboardViewTabs({ activeView }: { activeView: "executive" | "personal" }) {
   return (
-    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
       <Link
         href="/dashboard?view=executive"
         className={[
           "px-5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
           activeView === "executive"
-            ? "bg-white shadow-sm text-slate-900"
-            : "text-slate-500 hover:text-slate-800",
+            ? "bg-white shadow-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100"
+            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
         ].join(" ")}
       >
         Executive
@@ -1268,8 +1268,8 @@ function DashboardViewTabs({ activeView }: { activeView: "executive" | "personal
         className={[
           "px-5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
           activeView === "personal"
-            ? "bg-white shadow-sm text-slate-900"
-            : "text-slate-500 hover:text-slate-800",
+            ? "bg-white shadow-sm text-slate-900 dark:bg-slate-900 dark:text-slate-100"
+            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
         ].join(" ")}
       >
         Personal

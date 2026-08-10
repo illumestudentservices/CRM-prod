@@ -80,7 +80,7 @@ export function Announcements({ isHR, userId }: { isHR: boolean; userId: string 
               </div>
             )
             : items.map((ann) => (
-              <Card key={ann.id} className={!ann.isRead ? "border-[#0EA5E9] bg-blue-50/30" : ""}>
+              <Card key={ann.id} className={!ann.isRead ? "border-[#0EA5E9] bg-blue-50/30 dark:bg-sky-500/10" : ""}>
                 <CardHeader className="py-3 px-4 flex flex-row items-start justify-between gap-2">
                   <div className="flex items-start gap-2">
                     {!ann.isRead && <div className="w-2 h-2 rounded-full bg-[#0EA5E9] mt-1.5 shrink-0" />}

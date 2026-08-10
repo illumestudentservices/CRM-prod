@@ -41,17 +41,17 @@ export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFun
             onClick={() => onStageClick && stage.count > 0 && onStageClick(stage.key)}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-medium text-slate-600 ${onStageClick && stage.count > 0 ? "group-hover:text-[#0EA5E9] transition-colors" : ""}`}>{stage.label}</span>
+              <span className={`text-xs font-medium text-slate-600 dark:text-slate-300 ${onStageClick && stage.count > 0 ? "group-hover:text-[#0EA5E9] transition-colors" : ""}`}>{stage.label}</span>
               <div className="flex items-center gap-2">
                 {conversionRate !== null && (
-                  <span className="text-xs text-slate-400">{conversionRate}%</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{conversionRate}%</span>
                 )}
-                <span className="text-xs font-bold text-slate-800 w-8 text-right">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 w-8 text-right">
                   {stage.count.toLocaleString()}
                 </span>
               </div>
             </div>
-            <div className="relative h-6 bg-slate-100 rounded overflow-hidden">
+            <div className="relative h-6 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden">
               <div
                 className="h-full rounded transition-all duration-700 ease-out group-hover:opacity-80"
                 style={{
@@ -66,9 +66,9 @@ export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFun
       })}
 
       {/* Total */}
-      <div className="pt-2 border-t border-slate-100">
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-500">Overall Conversion</span>
+          <span className="text-slate-500 dark:text-slate-400">Overall Conversion</span>
           <span className="font-bold text-[#22C55E]">
             {stages[0].count > 0
               ? `${Math.round(((stages[stages.length - 1].count) / stages[0].count) * 100)}%`

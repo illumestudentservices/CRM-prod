@@ -153,7 +153,7 @@ function SingleExport({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel className="text-xs text-slate-500">
+        <DropdownMenuLabel className="text-xs text-slate-500 dark:text-slate-400">
           {data.length} record{data.length !== 1 ? "s" : ""}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -218,7 +218,7 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
       <DropdownMenuContent align="end" className="w-56">
         {step === "root" && (
           <>
-            <DropdownMenuLabel className="text-xs text-slate-500">Select format</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-slate-500 dark:text-slate-400">Select format</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
@@ -226,7 +226,7 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
             >
               <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
               Export as Excel / CSV
-              <ChevronRight className="h-3 w-3 ml-auto text-slate-400" />
+              <ChevronRight className="h-3 w-3 ml-auto text-slate-400 dark:text-slate-500" />
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
@@ -234,7 +234,7 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
             >
               <FileText className="h-4 w-4 text-red-500" />
               Export as PDF
-              <ChevronRight className="h-3 w-3 ml-auto text-slate-400" />
+              <ChevronRight className="h-3 w-3 ml-auto text-slate-400 dark:text-slate-500" />
             </DropdownMenuItem>
           </>
         )}
@@ -243,7 +243,7 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
           <>
             <DropdownMenuLabel className="text-xs text-slate-500 flex items-center gap-1">
               <button
-                className="hover:text-slate-700 underline underline-offset-2"
+                className="hover:text-slate-700 dark:hover:text-slate-200 underline underline-offset-2"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setStep("root"); }}
               >
                 ← Back
@@ -264,7 +264,7 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
                   : <FileText className="h-4 w-4 text-red-500" />
                 }
                 <span className="truncate">{section.label}</span>
-                <span className="ml-auto text-xs text-slate-400 shrink-0">{section.data.length}</span>
+                <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 shrink-0">{section.data.length}</span>
               </DropdownMenuItem>
             ))}
           </>

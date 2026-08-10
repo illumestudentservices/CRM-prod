@@ -79,8 +79,8 @@ export function ReportQueueClient({
 
   const total = summary.draft + summary.pendingReview + summary.finalApproved + summary.returned;
   const statCards = [
-    { title: "Total Reports", value: total,         icon: "FileText" as const,    iconColor: "text-[#1E3A5F]",   iconBg: "bg-[#1E3A5F]/10", status: "" },
-    { title: "Draft",         value: summary.draft,  icon: "ClipboardList" as const, iconColor: "text-slate-500",   iconBg: "bg-slate-100",    status: "DRAFT" },
+    { title: "Total Reports", value: total,         icon: "FileText" as const,    iconColor: "text-[#1E3A5F] dark:text-blue-300",   iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "" },
+    { title: "Draft",         value: summary.draft,  icon: "ClipboardList" as const, iconColor: "text-slate-500 dark:text-slate-400",   iconBg: "bg-slate-100 dark:bg-slate-800",    status: "DRAFT" },
   ];
 
   return (
@@ -105,7 +105,7 @@ export function ReportQueueClient({
       </div>
 
       {/* Status tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800">
         {tabs.map((tab) => (
           <button
             key={tab.status}
@@ -113,13 +113,13 @@ export function ReportQueueClient({
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
               activeStatus === tab.status
-                ? "border-[#1E3A5F] text-[#1E3A5F]"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                ? "border-[#1E3A5F] text-[#1E3A5F] dark:border-blue-400 dark:text-blue-300"
+                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600"
             )}
           >
             {tab.label}
             {tab.status === "DRAFT" && summary.draft > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs">
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs">
                 {summary.draft}
               </span>
             )}

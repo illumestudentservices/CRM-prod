@@ -98,10 +98,10 @@ export function PlanDetailClient({
         </div>
       </div>
 
-      {error && <div className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-2">{error}</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-300 border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded p-2">{error}</div>}
 
       {isLocked && (
-        <div className="text-sm bg-yellow-50 border border-yellow-200 rounded p-2">
+        <div className="text-sm bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 dark:text-yellow-200 rounded p-2">
           This plan is locked. To change scope or budget, submit a Variation Request from the Variations tab.
         </div>
       )}
@@ -202,43 +202,43 @@ function ReconciliationCard({ plan }: { plan: Plan }) {
   const eventsPlanned = (plan.plannedEvents ?? []).length;
 
   return (
-    <div className="rounded border border-slate-200 p-4">
+    <div className="rounded border border-slate-200 dark:border-slate-800 p-4">
       <h3 className="font-medium mb-3">Quarterly Reconciliation</h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded border border-slate-200 p-3">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">Budget (converted)</p>
+        <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Budget (converted)</p>
           <p className="text-sm">
             Planned: <strong className="tabular-nums">{plannedBudget.toFixed(0)} {plan.reportingCurrency}</strong>
           </p>
           <p className="text-sm">
             Committed travel: <strong className="tabular-nums">{actualTravel.toFixed(0)} {plan.reportingCurrency}</strong>
           </p>
-          <p className={`text-xs mt-1 ${budgetVariance < 0 ? "text-red-700" : "text-green-700"}`}>
+          <p className={`text-xs mt-1 ${budgetVariance < 0 ? "text-red-700 dark:text-red-300" : "text-green-700 dark:text-green-300"}`}>
             {budgetVariance >= 0 ? "Under budget" : "Over budget"}: {Math.abs(budgetVariance).toFixed(0)} {plan.reportingCurrency}
           </p>
         </div>
 
-        <div className="rounded border border-slate-200 p-3">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">Field Activities</p>
+        <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Field Activities</p>
           <p className="text-sm">
             Planned: <strong className="tabular-nums">{plannedFieldTotal}</strong>
           </p>
           <p className="text-sm">
             Delivered: <strong className="tabular-nums">{actualFieldTotal}</strong>
           </p>
-          <p className={`text-xs mt-1 ${actualFieldTotal >= plannedFieldTotal ? "text-green-700" : "text-amber-700"}`}>
+          <p className={`text-xs mt-1 ${actualFieldTotal >= plannedFieldTotal ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300"}`}>
             {plannedFieldTotal > 0
               ? `${Math.round((actualFieldTotal / plannedFieldTotal) * 100)}% completion`
               : "No planned activities"}
           </p>
         </div>
 
-        <div className="rounded border border-slate-200 p-3">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">Event Participations</p>
+        <div className="rounded border border-slate-200 dark:border-slate-800 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Event Participations</p>
           <p className="text-sm">
             Planned: <strong className="tabular-nums">{eventsPlanned}</strong>
           </p>
-          <p className="text-xs mt-1 text-slate-500">
+          <p className="text-xs mt-1 text-slate-500 dark:text-slate-400">
             Actual attendance is recorded on the event itself.
           </p>
         </div>
@@ -357,7 +357,7 @@ function EventsTab({
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-300 mb-2">{error}</p>}
 
       {entries.length === 0 && !showAdd && (
         <p className="text-sm text-muted-foreground">
@@ -387,9 +387,9 @@ function EventsTab({
                 estimatedCurrency: string | null;
                 expectedLeads: number | null;
               }) => (
-                <tr key={e.id} className="border-t">
+                <tr key={e.id} className="border-t dark:border-slate-800">
                   <td className="p-2">
-                    <a href={`/events/${e.event.id}`} className="text-blue-600 hover:underline">
+                    <a href={`/events/${e.event.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                       {e.event.name}
                     </a>
                     <div className="text-xs text-muted-foreground">
@@ -417,7 +417,7 @@ function EventsTab({
         <form onSubmit={submit} className="border rounded p-3 mt-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="text-xs text-slate-500">Event</label>
+              <label className="text-xs text-slate-500 dark:text-slate-400">Event</label>
               <select
                 value={form.eventId}
                 onChange={(e) => setForm({ ...form, eventId: e.target.value })}
@@ -433,7 +433,7 @@ function EventsTab({
               </select>
             </div>
             <div className="col-span-2">
-              <label className="text-xs text-slate-500">Institution Represented</label>
+              <label className="text-xs text-slate-500 dark:text-slate-400">Institution Represented</label>
               <select
                 value={form.institutionRepresentedId}
                 onChange={(e) => setForm({ ...form, institutionRepresentedId: e.target.value })}
@@ -564,7 +564,7 @@ function BudgetTab({ plan, canEdit }: { plan: Plan; canEdit: boolean }) {
           </thead>
           <tbody>
             {plan.budgetItems.map((b: {id: string; category: string; description: string | null; amount: number; currency: string; convertedAmount: number | null; reportingCurrency: string | null; allocation: string}) => (
-              <tr key={b.id} className="border-t">
+              <tr key={b.id} className="border-t dark:border-slate-800">
                 <td className="p-2">{b.category}</td>
                 <td className="p-2">{b.description}</td>
                 <td className="p-2 text-right">{b.amount} {b.currency}</td>
@@ -578,7 +578,7 @@ function BudgetTab({ plan, canEdit }: { plan: Plan; canEdit: boolean }) {
 
       {showAdd && canEdit && (
         <form onSubmit={submit} className="border rounded p-3 mt-3 space-y-2">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="grid grid-cols-2 gap-2">
             <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="border rounded px-2 py-1 text-sm">
               {["FLIGHTS", "ACCOMMODATION", "LOCAL_TRANSPORT", "EVENT_REGISTRATION", "MARKETING_MATERIALS", "MEALS", "MISCELLANEOUS"].map(c => <option key={c}>{c}</option>)}
@@ -613,7 +613,7 @@ function TravelTab({ plan }: { plan: Plan }) {
             <div className="text-xs text-muted-foreground">
               {new Date(pt.plannedStart).toISOString().slice(0, 10)} — {new Date(pt.plannedEnd).toISOString().slice(0, 10)}
               {pt.estimatedCost && <> · {pt.estimatedCost} {pt.estimatedCurrency}</>}
-              {pt.activatedAt && <> · <span className="text-green-700">Active travel record created</span></>}
+              {pt.activatedAt && <> · <span className="text-green-700 dark:text-green-300">Active travel record created</span></>}
             </div>
             <div className="text-xs">{pt.purpose}</div>
           </li>
@@ -654,7 +654,7 @@ function VariationsTab({ plan, canRequest, canApprove }: { plan: Plan; canReques
         <h3 className="font-medium">Variation Requests</h3>
         {canRequest && <button onClick={() => setShowAdd(s => !s)} className="text-sm px-3 py-1 border rounded hover:bg-muted">{showAdd ? "Cancel" : "+ Request variation"}</button>}
       </div>
-      {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-300 mb-2">{error}</div>}
       {plan.variationRequests.length === 0 && !showAdd && <p className="text-sm text-muted-foreground">No variations yet.</p>}
       {plan.variationRequests.length > 0 && (
         <table className="w-full text-sm border">
@@ -670,7 +670,7 @@ function VariationsTab({ plan, canRequest, canApprove }: { plan: Plan; canReques
           </thead>
           <tbody>
             {plan.variationRequests.map((v: {id: string; type: string; requestedBy: {name: string|null}; status: string; reason: string; incrementalCost: number | null}) => (
-              <tr key={v.id} className="border-t">
+              <tr key={v.id} className="border-t dark:border-slate-800">
                 <td className="p-2">{v.type}</td>
                 <td className="p-2">{v.requestedBy.name}</td>
                 <td className="p-2">{v.status}</td>

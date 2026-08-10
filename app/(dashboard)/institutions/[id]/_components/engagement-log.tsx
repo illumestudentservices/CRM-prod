@@ -69,12 +69,12 @@ const TYPE_ICON: Record<InteractionType, React.ElementType> = {
 };
 
 const TYPE_COLOR: Record<InteractionType, string> = {
-  MEETING: "bg-blue-100 text-blue-600",
-  CALL: "bg-green-100 text-green-600",
-  EMAIL: "bg-violet-100 text-violet-600",
-  TRAINING: "bg-amber-100 text-amber-600",
-  EVENT: "bg-rose-100 text-rose-600",
-  OTHER: "bg-slate-100 text-slate-600",
+  MEETING: "bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300",
+  CALL: "bg-green-100 text-green-600 dark:bg-green-500/15 dark:text-green-300",
+  EMAIL: "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300",
+  TRAINING: "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300",
+  EVENT: "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+  OTHER: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
 };
 
 const TYPE_LABEL: Record<InteractionType, string> = {
@@ -193,7 +193,7 @@ function AddEngagementDialog({ institutionId }: { institutionId: string }) {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md dark:bg-red-500/15 dark:text-red-300">{error}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">
@@ -224,14 +224,14 @@ export function EngagementLog({ logs, institutionId }: EngagementLogProps) {
       </div>
 
       {logs.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No engagement logged yet.</p>
         </div>
       ) : (
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-200" />
+          <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800" />
 
           <div className="space-y-6">
             {logs.map((log) => {
@@ -243,7 +243,7 @@ export function EngagementLog({ logs, institutionId }: EngagementLogProps) {
                   {/* Icon */}
                   <div
                     className={cn(
-                      "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white shadow-sm",
+                      "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white dark:border-slate-900 shadow-sm",
                       colorClass
                     )}
                   >
@@ -251,31 +251,31 @@ export function EngagementLog({ logs, institutionId }: EngagementLogProps) {
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="font-medium text-slate-900 text-sm">
+                        <span className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                           {TYPE_LABEL[log.type]}
                         </span>
                         {log.user.name && (
-                          <span className="text-slate-400 text-xs ml-2">
+                          <span className="text-slate-400 dark:text-slate-500 text-xs ml-2">
                             by {log.user.name}
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-400 shrink-0">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
                         {formatDateTime(log.date)}
                       </span>
                     </div>
 
                     {log.notes && (
-                      <p className="mt-2 text-sm text-slate-600">{log.notes}</p>
+                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{log.notes}</p>
                     )}
 
                     {log.outcome && (
-                      <div className="mt-2 bg-slate-50 rounded-lg px-3 py-2">
-                        <p className="text-xs font-medium text-slate-500 mb-0.5">Outcome</p>
-                        <p className="text-sm text-slate-700">{log.outcome}</p>
+                      <div className="mt-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg px-3 py-2">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">Outcome</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">{log.outcome}</p>
                       </div>
                     )}
                   </div>

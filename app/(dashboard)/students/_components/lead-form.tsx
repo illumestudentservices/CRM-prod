@@ -164,26 +164,26 @@ function MatchCheckPanel({
 
   const badgeColour = (c: MatchRow["confidence"]) =>
     c === "HIGH"
-      ? "bg-red-100 text-red-700 border-red-200"
+      ? "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30"
       : c === "MEDIUM"
-      ? "bg-amber-100 text-amber-700 border-amber-200"
-      : "bg-slate-100 text-slate-600 border-slate-200";
+      ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
+      : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
 
   return (
-    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
       <div className="flex items-center gap-2 mb-2">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <p className="text-sm font-medium text-amber-900">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
           {matches.length} possible existing student{matches.length === 1 ? "" : "s"}
           {loading ? " (searching…)" : ""}
         </p>
       </div>
-      <p className="text-xs text-amber-800 mb-2">
+      <p className="text-xs text-amber-800 dark:text-amber-300 mb-2">
         Open an existing record to add a new Institution Interest instead of creating a duplicate profile.
       </p>
       <ul className="space-y-1.5">
         {matches.slice(0, 5).map((m) => (
-          <li key={m.id} className="flex items-start gap-2 rounded border border-amber-200 bg-white p-2 text-xs">
+          <li key={m.id} className="flex items-start gap-2 rounded border border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900 p-2 text-xs">
             <span className={cn("inline-flex items-center rounded border px-1.5 py-0.5 font-semibold uppercase tracking-wide", badgeColour(m.confidence))}>
               {m.confidence}
             </span>
@@ -192,15 +192,15 @@ function MatchCheckPanel({
                 href={`/students/${m.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-slate-900 hover:underline"
+                className="font-medium text-slate-900 dark:text-slate-100 hover:underline"
               >
                 {m.displayName}
               </a>
-              <div className="text-slate-500">
+              <div className="text-slate-500 dark:text-slate-400">
                 {m.email ?? "no email"} · {m.phone ?? "no phone"} · {m.countryOfResidence} · {m.interestCount} interest{m.interestCount === 1 ? "" : "s"}
                 {m.currentOwner?.name && <> · owned by {m.currentOwner.name}</>}
               </div>
-              <div className="text-slate-400">Matched on: {m.matchedOn.join(", ")}</div>
+              <div className="text-slate-400 dark:text-slate-500">Matched on: {m.matchedOn.join(", ")}</div>
             </div>
           </li>
         ))}
@@ -224,12 +224,12 @@ function FormField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-slate-700">
+      <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -443,11 +443,11 @@ export function LeadForm({
         </DialogHeader>
 
         {isDuplicateWarning && (
-          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 p-3">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-amber-800">Possible duplicate detected</p>
-              <p className="text-xs text-amber-700 mt-0.5">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Possible duplicate detected</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
                 A lead with a similar email or name already exists in the system.
               </p>
             </div>
@@ -457,7 +457,7 @@ export function LeadForm({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Personal information */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
               Personal Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -538,7 +538,7 @@ export function LeadForm({
 
           {/* Academic information */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
               Academic Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -613,10 +613,10 @@ export function LeadForm({
 
           {/* Pipeline capture — every field the stage gate can ask for */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
               Pipeline Details
             </h3>
-            <p className="text-xs text-slate-400 -mt-2 mb-3">
+            <p className="text-xs text-slate-400 dark:text-slate-500 -mt-2 mb-3">
               Filled in as the student progresses. Each stage asks only for what
               it needs.
             </p>
@@ -701,7 +701,7 @@ export function LeadForm({
 
           {/* Assignment & Source */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
               Assignment & Source
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -789,9 +789,9 @@ export function LeadForm({
               a consent record that only covers event leads is worse than none,
               because it looks like coverage while office-created leads sit
               unrecorded. Three states: unanswered is not a refusal. */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-2">
-            <Label className="text-xs font-medium text-slate-700">May we email them?</Label>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
+            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">May we email them?</Label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Canadian anti-spam law requires permission before sending marketing email.
             </p>
             <div className="flex flex-wrap gap-2 pt-0.5">
@@ -808,7 +808,7 @@ export function LeadForm({
                     "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
                     (watch("marketingConsent") ?? "") === o.v
                       ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
                   )}
                 >
                   {o.label}

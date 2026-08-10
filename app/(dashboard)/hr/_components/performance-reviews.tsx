@@ -261,7 +261,7 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">No performance reviews found.</div>
       ) : (
-        <div className="rounded-lg border bg-white overflow-x-auto">
+        <div className="rounded-lg border bg-white dark:bg-slate-900 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30">

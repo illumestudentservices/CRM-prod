@@ -71,7 +71,7 @@ export default async function EmployeeDetailPage({
         </Button>
       </div>
 
-      <div className="flex items-start gap-6 p-6 bg-white rounded-xl border shadow-sm">
+      <div className="flex items-start gap-6 p-6 bg-white dark:bg-slate-900 rounded-xl border shadow-sm">
         <Avatar className="h-20 w-20">
           <AvatarImage src={employee.photoUrl ?? undefined} />
           <AvatarFallback className="text-2xl bg-[#1E3A5F] text-white">

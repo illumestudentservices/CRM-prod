@@ -83,12 +83,12 @@ function ArticleCard({
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow border-slate-200"
+      className="cursor-pointer hover:shadow-md transition-shadow border-slate-200 dark:border-slate-800"
       onClick={onClick}
     >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-sm text-slate-900 line-clamp-2">
+          <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
             {article.title}
           </h3>
           <Badge
@@ -98,7 +98,7 @@ function ArticleCard({
             {article.category}
           </Badge>
         </div>
-        <p className="text-xs text-slate-500 line-clamp-3">
+        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3">
           {excerpt}
         </p>
         {article.tags.length > 0 && (
@@ -107,7 +107,7 @@ function ArticleCard({
               <Badge
                 key={tag}
                 variant="outline"
-                className="text-[10px] px-1.5 py-0 border-slate-300 text-slate-500"
+                className="text-[10px] px-1.5 py-0 border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
               >
                 {tag}
               </Badge>
@@ -115,14 +115,14 @@ function ArticleCard({
             {article.tags.length > 4 && (
               <Badge
                 variant="outline"
-                className="text-[10px] px-1.5 py-0 border-slate-300 text-slate-500"
+                className="text-[10px] px-1.5 py-0 border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
               >
                 +{article.tags.length - 4}
               </Badge>
             )}
           </div>
         )}
-        <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-0.5">
+        <div className="flex items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500 pt-0.5">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
@@ -168,14 +168,14 @@ function ArticleDialog({
               <Badge
                 key={tag}
                 variant="outline"
-                className="text-xs border-slate-300"
+                className="text-xs border-slate-300 dark:border-slate-700"
               >
                 <Tag className="h-3 w-3 mr-1" />
                 {tag}
               </Badge>
             ))}
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
+          <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1">
               <Eye className="h-3.5 w-3.5" />
               {article.views} views
@@ -185,7 +185,7 @@ function ArticleDialog({
               {new Date(article.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
           </div>
-          <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap">
+          <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
             {article.content}
           </div>
         </div>
@@ -342,7 +342,7 @@ function KbSearch({
 }) {
   return (
     <div className="relative flex-1 max-w-sm">
-      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -364,7 +364,7 @@ function ArticlesGrid({
 }) {
   if (articles.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400">
+      <div className="text-center py-12 text-slate-400 dark:text-slate-500">
         <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
         <p className="text-sm">{emptyMessage || "No articles found"}</p>
       </div>
@@ -386,7 +386,7 @@ function ArticlesGrid({
     <div className="space-y-6">
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat}>
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9]" />
             {cat}
             <Badge variant="secondary" className="text-[10px] ml-1">
@@ -622,7 +622,7 @@ export function KnowledgeClient({
     <>
       <Tabs defaultValue="general" className="space-y-4">
         <div className="flex items-center justify-between">
-        <TabsList className="bg-slate-100">
+        <TabsList className="bg-slate-100 dark:bg-slate-800">
           <TabsTrigger value="general" className="gap-1.5">
             <BookOpen className="h-4 w-4" />
             General KB
@@ -758,14 +758,14 @@ export function KnowledgeClient({
             )}
           </div>
           {!selectedInstitution ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <Building2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="text-sm">
                 Select an institution to view its knowledge base
               </p>
             </div>
           ) : loadingInstitution ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <p className="text-sm">Loading...</p>
             </div>
           ) : (
@@ -819,14 +819,14 @@ export function KnowledgeClient({
             )}
           </div>
           {!selectedMarket ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <Globe className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="text-sm">
                 Select a market to view its knowledge base
               </p>
             </div>
           ) : loadingMarket ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <p className="text-sm">Loading...</p>
             </div>
           ) : (

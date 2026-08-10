@@ -128,11 +128,11 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
       cell: ({ row }: { row: { original: LeaveRequest } }) =>
         row.original.status === "PENDING" ? (
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-green-600 border-green-300"
+            <Button size="sm" variant="outline" className="h-7 text-green-600 border-green-300 dark:text-green-400 dark:border-green-500/40 dark:hover:bg-green-500/10"
               onClick={() => updateStatus(row.original.id, "APPROVED")}>
               <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-red-600 border-red-300"
+            <Button size="sm" variant="outline" className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"
               onClick={() => updateStatus(row.original.id, "REJECTED")}>
               <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
             </Button>
@@ -145,20 +145,20 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
     <div className="space-y-6">
       {/* On Leave Today banner */}
       {isHR && approvedLeaves.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <UserCheck className="h-4 w-4 text-amber-600" />
-            <p className="text-sm font-semibold text-amber-800">
+            <UserCheck className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
               {approvedLeaves.length} employee{approvedLeaves.length !== 1 ? "s" : ""} on approved leave today
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {approvedLeaves.map((r) => (
-              <div key={r.id} className="flex items-center gap-2 bg-white rounded-md border border-amber-200 px-3 py-1.5 text-sm">
-                <span className="font-medium text-slate-800">{r.employee.user.name}</span>
-                <span className="text-xs text-slate-500">·</span>
-                <span className="text-xs text-amber-700">{leaveTypeLabel(r.leaveType)}</span>
-                <span className="text-xs text-slate-400">{formatDate(r.startDate)} – {formatDate(r.endDate)}</span>
+              <div key={r.id} className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-md border border-amber-200 dark:border-amber-500/30 px-3 py-1.5 text-sm">
+                <span className="font-medium text-slate-800 dark:text-slate-200">{r.employee.user.name}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">·</span>
+                <span className="text-xs text-amber-700 dark:text-amber-300">{leaveTypeLabel(r.leaveType)}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{formatDate(r.startDate)} – {formatDate(r.endDate)}</span>
               </div>
             ))}
           </div>
@@ -166,16 +166,16 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
       )}
 
       {isHR && approvedLeaves.length === 0 && !loading && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
-          <UserCheck className="h-4 w-4 text-green-600" />
-          <p className="text-sm text-green-700">No employees on approved leave today.</p>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 dark:bg-green-500/10 dark:border-green-500/30">
+          <UserCheck className="h-4 w-4 text-green-600 dark:text-green-300" />
+          <p className="text-sm text-green-700 dark:text-green-300">No employees on approved leave today.</p>
         </div>
       )}
 
       {/* Pending requests table */}
       <div>
         {isHR && (
-          <p className="text-sm font-semibold text-slate-700 mb-3">Pending Requests</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Pending Requests</p>
         )}
         <DataTable
           columns={columns}

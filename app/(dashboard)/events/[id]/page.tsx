@@ -23,12 +23,12 @@ import Link from "next/link";
 import { displayName } from "@/lib/person-name";
 
 const STATUS_BADGE: Record<EventStatus, string> = {
-  PLANNED: "bg-slate-100 text-slate-600 border-slate-200",
-  CONFIRMED: "bg-blue-100 text-blue-700 border-blue-200",
-  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
-  COMPLETED: "bg-green-100 text-green-700 border-green-200",
-  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  PLANNED: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  CONFIRMED: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30",
+  IN_PROGRESS: "bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/30",
+  COMPLETED: "bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30",
+  CLOSED: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30",
+  CANCELLED: "bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
 };
 
 const STATUS_LABEL: Record<EventStatus, string> = {
@@ -243,16 +243,16 @@ export default async function EventDetailPage({
         >
           {STATUS_LABEL[event.status]}
         </span>
-        <span className="inline-flex items-center gap-1 text-sm text-slate-500">
+        <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
           <CalendarDays className="h-3.5 w-3.5" />
           {formatDate(event.date)}
         </span>
-        <span className="inline-flex items-center gap-1 text-sm text-slate-500">
+        <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
           <MapPin className="h-3.5 w-3.5" />
           {event.city}, {event.country}
         </span>
         {event.assignedICR && (
-          <span className="text-sm text-slate-500">ICR: {event.assignedICR.name}</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">ICR: {event.assignedICR.name}</span>
         )}
       </div>
 
@@ -273,18 +273,18 @@ export default async function EventDetailPage({
                       ? Math.min(100, Math.round((o.achieved / o.goal) * 100))
                       : null;
                   return (
-                    <div key={i} className="rounded border border-slate-200 p-3 text-sm">
+                    <div key={i} className="rounded border border-slate-200 dark:border-slate-800 p-3 text-sm">
                       <div className="flex items-baseline justify-between gap-2">
-                        <p className="font-medium text-slate-800">{o.target}</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{o.target}</p>
                         {typeof o.achieved === "number" && typeof o.goal === "number" && (
-                          <span className="text-xs tabular-nums text-slate-500">
+                          <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
                             {o.achieved} / {o.goal}
                             {pct !== null && <span className="ml-1">({pct}%)</span>}
                           </span>
                         )}
                       </div>
                       {pct !== null && (
-                        <div className="mt-1.5 h-1.5 w-full rounded bg-slate-100 overflow-hidden">
+                        <div className="mt-1.5 h-1.5 w-full rounded bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
                             className={cn(
                               "h-full transition-all",
@@ -294,7 +294,7 @@ export default async function EventDetailPage({
                           />
                         </div>
                       )}
-                      {o.notes && <p className="mt-1 text-xs text-slate-500">{o.notes}</p>}
+                      {o.notes && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{o.notes}</p>}
                     </div>
                   );
                 })}
@@ -311,13 +311,13 @@ export default async function EventDetailPage({
             <CardContent className="p-0">
               {/* Category subtotals — spec §10 categories */}
               {categoryTotals.size > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 border-b bg-slate-50/80">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 border-b bg-slate-50/80 dark:bg-slate-900/40">
                   {CANONICAL_CATEGORIES.map((cat) => {
                     const amt = categoryTotals.get(cat) ?? 0;
                     if (amt === 0) return null;
                     return (
-                      <div key={cat} className="rounded border border-slate-200 bg-white p-2">
-                        <p className="text-[10px] uppercase tracking-wide text-slate-500">{categoryLabel[cat]}</p>
+                      <div key={cat} className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{categoryLabel[cat]}</p>
                         <p className="text-sm font-semibold tabular-nums">{formatCurrency(amt)}</p>
                       </div>
                     );
@@ -326,7 +326,7 @@ export default async function EventDetailPage({
               )}
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                     <TableHead>Description</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -335,7 +335,7 @@ export default async function EventDetailPage({
                 <TableBody>
                   {event.expenses.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center text-slate-400 py-6">
+                      <TableCell colSpan={3} className="text-center text-slate-400 dark:text-slate-500 py-6">
                         No expenses recorded yet.
                       </TableCell>
                     </TableRow>
@@ -345,7 +345,7 @@ export default async function EventDetailPage({
                         <TableRow key={exp.id}>
                           <TableCell>{exp.description}</TableCell>
                           <TableCell>
-                            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/40 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
                               {exp.category ?? "Other"}
                             </span>
                           </TableCell>
@@ -355,14 +355,14 @@ export default async function EventDetailPage({
                         </TableRow>
                       ))}
                       {event.budget != null && (
-                        <TableRow className="bg-slate-50/50 text-slate-600 text-xs">
+                        <TableRow className="bg-slate-50/50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 text-xs">
                           <TableCell colSpan={2}>Planned budget</TableCell>
                           <TableCell className="text-right tabular-nums">
                             {formatCurrency(event.budget)}
                           </TableCell>
                         </TableRow>
                       )}
-                      <TableRow className="bg-slate-50 font-semibold">
+                      <TableRow className="bg-slate-50 dark:bg-slate-900/40 font-semibold">
                         <TableCell colSpan={2}>Total actual</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatCurrency(totalExpenses)}
@@ -370,8 +370,8 @@ export default async function EventDetailPage({
                       </TableRow>
                       {budgetVariance !== null && (
                         <TableRow className={cn(
-                          "bg-slate-50 text-xs font-medium",
-                          budgetVariance < 0 ? "text-red-700" : "text-green-700"
+                          "bg-slate-50 dark:bg-slate-900/40 text-xs font-medium",
+                          budgetVariance < 0 ? "text-red-700 dark:text-red-300" : "text-green-700 dark:text-green-300"
                         )}>
                           <TableCell colSpan={2}>Variance ({budgetVariance >= 0 ? "under" : "over"} budget)</TableCell>
                           <TableCell className="text-right tabular-nums">
@@ -393,19 +393,19 @@ export default async function EventDetailPage({
             </CardHeader>
             <CardContent>
               {timelineTail.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-6">
+                <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">
                   No timeline events yet.
                 </p>
               ) : (
-                <ol className="relative border-l border-slate-200 pl-4 space-y-2">
+                <ol className="relative border-l border-slate-200 dark:border-slate-800 pl-4 space-y-2">
                   {timelineTail.map((t, i) => (
                     <li key={i} className="text-sm">
-                      <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-slate-300 bg-white" />
+                      <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900" />
                       <p>
-                        <span className="font-medium text-slate-800">{t.label}</span>
-                        {t.detail && <span className="text-slate-600"> — {t.detail}</span>}
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{t.label}</span>
+                        {t.detail && <span className="text-slate-600 dark:text-slate-400"> — {t.detail}</span>}
                       </p>
-                      <p className="text-xs text-slate-400">{formatDate(t.at)}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{formatDate(t.at)}</p>
                     </li>
                   ))}
                 </ol>
@@ -423,7 +423,7 @@ export default async function EventDetailPage({
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                     <TableHead>Name</TableHead>
                     <TableHead>Stage</TableHead>
                     <TableHead>Assigned ICR</TableHead>
@@ -433,7 +433,7 @@ export default async function EventDetailPage({
                 <TableBody>
                   {event.leads.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-slate-400 py-6">
+                      <TableCell colSpan={4} className="text-center text-slate-400 dark:text-slate-500 py-6">
                         No leads linked to this event yet.
                       </TableCell>
                     </TableRow>
@@ -443,7 +443,7 @@ export default async function EventDetailPage({
                         <TableCell>
                           <Link
                             href={`/students/${lead.id}`}
-                            className="font-medium text-[#1E3A5F] hover:underline"
+                            className="font-medium text-[#1E3A5F] dark:text-blue-400 hover:underline"
                           >
                             {displayName(lead)}
                           </Link>
@@ -454,17 +454,17 @@ export default async function EventDetailPage({
                             className={cn(
                               "text-xs",
                               lead.stage === "ENROLLED"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : "bg-slate-50 text-slate-600 border-slate-200"
+                                ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30"
+                                : "bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
                             )}
                           >
                             {lead.stage}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-600 text-sm">
+                        <TableCell className="text-slate-600 dark:text-slate-300 text-sm">
                           {lead.assignedICR?.name ?? "—"}
                         </TableCell>
-                        <TableCell className="text-slate-500 text-sm">
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
                           {formatDate(lead.createdAt)}
                         </TableCell>
                       </TableRow>
@@ -482,7 +482,7 @@ export default async function EventDetailPage({
                 <CardTitle className="text-base">Post-Event Notes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
                   {event.postEventNotes}
                 </p>
               </CardContent>
@@ -511,7 +511,7 @@ export default async function EventDetailPage({
                     <li key={ei.institutionId}>
                       <Link
                         href={`/institutions/${ei.institutionId}`}
-                        className="text-sm text-[#1E3A5F] hover:underline"
+                        className="text-sm text-[#1E3A5F] dark:text-blue-400 hover:underline"
                       >
                         {ei.institution.name}
                       </Link>

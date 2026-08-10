@@ -18,14 +18,14 @@ interface UserRow {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  SUPER_ADMIN: "bg-red-100 text-red-700",
-  HQ_EXECUTIVE: "bg-purple-100 text-purple-700",
-  HQ_ANALYTICS: "bg-indigo-100 text-indigo-700",
-  REGIONAL_MANAGER: "bg-blue-100 text-blue-700",
-  ICR: "bg-teal-100 text-teal-700",
-  INSTITUTION_CLIENT: "bg-amber-100 text-amber-700",
-  HR_MANAGER: "bg-green-100 text-green-700",
-  EMPLOYEE: "bg-gray-100 text-gray-700",
+  SUPER_ADMIN: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  HQ_EXECUTIVE: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
+  HQ_ANALYTICS: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  REGIONAL_MANAGER: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  ICR: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  INSTITUTION_CLIENT: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  HR_MANAGER: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
+  EMPLOYEE: "bg-gray-100 text-gray-700 dark:bg-slate-700/60 dark:text-slate-300",
 };
 
 interface ResetTarget { id: string; name: string | null; email: string; }
@@ -74,11 +74,11 @@ export function PasswordResetSection() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">User Password Reset</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Send a one-time magic link so users can set their own password securely.</p>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">User Password Reset</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Send a one-time magic link so users can set their own password securely.</p>
         </div>
         <div className="relative w-56">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <Input
             placeholder="Search users…"
             value={search}
@@ -92,13 +92,13 @@ export function PasswordResetSection() {
         {loading ? (
           <div className="p-4 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-10 bg-slate-100 animate-pulse rounded" />
+              <div key={i} className="h-10 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" />
             ))}
           </div>
         ) : (
           <div className="divide-y max-h-80 overflow-y-auto">
             {filtered.map((u) => (
-              <div key={u.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+              <div key={u.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarFallback className="text-xs bg-[#1E3A5F] text-white">
                     {getInitials(u.name)}
@@ -106,9 +106,9 @@ export function PasswordResetSection() {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{u.name ?? u.email}</p>
-                  <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{u.email}</p>
                 </div>
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${ROLE_COLORS[u.role] ?? "bg-gray-100 text-gray-700"}`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${ROLE_COLORS[u.role] ?? "bg-gray-100 text-gray-700 dark:bg-slate-700/60 dark:text-slate-300"}`}>
                   {u.role.replace(/_/g, " ")}
                 </span>
                 <Button
@@ -124,7 +124,7 @@ export function PasswordResetSection() {
               </div>
             ))}
             {filtered.length === 0 && (
-              <p className="text-center text-sm text-slate-400 py-8">No users found.</p>
+              <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-8">No users found.</p>
             )}
           </div>
         )}
@@ -141,8 +141,8 @@ export function PasswordResetSection() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-blue-600" />
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30 rounded-lg p-3 text-sm text-blue-800 dark:text-blue-300">
+              <Link2 className="h-4 w-4 mt-0.5 shrink-0 text-blue-600 dark:text-blue-300" />
               <p>The user will receive an email with a secure link to set their own password. No password is shared over email.</p>
             </div>
           </div>

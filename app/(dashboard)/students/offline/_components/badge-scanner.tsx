@@ -147,35 +147,35 @@ export function BadgeScanner({
         </DialogHeader>
 
         {error ? (
-          <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-900 leading-relaxed">{error}</p>
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">{error}</p>
           </div>
         ) : result ? (
           <div className="space-y-3">
             <div
               className={
                 hasUsableFields(result)
-                  ? "rounded-lg border border-green-200 bg-green-50 px-3 py-2.5"
-                  : "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5"
+                  ? "rounded-lg border border-green-200 bg-green-50 dark:border-green-500/30 dark:bg-green-500/10 px-3 py-2.5"
+                  : "rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3 py-2.5"
               }
             >
               <div className="flex items-start gap-2.5">
                 {hasUsableFields(result) ? (
-                  <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                  <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                 ) : (
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-slate-900">
+                  <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
                     {hasUsableFields(result) ? "Read from the badge" : "Nothing usable on this badge"}
                   </p>
-                  <p className="text-xs text-slate-600 mt-0.5 break-words">{describeBadge(result)}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 break-words">{describeBadge(result)}</p>
                 </div>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Only the fields above will be filled in, and you can change any of them. Badges vary
               between organisers, so check what was read before saving.
             </p>
@@ -210,7 +210,7 @@ export function BadgeScanner({
               )}
               <div className="absolute inset-8 border-2 border-white/50 rounded-lg pointer-events-none" />
             </div>
-            <p className="text-xs text-slate-500 text-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
               Hold the badge inside the frame.
             </p>
           </div>

@@ -162,25 +162,25 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
     <div
       className={cn(
         "flex items-start gap-2.5 rounded-lg border p-2.5",
-        tone === "overdue" && "border-amber-200 bg-amber-50/60",
-        tone === "upcoming" && "border-slate-200 bg-white",
-        tone === "done" && "border-slate-100 bg-slate-50/60"
+        tone === "overdue" && "border-amber-200 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10",
+        tone === "upcoming" && "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900",
+        tone === "done" && "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/40"
       )}
     >
       {tone === "done" ? (
-        <CircleCheck className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+        <CircleCheck className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
       ) : tone === "overdue" ? (
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
       ) : (
-        <CalendarClock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+        <CalendarClock className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-800">
+        <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
           {a.engagementType ? LABEL[a.engagementType] ?? a.engagementType : "Activity"}
         </p>
-        <p className="text-xs text-slate-600 mt-0.5">{a.description}</p>
-        {a.outcome && <p className="text-xs text-slate-500 mt-0.5 italic">{a.outcome}</p>}
-        <p className="text-[11px] text-slate-400 mt-1">
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{a.description}</p>
+        {a.outcome && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 italic">{a.outcome}</p>}
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
           {tone === "done"
             ? `Completed ${fmt(a.completedAt!)}`
             : `${tone === "overdue" ? "Was due" : "Due"} ${fmt(a.scheduledFor!)}`}
@@ -192,7 +192,7 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-green-700 hover:bg-green-50"
+            className="h-7 px-2 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10"
             disabled={busy === a.id}
             onClick={() => act(a.id, "COMPLETE")}
           >
@@ -201,7 +201,7 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-slate-400 hover:text-red-600 hover:bg-red-50"
+            className="h-7 px-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-500/10"
             disabled={busy === a.id}
             onClick={() => act(a.id, "CANCEL")}
           >
@@ -215,7 +215,7 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           {upcoming.length === 0
             ? "Nothing scheduled — the pipeline needs a next step booked."
             : `${upcoming.length} upcoming`}
@@ -232,9 +232,9 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
       </div>
 
       {items === null ? (
-        <p className="text-xs text-slate-400 py-4 text-center">Loading…</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 py-4 text-center">Loading…</p>
       ) : live.length === 0 ? (
-        <p className="text-xs text-slate-400 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+        <p className="text-xs text-slate-400 dark:text-slate-500 py-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
           No activities yet.
         </p>
       ) : (
@@ -259,8 +259,8 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
                   className={cn(
                     "flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors",
                     mode === m
-                      ? "border-[#0EA5E9] bg-sky-50 text-[#0369A1]"
-                      : "border-slate-200 text-slate-500 hover:border-slate-300"
+                      ? "border-[#0EA5E9] bg-sky-50 text-[#0369A1] dark:bg-sky-500/15 dark:text-sky-300"
+                      : "border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700"
                   )}
                 >
                   {m === "schedule" ? "Schedule for later" : "Log something done"}
@@ -276,7 +276,7 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
                   {TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
-                      {t.hint && <span className="text-slate-400"> — {t.hint}</span>}
+                      {t.hint && <span className="text-slate-400 dark:text-slate-500"> — {t.hint}</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -296,11 +296,11 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
               <div className="space-y-1.5">
                 <Label>Date</Label>
                 <Input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
-                <p className="text-xs text-slate-400">Must be in the future.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Must be in the future.</p>
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Outcome <span className="text-slate-400 font-normal">(optional)</span></Label>
+                <Label>Outcome <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span></Label>
                 <Textarea
                   rows={2}
                   value={outcome}

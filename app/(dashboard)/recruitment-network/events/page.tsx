@@ -63,12 +63,12 @@ export default async function EventsPage({ searchParams }: Props) {
   ];
 
   const STATUS_BADGE: Record<string, string> = {
-    PLANNED: "bg-slate-100 text-slate-700 border-slate-200",
-    CONFIRMED: "bg-sky-100 text-sky-700 border-sky-200",
-    IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
-    COMPLETED: "bg-green-100 text-green-700 border-green-200",
-    CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    CANCELLED: "bg-red-100 text-red-700 border-red-200",
+    PLANNED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    CONFIRMED: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
+    IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
+    COMPLETED: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+    CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+    CANCELLED: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
   };
 
   return (
@@ -80,7 +80,7 @@ export default async function EventsPage({ searchParams }: Props) {
         </div>
         <Link
           href="/events/new"
-          className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           + New event
         </Link>
@@ -98,8 +98,8 @@ export default async function EventsPage({ searchParams }: Props) {
               className={
                 "text-xs px-2.5 py-1 rounded-full border transition-colors " +
                 (active
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                  ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
               }
             >
               {t.label} <span className="opacity-70">{count}</span>
@@ -124,11 +124,11 @@ export default async function EventsPage({ searchParams }: Props) {
           </thead>
           <tbody>
             {events.map((e) => {
-              const badgeCls = STATUS_BADGE[e.status] ?? "bg-slate-100 text-slate-700";
+              const badgeCls = STATUS_BADGE[e.status] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
               return (
                 <tr key={e.id} className="border-t hover:bg-muted/50">
                   <td className="p-2">
-                    <Link href={`/events/${e.id}`} className="text-blue-600 hover:underline font-medium">
+                    <Link href={`/events/${e.id}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                       {e.name}
                     </Link>
                   </td>

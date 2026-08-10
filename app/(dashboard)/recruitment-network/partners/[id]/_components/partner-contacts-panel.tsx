@@ -86,7 +86,7 @@ export function PartnerContactsPanel({
               <div>
                 <div className="text-sm font-medium">
                   {c.fullName}
-                  {c.isPrimary && <span className="ml-2 text-xs px-1.5 py-0.5 bg-blue-100 rounded">Primary</span>}
+                  {c.isPrimary && <span className="ml-2 text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 rounded">Primary</span>}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {c.role}{c.position ? ` · ${c.position}` : ""}
@@ -94,7 +94,7 @@ export function PartnerContactsPanel({
                   {c.phone && <> · {c.phone}</>}
                 </div>
               </div>
-              <button onClick={() => remove(c.id)} className="text-xs text-red-600 hover:underline">
+              <button onClick={() => remove(c.id)} className="text-xs text-red-600 dark:text-red-400 hover:underline">
                 Deactivate
               </button>
             </li>
@@ -104,7 +104,7 @@ export function PartnerContactsPanel({
 
       {showAdd && (
         <form onSubmit={submit} className="space-y-2 mt-3 pt-3 border-t">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="grid grid-cols-2 gap-2">
             <input
               placeholder="Full name *"
@@ -148,7 +148,7 @@ export function PartnerContactsPanel({
               Primary contact
             </label>
           </div>
-          <button type="submit" disabled={pending} className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+          <button type="submit" disabled={pending} className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50">
             {pending ? "Saving..." : "Save contact"}
           </button>
         </form>

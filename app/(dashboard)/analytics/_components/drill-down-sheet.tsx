@@ -69,11 +69,11 @@ export function DrillDownSheet({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader className="shrink-0 pb-3 border-b border-slate-100">
-          <DialogTitle className="text-slate-900">{title}</DialogTitle>
+        <DialogHeader className="shrink-0 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <DialogTitle className="text-slate-900 dark:text-slate-100">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
           {!loading && (
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               {total} lead{total !== 1 ? "s" : ""}
               {total > 50 ? " (showing first 50)" : ""}
             </p>
@@ -88,7 +88,7 @@ export function DrillDownSheet({
               ))}
             </div>
           ) : leads.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-400 dark:text-slate-500">
               <p className="text-sm">No leads found for this filter.</p>
             </div>
           ) : (
@@ -97,20 +97,20 @@ export function DrillDownSheet({
                 <button
                   key={lead.id}
                   onClick={() => { router.push(`/students/${lead.id}`); onClose(); }}
-                  className="w-full text-left px-3 py-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all group"
+                  className="w-full text-left px-3 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-800 truncate">
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
                           {displayName(lead)}
                         </span>
-                        <ExternalLink className="h-3 w-3 text-slate-300 group-hover:text-slate-500 shrink-0 transition-colors" />
+                        <ExternalLink className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 shrink-0 transition-colors" />
                       </div>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                         {lead.email} · {lead.interestedProgram}
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                         {lead.countryOfResidence}
                         {lead.institution?.name ? ` · ${lead.institution.name}` : ""}
                         {lead.assignedICR?.name ? ` · ${lead.assignedICR.name}` : ""}

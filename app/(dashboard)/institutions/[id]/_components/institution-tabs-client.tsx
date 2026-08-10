@@ -140,7 +140,7 @@ export function InstitutionTabsClient({
 }: InstitutionTabsClientProps) {
   return (
     <Tabs defaultValue="governance">
-      <TabsList className="bg-white border border-slate-200 flex-wrap h-auto">
+      <TabsList className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex-wrap h-auto">
         <TabsTrigger value="governance">Governance</TabsTrigger>
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="team">Team</TabsTrigger>
@@ -169,15 +169,15 @@ export function InstitutionTabsClient({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: "Total Leads", value: counts.leads, cls: "text-slate-900" },
-            { label: "Enrolled", value: enrolledCount, cls: "text-green-600" },
-            { label: "Contracts", value: counts.contracts, cls: "text-slate-900" },
-            { label: "Activities", value: counts.activities, cls: "text-cyan-600" },
+            { label: "Total Leads", value: counts.leads, cls: "text-slate-900 dark:text-slate-100" },
+            { label: "Enrolled", value: enrolledCount, cls: "text-green-600 dark:text-green-400" },
+            { label: "Contracts", value: counts.contracts, cls: "text-slate-900 dark:text-slate-100" },
+            { label: "Activities", value: counts.activities, cls: "text-cyan-600 dark:text-cyan-400" },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="p-4 text-center">
                 <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
-                <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{s.label}</p>
               </CardContent>
             </Card>
           ))}
@@ -186,10 +186,10 @@ export function InstitutionTabsClient({
         {strategicObjectives && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-700">Strategic Objectives</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Strategic Objectives</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
                 {strategicObjectives}
               </p>
             </CardContent>
@@ -198,7 +198,7 @@ export function InstitutionTabsClient({
 
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm font-semibold text-slate-700 mb-3">Enrollment Targets vs Actual</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Enrollment Targets vs Actual</p>
             <EnrollmentChart targets={enrollmentTargets} />
           </CardContent>
         </Card>
@@ -218,7 +218,7 @@ export function InstitutionTabsClient({
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                   <TableHead>Name</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Email</TableHead>
@@ -229,7 +229,7 @@ export function InstitutionTabsClient({
               <TableBody>
                 {contacts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-400 py-8">
+                    <TableCell colSpan={5} className="text-center text-slate-400 dark:text-slate-500 py-8">
                       No contacts added yet.
                     </TableCell>
                   </TableRow>
@@ -237,12 +237,12 @@ export function InstitutionTabsClient({
                   contacts.map((contact) => (
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">{contact.name}</TableCell>
-                      <TableCell className="text-slate-600">{contact.title ?? "—"}</TableCell>
-                      <TableCell className="text-slate-600">{contact.email ?? "—"}</TableCell>
-                      <TableCell className="text-slate-600">{contact.phone ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.title ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.email ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.phone ?? "—"}</TableCell>
                       <TableCell>
                         {contact.isPrimary && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30 text-xs">
                             Primary
                           </Badge>
                         )}
@@ -273,8 +273,8 @@ export function InstitutionTabsClient({
             spec-mandated: "Based on student records maintained within Illume
             CRM." */}
         <PipelinePanel leads={leads} />
-        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-          <p className="font-medium text-slate-700">Manual KPI targets</p>
+        <div className="rounded-md border border-slate-200 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
+          <p className="font-medium text-slate-700 dark:text-slate-300">Manual KPI targets</p>
           <p className="mt-0.5">
             The auto-computed pipeline above comes from student records. Use
             the section below to record manual KPI targets your Account Manager
@@ -290,7 +290,7 @@ export function InstitutionTabsClient({
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Uploaded</TableHead>
@@ -300,7 +300,7 @@ export function InstitutionTabsClient({
               <TableBody>
                 {documents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-slate-400 py-8">
+                    <TableCell colSpan={4} className="text-center text-slate-400 dark:text-slate-500 py-8">
                       No documents uploaded yet.
                     </TableCell>
                   </TableRow>
@@ -315,7 +315,7 @@ export function InstitutionTabsClient({
                           href={doc.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[#1E3A5F] hover:underline text-sm"
+                          className="text-[#1E3A5F] dark:text-blue-400 hover:underline text-sm"
                         >
                           Download
                         </Link>

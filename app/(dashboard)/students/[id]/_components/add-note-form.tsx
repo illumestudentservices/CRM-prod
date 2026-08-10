@@ -142,7 +142,7 @@ export function AddNoteForm({ leadId, initialNotes, currentUser }: AddNoteFormPr
               key={note.id}
               className={cn(
                 "rounded-lg border p-3 space-y-2 transition-opacity",
-                note.id.startsWith("optimistic-") ? "opacity-60 border-dashed" : "border-slate-200"
+                note.id.startsWith("optimistic-") ? "opacity-60 border-dashed border-slate-300 dark:border-slate-700" : "border-slate-200 dark:border-slate-800"
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -155,15 +155,15 @@ export function AddNoteForm({ leadId, initialNotes, currentUser }: AddNoteFormPr
                       {getInitials(note.author?.name ?? note.authorId)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-xs font-medium text-slate-700">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                     {note.author?.name ?? "Unknown"}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">
                   {formatRelative(note.createdAt)}
                 </span>
               </div>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
                 {note.content}
               </p>
             </div>
@@ -171,8 +171,8 @@ export function AddNoteForm({ leadId, initialNotes, currentUser }: AddNoteFormPr
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-6 text-center">
-          <StickyNote className="h-8 w-8 text-slate-300 mb-2" />
-          <p className="text-sm text-slate-400">No notes yet</p>
+          <StickyNote className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
+          <p className="text-sm text-slate-400 dark:text-slate-500">No notes yet</p>
         </div>
       )}
     </div>

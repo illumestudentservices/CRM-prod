@@ -72,7 +72,7 @@ export function MarketDetailClient({ market, currentUserRole }: { market: Market
 
       <section id="suggestions">
         <h2 className="text-lg font-semibold mb-2">Suggestions</h2>
-        {error && <div className="text-sm text-red-600 mb-2">{error}</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-300 mb-2">{error}</div>}
 
         {canSuggest && (
           <form onSubmit={submitSuggestion} className="border rounded p-3 mb-4 space-y-2">
@@ -100,9 +100,9 @@ export function MarketDetailClient({ market, currentUserRole }: { market: Market
                   <strong>{KIND_LABELS[s.kind]}</strong> · from {s.submittedBy.name} · {new Date(s.submittedAt).toISOString().slice(0, 10)}
                 </div>
                 <span className={
-                  s.status === "PENDING" ? "text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded" :
-                  s.status === "APPROVED" || s.status === "EDITED" ? "text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded" :
-                  "text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded"
+                  s.status === "PENDING" ? "text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300 rounded" :
+                  s.status === "APPROVED" || s.status === "EDITED" ? "text-xs px-2 py-0.5 bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 rounded" :
+                  "text-xs px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300 rounded"
                 }>{s.status}</span>
               </div>
               <div className="text-sm whitespace-pre-wrap">{s.editedText ?? s.originalText}</div>

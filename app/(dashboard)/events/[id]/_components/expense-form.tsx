@@ -147,7 +147,7 @@ export function ExpenseForm({ eventId }: ExpenseFormProps) {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border border-transparent dark:border-red-500/30 px-3 py-2 rounded-md">{error}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">

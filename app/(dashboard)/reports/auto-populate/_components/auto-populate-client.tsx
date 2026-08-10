@@ -82,7 +82,7 @@ export function AutoPopulateClient({ icrs, institutions, selfId }: { icrs: Optio
         </button>
       </div>
 
-      {error && <div className="text-sm text-red-600 border border-red-200 rounded p-2 bg-red-50">{error}</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-300 border border-red-200 dark:border-red-500/30 rounded p-2 bg-red-50 dark:bg-red-500/10">{error}</div>}
 
       {data && (
         <div className="space-y-4">
@@ -147,7 +147,7 @@ export function AutoPopulateClient({ icrs, institutions, selfId }: { icrs: Optio
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="border rounded p-2 bg-white">
+    <div className="border rounded p-2 bg-white dark:bg-slate-900">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-xl font-semibold">{value}</div>
     </div>

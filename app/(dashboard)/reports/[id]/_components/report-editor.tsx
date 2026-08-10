@@ -124,11 +124,11 @@ export function ReportEditor({ report }: { report: ReportData }) {
     <div className="space-y-6 max-w-2xl">
       {/* Returned-for-revision banner */}
       {report.status === "RETURNED" && report.returnComment && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
-          <RotateCcw className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
+          <RotateCcw className="h-5 w-5 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-red-800">Returned for revision</p>
-            <p className="text-sm text-red-700 mt-0.5">{report.returnComment}</p>
+            <p className="text-sm font-semibold text-red-800 dark:text-red-300">Returned for revision</p>
+            <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">{report.returnComment}</p>
           </div>
         </div>
       )}
@@ -136,7 +136,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
       {/* Auto-generated summary */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-900 flex items-center gap-2">
+          <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[#0EA5E9]" />
             {period} — auto-generated from your CRM data
           </CardTitle>
@@ -145,16 +145,16 @@ export function ReportEditor({ report }: { report: ReportData }) {
           {stats.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {stats.map((s) => (
-                <div key={s.label} className="text-center rounded-lg bg-slate-50 py-4">
-                  <p className="text-2xl font-bold text-[#1E3A5F]">{s.value}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+                <div key={s.label} className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-4">
+                  <p className="text-2xl font-bold text-[#1E3A5F] dark:text-blue-300">{s.value}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400">No CRM data for this period yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No CRM data for this period yet.</p>
           )}
-          <p className="text-xs text-slate-400 mt-3">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
             Leads, programs, sources and events are pulled in automatically — nothing to fill in. You can review the full
             breakdown after sending.
           </p>
@@ -164,15 +164,15 @@ export function ReportEditor({ report }: { report: ReportData }) {
       {/* Report Sections */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-900">
+          <CardTitle className="text-base font-semibold text-slate-900 dark:text-slate-100">
             Report Sections{" "}
-            <span className="text-sm font-normal text-slate-400">(optional)</span>
+            <span className="text-sm font-normal text-slate-400 dark:text-slate-500">(optional)</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           {/* 1. Engagement Notes */}
           <div className="space-y-1.5">
-            <Label htmlFor="engagementNotes" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="engagementNotes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Engagement Notes
             </Label>
             <Textarea
@@ -188,7 +188,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
 
           {/* 2. Challenges & Opportunities */}
           <div className="space-y-1.5">
-            <Label htmlFor="challengesOpportunities" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="challengesOpportunities" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Challenges &amp; Opportunities
             </Label>
             <Textarea
@@ -204,7 +204,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
 
           {/* 3. Success Stories */}
           <div className="space-y-1.5">
-            <Label htmlFor="successStories" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="successStories" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Success Stories
             </Label>
             <Textarea
@@ -220,7 +220,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
 
           {/* 4. Market Insights */}
           <div className="space-y-1.5">
-            <Label htmlFor="marketInsights" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="marketInsights" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Market Insights
             </Label>
             <Textarea
@@ -236,7 +236,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
 
           {/* 5. Next Month Plan */}
           <div className="space-y-1.5">
-            <Label htmlFor="nextMonthPlan" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="nextMonthPlan" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Next Month Plan
             </Label>
             <Textarea
@@ -250,7 +250,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
             />
           </div>
 
-          <div className="h-4 text-xs text-slate-400 flex items-center gap-1">
+          <div className="h-4 text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
             {saving ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin" /> Saving…
@@ -265,7 +265,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
       </Card>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -273,7 +273,7 @@ export function ReportEditor({ report }: { report: ReportData }) {
 
       {/* Send */}
       <div className="flex items-center justify-between gap-4 pb-6">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           Sending finalises this report and makes it available to your team.
         </p>
         <Button

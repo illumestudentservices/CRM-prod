@@ -32,23 +32,23 @@ import type { ActivityType } from "@prisma/client";
 // in the enum for legacy rows created before migration 019 but are hidden from
 // the create form: event attendance is captured through Event Participation.
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  SCHOOL_VISIT: { label: "School Visit", color: "bg-blue-100 text-blue-700", icon: School },
-  AGENT_MEETING: { label: "Agent Meeting", color: "bg-amber-100 text-amber-700", icon: Handshake },
-  AGENT_TRAINING: { label: "Agent Training", color: "bg-orange-100 text-orange-700", icon: Handshake },
-  SCHOOL_PRESENTATION: { label: "School Presentation", color: "bg-sky-100 text-sky-700", icon: School },
-  CLIENT_MEETING: { label: "Client Meeting", color: "bg-emerald-100 text-emerald-700", icon: Handshake },
-  PARTNER_MEETING: { label: "Partner Meeting", color: "bg-green-100 text-green-700", icon: Handshake },
-  MARKET_RESEARCH: { label: "Market Research", color: "bg-indigo-100 text-indigo-700", icon: ClipboardList },
-  STUDENT_FOLLOW_UP_SESSION: { label: "Student Follow-up", color: "bg-cyan-100 text-cyan-700", icon: Users },
-  EVENT_PREPARATION: { label: "Event Preparation", color: "bg-violet-100 text-violet-700", icon: Flag },
-  EVENT_FOLLOW_UP: { label: "Event Follow-up", color: "bg-fuchsia-100 text-fuchsia-700", icon: Flag },
-  REPORT_SUBMISSION: { label: "Report Submission", color: "bg-slate-100 text-slate-700", icon: ClipboardList },
-  DELEGATION_SUPPORT: { label: "Delegation Support", color: "bg-purple-100 text-purple-700", icon: Users },
-  INTERNAL_REVIEW: { label: "Internal Review", color: "bg-zinc-100 text-zinc-700", icon: ClipboardList },
-  OTHER: { label: "Other", color: "bg-slate-100 text-slate-600", icon: ClipboardList },
+  SCHOOL_VISIT: { label: "School Visit", color: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300", icon: School },
+  AGENT_MEETING: { label: "Agent Meeting", color: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", icon: Handshake },
+  AGENT_TRAINING: { label: "Agent Training", color: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300", icon: Handshake },
+  SCHOOL_PRESENTATION: { label: "School Presentation", color: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300", icon: School },
+  CLIENT_MEETING: { label: "Client Meeting", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300", icon: Handshake },
+  PARTNER_MEETING: { label: "Partner Meeting", color: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300", icon: Handshake },
+  MARKET_RESEARCH: { label: "Market Research", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300", icon: ClipboardList },
+  STUDENT_FOLLOW_UP_SESSION: { label: "Student Follow-up", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300", icon: Users },
+  EVENT_PREPARATION: { label: "Event Preparation", color: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", icon: Flag },
+  EVENT_FOLLOW_UP: { label: "Event Follow-up", color: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300", icon: Flag },
+  REPORT_SUBMISSION: { label: "Report Submission", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", icon: ClipboardList },
+  DELEGATION_SUPPORT: { label: "Delegation Support", color: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300", icon: Users },
+  INTERNAL_REVIEW: { label: "Internal Review", color: "bg-zinc-100 text-zinc-700 dark:bg-slate-800 dark:text-slate-300", icon: ClipboardList },
+  OTHER: { label: "Other", color: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300", icon: ClipboardList },
   // Legacy — kept so old rows render but not offered in the create form.
-  STUDENT_EVENT: { label: "Student Event (legacy)", color: "bg-cyan-100 text-cyan-700", icon: Users },
-  FAIR: { label: "Fair (legacy)", color: "bg-violet-100 text-violet-700", icon: Flag },
+  STUDENT_EVENT: { label: "Student Event (legacy)", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300", icon: Users },
+  FAIR: { label: "Fair (legacy)", color: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", icon: Flag },
 };
 
 const ACTIVITY_TYPES = [
@@ -69,11 +69,11 @@ const ACTIVITY_TYPES = [
 ] as const;
 
 const STATUS_BADGE: Record<string, string> = {
-  PLANNED: "bg-slate-100 text-slate-700 border-slate-200",
-  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
-  COMPLETED: "bg-green-100 text-green-700 border-green-200",
-  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  PLANNED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
+  COMPLETED: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+  CANCELLED: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
 };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -291,23 +291,23 @@ export function ActivitiesClient({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <ClipboardList className="h-5 w-5 text-slate-600" />
+            <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <ClipboardList className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              <p className="text-xs text-slate-500">Total Activities</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Total Activities</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-cyan-50 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-cyan-600" />
+            <div className="h-10 w-10 rounded-lg bg-cyan-50 dark:bg-cyan-500/15 flex items-center justify-center">
+              <CalendarDays className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.thisMonth}</p>
-              <p className="text-xs text-slate-500">This Month</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.thisMonth}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">This Month</p>
             </div>
           </CardContent>
         </Card>
@@ -316,12 +316,12 @@ export function ActivitiesClient({
           return (
             <Card key={bt.type}>
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-slate-50 flex items-center justify-center">
-                  {cfg && <cfg.icon className="h-5 w-5 text-slate-500" />}
+                <div className="h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                  {cfg && <cfg.icon className="h-5 w-5 text-slate-500 dark:text-slate-400" />}
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">{bt.count}</p>
-                  <p className="text-xs text-slate-500">{cfg?.label ?? bt.type}</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{bt.count}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{cfg?.label ?? bt.type}</p>
                 </div>
               </CardContent>
             </Card>
@@ -332,9 +332,9 @@ export function ActivitiesClient({
       {/* Log Activity button + table */}
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">Recent Activities</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Activities</h3>
               <ExportButton
                 data={activities.map((a) => ({
                   type: TYPE_CONFIG[a.type]?.label ?? a.type,
@@ -379,12 +379,12 @@ export function ActivitiesClient({
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-slate-900">Log New Activity</DialogTitle>
+                  <DialogTitle className="text-slate-900 dark:text-slate-100">Log New Activity</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-5 pt-2">
                   {/* Activity Type Selector */}
                   <div className="space-y-1.5">
-                    <Label className="text-slate-700">Activity Type</Label>
+                    <Label className="text-slate-700 dark:text-slate-300">Activity Type</Label>
                     <Select value={type} onValueChange={setType}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -400,7 +400,7 @@ export function ActivitiesClient({
                   {/* Common fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Title *</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">Title *</Label>
                       <Input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
@@ -409,7 +409,7 @@ export function ActivitiesClient({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Date *</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">Date *</Label>
                       <Input
                         type="date"
                         value={date}
@@ -421,7 +421,7 @@ export function ActivitiesClient({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">City</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">City</Label>
                       <Input
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
@@ -429,7 +429,7 @@ export function ActivitiesClient({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Country</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">Country</Label>
                       <Input
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
@@ -440,7 +440,7 @@ export function ActivitiesClient({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Location / Venue</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">Location / Venue</Label>
                       <Input
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
@@ -448,7 +448,7 @@ export function ActivitiesClient({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700">Institution</Label>
+                      <Label className="text-slate-700 dark:text-slate-300">Institution</Label>
                       {/* Spec §6 (Field Operations) — "Lookup Before Create".
                           Radix Select can't use "" as an item value, so
                           "__none" round-trips to null on submit. */}
@@ -475,7 +475,7 @@ export function ActivitiesClient({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-slate-700">Description</Label>
+                    <Label className="text-slate-700 dark:text-slate-300">Description</Label>
                     <Textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
@@ -486,11 +486,11 @@ export function ActivitiesClient({
 
                   {/* ──── SCHOOL_VISIT fields ──── */}
                   {type === "SCHOOL_VISIT" && (
-                    <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/30 p-4">
-                      <p className="text-sm font-medium text-blue-700">School Visit Details</p>
+                    <div className="space-y-4 rounded-lg border border-blue-100 bg-blue-50/30 dark:border-blue-500/30 dark:bg-blue-500/10 p-4">
+                      <p className="text-sm font-medium text-blue-700 dark:text-blue-300">School Visit Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">School</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">School</Label>
                           <Select
                             value={schoolId || "__none"}
                             onValueChange={(v) => setSchoolId(v === "__none" ? "" : v)}
@@ -512,7 +512,7 @@ export function ActivitiesClient({
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Students Engaged</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Students Engaged</Label>
                           <Input
                             type="number"
                             min={0}
@@ -522,7 +522,7 @@ export function ActivitiesClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Counsellors Engaged</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Counsellors Engaged</Label>
                           <Input
                             type="number"
                             min={0}
@@ -533,7 +533,7 @@ export function ActivitiesClient({
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-slate-700">Outcomes</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Outcomes</Label>
                         <Textarea
                           value={outcomes}
                           onChange={(e) => setOutcomes(e.target.value)}
@@ -546,11 +546,11 @@ export function ActivitiesClient({
 
                   {/* ──── AGENT_MEETING fields ──── */}
                   {type === "AGENT_MEETING" && (
-                    <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50/30 p-4">
-                      <p className="text-sm font-medium text-amber-700">Agent Meeting Details</p>
+                    <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50/30 dark:border-amber-500/30 dark:bg-amber-500/10 p-4">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Agent Meeting Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Agent / Partner</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Agent / Partner</Label>
                           <Select
                             value={sourceId || "__none"}
                             onValueChange={(v) => setSourceId(v === "__none" ? "" : v)}
@@ -573,7 +573,7 @@ export function ActivitiesClient({
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Topics Discussed</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Topics Discussed</Label>
                           <Input
                             value={topics}
                             onChange={(e) => setTopics(e.target.value)}
@@ -582,7 +582,7 @@ export function ActivitiesClient({
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-slate-700">Outcomes</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Outcomes</Label>
                         <Textarea
                           value={outcomes}
                           onChange={(e) => setOutcomes(e.target.value)}
@@ -592,7 +592,7 @@ export function ActivitiesClient({
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-slate-700">Action Items</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Action Items</Label>
                           <Button type="button" variant="outline" size="sm" onClick={addActionItem} className="gap-1">
                             <Plus className="h-3 w-3" /> Add
                           </Button>
@@ -600,7 +600,7 @@ export function ActivitiesClient({
                         {actionItems.map((item, idx) => (
                           <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-end">
                             <div className="space-y-1">
-                              <Label className="text-xs text-slate-500">Task</Label>
+                              <Label className="text-xs text-slate-500 dark:text-slate-400">Task</Label>
                               <Input
                                 value={item.title}
                                 onChange={(e) => updateActionItem(idx, "title", e.target.value)}
@@ -608,7 +608,7 @@ export function ActivitiesClient({
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs text-slate-500">Assignee</Label>
+                              <Label className="text-xs text-slate-500 dark:text-slate-400">Assignee</Label>
                               <Input
                                 value={item.assignee}
                                 onChange={(e) => updateActionItem(idx, "assignee", e.target.value)}
@@ -616,7 +616,7 @@ export function ActivitiesClient({
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs text-slate-500">Due</Label>
+                              <Label className="text-xs text-slate-500 dark:text-slate-400">Due</Label>
                               <Input
                                 type="date"
                                 value={item.dueDate}
@@ -628,7 +628,7 @@ export function ActivitiesClient({
                               variant="ghost"
                               size="sm"
                               onClick={() => removeActionItem(idx)}
-                              className="text-red-500 hover:text-red-700 mb-0.5"
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 mb-0.5"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -640,11 +640,11 @@ export function ActivitiesClient({
 
                   {/* ──── STUDENT_EVENT fields ──── */}
                   {type === "STUDENT_EVENT" && (
-                    <div className="space-y-4 rounded-lg border border-cyan-100 bg-cyan-50/30 p-4">
-                      <p className="text-sm font-medium text-cyan-700">Student Event Details</p>
+                    <div className="space-y-4 rounded-lg border border-cyan-100 bg-cyan-50/30 dark:border-cyan-500/30 dark:bg-cyan-500/10 p-4">
+                      <p className="text-sm font-medium text-cyan-700 dark:text-cyan-300">Student Event Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Leads Generated</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Leads Generated</Label>
                           <Input
                             type="number"
                             min={0}
@@ -654,7 +654,7 @@ export function ActivitiesClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Applications Generated</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Applications Generated</Label>
                           <Input
                             type="number"
                             min={0}
@@ -669,11 +669,11 @@ export function ActivitiesClient({
 
                   {/* ──── FAIR fields ──── */}
                   {type === "FAIR" && (
-                    <div className="space-y-4 rounded-lg border border-violet-100 bg-violet-50/30 p-4">
-                      <p className="text-sm font-medium text-violet-700">Fair Details</p>
+                    <div className="space-y-4 rounded-lg border border-violet-100 bg-violet-50/30 dark:border-violet-500/30 dark:bg-violet-500/10 p-4">
+                      <p className="text-sm font-medium text-violet-700 dark:text-violet-300">Fair Details</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Cost ($)</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Cost ($)</Label>
                           <Input
                             type="number"
                             min={0}
@@ -684,7 +684,7 @@ export function ActivitiesClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Leads Generated</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Leads Generated</Label>
                           <Input
                             type="number"
                             min={0}
@@ -694,7 +694,7 @@ export function ActivitiesClient({
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-700">Applications Generated</Label>
+                          <Label className="text-slate-700 dark:text-slate-300">Applications Generated</Label>
                           <Input
                             type="number"
                             min={0}
@@ -705,8 +705,8 @@ export function ActivitiesClient({
                         </div>
                       </div>
                       {computedRoi && (
-                        <div className="rounded-md bg-violet-100 px-3 py-2">
-                          <p className="text-sm text-violet-800">
+                        <div className="rounded-md bg-violet-100 dark:bg-violet-500/15 px-3 py-2">
+                          <p className="text-sm text-violet-800 dark:text-violet-300">
                             Estimated ROI: <span className="font-semibold">{computedRoi}</span> leads per dollar
                           </p>
                         </div>
@@ -716,10 +716,10 @@ export function ActivitiesClient({
 
                   {/* ──── PARTNER_MEETING fields ──── */}
                   {type === "PARTNER_MEETING" && (
-                    <div className="space-y-4 rounded-lg border border-green-100 bg-green-50/30 p-4">
-                      <p className="text-sm font-medium text-green-700">Partner Meeting Details</p>
+                    <div className="space-y-4 rounded-lg border border-green-100 bg-green-50/30 dark:border-green-500/30 dark:bg-green-500/10 p-4">
+                      <p className="text-sm font-medium text-green-700 dark:text-green-300">Partner Meeting Details</p>
                       <div className="space-y-1.5">
-                        <Label className="text-slate-700">Stakeholder Name</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Stakeholder Name</Label>
                         <Input
                           value={stakeholderName}
                           onChange={(e) => setStakeholderName(e.target.value)}
@@ -727,7 +727,7 @@ export function ActivitiesClient({
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-slate-700">Outcomes</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Outcomes</Label>
                         <Textarea
                           value={outcomes}
                           onChange={(e) => setOutcomes(e.target.value)}
@@ -736,7 +736,7 @@ export function ActivitiesClient({
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-slate-700">Follow-up</Label>
+                        <Label className="text-slate-700 dark:text-slate-300">Follow-up</Label>
                         <Textarea
                           value={followUp}
                           onChange={(e) => setFollowUp(e.target.value)}
@@ -793,8 +793,8 @@ export function ActivitiesClient({
                       className={
                         "text-xs px-2.5 py-1 rounded-full border transition-colors " +
                         (active
-                          ? "bg-slate-900 text-white border-slate-900"
-                          : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                          ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                          : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
                       }
                     >
                       {t.label} <span className="opacity-70">{statusCounts[t.key] ?? 0}</span>
@@ -807,7 +807,7 @@ export function ActivitiesClient({
 
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/80">
+              <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                 <TableHead>Activity</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Status</TableHead>
@@ -828,7 +828,7 @@ export function ActivitiesClient({
                 if (filtered.length === 0) {
                   return (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-slate-400 py-8">
+                      <TableCell colSpan={8} className="text-center text-slate-400 dark:text-slate-500 py-8">
                         No activities match the current filter.
                       </TableCell>
                     </TableRow>
@@ -836,13 +836,13 @@ export function ActivitiesClient({
                 }
                 return filtered.map((a) => {
                   const cfg = TYPE_CONFIG[a.type];
-                  const statusCls = a.status ? STATUS_BADGE[a.status] ?? "" : "bg-slate-50 text-slate-500 border-slate-200";
+                  const statusCls = a.status ? STATUS_BADGE[a.status] ?? "" : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
                   return (
                     <TableRow key={a.id}>
                       <TableCell>
-                        <p className="font-medium text-slate-900 text-sm">{a.title}</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">{a.title}</p>
                         {a.school && (
-                          <p className="text-xs text-slate-400">{a.school.name}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500">{a.school.name}</p>
                         )}
                       </TableCell>
                       <TableCell>
@@ -855,21 +855,21 @@ export function ActivitiesClient({
                           {a.status ? a.status.replace(/_/g, " ") : "Unset"}
                         </span>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600">{formatDate(a.date)}</TableCell>
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">{formatDate(a.date)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarFallback className="bg-slate-200 text-slate-600 text-[10px]">
+                            <AvatarFallback className="bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-[10px]">
                               {getInitials(a.user.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm text-slate-600">{a.user.name ?? "—"}</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-400">{a.user.name ?? "—"}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600">
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                         {a.institution?.name ?? "—"}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-500">
+                      <TableCell className="text-sm text-slate-500 dark:text-slate-400">
                         {[a.city, a.country].filter(Boolean).join(", ") || "—"}
                       </TableCell>
                       <TableCell className="text-center text-sm">{a.leadsGenerated ?? "—"}</TableCell>

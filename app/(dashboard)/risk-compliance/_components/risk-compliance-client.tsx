@@ -108,20 +108,20 @@ const COMPLIANCE_TYPE_OPTIONS: {
   label: string;
   color: string;
 }[] = [
-  { value: "GDPR", label: "GDPR", color: "bg-blue-100 text-blue-700" },
-  { value: "FOIPOP", label: "FOIPOP", color: "bg-cyan-100 text-cyan-700" },
-  { value: "CASL", label: "CASL", color: "bg-amber-100 text-amber-700" },
+  { value: "GDPR", label: "GDPR", color: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" },
+  { value: "FOIPOP", label: "FOIPOP", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300" },
+  { value: "CASL", label: "CASL", color: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
   {
     value: "AGENT_COMPLIANCE",
     label: "Agent Compliance",
-    color: "bg-green-100 text-green-700",
+    color: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
   },
   {
     value: "TRAINING",
     label: "Training",
-    color: "bg-violet-100 text-violet-700",
+    color: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
   },
-  { value: "OTHER", label: "Other", color: "bg-slate-100 text-slate-700" },
+  { value: "OTHER", label: "Other", color: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300" },
 ];
 
 const COMPLIANCE_STATUS_OPTIONS = [
@@ -132,37 +132,37 @@ const COMPLIANCE_STATUS_OPTIONS = [
 ];
 
 function getRiskScoreColor(score: number) {
-  if (score >= 20) return "bg-purple-100 text-purple-700";
-  if (score >= 15) return "bg-red-100 text-red-700";
-  if (score >= 7) return "bg-amber-100 text-amber-700";
-  return "bg-green-100 text-green-700";
+  if (score >= 20) return "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300";
+  if (score >= 15) return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
+  if (score >= 7) return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
+  return "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300";
 }
 
 function getRiskStatusColor(status: RiskStatus) {
   switch (status) {
     case "OPEN":
-      return "bg-amber-100 text-amber-700";
+      return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
     case "MITIGATED":
-      return "bg-green-100 text-green-700";
+      return "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300";
     case "CLOSED":
-      return "bg-slate-100 text-slate-700";
+      return "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300";
     case "ESCALATED":
-      return "bg-red-100 text-red-700";
+      return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
   }
 }
 
 function getComplianceStatusColor(status: string) {
   switch (status) {
     case "PENDING":
-      return "bg-amber-100 text-amber-700";
+      return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
     case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
     case "COMPLETED":
-      return "bg-green-100 text-green-700";
+      return "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300";
     case "OVERDUE":
-      return "bg-red-100 text-red-700";
+      return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300";
   }
 }
 
@@ -171,7 +171,7 @@ function getComplianceTypeConfig(type: ComplianceType) {
     COMPLIANCE_TYPE_OPTIONS.find((o) => o.value === type) ?? {
       value: type,
       label: type,
-      color: "bg-slate-100 text-slate-700",
+      color: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300",
     }
   );
 }
@@ -397,51 +397,51 @@ export function RiskComplianceClient({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <ShieldAlert className="h-5 w-5 text-amber-600" />
+            <div className="h-10 w-10 rounded-lg bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">{openRisks}</p>
-              <p className="text-xs text-slate-500">Open Risks</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{openRisks}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Open Risks</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+            <div className="h-10 w-10 rounded-lg bg-red-50 dark:bg-red-500/15 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {criticalRisks}
               </p>
-              <p className="text-xs text-slate-500">Critical Risks</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Critical Risks</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <ClipboardCheck className="h-5 w-5 text-blue-600" />
+            <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center">
+              <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {pendingCompliance}
               </p>
-              <p className="text-xs text-slate-500">Pending Compliance</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Pending Compliance</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-red-600" />
+            <div className="h-10 w-10 rounded-lg bg-red-50 dark:bg-red-500/15 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-red-600 dark:text-red-300" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {overdueCompliance}
               </p>
-              <p className="text-xs text-slate-500">Overdue Compliance</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Overdue Compliance</p>
             </div>
           </CardContent>
         </Card>
@@ -566,7 +566,7 @@ export function RiskComplianceClient({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50/80">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                       <TableHead>Title</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead className="text-center">Likelihood</TableHead>
@@ -585,7 +585,7 @@ export function RiskComplianceClient({
                       <TableRow>
                         <TableCell
                           colSpan={canWrite || canDelete ? 9 : 8}
-                          className="text-center py-8 text-slate-400"
+                          className="text-center py-8 text-slate-400 dark:text-slate-500"
                         >
                           No risks found
                         </TableCell>
@@ -599,7 +599,7 @@ export function RiskComplianceClient({
                           <TableCell>
                             <Badge
                               variant="secondary"
-                              className="bg-slate-100 text-slate-700"
+                              className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                             >
                               {risk.type}
                             </Badge>
@@ -626,10 +626,10 @@ export function RiskComplianceClient({
                               {risk.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-slate-600">
+                          <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                             {risk.owner.name ?? "Unknown"}
                           </TableCell>
-                          <TableCell className="text-sm text-slate-600">
+                          <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                             {risk.institution?.name ?? "---"}
                           </TableCell>
                           {(canWrite || canDelete) && (
@@ -728,7 +728,7 @@ export function RiskComplianceClient({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50/80">
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                       <TableHead>Title</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
@@ -745,7 +745,7 @@ export function RiskComplianceClient({
                       <TableRow>
                         <TableCell
                           colSpan={canWrite || canDelete ? 7 : 6}
-                          className="text-center py-8 text-slate-400"
+                          className="text-center py-8 text-slate-400 dark:text-slate-500"
                         >
                           No compliance items found
                         </TableCell>
@@ -778,13 +778,13 @@ export function RiskComplianceClient({
                                 {item.status.replace("_", " ")}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-sm text-slate-600">
+                            <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                               {formatDate(item.dueDate)}
                             </TableCell>
-                            <TableCell className="text-sm text-slate-600">
+                            <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                               {item.assignedTo?.name ?? "---"}
                             </TableCell>
-                            <TableCell className="text-sm text-slate-600">
+                            <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                               {item.institution?.name ?? "---"}
                             </TableCell>
                             {(canWrite || canDelete) && (
@@ -861,7 +861,7 @@ export function RiskComplianceClient({
                   name="type"
                   required
                   defaultValue={editingRisk?.type ?? "MARKET"}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   {RISK_TYPE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -876,7 +876,7 @@ export function RiskComplianceClient({
                   id="risk-status"
                   name="status"
                   defaultValue={editingRisk?.status ?? "OPEN"}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   {RISK_STATUS_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -941,7 +941,7 @@ export function RiskComplianceClient({
                   id="risk-institution"
                   name="institutionId"
                   defaultValue={editingRisk?.institution?.id ?? ""}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="">None</option>
                   {institutions.map((i) => (
@@ -957,7 +957,7 @@ export function RiskComplianceClient({
                   id="risk-market"
                   name="marketId"
                   defaultValue={editingRisk?.market?.id ?? ""}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="">None</option>
                   {markets.map((m) => (
@@ -1022,7 +1022,7 @@ export function RiskComplianceClient({
                   id="comp-type"
                   name="complianceType"
                   defaultValue={editingCompliance?.complianceType ?? "OTHER"}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   {COMPLIANCE_TYPE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -1037,7 +1037,7 @@ export function RiskComplianceClient({
                   id="comp-status"
                   name="status"
                   defaultValue={editingCompliance?.status ?? "PENDING"}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   {COMPLIANCE_STATUS_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -1080,7 +1080,7 @@ export function RiskComplianceClient({
                   id="comp-assigned"
                   name="assignedToId"
                   defaultValue={editingCompliance?.assignedTo?.id ?? ""}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="">Unassigned</option>
                   {users.map((u) => (
@@ -1098,7 +1098,7 @@ export function RiskComplianceClient({
                 id="comp-institution"
                 name="institutionId"
                 defaultValue={editingCompliance?.institution?.id ?? ""}
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
               >
                 <option value="">None</option>
                 {institutions.map((i) => (

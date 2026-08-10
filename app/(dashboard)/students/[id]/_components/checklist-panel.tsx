@@ -61,14 +61,14 @@ export function ChecklistPanel({ leadId }: { leadId: string }) {
   }
 
   if (items === null) {
-    return <p className="text-xs text-slate-400 py-4 text-center">Loading…</p>;
+    return <p className="text-xs text-slate-400 dark:text-slate-500 py-4 text-center">Loading…</p>;
   }
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-6 border border-dashed border-slate-200 rounded-lg">
-        <ListChecks className="h-6 w-6 mx-auto text-slate-300 mb-2" />
-        <p className="text-xs text-slate-400">
+      <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+        <ListChecks className="h-6 w-6 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           Checklists appear automatically once the student reaches Qualified.
         </p>
       </div>
@@ -90,20 +90,20 @@ export function ChecklistPanel({ leadId }: { leadId: string }) {
         return (
           <div key={category}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-slate-700">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 {CHECKLIST_LABELS[category]}
               </p>
               <span
                 className={cn(
                   "text-[11px] font-medium tabular-nums",
-                  pct === 100 ? "text-green-600" : "text-slate-400"
+                  pct === 100 ? "text-green-600 dark:text-green-400" : "text-slate-400 dark:text-slate-500"
                 )}
               >
                 {doneRequired}/{required.length} required
               </span>
             </div>
 
-            <div className="h-1 rounded-full bg-slate-100 mb-2.5 overflow-hidden">
+            <div className="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mb-2.5 overflow-hidden">
               <div
                 className={cn("h-full transition-all", pct === 100 ? "bg-green-500" : "bg-[#0EA5E9]")}
                 style={{ width: `${pct}%` }}
@@ -117,7 +117,7 @@ export function ChecklistPanel({ leadId }: { leadId: string }) {
                   className="flex items-start gap-2.5 py-1 cursor-pointer group"
                 >
                   {busy === item.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-400 mt-0.5 shrink-0" />
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />
                   ) : (
                     <Checkbox
                       checked={!!item.completedAt}
@@ -129,13 +129,13 @@ export function ChecklistPanel({ leadId }: { leadId: string }) {
                     className={cn(
                       "text-xs leading-relaxed",
                       item.completedAt
-                        ? "text-slate-400 line-through"
-                        : "text-slate-700 group-hover:text-slate-900"
+                        ? "text-slate-400 dark:text-slate-500 line-through"
+                        : "text-slate-700 group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100"
                     )}
                   >
                     {item.label}
                     {!item.isRequired && (
-                      <span className="text-slate-300 ml-1.5">optional</span>
+                      <span className="text-slate-300 dark:text-slate-600 ml-1.5">optional</span>
                     )}
                   </span>
                 </label>

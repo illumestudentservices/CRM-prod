@@ -49,10 +49,10 @@ export function NewPlanButton({ defaultIcrId }: { defaultIcrId: string }) {
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="bg-white rounded p-6 w-96 space-y-3 shadow-xl"
+        className="bg-white dark:bg-slate-900 rounded p-6 w-96 space-y-3 shadow-xl"
       >
         <h2 className="font-semibold text-lg">New Quarterly Plan</h2>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-300">{error}</p>}
         <label className="block text-sm">
           Quarter
           <select

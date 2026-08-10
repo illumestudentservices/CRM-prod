@@ -91,16 +91,16 @@ export function InstitutionsClient({
   }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter]);
 
   const statCards = [
-    { title: "Total Clients", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", status: "all" },
-    { title: "Active",        value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600", iconBg: "bg-green-50",   status: "ACTIVE" },
+    { title: "Total Clients", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "all" },
+    { title: "Active",        value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600 dark:text-green-300", iconBg: "bg-green-50 dark:bg-green-500/15",   status: "ACTIVE" },
     // Spec §1 — Renewal Due is a computed alert from contract dates, not a
     // client status. Clicking the card no longer filters by a RENEWAL_DUE
     // enum value; it's information-only.
-    { title: "Renewal Due",   value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600", iconBg: "bg-amber-50",   status: null as string | null },
-    { title: "Prospects",     value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500", iconBg: "bg-slate-50",   status: "PROSPECT" },
+    { title: "Renewal Due",   value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600 dark:text-amber-300", iconBg: "bg-amber-50 dark:bg-amber-500/15",   status: null as string | null },
+    { title: "Prospects",     value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500 dark:text-slate-300", iconBg: "bg-slate-50 dark:bg-slate-800",   status: "PROSPECT" },
     // Spec §9 — Open Issues card (Clients module).
     ...(stats.openIssues !== undefined
-      ? [{ title: "Open Issues", value: stats.openIssues, icon: "AlertCircle" as const, iconColor: "text-rose-600", iconBg: "bg-rose-50", status: null as string | null }]
+      ? [{ title: "Open Issues", value: stats.openIssues, icon: "AlertCircle" as const, iconColor: "text-rose-600 dark:text-rose-300", iconBg: "bg-rose-50 dark:bg-rose-500/15", status: null as string | null }]
       : []),
   ];
 
@@ -132,7 +132,7 @@ export function InstitutionsClient({
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <Input
             placeholder="Search by name or country…"
             value={search}
@@ -220,7 +220,7 @@ export function InstitutionsClient({
 
       {/* Results count */}
       {(search || statusFilter !== "all" || typeFilter !== "all" || regionFilter !== "all") && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Showing {filtered.length} of {institutions.length} institutions
         </p>
       )}
@@ -228,7 +228,7 @@ export function InstitutionsClient({
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-16 text-slate-400">
+          <div className="col-span-full text-center py-16 text-slate-400 dark:text-slate-500">
             <Building2 className="h-10 w-10 mx-auto mb-3 opacity-40" />
             <p className="text-sm font-medium">No institutions match your filters</p>
             <p className="text-xs mt-1">Try adjusting your search or filter criteria.</p>

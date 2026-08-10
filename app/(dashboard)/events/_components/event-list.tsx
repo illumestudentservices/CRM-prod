@@ -48,20 +48,20 @@ interface EventListProps {
 // ─── Badge configs ─────────────────────────────────────────────────────────
 
 const EVENT_TYPE_BADGE: Record<EventType, string> = {
-  EDUCATION_FAIR: "bg-blue-100 text-blue-700 border-blue-200",
-  SCHOOL_FAIR: "bg-sky-100 text-sky-700 border-sky-200",
-  SCHOOL_VISIT: "bg-cyan-100 text-cyan-700 border-cyan-200",
-  CAMPUS_VISIT: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  WEBINAR: "bg-violet-100 text-violet-700 border-violet-200",
-  OPEN_DAY: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  AGENT_WORKSHOP: "bg-amber-100 text-amber-800 border-amber-200",
-  AGENT_TRAINING: "bg-amber-100 text-amber-700 border-amber-200",
-  STUDENT_SEMINAR: "bg-lime-100 text-lime-700 border-lime-200",
-  EXHIBITION: "bg-rose-100 text-rose-700 border-rose-200",
-  CONVERSION_EVENT: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
-  APPLICATION_DAY: "bg-purple-100 text-purple-700 border-purple-200",
-  SCHOOL_PRESENTATION: "bg-teal-100 text-teal-700 border-teal-200",
-  OTHER: "bg-slate-100 text-slate-600 border-slate-200",
+  EDUCATION_FAIR: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30",
+  SCHOOL_FAIR: "bg-sky-100 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30",
+  SCHOOL_VISIT: "bg-cyan-100 dark:bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-500/30",
+  CAMPUS_VISIT: "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30",
+  WEBINAR: "bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/30",
+  OPEN_DAY: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30",
+  AGENT_WORKSHOP: "bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30",
+  AGENT_TRAINING: "bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30",
+  STUDENT_SEMINAR: "bg-lime-100 dark:bg-lime-500/15 text-lime-700 dark:text-lime-300 border-lime-200 dark:border-lime-500/30",
+  EXHIBITION: "bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30",
+  CONVERSION_EVENT: "bg-fuchsia-100 dark:bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-500/30",
+  APPLICATION_DAY: "bg-purple-100 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/30",
+  SCHOOL_PRESENTATION: "bg-teal-100 dark:bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-500/30",
+  OTHER: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700",
 };
 
 const EVENT_TYPE_LABEL: Record<EventType, string> = {
@@ -82,12 +82,12 @@ const EVENT_TYPE_LABEL: Record<EventType, string> = {
 };
 
 const EVENT_STATUS_BADGE: Record<EventStatus, string> = {
-  PLANNED: "bg-slate-100 text-slate-600 border-slate-200",
-  CONFIRMED: "bg-blue-100 text-blue-700 border-blue-200",
-  IN_PROGRESS: "bg-violet-100 text-violet-700 border-violet-200",
-  COMPLETED: "bg-green-100 text-green-700 border-green-200",
-  CLOSED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  PLANNED: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  CONFIRMED: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30",
+  IN_PROGRESS: "bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-500/30",
+  COMPLETED: "bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30",
+  CLOSED: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30",
+  CANCELLED: "bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
 };
 
 const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
@@ -106,7 +106,7 @@ const columns: ColumnDef<EventRow>[] = [
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => (
-      <span className="font-medium text-slate-900">{row.original.name}</span>
+      <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.name}</span>
     ),
   },
   {
@@ -127,7 +127,7 @@ const columns: ColumnDef<EventRow>[] = [
     accessorKey: "date",
     header: "Date",
     cell: ({ row }) => (
-      <span className="text-sm text-slate-700">{formatDate(row.original.date)}</span>
+      <span className="text-sm text-slate-700 dark:text-slate-300">{formatDate(row.original.date)}</span>
     ),
   },
   {
@@ -135,8 +135,8 @@ const columns: ColumnDef<EventRow>[] = [
     header: "City / Country",
     cell: ({ row }) => (
       <div className="text-sm">
-        <p className="text-slate-900">{row.original.city}</p>
-        <p className="text-slate-500 text-xs">{row.original.country}</p>
+        <p className="text-slate-900 dark:text-slate-100">{row.original.city}</p>
+        <p className="text-slate-500 dark:text-slate-400 text-xs">{row.original.country}</p>
       </div>
     ),
   },
@@ -173,12 +173,12 @@ const columns: ColumnDef<EventRow>[] = [
     header: "ROI",
     cell: ({ row }) => {
       const roi = row.original.roi;
-      if (roi === null) return <span className="text-slate-400 text-sm">—</span>;
+      if (roi === null) return <span className="text-slate-400 dark:text-slate-500 text-sm">—</span>;
       return (
         <span
           className={cn(
             "text-sm font-semibold",
-            roi >= 0 ? "text-green-600" : "text-red-600"
+            roi >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
           )}
         >
           {roi >= 0 ? "+" : ""}
@@ -197,10 +197,10 @@ export function EventList({ events, stats }: EventListProps) {
   const [typeFilter, setTypeFilter] = React.useState("all");
 
   const statCards = [
-    { title: "Total Events",            value: stats.total,                                           icon: "CalendarDays" as const, iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", status: "all" },
-    { title: "Upcoming",                value: stats.upcoming,                                        icon: "Clock" as const,        iconColor: "text-blue-600",   iconBg: "bg-blue-50",      status: "PLANNED" },
-    { title: "Total Leads from Events", value: stats.totalLeadsFromEvents,                            icon: "Users" as const,        iconColor: "text-violet-600", iconBg: "bg-violet-50",    status: "COMPLETED" },
-    { title: "Avg ROI",                 value: stats.avgROI !== null ? formatPercent(stats.avgROI) : "—", icon: "TrendingUp" as const, iconColor: "text-green-600", iconBg: "bg-green-50",  status: "" },
+    { title: "Total Events",            value: stats.total,                                           icon: "CalendarDays" as const, iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "all" },
+    { title: "Upcoming",                value: stats.upcoming,                                        icon: "Clock" as const,        iconColor: "text-blue-600 dark:text-blue-300",   iconBg: "bg-blue-50 dark:bg-blue-500/15",      status: "PLANNED" },
+    { title: "Total Leads from Events", value: stats.totalLeadsFromEvents,                            icon: "Users" as const,        iconColor: "text-violet-600 dark:text-violet-300", iconBg: "bg-violet-50 dark:bg-violet-500/15",    status: "COMPLETED" },
+    { title: "Avg ROI",                 value: stats.avgROI !== null ? formatPercent(stats.avgROI) : "—", icon: "TrendingUp" as const, iconColor: "text-green-600 dark:text-green-300", iconBg: "bg-green-50 dark:bg-green-500/15",  status: "" },
   ];
 
   const filtered = React.useMemo(() => {

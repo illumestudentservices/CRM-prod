@@ -46,14 +46,14 @@ export function ReportsTabs({
     <div className="space-y-6">
       {/* Top-level switcher + contextual action */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-fit">
           <button
             onClick={() => setTab("monthly")}
             className={cn(
               "flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
               tab === "monthly"
-                ? "bg-white shadow-sm text-slate-900"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-slate-100"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
             )}
           >
             <FileText className="h-4 w-4" />
@@ -64,8 +64,8 @@ export function ReportsTabs({
             className={cn(
               "flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
               tab === "weekly"
-                ? "bg-white shadow-sm text-slate-900"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-slate-100"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
             )}
           >
             <CalendarRange className="h-4 w-4" />

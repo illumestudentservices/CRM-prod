@@ -67,28 +67,28 @@ const ACTION_OPTIONS = [
 ];
 
 const ACTION_STYLES: Record<string, string> = {
-  CREATE:         "text-emerald-700",
-  UPDATE:         "text-blue-700",
-  DELETE:         "text-red-700",
-  LOGIN:          "text-violet-700",
-  LOGOUT:         "text-slate-600",
-  APPROVE:        "text-teal-700",
-  REJECT:         "text-orange-700",
-  UPLOAD:         "text-indigo-700",
-  DOWNLOAD:       "text-cyan-700",
-  STAGE_CHANGE:   "text-amber-700",
-  PASSWORD_RESET: "text-rose-700",
+  CREATE:         "text-emerald-700 dark:text-emerald-300",
+  UPDATE:         "text-blue-700 dark:text-blue-300",
+  DELETE:         "text-red-700 dark:text-red-300",
+  LOGIN:          "text-violet-700 dark:text-violet-300",
+  LOGOUT:         "text-slate-600 dark:text-slate-300",
+  APPROVE:        "text-teal-700 dark:text-teal-300",
+  REJECT:         "text-orange-700 dark:text-orange-300",
+  UPLOAD:         "text-indigo-700 dark:text-indigo-300",
+  DOWNLOAD:       "text-cyan-700 dark:text-cyan-300",
+  STAGE_CHANGE:   "text-amber-700 dark:text-amber-300",
+  PASSWORD_RESET: "text-rose-700 dark:text-rose-300",
 };
 
 const ROLE_STYLES: Record<string, string> = {
-  SUPER_ADMIN:        "bg-red-100 text-red-700",
-  HQ_EXECUTIVE:       "bg-purple-100 text-purple-700",
-  HQ_ANALYTICS:       "bg-blue-100 text-blue-700",
-  REGIONAL_MANAGER:   "bg-indigo-100 text-indigo-700",
-  ICR:                "bg-teal-100 text-teal-700",
-  HR_MANAGER:         "bg-orange-100 text-orange-700",
-  EMPLOYEE:           "bg-slate-100 text-slate-600",
-  INSTITUTION_CLIENT: "bg-yellow-100 text-yellow-700",
+  SUPER_ADMIN:        "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  HQ_EXECUTIVE:       "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
+  HQ_ANALYTICS:       "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  REGIONAL_MANAGER:   "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  ICR:                "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  HR_MANAGER:         "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  EMPLOYEE:           "bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300",
+  INSTITUTION_CLIENT: "bg-yellow-100 text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-300",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -340,7 +340,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                           <div
                             className={cn(
                               "h-7 w-7 rounded-full text-white flex items-center justify-center text-[10px] font-semibold shrink-0",
-                              log.user ? "bg-[#1E3A5F]" : "bg-slate-300"
+                              log.user ? "bg-[#1E3A5F]" : "bg-slate-300 dark:bg-slate-700"
                             )}
                           >
                             {log.user ? getInitials(log.user.name, log.user.email) : "—"}
@@ -353,8 +353,8 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                               className={cn(
                                 "text-[10px] px-1.5 py-0.5 rounded font-medium",
                                 log.user
-                                  ? ROLE_STYLES[log.user.role] ?? "bg-slate-100 text-slate-600"
-                                  : "bg-slate-100 text-slate-400"
+                                  ? ROLE_STYLES[log.user.role] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                               )}
                             >
                               {log.user ? formatLabel(log.user.role) : "Account removed"}
@@ -365,7 +365,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
 
                       {/* Action */}
                       <TableCell>
-                        <span className={cn("text-xs font-bold tracking-wide uppercase font-mono", ACTION_STYLES[log.action] ?? "text-slate-600")}>
+                        <span className={cn("text-xs font-bold tracking-wide uppercase font-mono", ACTION_STYLES[log.action] ?? "text-slate-600 dark:text-slate-300")}>
                           {log.action}
                         </span>
                       </TableCell>
@@ -384,7 +384,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                           <div>
                             <span className="text-xs text-muted-foreground font-mono">{log.ipAddress}</span>
                             {log.geoLocation && (
-                              <p className="text-xs text-slate-500 mt-0.5">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 {countryFlag(log.geoLocation.countryCode)}{" "}
                                 {[log.geoLocation.city, log.geoLocation.country]
                                   .filter(Boolean)

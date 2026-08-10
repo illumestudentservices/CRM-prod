@@ -27,19 +27,19 @@ export function MfaStatusCard() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-3">
           {enabled ? (
-            <div className="h-9 w-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <div className="h-9 w-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             </div>
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-              <ShieldAlert className="h-5 w-5 text-amber-600" />
+            <div className="h-9 w-9 rounded-lg bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-300" />
             </div>
           )}
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               Two-Factor Authentication
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-md">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-md">
               {enabled === null
                 ? "Checking your account…"
                 : enabled
@@ -54,8 +54,8 @@ export function MfaStatusCard() {
             <span
               className={`text-xs px-2 py-1 rounded-full font-medium ${
                 enabled
-                  ? "bg-emerald-100 text-emerald-800"
-                  : "bg-amber-100 text-amber-800"
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
               }`}
             >
               {enabled ? "Enabled" : "Disabled"}

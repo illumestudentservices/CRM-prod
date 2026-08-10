@@ -30,10 +30,10 @@ const STUDY_LEVEL_LABELS: Record<string, string> = {
 };
 
 const STUDY_LEVEL_COLORS: Record<string, string> = {
-  UNDERGRADUATE: "bg-blue-50 text-blue-700",
-  POSTGRADUATE: "bg-purple-50 text-purple-700",
-  PATHWAY: "bg-amber-50 text-amber-700",
-  FOUNDATION: "bg-emerald-50 text-emerald-700",
+  UNDERGRADUATE: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  POSTGRADUATE: "bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
+  PATHWAY: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  FOUNDATION: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
 };
 
 // Very small nationality → flag emoji lookup (common ones)
@@ -109,9 +109,9 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative bg-white rounded-lg border border-slate-200 shadow-sm",
-        "hover:border-slate-300 hover:shadow-md transition-all duration-150",
-        isDragging && "rotate-2 shadow-xl border-slate-300"
+        "group relative bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm",
+        "hover:border-slate-300 hover:shadow-md dark:hover:border-slate-700 transition-all duration-150",
+        isDragging && "rotate-2 shadow-xl border-slate-300 dark:border-slate-700"
       )}
     >
       {/* Drag handle */}
@@ -120,7 +120,7 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
         {...listeners}
         className={cn(
           "absolute left-1 top-1/2 -translate-y-1/2 p-1 rounded",
-          "text-slate-300 hover:text-slate-500 opacity-0 group-hover:opacity-100",
+          "text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 opacity-0 group-hover:opacity-100",
           "cursor-grab active:cursor-grabbing transition-opacity focus:outline-none focus:opacity-100"
         )}
         aria-label="Drag lead"
@@ -138,7 +138,7 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
       >
         {/* Header row: name + duplicate */}
         <div className="flex items-start justify-between gap-1 mb-1.5">
-          <p className="text-sm font-semibold text-slate-900 leading-tight line-clamp-1 flex-1">
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight line-clamp-1 flex-1">
             {displayName(lead)}
           </p>
           {lead.isDuplicate && (
@@ -149,20 +149,20 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
         </div>
 
         {/* Nationality + country */}
-        <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1">
           <span>{getFlagEmoji(lead.nationality)}</span>
           <span className="truncate">{lead.countryOfResidence}</span>
         </p>
 
         {/* Program + level */}
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-          <span className="text-xs text-slate-600 truncate max-w-[120px]">
+          <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[120px]">
             {lead.interestedProgram}
           </span>
           <span
             className={cn(
               "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold shrink-0",
-              STUDY_LEVEL_COLORS[lead.studyLevel] ?? "bg-slate-100 text-slate-600"
+              STUDY_LEVEL_COLORS[lead.studyLevel] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
             )}
           >
             {STUDY_LEVEL_LABELS[lead.studyLevel] ?? lead.studyLevel}
@@ -170,7 +170,7 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
         </div>
 
         {/* Meta row: intake + source, and how long this card has sat here */}
-        <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+        <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400 dark:text-slate-500">
           <span className="truncate">
             {lead.source?.name ?? "—"} · {getMonthName(lead.intakeMonth).slice(0, 3)}{" "}
             {lead.intakeYear}
@@ -180,10 +180,10 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
               className={cn(
                 "shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium tabular-nums",
                 escalated
-                  ? "bg-red-100 text-red-700"
+                  ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
                   : overdue
-                    ? "bg-amber-100 text-amber-700"
-                    : "text-slate-400"
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                    : "text-slate-400 dark:text-slate-500"
               )}
               title={
                 escalated
@@ -201,8 +201,8 @@ export function LeadCard({ lead, isDragging = false }: LeadCardProps) {
 
         {/* Footer: institution + ICR avatar */}
         {(lead.institution || lead.assignedICR) && (
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-            <span className="text-[11px] text-slate-400 truncate flex-1">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 truncate flex-1">
               {lead.institution?.name ?? ""}
             </span>
             {lead.assignedICR && (

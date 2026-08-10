@@ -83,12 +83,12 @@ export function KpiSection({
         : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {kpis.map((kpi) => (
-              <Card key={kpi.id} className={kpi.achieved ? "border-green-300 bg-green-50/30" : ""}>
+              <Card key={kpi.id} className={kpi.achieved ? "border-green-300 bg-green-50/30 dark:border-green-500/30 dark:bg-green-500/10" : ""}>
                 <CardHeader className="py-3 px-4">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-sm">{kpi.title}</CardTitle>
                     {kpi.achieved && (
-                      <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">{kpi.period}</p>
