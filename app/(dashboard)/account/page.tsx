@@ -23,6 +23,9 @@ export default function AccountPage() {
   const [secret, setSecret] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [setupCode, setSetupCode] = useState("");
+  // Spec pentest H-2 — 2FA enroll requires account password to prevent
+  // stolen-session enrolment. Collected on the setup-qr step.
+  const [setupPassword, setSetupPassword] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
   // Disable state
@@ -59,18 +62,23 @@ export default function AccountPage() {
 
   async function confirmSetup() {
     if (setupCode.length !== 6) return;
+    if (!setupPassword) {
+      toast({ title: "Enter your account password to confirm.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/2fa/enable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret, code: setupCode }),
+        body: JSON.stringify({ secret, code: setupCode, currentPassword: setupPassword }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setBackupCodes(data.backupCodes);
       setTwoFactorEnabled(true);
       setStep("setup-done");
+      setSetupPassword("");
       toast({ title: "Two-factor authentication enabled!" });
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : "Verification failed", variant: "destructive" });
@@ -259,13 +267,28 @@ export default function AccountPage() {
                 />
               </div>
 
+              {/* Spec pentest H-2 — confirm identity with the account password
+                  before enabling 2FA, so a stolen session cookie can't turn on
+                  attacker-controlled MFA. */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Confirm with your password</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Your account password"
+                  value={setupPassword}
+                  onChange={(e) => setSetupPassword(e.target.value)}
+                  className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("setup-qr")} disabled={loading}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Back
                 </Button>
                 <Button
                   onClick={confirmSetup}
-                  disabled={loading || setupCode.length !== 6}
+                  disabled={loading || setupCode.length !== 6 || !setupPassword}
                   className="flex-1 gap-2"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
@@ -299,7 +322,7 @@ export default function AccountPage() {
                 <Button variant="outline" onClick={copyBackupCodes} className="gap-2">
                   <Copy className="h-4 w-4" /> Copy all
                 </Button>
-                <Button onClick={() => { setStep("idle"); setBackupCodes([]); setSetupCode(""); }} className="flex-1">
+                <Button onClick={() => { setStep("idle"); setBackupCodes([]); setSetupCode(""); setSetupPassword(""); }} className="flex-1">
                   Done
                 </Button>
               </div>

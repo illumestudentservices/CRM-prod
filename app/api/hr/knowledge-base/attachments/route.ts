@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { checkUploadSize } from "@/lib/uploads";
+import { validateAttachment } from "@/lib/attachment-safety";
 
 const KB_WRITE_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"];
 
@@ -37,24 +38,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: sizeCheck.message }, { status: 413 });
   }
 
+  // Spec pentest H-4 — the previous code accepted `file.type` verbatim and
+  // persisted the raw filename. That let an uploader smuggle text/html or
+  // image/svg+xml with a <script> payload, then get it served same-origin.
+  // validateAttachment refuses blocked extensions (html/svg/exe/…), enforces
+  // an allowlist of MIME types, and returns the canonical MIME + sanitised
+  // filename to persist.
+  const check = validateAttachment(file);
+  if (!check.ok) {
+    return NextResponse.json({ error: check.message }, { status: 415 });
+  }
+
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const attachment = await db.knowledgeBaseAttachment.create({
       data: {
         articleId,
-        name:     file.name,
-        mimeType: file.type || "application/octet-stream",
+        name:     check.safeName!,
+        mimeType: check.canonicalMime!,
         size:     file.size,
         data:     buffer,
       },
       select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
     });
 
-    void logActivity(session.user.id, "UPLOAD", "KB_ATTACHMENT", attachment.id, { articleId, fileName: file.name, size: file.size }, req);
+    void logActivity(session.user.id, "UPLOAD", "KB_ATTACHMENT", attachment.id, { articleId, fileName: check.safeName, size: file.size }, req);
     return NextResponse.json({ attachment }, { status: 201 });
   } catch (err) {
+    // Spec pentest M-5 — do not leak internal error text to the client.
+    // The full error stays server-side for debugging.
     console.error("[kb attachments POST] DB error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

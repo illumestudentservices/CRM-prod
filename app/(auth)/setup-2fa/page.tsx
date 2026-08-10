@@ -28,6 +28,10 @@ export default function Setup2FAPage() {
   const [secret, setSecret] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [code, setCode] = useState("");
+  // Spec pentest H-2 (2026-08-10) — enrolment requires the account
+  // password to defend against stolen-session enrollment. Field is
+  // collected here and posted to /api/auth/2fa/enable.
+  const [currentPassword, setCurrentPassword] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -52,23 +56,31 @@ export default function Setup2FAPage() {
 
   async function confirm() {
     if (code.length !== 6) return;
+    if (!currentPassword) {
+      toast({ title: "Enter your account password to confirm.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/2fa/enable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret, code }),
+        body: JSON.stringify({ secret, code, currentPassword }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
       setBackupCodes(data.backupCodes ?? []);
       setStep("done");
+      // Clear the password from memory as soon as it's been used.
+      setCurrentPassword("");
     } catch (e) {
       toast({
         title: e instanceof Error ? e.message : "Verification failed",
         variant: "destructive",
       });
       setCode("");
+      // Do NOT clear the password field here — user may only have typed
+      // a wrong 6-digit code.
     } finally {
       setLoading(false);
     }
@@ -176,14 +188,31 @@ export default function Setup2FAPage() {
               placeholder="000000"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              onKeyDown={(e) => { if (e.key === "Enter") confirm(); }}
               className="w-full rounded-lg px-4 py-2.5 text-center text-lg tracking-[0.4em] font-mono text-white placeholder-white/20 bg-white/5 border border-white/10 focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+
+          {/* Spec pentest H-2 — confirm identity with the account password
+              before enrolling. A stolen session cookie alone can't turn on
+              attacker-controlled MFA. */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-white/60">
+              Confirm with your account password
+            </label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") confirm(); }}
+              className="w-full rounded-lg px-4 py-2.5 text-white placeholder-white/20 bg-white/5 border border-white/10 focus:outline-none focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
 
           <button
             onClick={confirm}
-            disabled={code.length !== 6 || loading}
+            disabled={code.length !== 6 || !currentPassword || loading}
             className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)" }}
           >

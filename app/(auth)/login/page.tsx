@@ -128,25 +128,15 @@ export default function LoginPage() {
 
         setErrorMsg("Invalid email or password. Please try again.");
 
-        // Enrich with attempt count / lockout info in background
-        fetch("/api/auth/login-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: values.email }),
-        })
-          .then((r) => r.json())
-          .then((s) => {
-            if (s.status === "locked") {
-              setLockedUntil(new Date(s.lockedUntil));
-              setErrorMsg(null);
-            } else if (s.status === "inactive") {
-              setErrorMsg("This account has been deactivated. Contact your administrator.");
-            } else if (typeof s.attemptsRemaining === "number" && s.attemptsRemaining < 5) {
-              setAttemptsLeft(s.attemptsRemaining);
-            }
-          })
-          .catch(() => {/* keep the generic message */});
-
+        // Enrichment call was removed for pentest H-1 (2026-08-10). The
+        // /api/auth/login-status endpoint used to return per-account
+        // information (attemptsRemaining / lockedUntil / inactive) to an
+        // unauthenticated caller, which enabled user enumeration and gave
+        // credential-stuffing scripts a way to pace themselves under the
+        // lockout ceiling. Users still see the generic "Invalid email or
+        // password" message; lockout is enforced server-side and the
+        // authorize() flow returns the same generic error whether the row
+        // is missing, wrong-password, or locked.
         return;
       }
 

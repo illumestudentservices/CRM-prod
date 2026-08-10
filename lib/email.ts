@@ -333,7 +333,13 @@ export async function sendPasswordResetEmail(opts: {
 
 export async function sendSecurityAlertEmail(opts: {
   to: string | string[];
-  alertType: "ROLE_CHANGED" | "ACCOUNT_DEACTIVATED" | "ACCOUNT_REACTIVATED" | "USER_CREATED" | "PASSWORD_RESET";
+  alertType:
+    | "ROLE_CHANGED"
+    | "ACCOUNT_DEACTIVATED"
+    | "ACCOUNT_REACTIVATED"
+    | "USER_CREATED"
+    | "PASSWORD_RESET"
+    | "MFA_ENABLED";
   targetName: string;
   targetEmail: string;
   changedBy: string;
@@ -375,6 +381,16 @@ export async function sendSecurityAlertEmail(opts: {
       icon: "🔒",
       color: "#8B5CF6",
       description: `A user's password has been reset by an administrator.`,
+    },
+    // Spec pentest H-2 (2026-08-10) — MFA enrolment is a high-value security
+    // event; the account owner must see a record of it even when they were
+    // the enroller, because a stolen session is otherwise silent.
+    MFA_ENABLED: {
+      subject: `Security Alert: Two-factor authentication enabled — ${opts.targetName}`,
+      title: "Two-Factor Authentication Enabled",
+      icon: "🛡️",
+      color: "#10B981",
+      description: `Two-factor authentication was just enabled on this account. If this wasn't you, contact your administrator immediately — your password may be compromised.`,
     },
   };
 
