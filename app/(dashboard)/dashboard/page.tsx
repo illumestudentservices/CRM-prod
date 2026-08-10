@@ -606,7 +606,7 @@ function LeaveBalancesCard({
             );
           })
         )}
-        <Link href="/hr/leave" className="block text-center text-xs text-[#0EA5E9] hover:underline font-medium pt-1">
+        <Link href="/hr?tab=leave" className="block text-center text-xs text-[#0EA5E9] hover:underline font-medium pt-1">
           Apply for leave →
         </Link>
       </CardContent>
@@ -626,7 +626,7 @@ function LeaveRequestsCard({
           <CalendarCheck className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           My Leave Requests
         </CardTitle>
-        <Link href="/hr/leave" className="text-xs text-[#0EA5E9] hover:underline font-medium">
+        <Link href="/hr?tab=leave" className="text-xs text-[#0EA5E9] hover:underline font-medium">
           View all →
         </Link>
       </CardHeader>
@@ -1198,7 +1198,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="CalendarDays"
           iconColor="text-emerald-600"
           iconBg="bg-emerald-50"
-          href="/hr/leave"
+          href="/hr?tab=leave"
         />
         <StatCard
           title="Sick Leave Left"
@@ -1206,7 +1206,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="Briefcase"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
-          href="/hr/leave"
+          href="/hr?tab=leave"
         />
         <StatCard
           title="Travel Requests"
@@ -1225,7 +1225,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           <p className="text-sm text-blue-800 dark:text-blue-200 font-medium flex-1">
             You have <span className="font-bold">{stats.pendingLeaves}</span> leave request{stats.pendingLeaves > 1 ? "s" : ""} awaiting approval.
           </p>
-          <Link href="/hr/leave" className="text-xs font-semibold text-blue-700 dark:text-blue-300 underline shrink-0">
+          <Link href="/hr?tab=leave" className="text-xs font-semibold text-blue-700 dark:text-blue-300 underline shrink-0">
             View →
           </Link>
         </div>
