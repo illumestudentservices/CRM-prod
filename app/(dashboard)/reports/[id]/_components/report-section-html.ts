@@ -25,23 +25,31 @@ function kpiBox(value: string, label: string, bg = "#f8fafc", border = "#e2e8f0"
 }
 
 export function renderKpiHtml(kpi: {
-  totalLeads: number;
-  enrolled: number;
-  conversionRate: number;
-  contactRate: number;
-  eventsCount: number;
-  totalEventCost: number;
+  totalLeads?: number;
+  enrolled?: number;
+  conversionRate?: number;
+  contactRate?: number;
+  eventsCount?: number;
+  totalEventCost?: number;
 }): string {
+  // Older reports were saved with only 3 KPI fields (totalLeads / conversionRate
+  // / avgTimeToOffer). Rendering must not throw on missing fields — undefined
+  // becomes "—" and the box still displays. Missing totalEventCost was the
+  // exact case that returned 500 on /reports/[id] in production.
+  const n = (v: number | undefined) => (typeof v === "number" ? v : null);
+  const pct = (v: number | undefined) => (typeof v === "number" ? `${v}%` : "—");
+  const money = (v: number | undefined) =>
+    typeof v === "number" ? `$${v.toLocaleString()}` : "—";
   return `<table cellpadding="0" cellspacing="0" style="width:100%;">
     <tr>
-      ${kpiBox(String(kpi.totalLeads), "Total Leads")}
-      ${kpiBox(String(kpi.enrolled), "Enrolled", "#f0fdf4", "#bbf7d0", "#22C55E")}
-      ${kpiBox(`${kpi.conversionRate}%`, "Conversion", "#eff6ff", "#bfdbfe", "#0369A1")}
+      ${kpiBox(n(kpi.totalLeads) === null ? "—" : String(kpi.totalLeads), "Total Leads")}
+      ${kpiBox(n(kpi.enrolled) === null ? "—" : String(kpi.enrolled), "Enrolled", "#f0fdf4", "#bbf7d0", "#22C55E")}
+      ${kpiBox(pct(kpi.conversionRate), "Conversion", "#eff6ff", "#bfdbfe", "#0369A1")}
     </tr>
     <tr>
-      ${kpiBox(`${kpi.contactRate}%`, "Contact Rate")}
-      ${kpiBox(String(kpi.eventsCount), "Events", "#fefce8", "#fde68a", "#F59E0B")}
-      ${kpiBox(`$${kpi.totalEventCost.toLocaleString()}`, "Event Cost")}
+      ${kpiBox(pct(kpi.contactRate), "Contact Rate")}
+      ${kpiBox(n(kpi.eventsCount) === null ? "—" : String(kpi.eventsCount), "Events", "#fefce8", "#fde68a", "#F59E0B")}
+      ${kpiBox(money(kpi.totalEventCost), "Event Cost")}
     </tr>
   </table>`;
 }
