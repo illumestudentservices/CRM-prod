@@ -60,6 +60,33 @@ export async function PATCH(
       },
     });
 
+    // Spec §6 mirror — the PartnerContact row keyed on legacyCounsellorId
+    // must move in lockstep. Best-effort: a mirror failure is logged, not
+    // fatal to the Counsellor update.
+    try {
+      await db.partnerContact.updateMany({
+        where: { legacyCounsellorId: id },
+        data: {
+          ...(name !== undefined && { fullName: name }),
+          ...(email !== undefined && { email }),
+          ...(phone !== undefined && { phone }),
+          ...(position !== undefined && { position }),
+          ...(lastEngagementDate !== undefined && {
+            lastEngagementDate: lastEngagementDate
+              ? new Date(lastEngagementDate)
+              : null,
+          }),
+          ...(notes !== undefined && { notes }),
+        },
+      });
+    } catch (mirrorErr) {
+      console.error(
+        "[PATCH counsellors] Failed to mirror to PartnerContact",
+        { counsellorId: id },
+        mirrorErr
+      );
+    }
+
     await db.auditLog.create({
       data: {
         action: "UPDATE",
@@ -107,6 +134,20 @@ export async function DELETE(
       where: { id },
       data: { isActive: false },
     });
+
+    // Mirror the soft-delete onto the PartnerContact.
+    try {
+      await db.partnerContact.updateMany({
+        where: { legacyCounsellorId: id },
+        data: { isActive: false },
+      });
+    } catch (mirrorErr) {
+      console.error(
+        "[DELETE counsellors] Failed to mirror to PartnerContact",
+        { counsellorId: id },
+        mirrorErr
+      );
+    }
 
     await db.auditLog.create({
       data: {

@@ -10,7 +10,6 @@ import {
   Globe,
   Building2,
   BarChart3,
-  Calendar,
   FileText,
   Briefcase,
   Settings,
@@ -57,7 +56,10 @@ const NAV_ITEMS: NavItem[] = [
   { key: "recruitment_network", label: "Recruitment Network", href: "/recruitment-network", icon: Globe },
   { key: "market_intelligence", label: "Market Intelligence", href: "/market-intelligence", icon: Map },
   { key: "field_operations", label: "Field Operations", href: "/field-operations", icon: ClipboardList },
-  { key: "events", label: "Events", href: "/events", icon: Calendar },
+  // Events retired as a top-level module per spec §6 (retire standalone Events)
+  // — they live under Recruitment Network → Events. Old /events routes still
+  // resolve (Field Ops links use them and there are drill-ins from other
+  // modules); this just removes the sidebar entry.
   { key: "recruitment_planning", label: "Recruitment Planning", href: "/recruitment-planning", icon: Plane },
   { key: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
   { key: "reports", label: "Reports", href: "/reports", icon: FileText },
