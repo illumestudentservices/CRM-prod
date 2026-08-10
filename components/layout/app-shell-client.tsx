@@ -149,22 +149,39 @@ function SidebarInner({
           "lg:translate-x-0"
         )}
       >
-        {/* Logo */}
+        {/* Logo — the PNG has a baked-in white background, so we embrace that
+            by presenting it as a small "logo tile" recessed into the sidebar
+            surface. The inner ring + drop shadow give it depth so it reads as
+            an intentional design element rather than a floating asset on the
+            dark navy. */}
         <div
           className={cn(
             "flex items-center h-16 px-4 border-b border-[#2a4a73] shrink-0",
             collapsed ? "justify-center" : "gap-3"
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt="Illume"
+          <div
             className={cn(
-              "object-contain shrink-0",
-              collapsed ? "h-7 w-7" : "h-8 w-auto max-w-[130px]"
+              "flex items-center justify-center rounded-lg bg-white",
+              // Inner ring for the recessed look, plus a soft drop shadow
+              // matching the sidebar tone so the tile appears embedded.
+              "ring-1 ring-inset ring-slate-200/60",
+              "shadow-[0_1px_2px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]",
+              "transition-all duration-200",
+              collapsed ? "h-9 w-9 p-1" : "h-10 px-2.5 py-1.5"
             )}
-          />
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="Illume"
+              className={cn(
+                "object-contain shrink-0 select-none",
+                collapsed ? "h-6 w-6" : "h-6 w-auto max-w-[120px]"
+              )}
+              draggable={false}
+            />
+          </div>
         </div>
 
         {/* Navigation */}
