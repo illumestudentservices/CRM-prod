@@ -15,7 +15,13 @@ import { WelcomeOverlay } from "@/components/shared/welcome-overlay";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required").min(6, "Password must be at least 6 characters"),
+  // Only refuse an empty submit. The min(6) length gate that used to be here
+  // was misleading: complexity is enforced on password *creation* (change /
+  // reset), and the login form's job is just to hand what the user typed to
+  // bcrypt.compare — anything else advertises a rule login doesn't actually
+  // enforce, and would refuse a legitimate legacy short password even after
+  // the user resets it.
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;

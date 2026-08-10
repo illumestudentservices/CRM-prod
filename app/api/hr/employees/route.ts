@@ -18,7 +18,12 @@ const createEmployeeSchema = z
     email: z.string().email("Invalid email"),
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    // Password is NOT collected here on purpose: the handler generates a
+    // secure temp password and emails a magic link so the employee sets
+    // their own via /reset-password (which enforces 12-char + 4-class
+    // complexity). Accepting one here just risked HR typing something
+    // weaker than the reset flow requires, and the value was thrown away
+    // anyway.
     role: z
       .enum([
         "SUPER_ADMIN",

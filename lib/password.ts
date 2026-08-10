@@ -53,7 +53,18 @@ export function generateTempPassword(): string {
     const j = shuffleBuf[i] % (i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return arr.join("");
+  const out = arr.join("");
+  // Defense in depth: any future edit to this function that accidentally
+  // produces a value that doesn't meet the policy should fail loudly at the
+  // callsite (HR create) rather than silently seed a weak temp password. The
+  // check runs once per invocation and is cheap.
+  const check = validatePassword(out);
+  if (!check.valid) {
+    throw new Error(
+      `generateTempPassword produced a value that fails policy: ${check.errors.join(", ")}`
+    );
+  }
+  return out;
 }
 
 // ─── Rotation policy ──────────────────────────────────────────────────────────

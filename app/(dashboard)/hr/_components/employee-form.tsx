@@ -20,7 +20,11 @@ const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email(),
-  password: z.string().min(8),
+  // Password is NOT collected here: the API generates a strong temp password
+  // and emails a magic link so the employee sets their own via /reset-password
+  // (which enforces 12-char + 4-class complexity). Asking HR to type one only
+  // meant a weaker password than the reset flow would accept, and it was
+  // silently thrown away by the API anyway.
   role: z.string(),
   regionId: z.string().optional(),
   // Employee info
@@ -129,10 +133,13 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
                 <Input {...register("email")} type="email" placeholder="john@illume.edu" />
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Password *</Label>
-                <Input {...register("password")} type="password" placeholder="Min 8 characters" />
-                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-medium text-slate-700">Password setup</p>
+                <p className="mt-1">
+                  The employee receives a secure magic-link email and sets their own
+                  password. Passwords must be at least 12 characters with upper, lower,
+                  number and special-character classes.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
