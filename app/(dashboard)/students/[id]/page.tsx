@@ -27,6 +27,7 @@ import { ApplicationPanel } from "./_components/application-panel";
 import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
 import { InstitutionInterestsPanel } from "./_components/institution-interests-panel";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
@@ -331,6 +332,18 @@ export default async function LeadDetailPage({
                 initialNotes={notesWithAuthors}
                 currentUser={currentUser}
               />
+            </CardContent>
+          </Card>
+
+          {/* Attachments — passports, transcripts, LORs, offer letters, etc.
+              Sits alongside the legacy Documents card (which is limited to
+              records uploaded via the older /lead-documents flow). */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-200">Attachments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AttachmentsPanel parentType="LEAD" parentId={lead.id} compact />
             </CardContent>
           </Card>
 

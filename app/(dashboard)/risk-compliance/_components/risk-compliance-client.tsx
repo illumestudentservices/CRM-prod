@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import type { RiskType, RiskStatus, ComplianceType } from "@prisma/client";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -969,6 +970,14 @@ export function RiskComplianceClient({
               </div>
             </div>
 
+            {/* Supporting evidence — mitigation plan attachments, incident reports,
+                assessments. Only shown after the risk exists (has an id). */}
+            {editingRisk && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <AttachmentsPanel parentType="RISK_REGISTER" parentId={editingRisk.id} compact />
+              </div>
+            )}
+
             <DialogFooter>
               <Button
                 type="button"
@@ -1108,6 +1117,13 @@ export function RiskComplianceClient({
                 ))}
               </select>
             </div>
+
+            {/* Supporting evidence — signed forms, audit trails, certificates. */}
+            {editingCompliance && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <AttachmentsPanel parentType="COMPLIANCE_ITEM" parentId={editingCompliance.id} compact />
+              </div>
+            )}
 
             <DialogFooter>
               <Button

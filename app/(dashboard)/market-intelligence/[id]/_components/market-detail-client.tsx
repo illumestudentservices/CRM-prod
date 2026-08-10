@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Market = any;
@@ -107,6 +108,10 @@ export function MarketDetailClient({ market, currentUserRole }: { market: Market
               </div>
               <div className="text-sm whitespace-pre-wrap">{s.editedText ?? s.originalText}</div>
               {s.reviewNotes && <div className="text-xs text-muted-foreground mt-1">Review: {s.reviewNotes}</div>}
+              {/* Evidence for the observation — screenshots, articles, screenshots of gov notices. */}
+              <div className="mt-2">
+                <AttachmentsPanel parentType="MARKET_UPDATE_SUGGESTION" parentId={s.id} compact />
+              </div>
               {s.status === "PENDING" && canReview && (
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => review(s.id, "APPROVED")} className="text-xs px-2 py-1 bg-green-600 text-white rounded">Approve</button>

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { PartnerContactsPanel } from "./_components/partner-contacts-panel";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,9 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
           isPrimary: c.isPrimary,
         }))}
       />
+
+      {/* Contracts, agreements, KYC — anything you'd staple to a partner file. */}
+      <AttachmentsPanel parentType="RECRUITMENT_PARTNER" parentId={partner.id} />
     </div>
   );
 }

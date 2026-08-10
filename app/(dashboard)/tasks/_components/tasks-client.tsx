@@ -45,8 +45,10 @@ import {
   Trash2,
   ArrowUpDown,
   ExternalLink,
+  Paperclip,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +132,7 @@ export function TasksClient({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [attachmentsTask, setAttachmentsTask] = useState<TaskItem | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -464,6 +467,18 @@ export function TasksClient({
         </CardContent>
       </Card>
 
+      {/* Per-task attachments modal — opened from the row actions menu */}
+      <Dialog open={!!attachmentsTask} onOpenChange={(o) => !o && setAttachmentsTask(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Attachments — {attachmentsTask?.title}</DialogTitle>
+          </DialogHeader>
+          {attachmentsTask && (
+            <AttachmentsPanel parentType="TASK" parentId={attachmentsTask.id} />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Tasks Table */}
       <Card>
         <CardContent className="p-0">
@@ -623,6 +638,12 @@ export function TasksClient({
                               Set {label}
                             </DropdownMenuItem>
                           ))}
+                          <DropdownMenuItem
+                            onClick={() => setAttachmentsTask(task)}
+                          >
+                            <Paperclip className="h-4 w-4 mr-2" />
+                            Attachments
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600 dark:text-red-400"
                             disabled={deletingId === task.id}

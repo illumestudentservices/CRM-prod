@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { CampaignAttachmentsButton } from "./_components/campaign-attachments-button";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,7 @@ export default async function CampaignsPage({ searchParams }: Props) {
               <th className="text-left p-2">Leads</th>
               <th className="text-left p-2">Owner</th>
               <th className="text-left p-2">Source</th>
+              <th className="text-center p-2 w-[40px]"></th>
             </tr>
           </thead>
           <tbody>
@@ -158,12 +160,15 @@ export default async function CampaignsPage({ searchParams }: Props) {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </td>
+                  <td className="p-2 text-center">
+                    <CampaignAttachmentsButton campaignId={c.id} campaignName={c.name} />
+                  </td>
                 </tr>
               );
             })}
             {campaigns.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-6 text-center text-muted-foreground">
+                <td colSpan={11} className="p-6 text-center text-muted-foreground">
                   No campaigns match the current filter.
                 </td>
               </tr>

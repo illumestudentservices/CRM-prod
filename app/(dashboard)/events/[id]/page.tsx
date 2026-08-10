@@ -18,6 +18,7 @@ import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { EventForm } from "../_components/event-form";
 import { ROICard } from "./_components/roi-card";
 import { ExpenseForm } from "./_components/expense-form";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { type EventStatus } from "@prisma/client";
 import Link from "next/link";
 import { displayName } from "@/lib/person-name";
@@ -412,6 +413,9 @@ export default async function EventDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Attachments — collateral, banners, receipts, event flyers, etc. */}
+          <AttachmentsPanel parentType="RECRUITMENT_EVENT" parentId={event.id} />
 
           {/* Linked Leads */}
           <Card>
