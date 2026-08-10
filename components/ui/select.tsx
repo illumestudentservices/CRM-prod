@@ -16,9 +16,10 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm",
-      "placeholder:text-slate-400",
-      "focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F]",
+      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm",
+      "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
+      "placeholder:text-slate-400 dark:placeholder:text-slate-500",
+      "focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-[#1E3A5F] dark:focus:ring-sky-500",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "[&>span]:line-clamp-1",
       className
@@ -77,6 +78,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white text-slate-900 shadow-md",
+        "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -126,6 +128,7 @@ const SelectItem = React.forwardRef<
     className={cn(
       "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none",
       "focus:bg-[#1E3A5F]/10 focus:text-[#1E3A5F]",
+      "dark:focus:bg-sky-500/20 dark:focus:text-sky-300",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}

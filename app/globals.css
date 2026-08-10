@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind v4 dark-mode variant: classes with dark:… take effect whenever
+   `<html class="dark">` is set. The ThemeProvider (components/theme/) toggles
+   that class based on the user's saved preference (light | dark | system). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -33,6 +38,42 @@
     --sidebar-text: 210 40% 92%;
     --sidebar-accent: 199 89% 48%;
     --sidebar-border: 215 20% 25%;
+  }
+
+  /* Dark palette. Kept close in hue to the light theme so brand colours read
+     as the same colour, just on a dark surface. Backgrounds are a slightly
+     warmer near-black than pure #000 so text has less halation. */
+  .dark {
+    --background: 222 28% 8%;        /* app canvas */
+    --foreground: 210 40% 96%;
+    --card: 222 24% 12%;             /* raised surfaces */
+    --card-foreground: 210 40% 96%;
+    --popover: 222 24% 11%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 199 89% 55%;          /* brand accent lifts a touch on dark */
+    --primary-foreground: 222 28% 8%;
+    --secondary: 217 19% 20%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 19% 18%;
+    --muted-foreground: 217 11% 65%;
+    --accent: 199 89% 55%;
+    --accent-foreground: 222 28% 8%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 19% 22%;
+    --input: 217 19% 22%;
+    --ring: 199 89% 55%;
+    --success: 142 60% 50%;
+    --warning: 38 88% 55%;
+    --chart-1: 199 89% 55%;
+    --chart-2: 142 60% 50%;
+    --chart-3: 38 88% 55%;
+    --chart-4: 262 60% 60%;
+    --chart-5: 0 72% 60%;
+    --sidebar-bg: 222 30% 6%;        /* darker than app so it still frames */
+    --sidebar-text: 210 40% 88%;
+    --sidebar-accent: 199 89% 55%;
+    --sidebar-border: 222 25% 14%;
   }
 }
 

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, ShieldOff, ShieldCheck, Copy, RefreshCw, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { Shield, ShieldOff, ShieldCheck, Copy, RefreshCw, AlertTriangle, CheckCircle2, Loader2, Palette } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 type Step = "idle" | "setup-qr" | "setup-verify" | "setup-done" | "disable-confirm";
 
@@ -372,6 +373,25 @@ export default function AccountPage() {
           )}
 
         </CardContent>
+      </Card>
+
+      {/* Appearance / theme */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Palette className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                Appearance
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Choose light, dark, or match your operating system. Your choice
+                persists across devices and browser tabs.
+              </CardDescription>
+            </div>
+            <ThemeToggle />
+          </div>
+        </CardHeader>
       </Card>
     </div>
   );
