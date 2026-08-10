@@ -41,13 +41,18 @@ const STATUS_LABEL: Record<EventStatus, string> = {
 };
 
 async function getEvent(id: string) {
+  // Spec §7 — Read from `participations` (rich per-institution ICR / status /
+  // notes). `institutions` (flat join) is being retired.
   const event = await db.event.findUnique({
     where: { id },
     include: {
       region: { select: { id: true, name: true } },
       assignedICR: { select: { id: true, name: true } },
-      institutions: {
-        include: { institution: { select: { id: true, name: true } } },
+      participations: {
+        include: {
+          institution: { select: { id: true, name: true } },
+          assignedICR: { select: { id: true, name: true } },
+        },
       },
       expenses: { orderBy: { createdAt: "asc" } },
       leads: {
@@ -106,6 +111,89 @@ export default async function EventDetailPage({
   const enrolledLeads = event.leads.filter((l) => l.stage === "ENROLLED");
   const totalExpenses = event.expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  // Spec §10 — Cost Breakdown grouped by category with subtotals. Categories
+  // that aren't populated on existing rows fall into "Other".
+  const CANONICAL_CATEGORIES = [
+    "REGISTRATION_FEE",
+    "TRAVEL",
+    "ACCOMMODATION",
+    "MARKETING_MATERIALS",
+    "SHIPPING",
+    "MEALS",
+    "LOCAL_TRANSPORT",
+    "OTHER",
+  ] as const;
+  const categoryTotals = new Map<string, number>();
+  for (const exp of event.expenses) {
+    const key = (exp.category ?? "OTHER").toUpperCase().replace(/\s+/g, "_");
+    const bucket = (CANONICAL_CATEGORIES as readonly string[]).includes(key) ? key : "OTHER";
+    categoryTotals.set(bucket, (categoryTotals.get(bucket) ?? 0) + exp.amount);
+  }
+  const categoryLabel: Record<string, string> = {
+    REGISTRATION_FEE: "Registration Fee",
+    TRAVEL: "Travel",
+    ACCOMMODATION: "Accommodation",
+    MARKETING_MATERIALS: "Marketing Materials",
+    SHIPPING: "Shipping",
+    MEALS: "Meals",
+    LOCAL_TRANSPORT: "Local Transport",
+    OTHER: "Other",
+  };
+  const budgetVariance = event.budget != null ? event.budget - totalExpenses : null;
+
+  // Spec §9 — Objectives are stored as JSON.
+  type ObjectiveRow = {
+    target: string;
+    metric?: string;
+    goal?: number;
+    achieved?: number;
+    notes?: string;
+  };
+  const objectives: ObjectiveRow[] = Array.isArray(event.objectives)
+    ? (event.objectives as ObjectiveRow[]).filter(
+        (o) => o && typeof o.target === "string" && o.target.length > 0
+      )
+    : [];
+
+  // Spec §14 — Event Timeline derived from existing rows. Sorted freshest last
+  // so the render reads top-to-bottom in chronological order.
+  type TimelineRow = { at: Date; label: string; detail?: string };
+  const timeline: TimelineRow[] = [];
+  timeline.push({ at: event.createdAt, label: "Event created" });
+  for (const p of event.participations) {
+    // createdAt on EventParticipation is when the institution joined; on the
+    // flat legacy join we don't have per-row timestamps, so use event.createdAt.
+    const at = p.createdAt ?? event.createdAt;
+    timeline.push({
+      at,
+      label: "Institution joined",
+      detail: p.institution.name,
+    });
+  }
+  for (const exp of event.expenses) {
+    timeline.push({
+      at: exp.createdAt,
+      label: "Expense recorded",
+      detail: `${categoryLabel[(exp.category ?? "OTHER").toUpperCase()] ?? exp.category ?? "Other"} · ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(exp.amount)}`,
+    });
+  }
+  for (const lead of event.leads) {
+    timeline.push({
+      at: lead.createdAt,
+      label: "Lead captured",
+      detail: displayName(lead),
+    });
+  }
+  if (event.status === "COMPLETED" || event.status === "CLOSED") {
+    timeline.push({
+      at: event.updatedAt,
+      label: event.status === "CLOSED" ? "Event closed" : "Event completed",
+    });
+  }
+  timeline.sort((a, b) => a.at.getTime() - b.at.getTime());
+  // Keep the last 12 events so it stays scannable on a busy fair.
+  const timelineTail = timeline.slice(-12);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -129,7 +217,13 @@ export default async function EventDetailPage({
               notes: event.notes,
               region: event.region,
               assignedICRId: event.assignedICRId,
-              institutions: event.institutions,
+              // The edit form still expects the flat {institutionId,
+               // institution:{...}} shape. Reshape participations to match so
+               // we don't have to touch the form component in this PR.
+              institutions: event.participations.map((p) => ({
+                institutionId: p.institutionId,
+                institution: p.institution,
+              })),
             }}
             regions={regions}
             icrs={icrs}
@@ -166,13 +260,70 @@ export default async function EventDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main (2/3) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Cost Breakdown */}
+          {/* Spec §9 — Event Objectives */}
+          {objectives.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Objectives</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {objectives.map((o, i) => {
+                  const pct =
+                    o.goal && o.goal > 0 && typeof o.achieved === "number"
+                      ? Math.min(100, Math.round((o.achieved / o.goal) * 100))
+                      : null;
+                  return (
+                    <div key={i} className="rounded border border-slate-200 p-3 text-sm">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="font-medium text-slate-800">{o.target}</p>
+                        {typeof o.achieved === "number" && typeof o.goal === "number" && (
+                          <span className="text-xs tabular-nums text-slate-500">
+                            {o.achieved} / {o.goal}
+                            {pct !== null && <span className="ml-1">({pct}%)</span>}
+                          </span>
+                        )}
+                      </div>
+                      {pct !== null && (
+                        <div className="mt-1.5 h-1.5 w-full rounded bg-slate-100 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all",
+                              pct >= 100 ? "bg-green-500" : pct >= 70 ? "bg-blue-500" : "bg-amber-500"
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      )}
+                      {o.notes && <p className="mt-1 text-xs text-slate-500">{o.notes}</p>}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cost Breakdown — spec §10 grouped by category with planned-vs-actual variance */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">Cost Breakdown</CardTitle>
               <ExpenseForm eventId={event.id} />
             </CardHeader>
             <CardContent className="p-0">
+              {/* Category subtotals — spec §10 categories */}
+              {categoryTotals.size > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 border-b bg-slate-50/80">
+                  {CANONICAL_CATEGORIES.map((cat) => {
+                    const amt = categoryTotals.get(cat) ?? 0;
+                    if (amt === 0) return null;
+                    return (
+                      <div key={cat} className="rounded border border-slate-200 bg-white p-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-500">{categoryLabel[cat]}</p>
+                        <p className="text-sm font-semibold tabular-nums">{formatCurrency(amt)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/80">
@@ -203,16 +354,62 @@ export default async function EventDetailPage({
                           </TableCell>
                         </TableRow>
                       ))}
+                      {event.budget != null && (
+                        <TableRow className="bg-slate-50/50 text-slate-600 text-xs">
+                          <TableCell colSpan={2}>Planned budget</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatCurrency(event.budget)}
+                          </TableCell>
+                        </TableRow>
+                      )}
                       <TableRow className="bg-slate-50 font-semibold">
-                        <TableCell colSpan={2}>Total</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell colSpan={2}>Total actual</TableCell>
+                        <TableCell className="text-right tabular-nums">
                           {formatCurrency(totalExpenses)}
                         </TableCell>
                       </TableRow>
+                      {budgetVariance !== null && (
+                        <TableRow className={cn(
+                          "bg-slate-50 text-xs font-medium",
+                          budgetVariance < 0 ? "text-red-700" : "text-green-700"
+                        )}>
+                          <TableCell colSpan={2}>Variance ({budgetVariance >= 0 ? "under" : "over"} budget)</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatCurrency(Math.abs(budgetVariance))}
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </>
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+
+          {/* Spec §14 — Event Timeline (last 12 activity rows) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {timelineTail.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">
+                  No timeline events yet.
+                </p>
+              ) : (
+                <ol className="relative border-l border-slate-200 pl-4 space-y-2">
+                  {timelineTail.map((t, i) => (
+                    <li key={i} className="text-sm">
+                      <div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-slate-300 bg-white" />
+                      <p>
+                        <span className="font-medium text-slate-800">{t.label}</span>
+                        {t.detail && <span className="text-slate-600"> — {t.detail}</span>}
+                      </p>
+                      <p className="text-xs text-slate-400">{formatDate(t.at)}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </CardContent>
           </Card>
 
@@ -303,14 +500,14 @@ export default async function EventDetailPage({
           />
 
           {/* Linked Institutions */}
-          {event.institutions.length > 0 && (
+          {event.participations.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Linked Institutions</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-1">
-                  {event.institutions.map((ei) => (
+                  {event.participations.map((ei) => (
                     <li key={ei.institutionId}>
                       <Link
                         href={`/institutions/${ei.institutionId}`}

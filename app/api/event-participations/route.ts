@@ -104,13 +104,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Also insert into legacy EventInstitution join if it doesn't already exist,
-    // so old readers of that table see the new participation.
-    await db.eventInstitution.upsert({
-      where: { eventId_institutionId: { eventId: data.eventId, institutionId: data.institutionId } },
-      create: { eventId: data.eventId, institutionId: data.institutionId },
-      update: {},
-    });
+    // Legacy EventInstitution dual-write removed — /(dashboard)/events and
+    // /(dashboard)/events/[id] now read `participations` directly. The flat
+    // join table is empty of new writes going forward.
 
     return NextResponse.json(participation, { status: 201 });
   } catch (err) {

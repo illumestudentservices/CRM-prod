@@ -147,6 +147,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Spec §7 (Recruitment Events) — EventParticipation is the authoritative
+    // join. The dual-write to the flat EventInstitution join was a cutover
+    // aid; readers have been migrated to `participations` (grep confirms), so
+    // POST now writes ONLY the rich join. `event_institutions` will be dropped
+    // by a future manual migration once we're confident nothing external
+    // depends on it.
     const event = await db.event.create({
       data: {
         name,
@@ -160,11 +166,6 @@ export async function POST(req: NextRequest) {
         assignedICRId: assignedICRId || null,
         notes: notes || null,
         createdById: session.user.id,
-        // Spec §7 (Recruitment Events) — write the RICH EventParticipation
-        // record (per-institution ICR, status, notes) as the primary join.
-        // We keep the flat EventInstitution join in sync for the older
-        // readers that still hit it; migration 020 will drop that once the
-        // remaining call-sites are cut over.
         participations:
           Array.isArray(institutionIds) && institutionIds.length > 0
             ? {
@@ -174,19 +175,8 @@ export async function POST(req: NextRequest) {
                 })),
               }
             : undefined,
-        institutions:
-          Array.isArray(institutionIds) && institutionIds.length > 0
-            ? {
-                create: institutionIds.map((id: string) => ({
-                  institution: { connect: { id } },
-                })),
-              }
-            : undefined,
       },
       include: {
-        institutions: {
-          include: { institution: { select: { id: true, name: true } } },
-        },
         participations: {
           include: { institution: { select: { id: true, name: true } } },
         },
