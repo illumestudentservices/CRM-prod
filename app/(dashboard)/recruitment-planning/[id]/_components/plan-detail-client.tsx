@@ -32,11 +32,28 @@ const TRANSITIONS: Record<string, { to: string; label: string; role: string[] }[
   COMPLETED: [{ to: "CLOSED", label: "Close", role: ["SUPER_ADMIN"] }],
 };
 
-export function PlanDetailClient({ plan, currentUserId, currentUserRole }: { plan: Plan; currentUserId: string; currentUserRole: string }) {
+// Available events + institutions load server-side so the picker doesn't need
+// to fetch on mount. Shape kept loose because the picker only reads name/date.
+type EventOpt = { id: string; name: string; date: string; city: string; country: string; status: string };
+type InstitutionOpt = { id: string; name: string };
+
+export function PlanDetailClient({
+  plan,
+  currentUserId,
+  currentUserRole,
+  availableEvents,
+  availableInstitutions,
+}: {
+  plan: Plan;
+  currentUserId: string;
+  currentUserRole: string;
+  availableEvents: EventOpt[];
+  availableInstitutions: InstitutionOpt[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "budget" | "travel" | "variations">("overview");
+  const [tab, setTab] = useState<"overview" | "budget" | "travel" | "events" | "variations">("overview");
 
   const availableTransitions = (TRANSITIONS[plan.status] ?? []).filter(t => t.role.includes(currentUserRole));
   const canEdit = ["DRAFT", "RETURNED"].includes(plan.status) && (currentUserRole !== "ICR" || plan.icrId === currentUserId);
@@ -90,7 +107,7 @@ export function PlanDetailClient({ plan, currentUserId, currentUserRole }: { pla
       )}
 
       <nav className="flex gap-2 border-b">
-        {(["overview", "budget", "travel", "variations"] as const).map(t => (
+        {(["overview", "budget", "travel", "events", "variations"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -102,32 +119,387 @@ export function PlanDetailClient({ plan, currentUserId, currentUserRole }: { pla
       </nav>
 
       {tab === "overview" && (
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-medium mb-2">Approval trail</h3>
-            <ul className="text-sm space-y-1">
-              <li>Regional Manager: {plan.regionalManager?.name ?? "—"} {plan.regionalReviewedAt && `(${new Date(plan.regionalReviewedAt).toISOString().slice(0, 10)})`}</li>
-              <li>Account Manager: {plan.accountManager?.name ?? "—"} {plan.accountReviewedAt && `(${new Date(plan.accountReviewedAt).toISOString().slice(0, 10)})`}</li>
-              <li>VP Reviewer: {plan.vpReviewer?.name ?? "—"} {plan.internalFinalReviewedAt && `(${new Date(plan.internalFinalReviewedAt).toISOString().slice(0, 10)})`}</li>
-              <li>Client review: {plan.clientReviewedAt ? new Date(plan.clientReviewedAt).toISOString().slice(0, 10) : "—"}</li>
-              <li>Approved: {plan.approvedAt ? new Date(plan.approvedAt).toISOString().slice(0, 10) : "—"}</li>
-            </ul>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-medium mb-2">Approval trail</h3>
+              <ul className="text-sm space-y-1">
+                <li>Regional Manager: {plan.regionalManager?.name ?? "—"} {plan.regionalReviewedAt && `(${new Date(plan.regionalReviewedAt).toISOString().slice(0, 10)})`}</li>
+                <li>Account Manager: {plan.accountManager?.name ?? "—"} {plan.accountReviewedAt && `(${new Date(plan.accountReviewedAt).toISOString().slice(0, 10)})`}</li>
+                <li>VP Reviewer: {plan.vpReviewer?.name ?? "—"} {plan.internalFinalReviewedAt && `(${new Date(plan.internalFinalReviewedAt).toISOString().slice(0, 10)})`}</li>
+                <li>Client review: {plan.clientReviewedAt ? new Date(plan.clientReviewedAt).toISOString().slice(0, 10) : "—"}</li>
+                <li>Approved: {plan.approvedAt ? new Date(plan.approvedAt).toISOString().slice(0, 10) : "—"}</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">Planned Field Activities</h3>
+              {plan.plannedFieldActivities.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
+              <ul className="text-sm space-y-1">
+                {plan.plannedFieldActivities.map((f: {id: string; activityType: string; plannedCount: number; actualCount: number}) => (
+                  <li key={f.id}>{f.activityType}: {f.plannedCount} planned / {f.actualCount} actual</li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div>
-            <h3 className="font-medium mb-2">Planned Field Activities</h3>
-            {plan.plannedFieldActivities.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
-            <ul className="text-sm space-y-1">
-              {plan.plannedFieldActivities.map((f: {id: string; activityType: string; plannedCount: number; actualCount: number}) => (
-                <li key={f.id}>{f.activityType}: {f.plannedCount} planned / {f.actualCount} actual</li>
-              ))}
-            </ul>
-          </div>
+
+          {/* Spec §11 (Recruitment Planning) — Quarterly Reconciliation. Planned
+              vs Actual variance across budget, travel, event participation
+              and field activities. Uses the plan's own stored numbers; the
+              nightly reconciliation cron computes actuals from Field Ops. */}
+          <ReconciliationCard plan={plan} />
         </div>
       )}
 
       {tab === "budget" && <BudgetTab plan={plan} canEdit={canEdit} />}
       {tab === "travel" && <TravelTab plan={plan} />}
+      {tab === "events" && (
+        <EventsTab
+          plan={plan}
+          canEdit={canEdit}
+          availableEvents={availableEvents}
+          availableInstitutions={availableInstitutions}
+        />
+      )}
       {tab === "variations" && <VariationsTab plan={plan} canRequest={["APPROVED", "ACTIVE"].includes(plan.status)} canApprove={["HQ_EXECUTIVE", "SUPER_ADMIN"].includes(currentUserRole)} />}
+    </div>
+  );
+}
+
+/**
+ * Spec §11 — Quarterly Reconciliation card. Compares planned / approved /
+ * actual across the plan's line items so an RM can see variance at a glance.
+ *
+ * The plan doesn't store "approved" as separate figures — approval locks the
+ * plan and everything Planned becomes Approved. So the display is
+ * (Planned = Approved) vs Actual. Deltas flip red when over budget or short
+ * on delivery, green when under budget or ahead of plan.
+ */
+function ReconciliationCard({ plan }: { plan: Plan }) {
+  // Budget: sum planned budgetItems (as approved) vs travelItems' actualCost
+  // + plannedFieldActivities' actual (we don't have a "field ops actual $"
+  // column yet — so this reconciles Travel-actual against Budget-planned).
+  const plannedBudget = (plan.budgetItems ?? []).reduce(
+    (sum: number, b: { convertedAmount: number | null; amount: number }) =>
+      sum + (b.convertedAmount ?? b.amount ?? 0),
+    0
+  );
+  const actualTravel = (plan.plannedTravel ?? []).reduce(
+    (sum: number, t: { estimatedCost: number | null }) => sum + (t.estimatedCost ?? 0),
+    0
+  );
+  const budgetVariance = plannedBudget - actualTravel;
+
+  // Field activity delivery
+  const plannedFieldTotal = (plan.plannedFieldActivities ?? []).reduce(
+    (sum: number, f: { plannedCount: number }) => sum + f.plannedCount,
+    0
+  );
+  const actualFieldTotal = (plan.plannedFieldActivities ?? []).reduce(
+    (sum: number, f: { actualCount: number }) => sum + f.actualCount,
+    0
+  );
+
+  const eventsPlanned = (plan.plannedEvents ?? []).length;
+
+  return (
+    <div className="rounded border border-slate-200 p-4">
+      <h3 className="font-medium mb-3">Quarterly Reconciliation</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded border border-slate-200 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">Budget (converted)</p>
+          <p className="text-sm">
+            Planned: <strong className="tabular-nums">{plannedBudget.toFixed(0)} {plan.reportingCurrency}</strong>
+          </p>
+          <p className="text-sm">
+            Committed travel: <strong className="tabular-nums">{actualTravel.toFixed(0)} {plan.reportingCurrency}</strong>
+          </p>
+          <p className={`text-xs mt-1 ${budgetVariance < 0 ? "text-red-700" : "text-green-700"}`}>
+            {budgetVariance >= 0 ? "Under budget" : "Over budget"}: {Math.abs(budgetVariance).toFixed(0)} {plan.reportingCurrency}
+          </p>
+        </div>
+
+        <div className="rounded border border-slate-200 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">Field Activities</p>
+          <p className="text-sm">
+            Planned: <strong className="tabular-nums">{plannedFieldTotal}</strong>
+          </p>
+          <p className="text-sm">
+            Delivered: <strong className="tabular-nums">{actualFieldTotal}</strong>
+          </p>
+          <p className={`text-xs mt-1 ${actualFieldTotal >= plannedFieldTotal ? "text-green-700" : "text-amber-700"}`}>
+            {plannedFieldTotal > 0
+              ? `${Math.round((actualFieldTotal / plannedFieldTotal) * 100)}% completion`
+              : "No planned activities"}
+          </p>
+        </div>
+
+        <div className="rounded border border-slate-200 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-500">Event Participations</p>
+          <p className="text-sm">
+            Planned: <strong className="tabular-nums">{eventsPlanned}</strong>
+          </p>
+          <p className="text-xs mt-1 text-slate-500">
+            Actual attendance is recorded on the event itself.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Spec §4B — Event Participation tab. Pick from existing Recruitment Events;
+ * "Propose New Event" is a secondary CTA that opens the events form in a new
+ * tab so the ICR can add the event to the network and come back.
+ */
+function EventsTab({
+  plan,
+  canEdit,
+  availableEvents,
+  availableInstitutions,
+}: {
+  plan: Plan;
+  canEdit: boolean;
+  availableEvents: EventOpt[];
+  availableInstitutions: InstitutionOpt[];
+}) {
+  const router = useRouter();
+  const [showAdd, setShowAdd] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    eventId: "",
+    institutionRepresentedId: "",
+    purpose: "",
+    estimatedCost: "",
+    estimatedCurrency: plan.reportingCurrency,
+    expectedLeads: "",
+    expectedApplications: "",
+    expectedEnrolments: "",
+  });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!form.eventId) {
+      setError("Pick an event from the list, or Propose New Event.");
+      return;
+    }
+    if (!form.institutionRepresentedId) {
+      setError("Pick which institution you're representing at this event.");
+      return;
+    }
+    const resp = await fetch(
+      `/api/recruitment-planning/plans/${plan.id}/event-participations`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          eventId: form.eventId,
+          institutionRepresentedId: form.institutionRepresentedId,
+          purpose: form.purpose || undefined,
+          estimatedCost: form.estimatedCost ? Number(form.estimatedCost) : undefined,
+          estimatedCurrency: form.estimatedCurrency || "USD",
+          expectedLeads: form.expectedLeads ? parseInt(form.expectedLeads, 10) : undefined,
+          expectedApplications: form.expectedApplications
+            ? parseInt(form.expectedApplications, 10)
+            : undefined,
+          expectedEnrolments: form.expectedEnrolments
+            ? parseInt(form.expectedEnrolments, 10)
+            : undefined,
+        }),
+      }
+    );
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      setError(j?.error ?? `HTTP ${resp.status}`);
+      return;
+    }
+    setShowAdd(false);
+    setForm({
+      eventId: "",
+      institutionRepresentedId: "",
+      purpose: "",
+      estimatedCost: "",
+      estimatedCurrency: plan.reportingCurrency,
+      expectedLeads: "",
+      expectedApplications: "",
+      expectedEnrolments: "",
+    });
+    router.refresh();
+  }
+
+  const entries = plan.plannedEvents ?? [];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-medium">Event Participation</h3>
+        <div className="flex gap-2">
+          {/* Spec §4B — Propose New Event is a secondary CTA that navigates
+              to the events form. Adds the event to the Recruitment Network
+              first, then the ICR comes back to link it here. */}
+          <a
+            href="/events/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm px-3 py-1 border rounded hover:bg-muted"
+          >
+            Propose New Event
+          </a>
+          {canEdit && (
+            <button
+              onClick={() => setShowAdd((s) => !s)}
+              className="text-sm px-3 py-1 border rounded hover:bg-muted"
+            >
+              {showAdd ? "Cancel" : "+ Add existing event"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+
+      {entries.length === 0 && !showAdd && (
+        <p className="text-sm text-muted-foreground">
+          No events referenced yet. Pick one from the Recruitment Network to link it here.
+        </p>
+      )}
+
+      {entries.length > 0 && (
+        <table className="w-full text-sm border">
+          <thead className="bg-muted">
+            <tr>
+              <th className="text-left p-2">Event</th>
+              <th className="text-left p-2">Location</th>
+              <th className="text-left p-2">Institution Represented</th>
+              <th className="text-right p-2">Est. Cost</th>
+              <th className="text-right p-2">Expected Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(
+              (e: {
+                id: string;
+                event: EventOpt;
+                institutionRepresented: { name: string };
+                purpose: string | null;
+                estimatedCost: number | null;
+                estimatedCurrency: string | null;
+                expectedLeads: number | null;
+              }) => (
+                <tr key={e.id} className="border-t">
+                  <td className="p-2">
+                    <a href={`/events/${e.event.id}`} className="text-blue-600 hover:underline">
+                      {e.event.name}
+                    </a>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(e.event.date).toISOString().slice(0, 10)}
+                    </div>
+                  </td>
+                  <td className="p-2 text-muted-foreground">
+                    {e.event.city}, {e.event.country}
+                  </td>
+                  <td className="p-2">{e.institutionRepresented.name}</td>
+                  <td className="p-2 text-right tabular-nums">
+                    {e.estimatedCost != null
+                      ? `${e.estimatedCost} ${e.estimatedCurrency ?? plan.reportingCurrency}`
+                      : "—"}
+                  </td>
+                  <td className="p-2 text-right tabular-nums">{e.expectedLeads ?? "—"}</td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {showAdd && canEdit && (
+        <form onSubmit={submit} className="border rounded p-3 mt-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2">
+              <label className="text-xs text-slate-500">Event</label>
+              <select
+                value={form.eventId}
+                onChange={(e) => setForm({ ...form, eventId: e.target.value })}
+                className="border rounded px-2 py-1 text-sm w-full"
+                required
+              >
+                <option value="">Pick a Recruitment Event…</option>
+                {availableEvents.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name} — {new Date(ev.date).toISOString().slice(0, 10)} · {ev.city}, {ev.country}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-500">Institution Represented</label>
+              <select
+                value={form.institutionRepresentedId}
+                onChange={(e) => setForm({ ...form, institutionRepresentedId: e.target.value })}
+                className="border rounded px-2 py-1 text-sm w-full"
+                required
+              >
+                <option value="">Pick a client institution…</option>
+                {availableInstitutions.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <input
+              placeholder="Purpose"
+              value={form.purpose}
+              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+              className="border rounded px-2 py-1 text-sm col-span-2"
+            />
+            <input
+              type="number"
+              placeholder="Est. cost"
+              value={form.estimatedCost}
+              onChange={(e) => setForm({ ...form, estimatedCost: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+            <select
+              value={form.estimatedCurrency}
+              onChange={(e) => setForm({ ...form, estimatedCurrency: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              {["USD", "EUR", "GBP", "CAD", "AUD", "AED", "INR"].map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Expected leads"
+              value={form.expectedLeads}
+              onChange={(e) => setForm({ ...form, expectedLeads: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+            <input
+              type="number"
+              placeholder="Expected applications"
+              value={form.expectedApplications}
+              onChange={(e) => setForm({ ...form, expectedApplications: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+            <input
+              type="number"
+              placeholder="Expected enrolments"
+              value={form.expectedEnrolments}
+              onChange={(e) => setForm({ ...form, expectedEnrolments: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Save
+          </button>
+        </form>
+      )}
     </div>
   );
 }
