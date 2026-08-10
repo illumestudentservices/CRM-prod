@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import type { Lead, Source, Institution, User } from "@prisma/client";
+import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
 import { BUDGET_RANGES, ENGLISH_STATUSES, STUDY_LEVELS, MONTHS } from "@/lib/lead-options";
 
@@ -240,7 +240,7 @@ interface LeadFormProps {
   open: boolean;
   onClose: () => void;
   lead?: Lead | null;
-  sources?: Pick<Source, "id" | "name">[];
+  sources?: Pick<RecruitmentPartner, "id" | "name">[];
   institutions?: Pick<Institution, "id" | "name">[];
   icrUsers?: Pick<User, "id" | "name">[];
   onSaved?: () => void;

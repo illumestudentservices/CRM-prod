@@ -77,8 +77,8 @@ export async function GET() {
       db.event.count({ where: { deletedAt: null, ...geoScope } }),
       db.event.count({ where: { deletedAt: null, createdAt: { gte: thisMonthStart }, ...geoScope } }),
       db.event.count({ where: { deletedAt: null, createdAt: { gte: lastMonthStart, lte: lastMonthEnd }, ...geoScope } }),
-      db.source.count({ where: { deletedAt: null, ...geoScope } }),
-      db.source.count({ where: { deletedAt: null, createdAt: { lte: lastMonthEnd }, ...geoScope } }),
+      db.recruitmentPartner.count({ where: { deletedAt: null, ...geoScope } }),
+      db.recruitmentPartner.count({ where: { deletedAt: null, createdAt: { lte: lastMonthEnd }, ...geoScope } }),
       db.institution.count({ where: { deletedAt: null, ...geoScope } }),
       db.institution.count({ where: { deletedAt: null, createdAt: { lte: lastMonthEnd }, ...geoScope } }),
       db.lead.groupBy({

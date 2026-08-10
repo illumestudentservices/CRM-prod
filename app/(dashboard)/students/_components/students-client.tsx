@@ -18,7 +18,7 @@ import { KanbanBoard } from "./kanban-board";
 import { LeadListView } from "./lead-list-view";
 import { LeadForm } from "./lead-form";
 import type { LeadWithRelations } from "./lead-card";
-import type { Source, Institution, User } from "@prisma/client";
+import type { RecruitmentPartner, Institution, User } from "@prisma/client";
 import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
 import { ExportButton } from "@/components/shared/export-button";
@@ -54,7 +54,7 @@ type Tab = "kanban" | "list";
 
 interface StudentsClientPageProps {
   initialLeads: LeadWithRelations[];
-  sources: Pick<Source, "id" | "name">[];
+  sources: Pick<RecruitmentPartner, "id" | "name">[];
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
   isManager: boolean;

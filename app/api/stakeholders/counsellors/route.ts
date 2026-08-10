@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     // migration's logic. This is the ONLY place in the API allowed to
     // auto-create a Source; user-facing forms must not.
     let sourceId: string | null = null;
-    let source = await db.source.findFirst({
+    let source = await db.recruitmentPartner.findFirst({
       where: {
         type: "SCHOOL",
         name: school.name,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       select: { id: true },
     });
     if (!source) {
-      source = await db.source.create({
+      source = await db.recruitmentPartner.create({
         data: {
           name: school.name,
           type: "SCHOOL",

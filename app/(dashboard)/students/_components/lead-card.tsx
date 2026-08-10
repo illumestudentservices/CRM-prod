@@ -13,13 +13,13 @@ import {
   INACTIVITY_REMINDER_DAYS,
   INACTIVITY_ESCALATION_DAYS,
 } from "@/lib/lead-pipeline";
-import type { Lead, User, Institution, Source } from "@prisma/client";
+import type { Lead, User, Institution, RecruitmentPartner } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
 
 export type LeadWithRelations = Lead & {
   assignedICR: Pick<User, "id" | "name" | "image"> | null;
   institution: Pick<Institution, "id" | "name"> | null;
-  source: Pick<Source, "id" | "name"> | null;
+  source: Pick<RecruitmentPartner, "id" | "name"> | null;
 };
 
 const STUDY_LEVEL_LABELS: Record<string, string> = {

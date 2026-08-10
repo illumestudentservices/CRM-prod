@@ -14,7 +14,7 @@ export default async function SettingsPage() {
     db.user.count({ where: { deletedAt: null } }),
     db.region.count(),
     db.institution.count({ where: { deletedAt: null } }),
-    db.source.count({ where: { deletedAt: null } }),
+    db.recruitmentPartner.count({ where: { deletedAt: null } }),
   ]);
 
   return (

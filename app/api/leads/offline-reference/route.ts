@@ -50,7 +50,7 @@ export async function GET() {
     windowEnd.setDate(windowEnd.getDate() + 120);
 
     const [sources, institutions, icrUsers, events, regions] = await Promise.all([
-      db.source.findMany({
+      db.recruitmentPartner.findMany({
         where: { deletedAt: null },
         select: { id: true, name: true },
         orderBy: { name: "asc" },

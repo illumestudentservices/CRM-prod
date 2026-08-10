@@ -17,7 +17,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const source = await db.source.findUnique({
+    const source = await db.recruitmentPartner.findUnique({
       where: { id },
       include: {
         region: { select: { id: true, name: true } },
@@ -64,7 +64,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const existing = await db.source.findUnique({ where: { id } });
+    const existing = await db.recruitmentPartner.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Source not found" }, { status: 404 });
 
     const body = await req.json();
@@ -83,7 +83,7 @@ export async function PATCH(
       isActive,
     } = body;
 
-    const updated = await db.source.update({
+    const updated = await db.recruitmentPartner.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
@@ -132,11 +132,11 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const existing = await db.source.findUnique({ where: { id } });
+    const existing = await db.recruitmentPartner.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Source not found" }, { status: 404 });
 
     // Soft delete
-    await db.source.update({
+    await db.recruitmentPartner.update({
       where: { id },
       data: { deletedAt: new Date(), isActive: false },
     });

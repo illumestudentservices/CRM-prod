@@ -40,7 +40,7 @@ async function getLookups() {
     // Agent-type sources for the AGENT_MEETING picker; other partner types
     // (referral partners, education partners) show up too so the same picker
     // works for a Partner Meeting.
-    db.source.findMany({
+    db.recruitmentPartner.findMany({
       where: {
         deletedAt: null,
         isActive: true,

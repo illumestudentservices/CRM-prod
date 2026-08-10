@@ -13,12 +13,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { LeadForm } from "../../_components/lead-form";
-import type { Lead, Source, Institution, User } from "@prisma/client";
+import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
 
 interface LeadDetailClientProps {
   lead: Lead;
-  sources: Pick<Source, "id" | "name">[];
+  sources: Pick<RecruitmentPartner, "id" | "name">[];
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
 }

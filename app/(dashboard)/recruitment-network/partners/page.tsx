@@ -69,7 +69,7 @@ export default async function PartnersPage({ searchParams }: Props) {
       ? TYPE_GROUPS[activeTab].types[0]
       : { in: TYPE_GROUPS[activeTab].types as never };
 
-  const partners = await db.source.findMany({
+  const partners = await db.recruitmentPartner.findMany({
     where: {
       deletedAt: null,
       isActive: true,
@@ -96,7 +96,7 @@ export default async function PartnersPage({ searchParams }: Props) {
   });
 
   // Group counts for the tab bar. One groupBy query, five buckets.
-  const grouped = await db.source.groupBy({
+  const grouped = await db.recruitmentPartner.groupBy({
     by: ["type"],
     where: {
       deletedAt: null,

@@ -107,7 +107,7 @@ export async function GET() {
 
       // Market Coverage
       db.school.count({ where: { isActive: true, deletedAt: null } }),
-      db.source.count({
+      db.recruitmentPartner.count({
         where: { type: "AGENT", isActive: true, deletedAt: null },
       }),
       db.counsellor.count({ where: { isActive: true } }),

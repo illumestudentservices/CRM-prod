@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
     const data = stripNullBytes(parsed.data);
 
-    const partner = await db.source.findUnique({ where: { id: data.partnerId }, select: { id: true } });
+    const partner = await db.recruitmentPartner.findUnique({ where: { id: data.partnerId }, select: { id: true } });
     if (!partner) return NextResponse.json({ error: "Recruitment partner not found" }, { status: 404 });
 
     // Enforce one primary per partner — clear any existing primary if this new

@@ -131,7 +131,7 @@ export default async function LeadDetailPage({
 
   // Fetch ICR users and related data for the edit form
   const [sources, institutions, icrUsers] = await Promise.all([
-    db.source.findMany({
+    db.recruitmentPartner.findMany({
       where: { deletedAt: null, isActive: true },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
