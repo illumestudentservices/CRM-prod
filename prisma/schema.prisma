@@ -1633,7 +1633,8 @@ model Institution {
   engagementLogs    EngagementLog[]
   deliverables      Deliverable[]
   documents         InstitutionDocument[]
-  events            EventInstitution[]
+  // events → EventInstitution back-ref dropped in migration 021 in favour of
+  // eventParticipations below (rich join with ICR / status / notes).
   monthlyReports    MonthlyReport[]
   users             InstitutionUser[]
   enrollmentTargets EnrollmentTarget[]
@@ -1922,7 +1923,9 @@ model Event {
   assignedICRId String?
   assignedICR   User?   @relation(fields: [assignedICRId], references: [id])
 
-  institutions EventInstitution[]
+  // EventInstitution join was dropped in migration 021. The rich
+  // EventParticipation model (participations back-ref below) is now the
+  // sole join for institutions on events.
   leads        Lead[]
   /// Spec §16 back-ref for the immutable original-event pin on Lead.
   originalLeads Lead[] @relation("OriginalEvent")
@@ -1938,15 +1941,9 @@ model Event {
   @@map("events")
 }
 
-model EventInstitution {
-  eventId       String
-  institutionId String
-  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  institution   Institution @relation(fields: [institutionId], references: [id])
-
-  @@id([eventId, institutionId])
-  @@map("event_institutions")
-}
+// EventInstitution model dropped in migration 021 — see the retirement note
+// on Event.participations above. Left as a marker comment so a reader sees
+// what was here previously.
 
 model EventExpense {
   id          String   @id @default(uuid())

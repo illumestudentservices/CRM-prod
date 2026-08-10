@@ -336,21 +336,23 @@ async function main() {
     db.event.upsert({ where: { id: "evt-010" }, update: {}, create: { id: "evt-010", name: "Africa Future Leaders Conference", type: EventType.EDUCATION_FAIR, date: new Date("2025-07-20"), city: "Nairobi", country: "Kenya", status: EventStatus.PLANNED, budget: 7000, totalCost: 0, regionId: regionAFR.id, assignedICRId: icr3User.id, createdById: adminUser.id } }),
   ]);
 
-  // Event institutions
-  await db.eventInstitution.createMany({
+  // Event participations (spec §7 — EventInstitution was retired in migration
+  // 021; EventParticipation is now the sole join). Seeded with default
+  // CONFIRMED status; other columns can be filled per row where meaningful.
+  await db.eventParticipation.createMany({
     data: [
-      { eventId: "evt-001", institutionId: instUCL.id },
-      { eventId: "evt-001", institutionId: instUOM.id },
-      { eventId: "evt-001", institutionId: instMelb.id },
-      { eventId: "evt-002", institutionId: instUCL.id },
-      { eventId: "evt-002", institutionId: instUOM.id },
-      { eventId: "evt-002", institutionId: instUCD.id },
-      { eventId: "evt-003", institutionId: instUCL.id },
-      { eventId: "evt-005", institutionId: instUCL.id },
-      { eventId: "evt-005", institutionId: instUOM.id },
-      { eventId: "evt-009", institutionId: instUCL.id },
-      { eventId: "evt-009", institutionId: instUOM.id },
-      { eventId: "evt-009", institutionId: instUCD.id },
+      { eventId: "evt-001", institutionId: instUCL.id, status: "CONFIRMED" },
+      { eventId: "evt-001", institutionId: instUOM.id, status: "CONFIRMED" },
+      { eventId: "evt-001", institutionId: instMelb.id, status: "CONFIRMED" },
+      { eventId: "evt-002", institutionId: instUCL.id, status: "CONFIRMED" },
+      { eventId: "evt-002", institutionId: instUOM.id, status: "CONFIRMED" },
+      { eventId: "evt-002", institutionId: instUCD.id, status: "CONFIRMED" },
+      { eventId: "evt-003", institutionId: instUCL.id, status: "CONFIRMED" },
+      { eventId: "evt-005", institutionId: instUCL.id, status: "CONFIRMED" },
+      { eventId: "evt-005", institutionId: instUOM.id, status: "CONFIRMED" },
+      { eventId: "evt-009", institutionId: instUCL.id, status: "CONFIRMED" },
+      { eventId: "evt-009", institutionId: instUOM.id, status: "CONFIRMED" },
+      { eventId: "evt-009", institutionId: instUCD.id, status: "CONFIRMED" },
     ],
     skipDuplicates: true,
   });

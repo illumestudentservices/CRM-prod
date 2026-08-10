@@ -23,7 +23,9 @@ export async function GET(
       include: {
         region: { select: { id: true, name: true } },
         assignedICR: { select: { id: true, name: true } },
-        institutions: {
+        // Migration 021 dropped EventInstitution — participations is the
+        // sole join now.
+        participations: {
           include: { institution: { select: { id: true, name: true } } },
         },
         expenses: { orderBy: { createdAt: "asc" } },
