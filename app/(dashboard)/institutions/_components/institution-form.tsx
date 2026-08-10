@@ -29,14 +29,53 @@ import {
 
 const institutionSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  legalName: z.string().optional(),
   country: z.string().min(1, "Country is required"),
   type: z.enum(["University", "College", "Institute", "Other"]),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
   primaryContact: z.string().optional(),
-  accountStatus: z.enum(["PROSPECT", "ACTIVE", "RENEWAL_DUE", "CHURNED"]).optional(),
+  accountStatus: z
+    .enum(["PROSPECT", "ONBOARDING", "ACTIVE", "INACTIVE", "SUSPENDED", "CLOSED"])
+    .optional(),
   regionId: z.string().optional(),
+  reportingFrequency: z
+    .enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUALLY", "AD_HOC"])
+    .optional(),
+  // Spec §3 (Clients) — Service Scope multi-select. Zod validates each
+  // entry against the enum; the form stores them as an array of strings.
+  serviceScope: z
+    .array(
+      z.enum([
+        "IN_COUNTRY_REPRESENTATION",
+        "STUDENT_RECRUITMENT",
+        "AGENT_ENGAGEMENT",
+        "SCHOOL_ENGAGEMENT",
+        "EVENTS_AND_FAIRS",
+        "MARKETING_SUPPORT",
+        "APPLICATION_SUPPORT",
+        "CONVERSION_SUPPORT",
+        "MARKET_INTELLIGENCE",
+        "REPORTING",
+        "OTHER",
+      ])
+    )
+    .optional(),
   notes: z.string().optional(),
 });
+
+const SERVICE_SCOPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "IN_COUNTRY_REPRESENTATION", label: "In-country Representation" },
+  { value: "STUDENT_RECRUITMENT", label: "Student Recruitment" },
+  { value: "AGENT_ENGAGEMENT", label: "Agent Engagement" },
+  { value: "SCHOOL_ENGAGEMENT", label: "School Engagement" },
+  { value: "EVENTS_AND_FAIRS", label: "Events & Fairs" },
+  { value: "MARKETING_SUPPORT", label: "Marketing Support" },
+  { value: "APPLICATION_SUPPORT", label: "Application Support" },
+  { value: "CONVERSION_SUPPORT", label: "Conversion Support" },
+  { value: "MARKET_INTELLIGENCE", label: "Market Intelligence" },
+  { value: "REPORTING", label: "Reporting" },
+  { value: "OTHER", label: "Other" },
+];
 
 type InstitutionFormValues = z.infer<typeof institutionSchema>;
 
@@ -51,11 +90,14 @@ interface InstitutionFormProps {
   institution?: {
     id: string;
     name: string;
+    legalName?: string | null;
     country: string;
     type: string;
     website: string | null;
     primaryContact: string | null;
     accountStatus: string;
+    reportingFrequency?: string | null;
+    serviceScope?: string[];
     notes: string | null;
     region?: Region | null;
   };
@@ -81,6 +123,7 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
     resolver: zodResolver(institutionSchema) as never,
     defaultValues: {
       name: institution?.name ?? "",
+      legalName: institution?.legalName ?? "",
       country: institution?.country ?? "",
       type: (institution?.type as InstitutionFormValues["type"]) ?? "University",
       website: institution?.website ?? "",
@@ -88,9 +131,27 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
       accountStatus:
         (institution?.accountStatus as InstitutionFormValues["accountStatus"]) ?? "PROSPECT",
       regionId: institution?.region?.id ?? "",
+      reportingFrequency:
+        (institution?.reportingFrequency as InstitutionFormValues["reportingFrequency"]) ??
+        undefined,
+      serviceScope: (institution?.serviceScope as InstitutionFormValues["serviceScope"]) ?? [],
       notes: institution?.notes ?? "",
     },
   });
+
+  // Track serviceScope in local state so the multi-select chips can re-render
+  // on toggle. React Hook Form watches it in the payload; the local mirror
+  // is just for UI.
+  const [scope, setScope] = React.useState<string[]>(
+    (institution?.serviceScope as string[]) ?? []
+  );
+  const toggleScope = (v: string) => {
+    setScope((prev) => {
+      const next = prev.includes(v) ? prev.filter((s) => s !== v) : [...prev, v];
+      setValue("serviceScope", next as InstitutionFormValues["serviceScope"]);
+      return next;
+    });
+  };
 
   const onSubmit = async (data: InstitutionFormValues) => {
     setLoading(true);
@@ -141,13 +202,25 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
-          {/* Name */}
+          {/* Name + Legal Name */}
           <div className="space-y-1.5">
             <Label htmlFor="name">
               Name <span className="text-red-500">*</span>
             </Label>
-            <Input id="name" {...register("name")} placeholder="Institution name" />
+            <Input id="name" {...register("name")} placeholder="Institution display name" />
             {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="legalName">Legal Name</Label>
+            <Input
+              id="legalName"
+              {...register("legalName")}
+              placeholder="Full legal entity name (optional)"
+            />
+            <p className="text-xs text-slate-500">
+              Used on contracts. Defaults to display name when blank.
+            </p>
           </div>
 
           {/* Country + Type */}
@@ -207,7 +280,7 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
             />
           </div>
 
-          {/* Account Status */}
+          {/* Account Status — spec §1 Clients six-state palette */}
           <div className="space-y-1.5">
             <Label>Account Status</Label>
             <Select
@@ -221,11 +294,67 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="PROSPECT">Prospect</SelectItem>
+                <SelectItem value="ONBOARDING">Onboarding</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="RENEWAL_DUE">Renewal Due</SelectItem>
-                <SelectItem value="CHURNED">Churned</SelectItem>
+                <SelectItem value="INACTIVE">Inactive</SelectItem>
+                <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                <SelectItem value="CLOSED">Closed</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-slate-500">
+              Renewal Due is now a computed alert from contract dates, not a status.
+            </p>
+          </div>
+
+          {/* Reporting Frequency — spec §3 */}
+          <div className="space-y-1.5">
+            <Label>Reporting Frequency</Label>
+            <Select
+              defaultValue={institution?.reportingFrequency ?? undefined}
+              onValueChange={(v) =>
+                setValue("reportingFrequency", v as InstitutionFormValues["reportingFrequency"])
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="How often reports are due" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WEEKLY">Weekly</SelectItem>
+                <SelectItem value="BIWEEKLY">Biweekly</SelectItem>
+                <SelectItem value="MONTHLY">Monthly</SelectItem>
+                <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                <SelectItem value="ANNUALLY">Annually</SelectItem>
+                <SelectItem value="AD_HOC">Ad-hoc</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Service Scope — spec §3 multi-select */}
+          <div className="space-y-1.5">
+            <Label>Service Scope</Label>
+            <p className="text-xs text-slate-500">
+              Which services this client has bought. Multiple selection.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SERVICE_SCOPE_OPTIONS.map((opt) => {
+                const active = scope.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleScope(opt.value)}
+                    className={
+                      "text-xs px-2 py-1 rounded-full border transition-colors " +
+                      (active
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Region */}
