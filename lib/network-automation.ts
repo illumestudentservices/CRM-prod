@@ -146,7 +146,14 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
   const contractRows = await db.contract.findMany({
     where: {
       endDate: { gte: now, lte: futureWindow },
-      status: { in: ["ACTIVE", "RENEWAL_PENDING"] },
+      // Migration 019 added the enum column. Match both the new enum and the
+      // legacy free-text column so rows written before the migration still
+      // trigger reminders. Contracts explicitly TERMINATED / EXPIRED /
+      // SUPERSEDED are skipped.
+      OR: [
+        { statusEnum: { in: ["ACTIVE", "RENEWAL_PENDING"] } },
+        { statusEnum: null, status: { in: ["ACTIVE", "RENEWAL_PENDING"] } },
+      ],
     },
     select: {
       id: true, title: true, endDate: true,
@@ -176,6 +183,29 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
       },
     });
     summary.remindersSent++;
+
+    // Spec Tasks §10 — fire task templates keyed on CONTRACT_RENEWAL_DUE so
+    // the "Review performance / Prepare renewal meeting" playbook the spec
+    // describes runs automatically. Task.createdById references Employee,
+    // so resolve the AM's employee row before firing. Best-effort — a
+    // template misconfig doesn't stop the reminder itself.
+    try {
+      const amEmployee = await db.employee.findFirst({
+        where: { userId: c.institution.accountManagerId },
+        select: { id: true },
+      });
+      if (amEmployee) {
+        const { fireEventTriggers } = await import("./task-workflow");
+        await fireEventTriggers("CONTRACT_RENEWAL_DUE", {
+          createdById: amEmployee.id,
+          assigneeId: amEmployee.id,
+          parentType: "INSTITUTION",
+          parentId: c.institution.id,
+        });
+      }
+    } catch (err) {
+      console.error("[sendRenewalReminders] fireEventTriggers failed", err);
+    }
   }
 
   return summary;
