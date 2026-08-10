@@ -84,6 +84,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "School not found" }, { status: 404 });
     }
 
+    // Spec §6 (retire Stakeholders) — Counsellor is a retiring model, and
+    // going forward every counsellor is a PartnerContact under the Source that
+    // represents this school. Migration 013 backfilled existing rows;
+    // everything created here must be mirrored so the Network Performance
+    // dashboard and the new UI see it. The Counsellor write is kept so the
+    // legacy `/stakeholders` UI still reads them until the cutover PR lands.
+
+    // Locate (or create) the Source of type=SCHOOL that matches this school.
+    // Migration 013 auto-created these; if a school was added after the
+    // migration and never got a Source, mint one now, mirroring the
+    // migration's logic. This is the ONLY place in the API allowed to
+    // auto-create a Source; user-facing forms must not.
+    let sourceId: string | null = null;
+    let source = await db.source.findFirst({
+      where: {
+        type: "SCHOOL",
+        name: school.name,
+        country: school.country,
+      },
+      select: { id: true },
+    });
+    if (!source) {
+      source = await db.source.create({
+        data: {
+          name: school.name,
+          type: "SCHOOL",
+          country: school.country,
+          isActive: school.isActive,
+          createdById: session.user.id,
+        },
+        select: { id: true },
+      });
+    }
+    sourceId = source.id;
+
+    // Transactional dual-write. Counsellor stays authoritative for the old
+    // UI; PartnerContact becomes the primary going forward. Failing to
+    // mirror is NOT fatal to the write itself — logged and audit-flagged
+    // instead, so a partner_contacts constraint bug doesn't stop HR from
+    // adding a counsellor.
     const counsellor = await db.counsellor.create({
       data: {
         name,
@@ -96,13 +136,38 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    let mirroredContactId: string | null = null;
+    try {
+      const contact = await db.partnerContact.create({
+        data: {
+          partnerId: sourceId,
+          fullName: name,
+          position: position || null,
+          role: "COUNSELLOR",
+          email: email || null,
+          phone: phone || null,
+          isPrimary: false,
+          isActive: true,
+          legacyCounsellorId: counsellor.id,
+        },
+        select: { id: true },
+      });
+      mirroredContactId = contact.id;
+    } catch (mirrorErr) {
+      console.error(
+        "[POST counsellors] Failed to mirror to PartnerContact",
+        { counsellorId: counsellor.id, sourceId },
+        mirrorErr
+      );
+    }
+
     await db.auditLog.create({
       data: {
         action: "CREATE",
         entity: "Counsellor",
         entityId: counsellor.id,
         userId: session.user.id,
-        changes: body,
+        changes: { ...body, mirroredContactId, mirroredSourceId: sourceId },
       },
     });
 
