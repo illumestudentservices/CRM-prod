@@ -79,7 +79,7 @@ function RenewalBadge({ endDate }: { endDate: Date | string }) {
 
   if (daysLeft < 0) {
     return (
-      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1">
+      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30 gap-1">
         <AlertCircle className="h-3 w-3" />
         Expired
       </Badge>
@@ -87,7 +87,7 @@ function RenewalBadge({ endDate }: { endDate: Date | string }) {
   }
   if (daysLeft < 30) {
     return (
-      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1">
+      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30 gap-1">
         <AlertCircle className="h-3 w-3" />
         {daysLeft}d left
       </Badge>
@@ -95,7 +95,7 @@ function RenewalBadge({ endDate }: { endDate: Date | string }) {
   }
   if (daysLeft < 60) {
     return (
-      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1">
+      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 gap-1">
         <AlertTriangle className="h-3 w-3" />
         {daysLeft}d left
       </Badge>
@@ -108,15 +108,15 @@ function RenewalBadge({ endDate }: { endDate: Date | string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, string> = {
-    ACTIVE: "bg-green-50 text-green-700 border-green-200",
-    EXPIRED: "bg-red-50 text-red-700 border-red-200",
-    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-    CANCELLED: "bg-slate-50 text-slate-600 border-slate-200",
+    ACTIVE: "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+    EXPIRED: "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
+    PENDING: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+    CANCELLED: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
   };
   return (
     <Badge
       variant="outline"
-      className={cn("text-xs", config[status] ?? "bg-slate-50 text-slate-600 border-slate-200")}
+      className={cn("text-xs", config[status] ?? "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700")}
     >
       {status}
     </Badge>
@@ -249,7 +249,7 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md dark:bg-red-500/15 dark:text-red-300">{error}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">
@@ -354,7 +354,7 @@ function AttachmentSection({
           {uploading ? "Uploading..." : "Attach File"}
         </Button>
         {attachments.length > 0 && (
-          <span className="text-xs text-slate-500">{attachments.length} file(s)</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{attachments.length} file(s)</span>
         )}
       </div>
 
@@ -363,21 +363,21 @@ function AttachmentSection({
           {attachments.map((att) => (
             <div
               key={att.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-sm group"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm group"
             >
-              <FileIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <span className="truncate flex-1 text-slate-700">{att.name}</span>
-              <span className="text-xs text-slate-400 shrink-0">{formatFileSize(att.size)}</span>
+              <FileIcon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+              <span className="truncate flex-1 text-slate-700 dark:text-slate-300">{att.name}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{formatFileSize(att.size)}</span>
               <a
                 href={`/api/institutions/${institutionId}/contracts/${contractId}/attachments/${att.id}`}
-                className="text-blue-600 hover:text-blue-800 shrink-0"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 shrink-0"
                 title="Download"
               >
                 <Download className="h-3.5 w-3.5" />
               </a>
               <button
                 onClick={() => handleDelete(att.id)}
-                className="text-slate-400 hover:text-red-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Delete"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -403,10 +403,10 @@ function ContractRow({
 
   return (
     <>
-      <TableRow className="cursor-pointer hover:bg-slate-50/50" onClick={() => setExpanded(!expanded)}>
+      <TableRow className="cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/60" onClick={() => setExpanded(!expanded)}>
         <TableCell className="font-medium">
           <div className="flex items-center gap-1.5">
-            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />}
+            {expanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />}
             {contract.title}
           </div>
         </TableCell>
@@ -420,7 +420,7 @@ function ContractRow({
           <RenewalBadge endDate={contract.endDate} />
         </TableCell>
         <TableCell>
-          <div className="flex items-center gap-1 text-slate-500">
+          <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
             <Paperclip className="h-3.5 w-3.5" />
             <span className="text-xs">{contract.attachments?.length ?? 0}</span>
           </div>
@@ -428,7 +428,7 @@ function ContractRow({
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={7} className="bg-slate-50/50 border-t-0">
+          <TableCell colSpan={7} className="bg-slate-50/50 dark:bg-slate-900/40 border-t-0">
             <div className="py-2 px-2">
               <AttachmentSection
                 contractId={contract.id}
@@ -456,7 +456,7 @@ export function ContractList({ contracts, institutionId }: ContractListProps) {
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50/80">
+              <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
                 <TableHead>Title</TableHead>
                 <TableHead>Value</TableHead>
                 <TableHead>Start Date</TableHead>
@@ -469,7 +469,7 @@ export function ContractList({ contracts, institutionId }: ContractListProps) {
             <TableBody>
               {contracts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-slate-400 py-8">
+                  <TableCell colSpan={7} className="text-center text-slate-400 dark:text-slate-500 py-8">
                     No contracts yet.
                   </TableCell>
                 </TableRow>

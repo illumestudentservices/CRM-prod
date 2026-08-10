@@ -55,7 +55,7 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <span>Student Pipeline</span>
-          <span className="text-xs font-normal text-slate-500">
+          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
             {activeTotal} active · {enrolledTotal} enrolled · {closedTotal} closed
           </span>
         </CardTitle>
@@ -68,20 +68,20 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
             return (
               <div
                 key={stage}
-                className="rounded-md border border-slate-200 bg-white p-3"
+                className="rounded-md border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3"
               >
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   {STAGE_LABELS[stage]}
                 </p>
                 <div className="mt-1 flex items-baseline gap-2">
-                  <p className="text-lg font-semibold tabular-nums text-slate-900">
+                  <p className="text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                     {count}
                   </p>
                   {activeTotal > 0 && count > 0 && (
-                    <span className="text-xs text-slate-500">{pct}%</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{pct}%</span>
                   )}
                 </div>
-                <div className="mt-1.5 h-1 w-full rounded-full bg-slate-100 overflow-hidden">
+                <div className="mt-1.5 h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                   <div
                     className={`h-full ${STAGE_BADGE_CLASSES[stage]?.split(" ")[0] ?? "bg-slate-300"}`}
                     style={{ width: `${pct}%` }}
@@ -93,8 +93,8 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
         </div>
 
         {closedTotal > 0 && (
-          <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1.5">
+          <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800 p-3">
+            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1.5">
               Closed / lost outcomes
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -104,7 +104,7 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
                 return (
                   <span
                     key={stage}
-                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border bg-white text-slate-600 border-slate-200"
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border bg-white text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
                   >
                     {STAGE_LABELS[stage]}
                     <span className="font-semibold">{count}</span>
@@ -115,7 +115,7 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
           </div>
         )}
 
-        <p className="mt-3 text-[11px] text-slate-400">
+        <p className="mt-3 text-[11px] text-slate-400 dark:text-slate-500">
           Based on student records maintained within Illume CRM.
         </p>
       </CardContent>

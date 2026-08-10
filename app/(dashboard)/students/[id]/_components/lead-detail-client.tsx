@@ -62,7 +62,7 @@ function WhatsAppButton({ lead }: { lead: Lead }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 shrink-0 border-green-300 text-green-700 hover:bg-green-50">
+        <Button variant="outline" size="sm" className="gap-2 shrink-0 border-green-300 text-green-700 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10">
           <MessageCircle className="h-3.5 w-3.5" />
           WhatsApp
         </Button>
@@ -82,7 +82,7 @@ function WhatsAppButton({ lead }: { lead: Lead }) {
             onChange={(e) => setBody(e.target.value)}
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
-          {sent && <p className="text-sm text-green-600 font-medium">Message sent!</p>}
+          {sent && <p className="text-sm text-green-600 dark:text-green-400 font-medium">Message sent!</p>}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button

@@ -53,13 +53,13 @@ export default async function CampaignsPage({ searchParams }: Props) {
   const total = Object.values(counts).reduce((a: number, b) => a + (b as number), 0);
 
   const STATUS_BADGE: Record<string, string> = {
-    PLANNED: "bg-slate-100 text-slate-700 border-slate-200",
-    APPROVED: "bg-sky-100 text-sky-700 border-sky-200",
-    OPEN: "bg-green-100 text-green-700 border-green-200",
-    COMPLETED: "bg-blue-100 text-blue-700 border-blue-200",
-    CLOSED: "bg-zinc-100 text-zinc-700 border-zinc-200",
-    CANCELLED: "bg-red-100 text-red-700 border-red-200",
-    UNSET: "bg-amber-50 text-amber-800 border-amber-200",
+    PLANNED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    APPROVED: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
+    OPEN: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+    COMPLETED: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+    CLOSED: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+    CANCELLED: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
+    UNSET: "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
   };
 
   const STATUS_TABS: Array<{ key: string; label: string }> = [
@@ -93,8 +93,8 @@ export default async function CampaignsPage({ searchParams }: Props) {
               className={
                 "text-xs px-2.5 py-1 rounded-full border transition-colors " +
                 (active
-                  ? "bg-slate-900 text-white border-slate-900"
-                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200")
+                  ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
               }
             >
               {t.label} <span className="opacity-70">{count}</span>
@@ -151,7 +151,7 @@ export default async function CampaignsPage({ searchParams }: Props) {
                   <td className="p-2 text-muted-foreground">{c.owner?.name ?? "—"}</td>
                   <td className="p-2">
                     {c.source ? (
-                      <Link href={`/recruitment-network/partners/${c.source.id}`} className="text-blue-600 hover:underline">
+                      <Link href={`/recruitment-network/partners/${c.source.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                         {c.source.name}
                       </Link>
                     ) : (

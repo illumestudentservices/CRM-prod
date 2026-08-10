@@ -227,7 +227,7 @@ export default async function NetworkPerformancePage() {
                   <td className="p-2">{s.relationshipStatus}</td>
                   <td className="p-2">{s._count.activities}</td>
                   <td className="p-2">{s.lastVisitDate?.toISOString().slice(0, 10) ?? "—"}</td>
-                  <td className={`p-2 ${stale ? "text-red-600" : ""}`}>{ds ?? "—"}</td>
+                  <td className={`p-2 ${stale ? "text-red-600 dark:text-red-400" : ""}`}>{ds ?? "—"}</td>
                 </tr>
               );
             })}
@@ -315,7 +315,7 @@ export default async function NetworkPerformancePage() {
         <p className="text-xs text-muted-foreground mb-2">
           Last engagement across {feed.length} agents / schools / clients.
           {staleCount > 0 && (
-            <span className="ml-1 text-amber-700">
+            <span className="ml-1 text-amber-700 dark:text-amber-400">
               {staleCount} record{staleCount === 1 ? "" : "s"} with no touch in the last 90 days.
             </span>
           )}
@@ -338,19 +338,19 @@ export default async function NetworkPerformancePage() {
               return (
                 <tr key={`${r.kind}-${r.id}`} className="border-t hover:bg-muted/50">
                   <td className="p-2">
-                    <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200">
+                    <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                       {r.kind}
                     </span>
                   </td>
                   <td className="p-2">
-                    <a href={r.href} className="text-blue-600 hover:underline">{r.name}</a>
+                    <a href={r.href} className="text-blue-600 dark:text-blue-400 hover:underline">{r.name}</a>
                   </td>
                   <td className="p-2">{r.country ?? "—"}</td>
                   <td className="p-2">
                     <span className="text-xs text-muted-foreground mr-1">{r.label}:</span>
                     {r.lastEngagement?.toISOString().slice(0, 10) ?? "—"}
                   </td>
-                  <td className={`p-2 ${stale ? "text-red-600" : ""}`}>{ds ?? "—"}</td>
+                  <td className={`p-2 ${stale ? "text-red-600 dark:text-red-400" : ""}`}>{ds ?? "—"}</td>
                   <td className="p-2">{r.tier ?? r.relationship ?? "—"}</td>
                 </tr>
               );

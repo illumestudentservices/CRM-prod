@@ -133,8 +133,8 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
                 <Input {...register("email")} type="email" placeholder="john@illume.edu" />
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                <p className="font-medium text-slate-700">Password setup</p>
+              <div className="rounded-md border border-slate-200 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
+                <p className="font-medium text-slate-700 dark:text-slate-200">Password setup</p>
                 <p className="mt-1">
                   The employee receives a secure magic-link email and sets their own
                   password. Passwords must be at least 12 characters with upper, lower,
@@ -236,7 +236,7 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
                   </Select>
                   {/* Says why it is being collected, rather than asking without
                       explanation. */}
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     Determines maternity and paternity leave eligibility.
                   </p>
                 </div>

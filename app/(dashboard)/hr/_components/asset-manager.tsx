@@ -186,10 +186,10 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Assets", value: stats.total, color: "text-slate-700" },
-          { label: "Available", value: stats.available, color: "text-green-600" },
-          { label: "Assigned", value: stats.assigned, color: "text-blue-600" },
-          { label: "Maintenance", value: stats.maintenance, color: "text-amber-600" },
+          { label: "Total Assets", value: stats.total, color: "text-slate-700 dark:text-slate-200" },
+          { label: "Available", value: stats.available, color: "text-green-600 dark:text-green-400" },
+          { label: "Assigned", value: stats.assigned, color: "text-blue-600 dark:text-blue-400" },
+          { label: "Maintenance", value: stats.maintenance, color: "text-amber-600 dark:text-amber-400" },
         ].map((s) => (
           <div key={s.label} className="p-3 rounded-lg border bg-card text-center">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -267,7 +267,7 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
                     </div>
                   )}
                   {asset.warrantyEnd && (
-                    <p className="text-xs text-amber-600 mt-0.5">
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
                       Warranty ends {new Date(asset.warrantyEnd).toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })}
                     </p>
                   )}

@@ -95,23 +95,23 @@ export function WeeklyActivitiesPanel({ isICR }: WeeklyActivitiesPanelProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={prevMonth}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
             aria-label="Previous month"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold text-slate-900 w-36 text-center tabular-nums">
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 w-36 text-center tabular-nums">
             {MONTH_LABELS[month - 1]} {year}
           </span>
           <button
             onClick={nextMonth}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
             aria-label="Next month"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           {isICR
             ? "Fill in what you did each week — like the planner sheet"
             : "Read-only view of your region's ICRs"}
@@ -120,7 +120,7 @@ export function WeeklyActivitiesPanel({ isICR }: WeeklyActivitiesPanelProps) {
 
       {loading ? (
         <Card>
-          <CardContent className="py-16 flex items-center justify-center text-slate-400 gap-2">
+          <CardContent className="py-16 flex items-center justify-center text-slate-400 dark:text-slate-500 gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </CardContent>
         </Card>
@@ -229,21 +229,21 @@ function EditableGrid({
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/70">
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 min-w-[300px] sticky left-0 bg-slate-50/70 align-top">
+            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40">
+              <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3 min-w-[300px] sticky left-0 bg-slate-50/70 dark:bg-slate-900/40 align-top">
                 Mandatory activity
               </th>
               {WEEKS_OF_MONTH.map((w) => (
                 <th
                   key={w}
-                  className="text-left text-xs font-semibold text-slate-500 px-3 py-3 min-w-[200px] align-top"
+                  className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-3 min-w-[200px] align-top"
                 >
                   Week {w}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {WEEKLY_ACTIVITY_LIST.map((def) => {
               const monthCompleted = WEEKS_OF_MONTH.reduce(
                 (sum, w) => sum + (cells[cellKey(def.type, w)]?.completed ?? 0),
@@ -255,14 +255,14 @@ function EditableGrid({
               return (
                 <tr key={def.type} className="align-top">
                   {/* Activity + description (sheet's first two columns) */}
-                  <td className="px-4 py-3 sticky left-0 bg-white align-top">
-                    <p className="font-semibold text-slate-900">{def.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{def.description}</p>
+                  <td className="px-4 py-3 sticky left-0 bg-white dark:bg-slate-900 align-top">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">{def.label}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{def.description}</p>
                     <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[11px] font-medium text-slate-500 shrink-0">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
                         {monthCompleted}/{monthTarget}
                       </span>
-                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden min-w-[40px]">
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden min-w-[40px]">
                         <div
                           className={cn(
                             "h-full rounded-full transition-all",
@@ -293,10 +293,10 @@ function EditableGrid({
                               className="h-7 w-12 text-center px-1 tabular-nums text-xs"
                               aria-label={`${def.short} week ${w} count`}
                             />
-                            <span className="text-[11px] text-slate-400">done</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">done</span>
                             <span className="ml-auto w-4">
                               {cell?.saving ? (
-                                <Loader2 className="h-3.5 w-3.5 text-slate-300 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 animate-spin" />
                               ) : cell?.saved ? (
                                 <Check className="h-3.5 w-3.5 text-emerald-500" />
                               ) : null}
@@ -340,7 +340,7 @@ function ReadOnlyGroupedGrids({ rows }: { rows: ActivityRow[] }) {
   if (groups.length === 0) {
     return (
       <Card>
-        <CardContent className="py-16 text-center text-sm text-slate-400">
+        <CardContent className="py-16 text-center text-sm text-slate-400 dark:text-slate-500">
           No weekly activities logged for this month yet.
         </CardContent>
       </Card>
@@ -352,31 +352,31 @@ function ReadOnlyGroupedGrids({ rows }: { rows: ActivityRow[] }) {
       {groups.map((group) => (
         <Card key={group.icrId}>
           <CardContent className="p-0 overflow-x-auto">
-            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
-              <span className="text-sm font-semibold text-slate-900">{group.name}</span>
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{group.name}</span>
             </div>
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5 min-w-[200px] align-top">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-2.5 min-w-[200px] align-top">
                     Activity
                   </th>
                   {WEEKS_OF_MONTH.map((w) => (
                     <th
                       key={w}
-                      className="text-left text-xs font-semibold text-slate-500 px-3 py-2.5 min-w-[180px] align-top"
+                      className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-3 py-2.5 min-w-[180px] align-top"
                     >
                       Week {w}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {WEEKLY_ACTIVITY_LIST.map((def) => (
                   <tr key={def.type} className="align-top">
                     <td className="px-4 py-3 align-top">
-                      <p className="font-medium text-slate-800">{def.short}</p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="font-medium text-slate-800 dark:text-slate-200">{def.short}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
                         Target {def.defaultTarget}
                         {def.cadence === "WEEKLY" ? "/wk" : "/mo"}
                       </p>
@@ -384,20 +384,20 @@ function ReadOnlyGroupedGrids({ rows }: { rows: ActivityRow[] }) {
                     {WEEKS_OF_MONTH.map((w) => {
                       const cell = group.rows.find((r) => r.type === def.type && r.weekOfMonth === w);
                       return (
-                        <td key={w} className="px-3 py-3 align-top text-slate-700">
+                        <td key={w} className="px-3 py-3 align-top text-slate-700 dark:text-slate-300">
                           {cell && (cell.completed > 0 || cell.detail) ? (
                             <div className="space-y-1">
-                              <span className="text-[11px] font-semibold text-slate-500 tabular-nums">
+                              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                                 {cell.completed} done
                               </span>
                               {cell.detail && (
-                                <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
+                                <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
                                   {cell.detail}
                                 </p>
                               )}
                             </div>
                           ) : (
-                            <span className="text-slate-300">·</span>
+                            <span className="text-slate-300 dark:text-slate-600">·</span>
                           )}
                         </td>
                       );

@@ -402,11 +402,11 @@ export function OfflineCaptureClient({
     return (
       <Card>
         <CardContent className="p-6 text-center space-y-2">
-          <CloudOff className="h-8 w-8 mx-auto text-slate-300" />
-          <p className="text-sm font-medium text-slate-900">
+          <CloudOff className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
             This browser cannot store leads offline
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Private or incognito windows block offline storage. Open this page in a normal
             window before the event.
           </p>
@@ -430,15 +430,15 @@ export function OfflineCaptureClient({
           className={cn(
             "gap-1.5",
             online
-              ? "bg-green-50 text-green-700 border-green-200"
-              : "bg-amber-50 text-amber-800 border-amber-200"
+              ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30"
+              : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
           )}
         >
           {online ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
           {online ? "Connected" : "No connection"}
         </Badge>
-        <span className="text-xs text-slate-500">
-          Capturing as <span className="font-medium text-slate-700">{userName}</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          Capturing as <span className="font-medium text-slate-700 dark:text-slate-300">{userName}</span>
         </span>
         <div className="ml-auto flex items-center gap-2">
           <Button
@@ -465,9 +465,9 @@ export function OfflineCaptureClient({
 
       {/* Readiness / limit warnings */}
       {!reference && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-900 leading-relaxed">
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3.5 py-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
             <span className="font-semibold">Not ready for offline yet.</span> Tap “Prepare for
             offline” while you still have a connection, or the Source, Event and Institution
             lists will be empty at the booth — and Lead source is required before a lead can
@@ -477,22 +477,22 @@ export function OfflineCaptureClient({
       )}
 
       {reference && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Lists last downloaded {new Date(reference.generatedAt).toLocaleString("en-GB")} ·{" "}
           {reference.sources.length} sources, {reference.events.length} events,{" "}
           {reference.institutions.length} institutions
         </p>
       )}
 
-      <div className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-        <AlertTriangle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-700 leading-relaxed">{OFFLINE_CAPTURE_WARNING}</p>
+      <div className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 px-3.5 py-2.5">
+        <AlertTriangle className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{OFFLINE_CAPTURE_WARNING}</p>
       </div>
 
       {foreign > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-900 leading-relaxed">
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 px-3.5 py-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
             {foreign} lead{foreign === 1 ? " was" : "s were"} captured by someone else on this
             device. Uploading now files {foreign === 1 ? "it" : "them"} under your name.
           </p>
@@ -504,11 +504,11 @@ export function OfflineCaptureClient({
         <CardContent className="p-5">
           <div className="flex items-center gap-2 mb-4">
             {editingId ? (
-              <Pencil className="h-4 w-4 text-amber-600" />
+              <Pencil className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             ) : (
-              <UserPlus className="h-4 w-4 text-[#1E3A5F]" />
+              <UserPlus className="h-4 w-4 text-[#1E3A5F] dark:text-sky-300" />
             )}
-            <h2 className="text-sm font-semibold text-slate-900">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {editingId ? "Correcting a rejected lead" : "New lead"}
             </h2>
             <div className="ml-auto flex items-center gap-2">
@@ -530,14 +530,14 @@ export function OfflineCaptureClient({
                 </Button>
               )}
               {full && !editingId && (
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30">
                   Device full
                 </Badge>
               )}
             </div>
           </div>
 
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
             Both an email and a phone number are needed — ask for both while the student is
             still with you.
           </p>
@@ -661,11 +661,11 @@ export function OfflineCaptureClient({
             {/* Anti-spam consent. Three states, not a checkbox: a checkbox left
                 unticked cannot be told apart from one they were never shown,
                 and that distinction is what makes the record defensible. */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 space-y-2">
-              <Label className="text-xs font-medium text-slate-700">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
+              <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                 May we email them? <span className="text-red-500">*</span>
               </Label>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Canadian anti-spam law requires permission before sending marketing email.
                 Ask the student directly — leaving this unanswered means we cannot email them.
               </p>
@@ -683,7 +683,7 @@ export function OfflineCaptureClient({
                       "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
                       form.marketingConsent === o.v
                         ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
                     )}
                   >
                     {o.label}
@@ -712,40 +712,40 @@ export function OfflineCaptureClient({
       <Card>
         <CardContent className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold text-slate-900">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Held on this device ({queue.length})
             </h2>
             {failedCount > 0 && (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30">
                 {failedCount} need attention
               </Badge>
             )}
-            <Button variant="ghost" size="sm" onClick={reloadQueue} className="ml-auto h-7 gap-1.5 text-xs text-slate-500">
+            <Button variant="ghost" size="sm" onClick={reloadQueue} className="ml-auto h-7 gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </Button>
           </div>
 
           {queue.length === 0 ? (
-            <p className="text-xs text-slate-400 py-6 text-center">
+            <p className="text-xs text-slate-400 dark:text-slate-500 py-6 text-center">
               Nothing captured yet. Leads saved here stay on the device until you upload them.
             </p>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {queue.map((q) => (
                 <div key={q.captureId} className="py-2.5 flex items-start gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-900 truncate">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                       {String(q.data.firstName ?? "")} {String(q.data.lastName ?? "")}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                       {String(q.data.email ?? "")} · {String(q.data.phone ?? "")}
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                       {new Date(q.capturedAt).toLocaleString("en-GB")}
                     </p>
                     {q.status === "failed" && q.lastError && (
-                      <p className="text-xs text-red-600 mt-1">{q.lastError}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">{q.lastError}</p>
                     )}
                   </div>
                   <Badge
@@ -753,8 +753,8 @@ export function OfflineCaptureClient({
                     className={cn(
                       "shrink-0 text-[10px]",
                       q.status === "failed"
-                        ? "bg-red-50 text-red-700 border-red-200"
-                        : "bg-slate-50 text-slate-600 border-slate-200"
+                        ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30"
+                        : "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
                     )}
                   >
                     {q.status === "failed" ? "Rejected" : "Waiting"}
@@ -763,7 +763,7 @@ export function OfflineCaptureClient({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-[#1E3A5F] shrink-0"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-[#1E3A5F] dark:text-slate-500 dark:hover:text-sky-300 shrink-0"
                       onClick={() => startEditing(q)}
                       title="Correct and resend"
                     >
@@ -773,7 +773,7 @@ export function OfflineCaptureClient({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 shrink-0"
+                    className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 shrink-0"
                     onClick={() => discard(q.captureId)}
                     title="Remove from this device"
                   >
@@ -802,12 +802,12 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-slate-700">
+      <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

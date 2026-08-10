@@ -170,15 +170,15 @@ export default function NewReportPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-[#1E3A5F]" />
+          <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[#1E3A5F] dark:text-blue-300" />
             Report Parameters
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Institution */}
           <div className="space-y-1.5">
-            <Label htmlFor="institution" className="text-sm font-medium text-slate-700">
+            <Label htmlFor="institution" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Institution
             </Label>
             <Select value={institutionId} onValueChange={setInstitutionId}>
@@ -198,7 +198,7 @@ export default function NewReportPage() {
           {/* Month + Year */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="month" className="text-sm font-medium text-slate-700">
+              <Label htmlFor="month" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Reporting Month
               </Label>
               <Select value={month} onValueChange={setMonth}>
@@ -215,7 +215,7 @@ export default function NewReportPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="year" className="text-sm font-medium text-slate-700">
+              <Label htmlFor="year" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Year
               </Label>
               <Select value={year} onValueChange={setYear}>
@@ -235,10 +235,10 @@ export default function NewReportPage() {
 
           {/* Data Preview */}
           {institutionId && month && year && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <h4 className="text-sm font-semibold text-slate-700 mb-3">Data Preview</h4>
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Data Preview</h4>
               {previewLoading ? (
-                <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading period data...
                 </div>
@@ -251,20 +251,20 @@ export default function NewReportPage() {
                     { label: "Sources", value: preview.sourcesCount },
                   ].map((item) => (
                     <div key={item.label} className="text-center">
-                      <p className="text-2xl font-bold text-[#1E3A5F]">{item.value}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{item.label}</p>
+                      <p className="text-2xl font-bold text-[#1E3A5F] dark:text-blue-300">{item.value}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.label}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">Select all fields to preview data</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">Select all fields to preview data</p>
               )}
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+            <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>

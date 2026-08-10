@@ -11,15 +11,15 @@ import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
 
 const STATUS_CONFIG: Record<AccountStatus, { label: string; className: string }> = {
-  PROSPECT: { label: "Prospect", className: "bg-slate-100 text-slate-600 border-slate-200" },
-  ONBOARDING: { label: "Onboarding", className: "bg-sky-100 text-sky-700 border-sky-200" },
-  ACTIVE: { label: "Active", className: "bg-green-100 text-green-700 border-green-200" },
-  INACTIVE: { label: "Inactive", className: "bg-gray-100 text-gray-600 border-gray-200" },
-  SUSPENDED: { label: "Suspended", className: "bg-amber-100 text-amber-800 border-amber-200" },
-  CLOSED: { label: "Closed", className: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+  PROSPECT: { label: "Prospect", className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
+  ONBOARDING: { label: "Onboarding", className: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30" },
+  ACTIVE: { label: "Active", className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30" },
+  INACTIVE: { label: "Inactive", className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" },
+  SUSPENDED: { label: "Suspended", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30" },
+  CLOSED: { label: "Closed", className: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" },
   // Legacy — pre-migration-019 rows. New writes should not use these.
-  RENEWAL_DUE: { label: "Renewal Due", className: "bg-amber-100 text-amber-700 border-amber-200" },
-  CHURNED: { label: "Churned", className: "bg-red-100 text-red-700 border-red-200" },
+  RENEWAL_DUE: { label: "Renewal Due", className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30" },
+  CHURNED: { label: "Churned", className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30" },
 };
 
 async function getInstitution(id: string) {
@@ -170,7 +170,7 @@ export default async function InstitutionDetailPage({
         >
           {status.label}
         </span>
-        <span className="inline-flex items-center gap-1 text-sm text-slate-500">
+        <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
           <MapPin className="h-3.5 w-3.5" />
           {institution.country}
           {institution.region ? ` · ${institution.region.name}` : ""}
@@ -180,21 +180,21 @@ export default async function InstitutionDetailPage({
             href={institution.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-[#1E3A5F] hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-[#1E3A5F] dark:text-blue-400 hover:underline"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Website
           </Link>
         )}
-        <span className="text-sm text-slate-500">{institution.type}</span>
+        <span className="text-sm text-slate-500 dark:text-slate-400">{institution.type}</span>
         {institution.contractValue != null && (
-          <span className="inline-flex items-center gap-1 text-sm text-emerald-600 font-medium">
+          <span className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
             <DollarSign className="h-3.5 w-3.5" />
             {formatCurrency(institution.contractValue)}
           </span>
         )}
         {institution.renewalDate && (
-          <span className="inline-flex items-center gap-1 text-sm text-amber-600">
+          <span className="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
             <CalendarClock className="h-3.5 w-3.5" />
             Renewal: {formatDate(institution.renewalDate)}
           </span>
@@ -203,7 +203,7 @@ export default async function InstitutionDetailPage({
 
       {/* Overview text */}
       {institution.overview && (
-        <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">{institution.overview}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">{institution.overview}</p>
       )}
 
       {/* Tabs */}

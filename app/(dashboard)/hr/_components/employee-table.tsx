@@ -183,14 +183,14 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
   return (
     <div className="space-y-4">
       {unlinked.length > 0 && isHR && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3.5">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-3.5">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-sm font-medium text-amber-900">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
                 {unlinked.length} account{unlinked.length === 1 ? "" : "s"} with no employee record
               </p>
-              <p className="text-xs text-amber-800 mt-0.5">
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
                 These people can sign in, but HR cannot see them — they cannot request
                 leave, be assigned tasks, or appear in headcount. Accounts created in
                 Settings &rarr; Users do not get an employee record.
@@ -198,9 +198,9 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
               <ul className="mt-2 space-y-1.5">
                 {unlinked.map((u) => (
                   <li key={u.id} className="flex items-center justify-between gap-3 flex-wrap">
-                    <span className="text-xs text-amber-900 min-w-0">
+                    <span className="text-xs text-amber-900 dark:text-amber-200 min-w-0">
                       {u.name ?? u.email}{" "}
-                      <span className="text-amber-700">
+                      <span className="text-amber-700 dark:text-amber-400">
                         ({u.email} · {u.role.replace(/_/g, " ").toLowerCase()})
                       </span>
                     </span>
@@ -208,7 +208,7 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100"
+                        className="h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:text-amber-200 dark:hover:bg-amber-500/20"
                         onClick={() => setLinking(u)}
                       >
                         Create employee record
@@ -216,7 +216,7 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-xs text-amber-700 hover:bg-amber-100"
+                        className="h-7 text-xs text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-500/20"
                         disabled={flagging === u.id}
                         title="For break-glass or integration logins that are not people"
                         onClick={() => markServiceAccount(u.id)}
@@ -270,7 +270,7 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
           {linking && (
             <div className="space-y-4 py-1">
               <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-slate-900">{linking.name ?? linking.email}</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">{linking.name ?? linking.email}</p>
                 <p className="text-xs">{linking.email}</p>
               </div>
 
@@ -291,7 +291,7 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
                     value={linkForm.startDate}
                     onChange={(e) => setLinkForm((f) => ({ ...f, startDate: e.target.value }))}
                   />
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
                     Leave entitlement is calculated from this.
                   </p>
                 </div>

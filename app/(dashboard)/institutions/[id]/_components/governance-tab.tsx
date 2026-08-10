@@ -47,22 +47,22 @@ const HEALTH_CONFIG: Record<
 > = {
   GREEN: {
     label: "Healthy",
-    className: "bg-green-100 text-green-700 border-green-200",
+    className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
     caption: "On track",
   },
   AMBER: {
     label: "Attention",
-    className: "bg-amber-100 text-amber-700 border-amber-200",
+    className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
     caption: "Needs review",
   },
   RED: {
     label: "At Risk",
-    className: "bg-red-100 text-red-700 border-red-200",
+    className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
     caption: "Action required",
   },
   GREY: {
     label: "Not Assessed",
-    className: "bg-slate-100 text-slate-500 border-slate-200",
+    className: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
     caption: "Set by Account Manager",
   },
 };
@@ -82,20 +82,20 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Target className="h-4 w-4 text-cyan-600" />
-              <span className="text-xs text-slate-500">Pipeline</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Pipeline</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">{stats.totalLeads}</p>
-            <p className="text-xs text-green-600 mt-1">{stats.enrolledCount} enrolled</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalLeads}</p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stats.enrolledCount} enrolled</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="h-4 w-4 text-blue-600" />
-              <span className="text-xs text-slate-500">Activities</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Activities</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">{stats.activitiesCount}</p>
-            <p className="text-xs text-slate-500 mt-1">delivered</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.activitiesCount}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">delivered</p>
           </CardContent>
         </Card>
         {/* Spec §11 — Account Health replaces the (spec-forbidden) Budget card. */}
@@ -103,22 +103,22 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs text-slate-500">Account Health</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Account Health</span>
             </div>
             <Badge variant="outline" className={healthCfg.className}>
               {healthCfg.label}
             </Badge>
-            <p className="text-xs text-slate-500 mt-2">{healthCfg.caption}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{healthCfg.caption}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <span className="text-xs text-slate-500">Open Issues</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Open Issues</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">{openIssues}</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{openIssues}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {stats.openIssues !== undefined
                 ? "client issues"
                 : `${stats.openRisks} risks · ${stats.openCompliance} compliance`}
@@ -131,7 +131,7 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
       {kpis.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">KPI Achievement</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">KPI Achievement</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {kpis.map((kpi) => {
@@ -139,12 +139,12 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
               return (
                 <div key={kpi.id}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm text-slate-700">{kpi.name}</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{kpi.name}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       {kpi.currentValue} / {kpi.targetValue} {kpi.unit}
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
                         pct >= 1 ? "bg-green-500" : pct >= 0.7 ? "bg-cyan-500" : pct >= 0.4 ? "bg-amber-500" : "bg-red-500"
@@ -163,17 +163,17 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">Delivery Status</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Delivery Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-slate-600">{stats.deliverablesCompleted} completed</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">{stats.deliverablesCompleted} completed</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-500" />
-                <span className="text-sm text-slate-600">{stats.deliverablesPending} pending</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">{stats.deliverablesPending} pending</span>
               </div>
             </div>
           </CardContent>
@@ -181,19 +181,19 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">Recent Activities</CardTitle>
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recent Activities</CardTitle>
           </CardHeader>
           <CardContent>
             {recentActivities.length === 0 ? (
-              <p className="text-sm text-slate-400">No activities recorded yet.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">No activities recorded yet.</p>
             ) : (
               <div className="space-y-3">
                 {recentActivities.slice(0, 5).map((a) => (
                   <div key={a.id} className="flex items-start gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-2 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm text-slate-700 truncate">{a.title}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 truncate">{a.title}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
                         {a.type.replace(/_/g, " ")} ·{" "}
                         {new Date(a.date).toLocaleDateString()}
                       </p>

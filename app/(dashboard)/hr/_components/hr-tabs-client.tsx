@@ -49,10 +49,10 @@ export function HRTabsClient({
   }, []);
 
   const statCards = [
-    { title: "Total Employees", value: totalEmployees, icon: "Users" as const,       iconColor: "text-[#1E3A5F]",  iconBg: "bg-[#1E3A5F]/10", tab: "employees" },
-    { title: "On Leave Today",  value: onLeaveToday,   icon: "CalendarOff" as const, iconColor: "text-amber-600",  iconBg: "bg-amber-50",     tab: "leave" },
-    { title: "Open Tasks",      value: openTasks,      icon: "CheckSquare" as const, iconColor: "text-blue-600",   iconBg: "bg-blue-50",      tab: "tasks" },
-    { title: "Pending Leave",   value: pendingLeave,   icon: "Clock" as const,       iconColor: "text-violet-600", iconBg: "bg-violet-50",    tab: "leave" },
+    { title: "Total Employees", value: totalEmployees, icon: "Users" as const,       iconColor: "text-[#1E3A5F] dark:text-sky-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-sky-500/15", tab: "employees" },
+    { title: "On Leave Today",  value: onLeaveToday,   icon: "CalendarOff" as const, iconColor: "text-amber-600 dark:text-amber-300",  iconBg: "bg-amber-50 dark:bg-amber-500/15",     tab: "leave" },
+    { title: "Open Tasks",      value: openTasks,      icon: "CheckSquare" as const, iconColor: "text-blue-600 dark:text-blue-300",   iconBg: "bg-blue-50 dark:bg-blue-500/15",      tab: "tasks" },
+    { title: "Pending Leave",   value: pendingLeave,   icon: "Clock" as const,       iconColor: "text-violet-600 dark:text-violet-300", iconBg: "bg-violet-50 dark:bg-violet-500/15",    tab: "leave" },
   ];
 
   return (

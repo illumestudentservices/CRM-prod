@@ -148,12 +148,12 @@ export function ICRDashboard() {
     }));
 
   const reportStatusBadge: Record<string, string> = {
-    DRAFT: "bg-slate-100 text-slate-600",
-    PENDING_REVIEW: "bg-amber-100 text-amber-800",
-    REGIONAL_APPROVED: "bg-blue-100 text-blue-800",
-    HQ_REVIEW: "bg-indigo-100 text-indigo-800",
-    FINAL_APPROVED: "bg-green-100 text-green-800",
-    RETURNED: "bg-red-100 text-red-800",
+    DRAFT: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
+    PENDING_REVIEW: "bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300",
+    REGIONAL_APPROVED: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300",
+    HQ_REVIEW: "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-800 dark:text-indigo-300",
+    FINAL_APPROVED: "bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300",
+    RETURNED: "bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300",
   };
 
   // Export data
@@ -210,8 +210,8 @@ export function ICRDashboard() {
         {/* Mini pipeline chart */}
         <Card className="col-span-12 lg:col-span-5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">My Pipeline</CardTitle>
-            <p className="text-xs text-slate-500">Click a bar to view leads at that stage</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">My Pipeline</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a bar to view leads at that stage</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -264,8 +264,8 @@ export function ICRDashboard() {
         {/* Leads Needing Attention */}
         <Card className="col-span-12 lg:col-span-7">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Leads Needing Attention</CardTitle>
-            <p className="text-xs text-slate-500">Click a row to open the lead</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Leads Needing Attention</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a row to open the lead</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -273,16 +273,16 @@ export function ICRDashboard() {
                 {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : !attentionLeads.length ? (
-              <div className="text-center py-8 text-slate-400 text-sm">All caught up! No leads needing immediate attention.</div>
+              <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">All caught up! No leads needing immediate attention.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left text-xs font-semibold text-slate-500 py-2 pr-3">Name</th>
-                      <th className="text-left text-xs font-semibold text-slate-500 py-2 px-3">Stage</th>
-                      <th className="text-left text-xs font-semibold text-slate-500 py-2 px-3">Last Contact</th>
-                      <th className="text-left text-xs font-semibold text-slate-500 py-2 pl-3">Institution</th>
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                      <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 pr-3">Name</th>
+                      <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">Stage</th>
+                      <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">Last Contact</th>
+                      <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 pl-3">Institution</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -294,16 +294,16 @@ export function ICRDashboard() {
                       return (
                         <tr
                           key={lead.id}
-                          className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                          className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                           onClick={() => router.push(`/students/${lead.id}`)}
                         >
-                          <td className="py-2.5 pr-3 font-medium text-slate-800 hover:text-[#1E3A5F]">{displayName(lead)}</td>
+                          <td className="py-2.5 pr-3 font-medium text-slate-800 dark:text-slate-200 hover:text-[#1E3A5F] dark:hover:text-blue-300">{displayName(lead)}</td>
                           <td className="py-2.5 px-3">
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                               {lead.stage.replace(/_/g, " ")}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-xs text-slate-500">
+                          <td className="py-2.5 px-3 text-xs text-slate-500 dark:text-slate-400">
                             {daysSince !== null ? (
                               <span className={daysSince >= 7 ? "text-[#EF4444] font-semibold" : daysSince >= 2 ? "text-[#F59E0B] font-semibold" : ""}>
                                 {daysSince === 0 ? "Today" : `${daysSince}d ago`}
@@ -312,7 +312,7 @@ export function ICRDashboard() {
                               <span className="text-[#EF4444] font-semibold">Never</span>
                             )}
                           </td>
-                          <td className="py-2.5 pl-3 text-xs text-slate-500 truncate max-w-[120px]">
+                          <td className="py-2.5 pl-3 text-xs text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
                             {lead.institution?.name ?? "—"}
                           </td>
                         </tr>
@@ -330,7 +330,7 @@ export function ICRDashboard() {
         {/* Report submissions */}
         <Card className="col-span-12 lg:col-span-7">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">My Reports</CardTitle>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">My Reports</CardTitle>
             <p className="text-xs text-slate-500">Click a row to open the report</p>
           </CardHeader>
           <CardContent>
@@ -339,20 +339,20 @@ export function ICRDashboard() {
                 {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : !reports.length ? (
-              <div className="text-center py-6 text-slate-400 text-sm">No reports yet</div>
+              <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">No reports yet</div>
             ) : (
               <div className="space-y-2">
                 {reports.map((report) => (
                   <button
                     key={report.id}
                     onClick={() => router.push(`/reports/${report.id}`)}
-                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded px-2 -mx-2 transition-colors"
+                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded px-2 -mx-2 transition-colors"
                   >
                     <div>
-                      <p className="text-sm font-medium text-slate-800">{report.institution.name}</p>
-                      <p className="text-xs text-slate-500">{MONTH_NAMES[report.reportingMonth]} {report.reportingYear}</p>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.institution.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{MONTH_NAMES[report.reportingMonth]} {report.reportingYear}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${reportStatusBadge[report.status] ?? "bg-slate-100 text-slate-600"}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${reportStatusBadge[report.status] ?? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}`}>
                       {report.status.replace(/_/g, " ")}
                     </span>
                   </button>
@@ -365,7 +365,7 @@ export function ICRDashboard() {
         {/* Top sources */}
         <Card className="col-span-12 lg:col-span-5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">My Top Sources</CardTitle>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">My Top Sources</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -373,7 +373,7 @@ export function ICRDashboard() {
                 {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
               </div>
             ) : !sources.length ? (
-              <div className="text-center py-6 text-slate-400 text-sm">No source data</div>
+              <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">No source data</div>
             ) : (
               <div className="space-y-3">
                 {sources.map((src, i) => (
@@ -387,15 +387,15 @@ export function ICRDashboard() {
                         filters: { search: src.name },
                       })
                     }
-                    className="w-full text-left flex items-center gap-3 hover:bg-slate-50 rounded px-1 -mx-1 py-1 transition-colors"
+                    className="w-full text-left flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded px-1 -mx-1 py-1 transition-colors"
                   >
-                    <span className="text-xs font-bold text-slate-400 w-4">#{i + 1}</span>
+                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 w-4">#{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-slate-700 truncate">{src.name}</span>
-                        <span className="text-xs font-bold text-slate-800 ml-2">{src.leads}</span>
+                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{src.name}</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 ml-2">{src.leads}</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full bg-[#0EA5E9]"
                           style={{ width: `${(src.leads / (sources[0]?.leads ?? 1)) * 100}%` }}
@@ -411,7 +411,7 @@ export function ICRDashboard() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}

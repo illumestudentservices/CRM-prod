@@ -33,12 +33,12 @@ export function PageHeader({
               return (
                 <li key={index} className="flex items-center gap-1">
                   {index > 0 && (
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                   )}
                   {crumb.href && !isLast ? (
                     <Link
                       href={crumb.href}
-                      className="text-xs text-slate-500 hover:text-[#1E3A5F] transition-colors"
+                      className="text-xs text-slate-500 dark:text-slate-400 hover:text-[#1E3A5F] dark:hover:text-sky-400 transition-colors"
                     >
                       {crumb.label}
                     </Link>
@@ -46,7 +46,7 @@ export function PageHeader({
                     <span
                       className={cn(
                         "text-xs",
-                        isLast ? "text-slate-700 font-medium" : "text-slate-500"
+                        isLast ? "text-slate-700 dark:text-slate-200 font-medium" : "text-slate-500 dark:text-slate-400"
                       )}
                     >
                       {crumb.label}
@@ -61,11 +61,11 @@ export function PageHeader({
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             {title}
           </h1>
           {description && (
-            <p className="mt-1 text-sm text-slate-500 max-w-2xl">{description}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-2xl">{description}</p>
           )}
         </div>
 

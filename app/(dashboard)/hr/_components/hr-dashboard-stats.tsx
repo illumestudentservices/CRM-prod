@@ -69,13 +69,13 @@ export function HRDashboardStats({
       {/* Headcount by Department */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             Headcount by Department
           </CardTitle>
         </CardHeader>
         <CardContent>
           {deptHeadcount.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No department data</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No department data</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={deptHeadcount} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
@@ -106,13 +106,13 @@ export function HRDashboardStats({
       {/* Leave Utilization by Type */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             Leave Utilization by Type
           </CardTitle>
         </CardHeader>
         <CardContent>
           {leaveUtilization.filter((l) => l.total > 0).length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No leave data</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No leave data</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
@@ -150,13 +150,13 @@ export function HRDashboardStats({
       {/* Training Completion Rate */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             Training Completion Rate
           </CardTitle>
         </CardHeader>
         <CardContent>
           {trainingCompletion === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No training data</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No training data</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -191,13 +191,13 @@ export function HRDashboardStats({
       {/* Performance Score Distribution */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             Performance Score Distribution
           </CardTitle>
         </CardHeader>
         <CardContent>
           {perfScoreDistribution.length === 0 ? (
-            <p className="text-sm text-slate-400 py-8 text-center">No performance data</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No performance data</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart

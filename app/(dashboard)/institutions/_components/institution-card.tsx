@@ -32,38 +32,38 @@ const STATUS_CONFIG: Record<
 > = {
   PROSPECT: {
     label: "Prospect",
-    className: "bg-slate-100 text-slate-600 border-slate-200",
+    className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   },
   ONBOARDING: {
     label: "Onboarding",
-    className: "bg-sky-100 text-sky-700 border-sky-200",
+    className: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
   },
   ACTIVE: {
     label: "Active",
-    className: "bg-green-100 text-green-700 border-green-200",
+    className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
   },
   INACTIVE: {
     label: "Inactive",
-    className: "bg-gray-100 text-gray-600 border-gray-200",
+    className: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
   },
   SUSPENDED: {
     label: "Suspended",
-    className: "bg-amber-100 text-amber-800 border-amber-200",
+    className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
   },
   CLOSED: {
     label: "Closed",
-    className: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    className: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
   },
   // Legacy — retained for pre-migration-019 rows. Renewal is now a computed
   // alert from Contract.endDate; rows with this status render the label but
   // new rows should never be written with it.
   RENEWAL_DUE: {
     label: "Renewal Due",
-    className: "bg-amber-100 text-amber-700 border-amber-200",
+    className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
   },
   CHURNED: {
     label: "Churned",
-    className: "bg-red-100 text-red-700 border-red-200",
+    className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
   },
 };
 
@@ -98,7 +98,7 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 border-slate-200"
+      className="cursor-pointer hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 border-slate-200 dark:border-slate-800"
       onClick={() => router.push(`/institutions/${institution.id}`)}
     >
       <CardContent className="p-5">
@@ -125,10 +125,10 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
 
           {/* Name + Status */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-900 truncate text-sm leading-tight">
+            <p className="font-semibold text-slate-900 dark:text-slate-100 truncate text-sm leading-tight">
               {institution.name}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5 truncate">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               {institution.country} · {institution.type}
             </p>
           </div>
@@ -148,26 +148,26 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="flex flex-col items-center bg-slate-50 rounded-lg p-2 gap-1">
-            <GraduationCap className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-semibold text-slate-900">
+          <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-2 gap-1">
+            <GraduationCap className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {institution.leadsCount}
             </span>
-            <span className="text-[10px] text-slate-500">Leads</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">Leads</span>
           </div>
-          <div className="flex flex-col items-center bg-slate-50 rounded-lg p-2 gap-1">
-            <Users className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-semibold text-slate-900">
+          <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-2 gap-1">
+            <Users className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {institution.usersCount}
             </span>
-            <span className="text-[10px] text-slate-500">ICRs</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">ICRs</span>
           </div>
-          <div className="flex flex-col items-center bg-slate-50 rounded-lg p-2 gap-1">
-            <FileText className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-semibold text-slate-900">
+          <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-2 gap-1">
+            <FileText className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {institution.contractsCount}
             </span>
-            <span className="text-[10px] text-slate-500">Contracts</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">Contracts</span>
           </div>
         </div>
       </CardContent>

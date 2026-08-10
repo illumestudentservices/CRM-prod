@@ -55,12 +55,12 @@ import { snapshotName, type SnapshotName } from "@/lib/person-name";
 
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600" },
-  PENDING_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
-  REGIONAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
-  HQ_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
-  FINAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
-  RETURNED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+  DRAFT: { label: "Draft", className: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" },
+  PENDING_REVIEW: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300" },
+  REGIONAL_APPROVED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300" },
+  HQ_REVIEW: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300" },
+  FINAL_APPROVED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300" },
+  RETURNED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300" },
 };
 
 interface Approval {
@@ -254,7 +254,7 @@ export function ReportDetailClient({
       {kpi && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-[#0EA5E9]" />
               Key Performance Indicators
             </h2>
@@ -270,7 +270,7 @@ export function ReportDetailClient({
             <StatCard title="Conversion Rate" value={`${kpi.conversionRate}%`} icon={Target} change={prevKpi ? kpi.conversionRate - prevKpi.conversionRate : undefined} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" />
             <StatCard title="Contact Rate" value={`${kpi.contactRate}%`} icon={Phone} change={prevKpi ? kpi.contactRate - prevKpi.contactRate : undefined} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" />
             <StatCard title="Events" value={kpi.eventsCount} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" />
-            <StatCard title="Event Cost" value={kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString()}` : "—"} icon={DollarSign} iconColor="text-[#64748b]" iconBg="bg-slate-100" />
+            <StatCard title="Event Cost" value={kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString()}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
           </div>
         </div>
       )}
@@ -281,7 +281,7 @@ export function ReportDetailClient({
           {stageChartData.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700">Lead Stage Distribution</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Lead Stage Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
@@ -303,7 +303,7 @@ export function ReportDetailClient({
           {sourceChartData.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-700">Source Performance</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Source Performance</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
@@ -326,10 +326,10 @@ export function ReportDetailClient({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Users className="h-4 w-4 text-[#0EA5E9]" />
               Leads Collected
-              <span className="text-xs font-normal text-slate-400">({leads.length})</span>
+              <span className="text-xs font-normal text-slate-400 dark:text-slate-500">({leads.length})</span>
             </CardTitle>
             <EmailSectionButton
               sectionTitle={`Leads Collected (${leads.length})`}
@@ -340,9 +340,9 @@ export function ReportDetailClient({
         </CardHeader>
         <CardContent>
           {leads.length === 0 ? (
-            <p className="text-sm text-slate-400">No leads recorded for this period.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No leads recorded for this period.</p>
           ) : (
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-[#1E3A5F] text-white">
@@ -355,11 +355,11 @@ export function ReportDetailClient({
                 </thead>
                 <tbody>
                   {leads.slice(0, 20).map((lead, i) => (
-                    <tr key={lead.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="py-2 px-4 font-medium text-slate-800">{snapshotName(lead)}</td>
-                      <td className="py-2 px-3 text-slate-600">{lead.nationality}</td>
-                      <td className="py-2 px-3 text-slate-600 max-w-[140px] truncate">{lead.interestedProgram}</td>
-                      <td className="py-2 px-3 text-slate-500">{lead.studyLevel}</td>
+                    <tr key={lead.id} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                      <td className="py-2 px-4 font-medium text-slate-800 dark:text-slate-200">{snapshotName(lead)}</td>
+                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{lead.nationality}</td>
+                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400 max-w-[140px] truncate">{lead.interestedProgram}</td>
+                      <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{lead.studyLevel}</td>
                       <td className="py-2 px-3">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${stageHex(lead.stage)}15`, color: stageHex(lead.stage) }}>
                           {lead.stage.replace(/_/g, " ")}
@@ -370,7 +370,7 @@ export function ReportDetailClient({
                 </tbody>
               </table>
               {leads.length > 20 && (
-                <p className="text-xs text-slate-400 text-center py-2 bg-slate-50 border-t border-slate-200">+ {leads.length - 20} more leads</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-2 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-800">+ {leads.length - 20} more leads</p>
               )}
             </div>
           )}
@@ -382,14 +382,14 @@ export function ReportDetailClient({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-[#0EA5E9]" /> Program Breakdown
               </CardTitle>
               <EmailSectionButton sectionTitle="Program Breakdown" sectionHtml={sectionHtmls.programs} defaultSubject={`Programs — ${report.institution.name} — ${period}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#1E3A5F] text-white">
@@ -403,13 +403,13 @@ export function ReportDetailClient({
                 </thead>
                 <tbody>
                   {programs.map((prog, i) => (
-                    <tr key={prog.program} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="py-2.5 px-4 font-medium text-slate-800">{prog.program}</td>
+                    <tr key={prog.program} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                      <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{prog.program}</td>
                       <td className="py-2.5 px-4 text-right font-bold text-[#1E3A5F]">{prog.count}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{prog.levels?.["UNDERGRADUATE"] ?? 0}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{prog.levels?.["POSTGRADUATE"] ?? 0}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{prog.levels?.["FOUNDATION"] ?? 0}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{prog.levels?.["PATHWAY"] ?? 0}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["UNDERGRADUATE"] ?? 0}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["POSTGRADUATE"] ?? 0}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["FOUNDATION"] ?? 0}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["PATHWAY"] ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -424,14 +424,14 @@ export function ReportDetailClient({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Globe className="h-4 w-4 text-[#0EA5E9]" /> Source Performance
               </CardTitle>
               <EmailSectionButton sectionTitle="Source Performance" sectionHtml={sectionHtmls.sources} defaultSubject={`Sources — ${report.institution.name} — ${period}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#1E3A5F] text-white">
@@ -443,11 +443,11 @@ export function ReportDetailClient({
                 </thead>
                 <tbody>
                   {sources.map((src, i) => (
-                    <tr key={src.name} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="py-2.5 px-4 font-medium text-slate-800">{src.name}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{src.leads}</td>
+                    <tr key={src.name} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                      <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{src.name}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{src.leads}</td>
                       <td className="py-2.5 px-4 text-right text-[#22C55E] font-semibold">{src.enrolled}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{src.leads > 0 ? `${Math.round((src.enrolled / src.leads) * 100)}%` : "—"}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{src.leads > 0 ? `${Math.round((src.enrolled / src.leads) * 100)}%` : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -462,14 +462,14 @@ export function ReportDetailClient({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-[#0EA5E9]" /> Event Activities & ROI
               </CardTitle>
               <EmailSectionButton sectionTitle="Event Activities & ROI" sectionHtml={sectionHtmls.events} defaultSubject={`Events — ${report.institution.name} — ${period}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#1E3A5F] text-white">
@@ -482,12 +482,12 @@ export function ReportDetailClient({
                 </thead>
                 <tbody>
                   {events.map((event, i) => (
-                    <tr key={event.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                      <td className="py-2.5 px-4 font-medium text-slate-800">{event.name}</td>
-                      <td className="py-2.5 px-3 text-slate-600 text-xs">{event.location}</td>
+                    <tr key={event.id} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                      <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{event.name}</td>
+                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 text-xs">{event.location}</td>
                       <td className="py-2.5 px-3 text-right font-semibold text-[#0EA5E9]">{event.leadsGenerated}</td>
-                      <td className="py-2.5 px-3 text-right text-slate-600">{event.cost > 0 ? `$${event.cost.toLocaleString()}` : "—"}</td>
-                      <td className="py-2.5 px-4 text-right text-slate-600">{event.roi !== null ? event.roi : "—"}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{event.cost > 0 ? `$${event.cost.toLocaleString()}` : "—"}</td>
+                      <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{event.roi !== null ? event.roi : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -502,14 +502,14 @@ export function ReportDetailClient({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <CalendarRange className="h-4 w-4 text-[#0EA5E9]" /> Weekly Activities Summary
               </CardTitle>
               <EmailSectionButton sectionTitle="Weekly Activities Summary" sectionHtml={sectionHtmls.weeklyActivities} defaultSubject={`Weekly Activities — ${report.institution.name} — ${period}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#1E3A5F] text-white">
@@ -531,14 +531,14 @@ export function ReportDetailClient({
                     const total = w1 + w2 + w3 + w4;
                     const met = total >= entry.totalTarget;
                     return (
-                      <tr key={entry.type} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/50"}>
-                        <td className="py-2.5 px-4 font-medium text-slate-800">{entry.label}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{w1}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{w2}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{w3}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-600">{w4}</td>
+                      <tr key={entry.type} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                        <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{entry.label}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{w1}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{w2}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{w3}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{w4}</td>
                         <td className={`py-2.5 px-3 text-right font-bold ${met ? "text-[#22C55E]" : "text-[#EF4444]"}`}>{total}</td>
-                        <td className="py-2.5 px-4 text-right text-slate-500">{entry.totalTarget}</td>
+                        <td className="py-2.5 px-4 text-right text-slate-500 dark:text-slate-400">{entry.totalTarget}</td>
                       </tr>
                     );
                   })}
@@ -554,7 +554,7 @@ export function ReportDetailClient({
         <Card key={section.key}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <section.icon className="h-4 w-4 text-[#0EA5E9]" /> {section.label}
               </CardTitle>
               <EmailSectionButton
@@ -565,7 +565,7 @@ export function ReportDetailClient({
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{section.value}</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{section.value}</p>
           </CardContent>
         </Card>
       ))}
@@ -585,14 +585,14 @@ export function ReportDetailClient({
               <Input type="email" placeholder="ceo@company.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Message <span className="text-slate-400 font-normal">(optional)</span></Label>
+              <Label>Message <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span></Label>
               <Textarea placeholder="Add a personal note..." rows={3} value={emailMsg} onChange={(e) => setEmailMsg(e.target.value)} />
             </div>
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-xs text-slate-500">
-                Sending: <span className="font-semibold text-slate-700">{report.institution.name} — {period} Monthly Report</span>
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Sending: <span className="font-semibold text-slate-700 dark:text-slate-300">{report.institution.name} — {period} Monthly Report</span>
               </p>
-              <p className="text-xs text-slate-400 mt-1">Includes KPI summary, highlights, and a link to the full report.</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Includes KPI summary, highlights, and a link to the full report.</p>
             </div>
           </div>
           <DialogFooter>

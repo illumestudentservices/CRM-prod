@@ -101,7 +101,7 @@ export default async function SearchPage({
 
       {leads.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             <Users className="h-4 w-4" /> Students ({leads.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -129,7 +129,7 @@ export default async function SearchPage({
 
       {institutions.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             <Building2 className="h-4 w-4" /> Institutions ({institutions.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -152,7 +152,7 @@ export default async function SearchPage({
 
       {sources.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             <Globe className="h-4 w-4" /> Sources ({sources.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -177,7 +177,7 @@ export default async function SearchPage({
 
       {events.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             <Calendar className="h-4 w-4" /> Events ({events.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

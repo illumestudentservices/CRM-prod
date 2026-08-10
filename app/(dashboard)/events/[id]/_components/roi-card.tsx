@@ -38,7 +38,7 @@ export function ROICard({
   const isPositive = roi !== null && roi >= 0;
 
   return (
-    <Card className="border-slate-200">
+    <Card className="border-slate-200 dark:border-slate-800">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           {roi !== null ? (
@@ -48,31 +48,31 @@ export function ROICard({
               <TrendingDown className="h-4 w-4 text-red-500" />
             )
           ) : (
-            <TrendingUp className="h-4 w-4 text-slate-400" />
+            <TrendingUp className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           )}
           ROI Summary
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* ROI % */}
-        <div className="text-center py-4 bg-slate-50 rounded-xl">
+        <div className="text-center py-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl">
           {roi !== null ? (
             <>
               <p
                 className={cn(
                   "text-4xl font-bold tracking-tight",
-                  isPositive ? "text-green-600" : "text-red-600"
+                  isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                 )}
               >
                 {isPositive ? "+" : ""}
                 {formatPercent(roi)}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Return on Investment</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Return on Investment</p>
             </>
           ) : (
             <>
-              <p className="text-4xl font-bold text-slate-300">—</p>
-              <p className="text-xs text-slate-400 mt-1">No costs recorded yet</p>
+              <p className="text-4xl font-bold text-slate-300 dark:text-slate-600">—</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">No costs recorded yet</p>
             </>
           )}
         </div>
@@ -80,57 +80,57 @@ export function ROICard({
         {/* Metrics grid */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <DollarSign className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <DollarSign className="h-4 w-4 text-slate-400 dark:text-slate-500" />
               Total Cost
             </div>
-            <span className="text-sm font-semibold text-slate-900">
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {formatCurrency(totalCost)}
             </span>
           </div>
 
           {budget !== null && (
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <DollarSign className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <DollarSign className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 Budget
               </div>
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {formatCurrency(budget)}
               </span>
             </div>
           )}
 
-          <div className="border-t border-slate-100 pt-3 space-y-3">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Users className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <Users className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 Leads Generated
               </div>
-              <span className="text-sm font-semibold text-slate-900">{leadsCount}</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{leadsCount}</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <GraduationCap className="h-4 w-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <GraduationCap className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 Enrollments
               </div>
-              <span className="text-sm font-semibold text-green-700">
+              <span className="text-sm font-semibold text-green-700 dark:text-green-300">
                 {enrollmentsCount}
               </span>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-3 space-y-3">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Cost per Lead</span>
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Cost per Lead</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {costPerLead !== null ? formatCurrency(costPerLead) : "—"}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Cost per Enrollment</span>
-              <span className="text-sm font-semibold text-slate-900">
+              <span className="text-sm text-slate-600 dark:text-slate-300">Cost per Enrollment</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {costPerEnrollment !== null ? formatCurrency(costPerEnrollment) : "—"}
               </span>
             </div>
@@ -138,7 +138,7 @@ export function ROICard({
         </div>
 
         {/* Formula note */}
-        <p className="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
           ROI = ((Enrollments × $5,000) − Cost) / Cost × 100
         </p>
       </CardContent>

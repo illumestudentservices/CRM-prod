@@ -46,7 +46,7 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
       {/* Account Manager */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-700">Account Manager</CardTitle>
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">Account Manager</CardTitle>
         </CardHeader>
         <CardContent>
           {accountManager ? (
@@ -57,15 +57,15 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-medium text-slate-900">{accountManager.name ?? accountManager.email}</p>
-                <p className="text-xs text-slate-500">{accountManager.email}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{accountManager.name ?? accountManager.email}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{accountManager.email}</p>
               </div>
-              <Badge variant="outline" className="ml-auto bg-cyan-50 text-cyan-700 border-cyan-200 text-xs">
+              <Badge variant="outline" className="ml-auto bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30 text-xs">
                 Account Manager
               </Badge>
             </div>
           ) : (
-            <p className="text-sm text-slate-400">No account manager assigned.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No account manager assigned.</p>
           )}
         </CardContent>
       </Card>
@@ -73,25 +73,25 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
       {/* Regional Managers */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Regional Managers ({regionalManagers.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {regionalManagers.length === 0 ? (
-            <p className="text-sm text-slate-400">No regional managers assigned.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No regional managers assigned.</p>
           ) : (
             <div className="space-y-3">
               {regionalManagers.map((u) => (
                 <div key={u.id} className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-slate-200 text-slate-600 text-xs">
+                    <AvatarFallback className="bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-xs">
                       {getInitials(u.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm text-slate-700">{u.name ?? u.email}</p>
-                    <p className="text-xs text-slate-400">{u.email}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{u.name ?? u.email}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{u.email}</p>
                   </div>
                 </div>
               ))}
@@ -103,25 +103,25 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
       {/* ICRs */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-700">
+          <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
             ICRs ({icrs.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {icrs.length === 0 ? (
-            <p className="text-sm text-slate-400">No ICRs assigned.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">No ICRs assigned.</p>
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {icrs.map((u) => (
-                <div key={u.id} className="flex items-center gap-3 p-2 rounded-md bg-slate-50">
+                <div key={u.id} className="flex items-center gap-3 p-2 rounded-md bg-slate-50 dark:bg-slate-800/60">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-slate-200 text-slate-600 text-xs">
+                    <AvatarFallback className="bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-xs">
                       {getInitials(u.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="text-sm text-slate-700 truncate">{u.name ?? u.email}</p>
-                    <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate">{u.name ?? u.email}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{u.email}</p>
                   </div>
                 </div>
               ))}
@@ -134,7 +134,7 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
       {others.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               Other Assigned Users ({others.length})
             </CardTitle>
           </CardHeader>
@@ -143,13 +143,13 @@ export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
               {others.map((u) => (
                 <div key={u.id} className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-slate-200 text-slate-600 text-xs">
+                    <AvatarFallback className="bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-xs">
                       {getInitials(u.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm text-slate-700">{u.name ?? u.email}</p>
-                    <p className="text-xs text-slate-400">{u.email}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{u.name ?? u.email}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{u.email}</p>
                   </div>
                   <Badge variant="outline" className="ml-auto text-xs">
                     {ROLE_LABEL[u.role] ?? u.role}

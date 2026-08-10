@@ -84,38 +84,38 @@ const CATEGORY_CONFIG: Record<
   RECRUITMENT: {
     label: "Recruitment",
     icon: GraduationCap,
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
+    color: "text-blue-600 dark:text-blue-300",
+    bgColor: "bg-blue-50 dark:bg-blue-500/15",
+    borderColor: "border-blue-200 dark:border-blue-500/30",
   },
   MARKET_DEVELOPMENT: {
     label: "Market Development",
     icon: Globe,
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    borderColor: "border-green-200",
+    color: "text-green-600 dark:text-green-300",
+    bgColor: "bg-green-50 dark:bg-green-500/15",
+    borderColor: "border-green-200 dark:border-green-500/30",
   },
   RELATIONSHIP: {
     label: "Relationship",
     icon: Users,
-    color: "text-violet-600",
-    bgColor: "bg-violet-50",
-    borderColor: "border-violet-200",
+    color: "text-violet-600 dark:text-violet-300",
+    bgColor: "bg-violet-50 dark:bg-violet-500/15",
+    borderColor: "border-violet-200 dark:border-violet-500/30",
   },
   ENGAGEMENT: {
     label: "Engagement",
     icon: Heart,
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
-    borderColor: "border-amber-200",
+    color: "text-amber-600 dark:text-amber-300",
+    bgColor: "bg-amber-50 dark:bg-amber-500/15",
+    borderColor: "border-amber-200 dark:border-amber-500/30",
   },
 };
 
 const PERIOD_CONFIG: Record<KPIPeriod, { label: string; color: string }> = {
-  WEEKLY: { label: "Weekly", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  MONTHLY: { label: "Monthly", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  QUARTERLY: { label: "Quarterly", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  ANNUAL: { label: "Annual", color: "bg-green-50 text-green-700 border-green-200" },
+  WEEKLY: { label: "Weekly", color: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30" },
+  MONTHLY: { label: "Monthly", color: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30" },
+  QUARTERLY: { label: "Quarterly", color: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30" },
+  ANNUAL: { label: "Annual", color: "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30" },
 };
 
 const CATEGORIES: KPICategory[] = ["RECRUITMENT", "MARKET_DEVELOPMENT", "RELATIONSHIP", "ENGAGEMENT"];
@@ -157,9 +157,9 @@ function getPercentage(current: number, target: number): number {
 }
 
 function getPercentageColor(pct: number): string {
-  if (pct >= 80) return "text-green-600";
-  if (pct >= 50) return "text-amber-600";
-  return "text-red-600";
+  if (pct >= 80) return "text-green-600 dark:text-green-400";
+  if (pct >= 50) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
 }
 
 function getProgressIndicatorClass(pct: number): string {
@@ -408,7 +408,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
               ))}
             </SelectContent>
           </Select>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-slate-500 dark:text-slate-400">
             {kpis.length} KPI{kpis.length !== 1 ? "s" : ""} tracked
           </span>
         </div>
@@ -424,19 +424,19 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
 
       {/* Error display */}
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+        <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md dark:bg-red-500/15 dark:text-red-300">{error}</p>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400 dark:text-slate-500" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && !hasKpis && (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
           <Target className="h-8 w-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No KPIs tracked for {selectedYear}.</p>
           <p className="text-xs mt-1">Add a KPI to start tracking performance.</p>
@@ -463,7 +463,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                   >
                     <CatIcon className={cn("h-4 w-4", config.color)} />
                   </div>
-                  <CardTitle className="text-sm font-semibold text-slate-700">
+                  <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     {config.label}
                   </CardTitle>
                   <Badge variant="outline" className="ml-auto text-xs">
@@ -486,7 +486,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium text-slate-900">
+                              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                 {kpi.name}
                               </span>
                               <Badge
@@ -496,18 +496,18 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                                 {periodCfg.label}
                               </Badge>
                               {kpi.month && (
-                                <span className="text-xs text-slate-400">
+                                <span className="text-xs text-slate-400 dark:text-slate-500">
                                   Month {kpi.month}
                                 </span>
                               )}
                               {kpi.quarter && (
-                                <span className="text-xs text-slate-400">
+                                <span className="text-xs text-slate-400 dark:text-slate-500">
                                   Q{kpi.quarter}
                                 </span>
                               )}
                             </div>
                             {kpi.description && (
-                              <p className="text-xs text-slate-500 mt-0.5">
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 {kpi.description}
                               </p>
                             )}
@@ -518,7 +518,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                               onClick={() => openEditDialog(kpi)}
                               title="Edit KPI"
                             >
@@ -527,7 +527,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
                               onClick={() => setDeletingId(kpi.id)}
                               title="Delete KPI"
                             >
@@ -539,7 +539,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                         {/* Progress */}
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
                               {kpi.currentValue} / {kpi.targetValue} {kpi.unit}
                             </span>
                             <span className={cn("text-xs font-semibold", pctColor)}>
@@ -596,7 +596,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 text-xs text-slate-500 hover:text-[#1E3A5F] px-2"
+                            className="h-7 text-xs text-slate-500 hover:text-[#1E3A5F] dark:text-slate-400 dark:hover:text-blue-300 px-2"
                             onClick={() => {
                               setUpdatingProgressId(kpi.id);
                               setProgressValue(String(kpi.currentValue));
@@ -797,7 +797,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
 
             {/* Form error */}
             {formError && (
-              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{formError}</p>
+              <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md dark:bg-red-500/15 dark:text-red-300">{formError}</p>
             )}
 
             {/* Actions */}
@@ -827,7 +827,7 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
           <DialogHeader>
             <DialogTitle>Delete KPI</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Are you sure you want to delete this KPI? This action cannot be undone.
           </p>
           <div className="flex justify-end gap-2 pt-2">

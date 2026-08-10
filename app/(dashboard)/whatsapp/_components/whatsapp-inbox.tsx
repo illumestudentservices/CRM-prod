@@ -192,7 +192,7 @@ function ChatPanel({
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b bg-card">
         <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-green-100 text-green-700 text-sm font-semibold">
+          <AvatarFallback className="bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-sm font-semibold">
             {displayName.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -383,7 +383,7 @@ export function WhatsAppInbox({ initialConversations, currentUserId }: WhatsAppI
                   )}
                 >
                   <Avatar className="h-9 w-9 shrink-0 mt-0.5">
-                    <AvatarFallback className="bg-green-100 text-green-700 text-sm font-semibold">
+                    <AvatarFallback className="bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-sm font-semibold">
                       {name.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

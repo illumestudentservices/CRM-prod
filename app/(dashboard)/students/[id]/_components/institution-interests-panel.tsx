@@ -174,20 +174,20 @@ export function InstitutionInterestsPanel({
       ))}
 
       {showAdd && (
-        <form onSubmit={submit} className="border rounded p-3 space-y-2 bg-blue-50">
-          {error && <p className="text-sm text-red-600">{error}</p>}
+        <form onSubmit={submit} className="border rounded p-3 space-y-2 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/30">
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <div className="grid grid-cols-2 gap-2">
-            <select value={form.institutionId} onChange={e => setForm({ ...form, institutionId: e.target.value })} className="border rounded px-2 py-1 text-sm">
+            <select value={form.institutionId} onChange={e => setForm({ ...form, institutionId: e.target.value })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
               <option value="">Select institution</option>
               {institutions.map(i => <option key={i.id} value={i.id}>{i.name} ({i.country})</option>)}
             </select>
-            <input placeholder="Programme" value={form.program} onChange={e => setForm({ ...form, program: e.target.value })} className="border rounded px-2 py-1 text-sm" />
-            <input type="number" placeholder="Intake year" min={2020} max={2035} value={form.intakeYear} onChange={e => setForm({ ...form, intakeYear: Number(e.target.value) })} className="border rounded px-2 py-1 text-sm" />
-            <input type="number" placeholder="Intake month" min={1} max={12} value={form.intakeMonth} onChange={e => setForm({ ...form, intakeMonth: Number(e.target.value) })} className="border rounded px-2 py-1 text-sm" />
-            <select value={form.studyLevel} onChange={e => setForm({ ...form, studyLevel: e.target.value })} className="border rounded px-2 py-1 text-sm">
+            <input placeholder="Programme" value={form.program} onChange={e => setForm({ ...form, program: e.target.value })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200" />
+            <input type="number" placeholder="Intake year" min={2020} max={2035} value={form.intakeYear} onChange={e => setForm({ ...form, intakeYear: Number(e.target.value) })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200" />
+            <input type="number" placeholder="Intake month" min={1} max={12} value={form.intakeMonth} onChange={e => setForm({ ...form, intakeMonth: Number(e.target.value) })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200" />
+            <select value={form.studyLevel} onChange={e => setForm({ ...form, studyLevel: e.target.value })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
               {["UNDERGRADUATE", "POSTGRADUATE", "PATHWAY", "FOUNDATION"].map(s => <option key={s}>{s}</option>)}
             </select>
-            <select value={form.assignedICRId} onChange={e => setForm({ ...form, assignedICRId: e.target.value })} className="border rounded px-2 py-1 text-sm">
+            <select value={form.assignedICRId} onChange={e => setForm({ ...form, assignedICRId: e.target.value })} className="border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
               <option value="">Assign ICR (optional)</option>
               {icrUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>

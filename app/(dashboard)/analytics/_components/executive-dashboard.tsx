@@ -343,8 +343,8 @@ export function ExecutiveDashboard() {
       <div className="grid grid-cols-12 gap-4">
         <Card className="col-span-12 lg:col-span-8">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Lead Volume Trend</CardTitle>
-            <p className="text-xs text-slate-500">Monthly comparison — this year vs last year</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Lead Volume Trend</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Monthly comparison — this year vs last year</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -357,8 +357,8 @@ export function ExecutiveDashboard() {
 
         <Card className="col-span-12 lg:col-span-4">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Enrollment Funnel</CardTitle>
-            <p className="text-xs text-slate-500">Click a stage to view leads</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Enrollment Funnel</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a stage to view leads</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -386,8 +386,8 @@ export function ExecutiveDashboard() {
       <div className="grid grid-cols-12 gap-4">
         <Card className="col-span-12 lg:col-span-7">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Top 10 Markets</CardTitle>
-            <p className="text-xs text-slate-500">Click a bar to view leads from that country</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Top 10 Markets</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a bar to view leads from that country</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -459,8 +459,8 @@ export function ExecutiveDashboard() {
 
         <Card className="col-span-12 lg:col-span-5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Top 5 Sources</CardTitle>
-            <p className="text-xs text-slate-500">Click a bar to view leads from that source</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Top 5 Sources</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a bar to view leads from that source</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -535,40 +535,40 @@ export function ExecutiveDashboard() {
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-[#1E3A5F]" />
-            <CardTitle className="text-base font-semibold text-slate-800">
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">
               Enrollment Target vs Actual — by Institution
             </CardTitle>
           </div>
-          <p className="text-xs text-slate-500">Click a row to view institution details</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Click a row to view institution details</p>
         </CardHeader>
         <CardContent>
           {loading ? (
             <Skeleton className="h-[220px] w-full" />
           ) : !data?.institutionTargets?.length ? (
-            <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
+            <div className="flex items-center justify-center h-32 text-slate-400 dark:text-slate-500 text-sm">
               No institution targets configured
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left text-xs font-semibold text-slate-500 py-2 pr-4">Institution</th>
-                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-4">Target</th>
-                    <th className="text-right text-xs font-semibold text-slate-500 py-2 px-4">Actual</th>
-                    <th className="text-right text-xs font-semibold text-slate-500 py-2 pl-4">Attainment</th>
-                    <th className="w-40 text-xs font-semibold text-slate-500 py-2 pl-6">Progress</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 pr-4">Institution</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 px-4">Target</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 px-4">Actual</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 pl-4">Attainment</th>
+                    <th className="w-40 text-xs font-semibold text-slate-500 dark:text-slate-400 py-2 pl-6">Progress</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.institutionTargets.map((inst) => (
                     <tr
                       key={inst.institutionId}
-                      className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                      className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                       onClick={() => router.push(`/institutions/${inst.institutionId}`)}
                     >
-                      <td className="py-3 pr-4 font-medium text-slate-800 hover:text-[#1E3A5F]">{inst.name}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{inst.target}</td>
+                      <td className="py-3 pr-4 font-medium text-slate-800 dark:text-slate-200 hover:text-[#1E3A5F] dark:hover:text-blue-300">{inst.name}</td>
+                      <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{inst.target}</td>
                       <td className="py-3 px-4 text-right font-semibold text-[#1E3A5F]">{inst.actual}</td>
                       <td className="py-3 pl-4 text-right">
                         <span
@@ -584,7 +584,7 @@ export function ExecutiveDashboard() {
                         </span>
                       </td>
                       <td className="py-3 pl-6">
-                        <div className="w-full bg-slate-100 rounded-full h-2">
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
                           <div
                             className="h-2 rounded-full transition-all duration-700"
                             style={{
@@ -614,10 +614,10 @@ export function ExecutiveDashboard() {
         <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-emerald-500">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-emerald-50">
-                <DollarSign className="h-4 w-4 text-emerald-600" />
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/15">
+                <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
               </div>
-              <CardTitle className="text-base font-semibold text-slate-800">Revenue</CardTitle>
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Revenue</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -630,23 +630,23 @@ export function ExecutiveDashboard() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <p className="text-3xl font-bold text-emerald-700">
+                  <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">
                     {formatCurrency(execData?.revenue.totalContractValue ?? 0)}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Total active contract value</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total active contract value</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 rounded-lg p-2.5">
-                    <p className="text-lg font-semibold text-slate-800">
+                  <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-2.5">
+                    <p className="text-lg font-semibold text-slate-800 dark:text-slate-200">
                       {execData?.revenue.activeContracts ?? 0}
                     </p>
-                    <p className="text-[11px] text-slate-500">Active contracts</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Active contracts</p>
                   </div>
-                  <div className="bg-emerald-50 rounded-lg p-2.5">
-                    <p className="text-lg font-semibold text-emerald-700">
+                  <div className="bg-emerald-50 dark:bg-emerald-500/15 rounded-lg p-2.5">
+                    <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
                       {execData?.revenue.renewalPipelineCount ?? 0}
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Renewals ({formatCurrency(execData?.revenue.renewalPipelineValue ?? 0)})
                     </p>
                   </div>
@@ -660,10 +660,10 @@ export function ExecutiveDashboard() {
         <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-blue-500">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-blue-50">
-                <ClipboardCheck className="h-4 w-4 text-blue-600" />
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/15">
+                <ClipboardCheck className="h-4 w-4 text-blue-600 dark:text-blue-300" />
               </div>
-              <CardTitle className="text-base font-semibold text-slate-800">Delivery & SLA</CardTitle>
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Delivery & SLA</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -690,39 +690,39 @@ export function ExecutiveDashboard() {
                         strokeDasharray={`${(execData?.delivery.completionRate ?? 0) * 0.88} 88`}
                       />
                     </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-blue-700">
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-blue-700 dark:text-blue-300">
                       {execData?.delivery.completionRate ?? 0}%
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-700">Deliverable completion</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Deliverable completion</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {execData?.delivery.completedDeliverables ?? 0} / {execData?.delivery.totalDeliverables ?? 0} completed
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-blue-50 rounded-lg p-2 text-center">
-                    <p className="text-lg font-semibold text-blue-700">
+                  <div className="bg-blue-50 dark:bg-blue-500/15 rounded-lg p-2 text-center">
+                    <p className="text-lg font-semibold text-blue-700 dark:text-blue-300">
                       {execData?.delivery.activitiesThisMonth ?? 0}
                     </p>
-                    <p className="text-[10px] text-slate-500">This month</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">This month</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <p className="text-lg font-semibold text-slate-700">
+                  <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-2 text-center">
+                    <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">
                       {execData?.delivery.activitiesThisQuarter ?? 0}
                     </p>
-                    <p className="text-[10px] text-slate-500">This quarter</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">This quarter</p>
                   </div>
                   <div className={`rounded-lg p-2 text-center ${
-                    (execData?.delivery.overdueDeliverables ?? 0) > 0 ? "bg-red-50" : "bg-slate-50"
+                    (execData?.delivery.overdueDeliverables ?? 0) > 0 ? "bg-red-50 dark:bg-red-500/10" : "bg-slate-50 dark:bg-slate-900/40"
                   }`}>
                     <p className={`text-lg font-semibold ${
-                      (execData?.delivery.overdueDeliverables ?? 0) > 0 ? "text-red-600" : "text-slate-700"
+                      (execData?.delivery.overdueDeliverables ?? 0) > 0 ? "text-red-600 dark:text-red-300" : "text-slate-700 dark:text-slate-300"
                     }`}>
                       {execData?.delivery.overdueDeliverables ?? 0}
                     </p>
-                    <p className="text-[10px] text-slate-500">Overdue</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Overdue</p>
                   </div>
                 </div>
               </div>
@@ -734,10 +734,10 @@ export function ExecutiveDashboard() {
         <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-violet-500">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-violet-50">
-                <Map className="h-4 w-4 text-violet-600" />
+              <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-500/15">
+                <Map className="h-4 w-4 text-violet-600 dark:text-violet-300" />
               </div>
-              <CardTitle className="text-base font-semibold text-slate-800">Market Coverage</CardTitle>
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Market Coverage</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -747,29 +747,29 @@ export function ExecutiveDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-violet-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-violet-700">
+                <div className="bg-violet-50 dark:bg-violet-500/15 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
                     {(execData?.marketCoverage.schools ?? 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Schools</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Schools</p>
                 </div>
-                <div className="bg-violet-50/60 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-violet-600">
+                <div className="bg-violet-50/60 dark:bg-violet-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-violet-600 dark:text-violet-300">
                     {(execData?.marketCoverage.agents ?? 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Agents</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Agents</p>
                 </div>
-                <div className="bg-violet-50/40 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-violet-600">
+                <div className="bg-violet-50/40 dark:bg-violet-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-violet-600 dark:text-violet-300">
                     {(execData?.marketCoverage.counsellors ?? 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Counsellors</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Counsellors</p>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-slate-800">
+                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">
                     {(execData?.marketCoverage.markets ?? 0).toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">Markets</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Markets</p>
                 </div>
               </div>
             )}
@@ -780,10 +780,10 @@ export function ExecutiveDashboard() {
         <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-amber-500">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-amber-50">
-                <Trophy className="h-4 w-4 text-amber-600" />
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/15">
+                <Trophy className="h-4 w-4 text-amber-600 dark:text-amber-300" />
               </div>
-              <CardTitle className="text-base font-semibold text-slate-800">Team Performance</CardTitle>
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Team Performance</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -794,21 +794,21 @@ export function ExecutiveDashboard() {
             ) : (
               <div className="space-y-4">
                 {/* KPI Achievement */}
-                <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2">
-                  <span className="text-xs font-medium text-slate-600">Avg KPI Achievement</span>
+                <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-500/15 rounded-lg px-3 py-2">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Avg KPI Achievement</span>
                   <span className={`text-lg font-bold ${
                     (execData?.teamPerformance.kpiAchievementRate ?? 0) >= 70
-                      ? "text-emerald-600"
+                      ? "text-emerald-600 dark:text-emerald-300"
                       : (execData?.teamPerformance.kpiAchievementRate ?? 0) >= 40
-                      ? "text-amber-600"
-                      : "text-red-600"
+                      ? "text-amber-600 dark:text-amber-300"
+                      : "text-red-600 dark:text-red-300"
                   }`}>
                     {execData?.teamPerformance.kpiAchievementRate ?? 0}%
                   </span>
                 </div>
                 {/* Top 5 ICR leaderboard */}
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     Top ICRs by Leads
                   </p>
                   <div className="space-y-1.5">
@@ -820,16 +820,16 @@ export function ExecutiveDashboard() {
                             idx === 0 ? "bg-amber-400 text-white" :
                             idx === 1 ? "bg-slate-300 text-white" :
                             idx === 2 ? "bg-amber-700 text-white" :
-                            "bg-slate-100 text-slate-500"
+                            "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                           }`}>
                             {idx + 1}
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-slate-700 truncate">{icr.name}</span>
-                              <span className="text-xs font-semibold text-slate-600 ml-2">{icr.leads}</span>
+                              <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{icr.name}</span>
+                              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-2">{icr.leads}</span>
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-1 mt-0.5">
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-0.5">
                               <div
                                 className="h-1 rounded-full bg-amber-400 transition-all duration-700"
                                 style={{ width: `${(icr.leads / maxLeads) * 100}%` }}
@@ -840,7 +840,7 @@ export function ExecutiveDashboard() {
                       );
                     })}
                     {(execData?.teamPerformance.topICRs ?? []).length === 0 && (
-                      <p className="text-xs text-slate-400 text-center py-2">No ICR data available</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-2">No ICR data available</p>
                     )}
                   </div>
                 </div>
@@ -853,10 +853,10 @@ export function ExecutiveDashboard() {
         <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-rose-500">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-rose-50">
-                <ShieldAlert className="h-4 w-4 text-rose-600" />
+              <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-500/15">
+                <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-300" />
               </div>
-              <CardTitle className="text-base font-semibold text-slate-800">Risk & Compliance</CardTitle>
+              <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Risk & Compliance</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -870,7 +870,7 @@ export function ExecutiveDashboard() {
               <div className="space-y-4">
                 {/* Risk breakdown visualization */}
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     Open Risks by Type
                   </p>
                   <div className="space-y-2">
@@ -878,23 +878,23 @@ export function ExecutiveDashboard() {
                       const count = execData?.risk.breakdown[type] ?? 0;
                       const totalRisks = Object.values(execData?.risk.breakdown ?? {}).reduce((a, b) => a + b, 0) || 1;
                       const colors: Record<string, { bg: string; bar: string }> = {
-                        MARKET: { bg: "bg-blue-50", bar: "bg-blue-400" },
-                        STAFF: { bg: "bg-amber-50", bar: "bg-amber-400" },
-                        CLIENT: { bg: "bg-violet-50", bar: "bg-violet-400" },
-                        OPERATIONAL: { bg: "bg-slate-100", bar: "bg-slate-400" },
+                        MARKET: { bg: "bg-blue-50 dark:bg-blue-500/15", bar: "bg-blue-400" },
+                        STAFF: { bg: "bg-amber-50 dark:bg-amber-500/15", bar: "bg-amber-400" },
+                        CLIENT: { bg: "bg-violet-50 dark:bg-violet-500/15", bar: "bg-violet-400" },
+                        OPERATIONAL: { bg: "bg-slate-100 dark:bg-slate-800", bar: "bg-slate-400" },
                       };
                       return (
                         <div key={type} className="flex items-center gap-2">
-                          <span className="text-[11px] text-slate-500 w-24 capitalize">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 w-24 capitalize">
                             {type.toLowerCase()}
                           </span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-2">
+                          <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
                             <div
                               className={`h-2 rounded-full ${colors[type].bar} transition-all duration-700`}
                               style={{ width: `${totalRisks > 0 ? (count / totalRisks) * 100 : 0}%` }}
                             />
                           </div>
-                          <span className="text-xs font-semibold text-slate-600 w-6 text-right">{count}</span>
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 w-6 text-right">{count}</span>
                         </div>
                       );
                     })}
@@ -903,27 +903,27 @@ export function ExecutiveDashboard() {
                 {/* Critical + Compliance */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className={`rounded-lg p-2.5 text-center ${
-                    (execData?.risk.criticalCount ?? 0) > 0 ? "bg-red-50 ring-1 ring-red-200" : "bg-slate-50"
+                    (execData?.risk.criticalCount ?? 0) > 0 ? "bg-red-50 dark:bg-red-500/10 ring-1 ring-red-200 dark:ring-red-500/30" : "bg-slate-50 dark:bg-slate-900/40"
                   }`}>
                     <p className={`text-xl font-bold ${
-                      (execData?.risk.criticalCount ?? 0) > 0 ? "text-red-600" : "text-slate-600"
+                      (execData?.risk.criticalCount ?? 0) > 0 ? "text-red-600 dark:text-red-300" : "text-slate-600 dark:text-slate-400"
                     }`}>
                       {execData?.risk.criticalCount ?? 0}
                     </p>
-                    <p className="text-[10px] text-slate-500">Critical risks</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Critical risks</p>
                   </div>
                   <div className={`rounded-lg p-2.5 text-center ${
-                    (execData?.risk.overdueCompliance ?? 0) > 0 ? "bg-orange-50 ring-1 ring-orange-200" : "bg-slate-50"
+                    (execData?.risk.overdueCompliance ?? 0) > 0 ? "bg-orange-50 dark:bg-orange-500/10 ring-1 ring-orange-200 dark:ring-orange-500/30" : "bg-slate-50 dark:bg-slate-900/40"
                   }`}>
                     <p className={`text-xl font-bold ${
-                      (execData?.risk.overdueCompliance ?? 0) > 0 ? "text-orange-600" : "text-slate-600"
+                      (execData?.risk.overdueCompliance ?? 0) > 0 ? "text-orange-600 dark:text-orange-300" : "text-slate-600 dark:text-slate-400"
                     }`}>
                       {execData?.risk.overdueCompliance ?? 0}
                     </p>
-                    <p className="text-[10px] text-slate-500">Overdue compliance</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Overdue compliance</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {execData?.risk.pendingCompliance ?? 0} compliance items pending review
                 </p>
               </div>
@@ -933,7 +933,7 @@ export function ExecutiveDashboard() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}

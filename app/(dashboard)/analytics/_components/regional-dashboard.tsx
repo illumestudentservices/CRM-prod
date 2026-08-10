@@ -34,9 +34,9 @@ interface RegionalData {
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_BADGE: Record<string, string> = {
-  PENDING_REVIEW: "bg-amber-100 text-amber-800",
-  REGIONAL_APPROVED: "bg-blue-100 text-blue-800",
-  HQ_REVIEW: "bg-indigo-100 text-indigo-800",
+  PENDING_REVIEW: "bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  REGIONAL_APPROVED: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300",
+  HQ_REVIEW: "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-800 dark:text-indigo-300",
 };
 
 interface DrillDown {
@@ -145,8 +145,8 @@ export function RegionalDashboard() {
         {/* Pipeline Donut */}
         <Card className="col-span-12 md:col-span-5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Pipeline by Stage</CardTitle>
-            <p className="text-xs text-slate-500">Click a slice to view leads at that stage</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Pipeline by Stage</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a slice to view leads at that stage</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -196,14 +196,14 @@ export function RegionalDashboard() {
         {/* ICR Performance */}
         <Card className="col-span-12 md:col-span-7">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">ICR Performance (YTD)</CardTitle>
-            <p className="text-xs text-slate-500">Click a bar to view that ICR's leads</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">ICR Performance (YTD)</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click a bar to view that ICR's leads</p>
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-[260px] w-full" />
             ) : !data?.icrPerformance?.length ? (
-              <div className="flex items-center justify-center h-32 text-slate-400 text-sm">No ICR data available</div>
+              <div className="flex items-center justify-center h-32 text-slate-400 dark:text-slate-500 text-sm">No ICR data available</div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart
@@ -269,14 +269,14 @@ export function RegionalDashboard() {
       {/* Source Performance */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800">Source Performance</CardTitle>
-          <p className="text-xs text-slate-500">Lead generation by source in this region</p>
+          <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Source Performance</CardTitle>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Lead generation by source in this region</p>
         </CardHeader>
         <CardContent>
           {loading ? (
             <Skeleton className="h-[220px] w-full" />
           ) : !data?.sourcePerformance?.length ? (
-            <div className="flex items-center justify-center h-24 text-slate-400 text-sm">No source data</div>
+            <div className="flex items-center justify-center h-24 text-slate-400 dark:text-slate-500 text-sm">No source data</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
@@ -342,8 +342,8 @@ export function RegionalDashboard() {
         {/* Upcoming Events */}
         <Card className="col-span-12 lg:col-span-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Upcoming Events</CardTitle>
-            <p className="text-xs text-slate-500">Click to view event details</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Upcoming Events</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click to view event details</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -351,22 +351,22 @@ export function RegionalDashboard() {
                 {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : !data?.upcomingEvents?.length ? (
-              <div className="text-slate-400 text-sm text-center py-6">No upcoming events</div>
+              <div className="text-slate-400 dark:text-slate-500 text-sm text-center py-6">No upcoming events</div>
             ) : (
               <div className="space-y-2">
                 {data.upcomingEvents.map((event) => (
                   <button
                     key={event.id}
                     onClick={() => router.push(`/events`)}
-                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded px-2 -mx-2 transition-colors"
+                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded px-2 -mx-2 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{event.name}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{event.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {new Date(event.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {event.city}, {event.country}
                       </p>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0 ml-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 ml-2">
                       {event.type.replace(/_/g, " ")}
                     </span>
                   </button>
@@ -379,8 +379,8 @@ export function RegionalDashboard() {
         {/* Pending Reports */}
         <Card className="col-span-12 lg:col-span-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">Pending Reports</CardTitle>
-            <p className="text-xs text-slate-500">Click to review a report</p>
+            <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Pending Reports</CardTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Click to review a report</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -388,22 +388,22 @@ export function RegionalDashboard() {
                 {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : !data?.pendingReports?.length ? (
-              <div className="text-slate-400 text-sm text-center py-6">No pending reports</div>
+              <div className="text-slate-400 dark:text-slate-500 text-sm text-center py-6">No pending reports</div>
             ) : (
               <div className="space-y-2">
                 {data.pendingReports.map((report) => (
                   <button
                     key={report.id}
                     onClick={() => router.push(`/reports/${report.id}`)}
-                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded px-2 -mx-2 transition-colors"
+                    className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded px-2 -mx-2 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{report.institutionName}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{report.institutionName}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {report.icrName} · {MONTH_NAMES[report.reportingMonth]} {report.reportingYear}
                       </p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ml-2 font-medium ${STATUS_BADGE[report.status] ?? "bg-slate-100 text-slate-600"}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ml-2 font-medium ${STATUS_BADGE[report.status] ?? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"}`}>
                       {report.status.replace(/_/g, " ")}
                     </span>
                   </button>
@@ -415,7 +415,7 @@ export function RegionalDashboard() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
           {error}
         </div>
       )}

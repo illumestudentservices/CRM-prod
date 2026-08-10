@@ -66,9 +66,9 @@ interface StageSelectorProps {
 }
 
 const CLOSED_STYLES: Record<string, string> = {
-  DEFERRED: "border-orange-200 text-orange-700 hover:bg-orange-50",
-  APPLICATION_REJECTED: "border-red-200 text-red-700 hover:bg-red-50",
-  LOST: "border-gray-200 text-gray-600 hover:bg-gray-50",
+  DEFERRED: "border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-500/30 dark:text-orange-300 dark:hover:bg-orange-500/10",
+  APPLICATION_REJECTED: "border-red-200 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10",
+  LOST: "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60",
 };
 
 export function StageSelector({
@@ -159,33 +159,33 @@ export function StageSelector({
       {/* Days in current stage — the spec asks for this on every record */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs">
-          <Clock className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-500">
+          <Clock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+          <span className="text-slate-500 dark:text-slate-400">
             {daysInStage === 0
               ? "Entered this stage today"
               : `${daysInStage} day${daysInStage === 1 ? "" : "s"} in ${STAGE_LABELS[currentStage]}`}
           </span>
           {daysInStage >= 21 ? (
-            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+            <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300 font-medium">
               Escalated
             </span>
           ) : daysInStage >= 14 ? (
-            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 font-medium">
               Overdue
             </span>
           ) : null}
         </div>
-        <p className="text-xs text-slate-400">{STAGE_OBJECTIVES[currentStage]}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">{STAGE_OBJECTIVES[currentStage]}</p>
       </div>
 
       {isClosed ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 flex items-start gap-3">
-          <XCircle className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-4 flex items-start gap-3">
+          <XCircle className="h-5 w-5 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800">
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
               This student is closed as {STAGE_LABELS[currentStage]}.
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Reopening restores the stage they were closed from. Fresh activity will be
               required before they can progress again.
             </p>
@@ -221,7 +221,7 @@ export function StageSelector({
 
               return (
                 <React.Fragment key={stage}>
-                  {i > 0 && <ChevronRight className="h-3 w-3 text-slate-300 shrink-0" />}
+                  {i > 0 && <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600 shrink-0" />}
                   <button
                     disabled={loading || isCurrent}
                     onClick={() => handleClick(stage)}
@@ -233,12 +233,12 @@ export function StageSelector({
                     className={cn(
                       "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                       isCurrent && "bg-[#1E3A5F] text-white border-[#1E3A5F] cursor-default",
-                      isDone && !isCurrent && "bg-green-50 text-green-700 border-green-200",
-                      !isCurrent && !isDone && blocked && "bg-slate-50 text-slate-400 border-slate-200",
+                      isDone && !isCurrent && "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+                      !isCurrent && !isDone && blocked && "bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-800",
                       !isCurrent &&
                         !isDone &&
                         !blocked &&
-                        "bg-white text-slate-600 border-slate-200 hover:border-[#0EA5E9] hover:text-[#0EA5E9]",
+                        "bg-white text-slate-600 border-slate-200 hover:border-[#0EA5E9] hover:text-[#0EA5E9] dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:border-sky-500 dark:hover:text-sky-400",
                       isNext && !blocked && "ring-1 ring-[#0EA5E9]/40"
                     )}
                   >
@@ -257,17 +257,17 @@ export function StageSelector({
           </div>
 
           {nextStage && nextGate && !nextGate.canProgress && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-900">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
                     To move to {STAGE_LABELS[nextStage]}:
                   </p>
                   <ul className="mt-1 space-y-0.5">
                     {nextGate.blockers.map((b, i) => (
-                      <li key={i} className="text-xs text-amber-800 flex gap-1.5">
-                        <span className="text-amber-400">•</span>
+                      <li key={i} className="text-xs text-amber-800 dark:text-amber-300 flex gap-1.5">
+                        <span className="text-amber-400 dark:text-amber-500">•</span>
                         <span>{b.message}</span>
                       </li>
                     ))}
@@ -279,14 +279,14 @@ export function StageSelector({
 
           {/* Closed outcomes — reachable from any stage */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
-            <span className="text-xs text-slate-400">Close as:</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Close as:</span>
             {CLOSED_STAGES.map((stage) => (
               <button
                 key={stage}
                 disabled={loading}
                 onClick={() => setCloseOpen(stage)}
                 className={cn(
-                  "px-2 py-1 rounded-md text-xs font-medium border bg-white transition-colors",
+                  "px-2 py-1 rounded-md text-xs font-medium border bg-white dark:bg-slate-900 transition-colors",
                   CLOSED_STYLES[stage]
                 )}
               >
@@ -315,11 +315,11 @@ export function StageSelector({
           </DialogHeader>
           <div className="space-y-3 py-1">
             {blockedTarget && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-                <p className="text-xs font-semibold text-amber-900 mb-1">You are bypassing:</p>
+              <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 p-3">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-1">You are bypassing:</p>
                 <ul className="space-y-0.5">
                   {blockedTarget.blockers.map((b, i) => (
-                    <li key={i} className="text-xs text-amber-800">
+                    <li key={i} className="text-xs text-amber-800 dark:text-amber-300">
                       • {b.message}
                     </li>
                   ))}
@@ -334,7 +334,7 @@ export function StageSelector({
                 onChange={(e) => setOverrideReason(e.target.value)}
                 placeholder="Why is it right to move this student on despite the above?"
               />
-              <p className="text-xs text-slate-400">At least 10 characters.</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">At least 10 characters.</p>
             </div>
           </div>
           <DialogFooter>

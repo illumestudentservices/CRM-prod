@@ -88,9 +88,9 @@ interface QBRClientProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600" },
-  SUBMITTED: { label: "Submitted", className: "bg-amber-100 text-amber-800" },
-  APPROVED: { label: "Approved", className: "bg-green-100 text-green-800" },
+  DRAFT: { label: "Draft", className: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" },
+  SUBMITTED: { label: "Submitted", className: "bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300" },
+  APPROVED: { label: "Approved", className: "bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300" },
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -204,7 +204,7 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {error}
           <button onClick={() => setError(null)} className="ml-auto">
@@ -216,14 +216,14 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
       {/* Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+          <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-[#0EA5E9]" />
             Quarterly Business Reviews
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-slate-400">
+            <div className="flex items-center justify-center py-12 text-slate-400 dark:text-slate-500">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               Loading...
             </div>
@@ -232,26 +232,26 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
               No QBRs generated yet. Click &ldquo;Generate QBR&rdquo; to create one.
             </div>
           ) : (
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left text-xs font-semibold text-slate-500 py-2.5 px-4">
+                  <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Institution
                     </th>
-                    <th className="text-center text-xs font-semibold text-slate-500 py-2.5 px-4">
+                    <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Year
                     </th>
-                    <th className="text-center text-xs font-semibold text-slate-500 py-2.5 px-4">
+                    <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Quarter
                     </th>
-                    <th className="text-center text-xs font-semibold text-slate-500 py-2.5 px-4">
+                    <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Status
                     </th>
-                    <th className="text-center text-xs font-semibold text-slate-500 py-2.5 px-4">
+                    <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Created
                     </th>
-                    <th className="text-right text-xs font-semibold text-slate-500 py-2.5 px-4">
+                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5 px-4">
                       Actions
                     </th>
                   </tr>
@@ -261,11 +261,11 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                     const statusCfg = STATUS_CONFIG[qbr.status] ?? STATUS_CONFIG["DRAFT"];
                     return (
                       <tr key={qbr.id} className="border-b border-slate-50 last:border-0">
-                        <td className="py-2.5 px-4 font-medium text-slate-800">
+                        <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">
                           {qbr.institution.name}
                         </td>
-                        <td className="py-2.5 px-4 text-center text-slate-600">{qbr.year}</td>
-                        <td className="py-2.5 px-4 text-center text-slate-600">Q{qbr.quarter}</td>
+                        <td className="py-2.5 px-4 text-center text-slate-600 dark:text-slate-400">{qbr.year}</td>
+                        <td className="py-2.5 px-4 text-center text-slate-600 dark:text-slate-400">Q{qbr.quarter}</td>
                         <td className="py-2.5 px-4 text-center">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusCfg.className}`}
@@ -273,7 +273,7 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                             {statusCfg.label}
                           </span>
                         </td>
-                        <td className="py-2.5 px-4 text-center text-slate-500 text-xs">
+                        <td className="py-2.5 px-4 text-center text-slate-500 dark:text-slate-400 text-xs">
                           {new Date(qbr.createdAt).toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
@@ -288,7 +288,7 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                               onClick={() => setViewQBR(qbr)}
                               className="h-8 w-8 p-0"
                             >
-                              <Eye className="h-4 w-4 text-slate-500" />
+                              <Eye className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                             </Button>
                             {canGenerate && (
                               <Button
@@ -410,10 +410,10 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                 {/* Executive Summary */}
                 {viewQBR.executiveSummary && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                       Executive Summary
                     </h3>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-lg p-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-slate-900/40 rounded-lg p-4">
                       {viewQBR.executiveSummary}
                     </p>
                   </div>
@@ -422,32 +422,32 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                 {/* Market Performance */}
                 {viewQBR.marketPerformance && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                       Market Performance
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                      <div className="text-center rounded-lg bg-slate-50 py-3">
+                      <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#1E3A5F]">
                           {viewQBR.marketPerformance.totalLeads}
                         </p>
-                        <p className="text-xs text-slate-500">Total Leads</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Total Leads</p>
                       </div>
                       {viewQBR.marketPerformance.topMarkets?.slice(0, 3).map((m) => (
-                        <div key={m.market} className="text-center rounded-lg bg-slate-50 py-3">
+                        <div key={m.market} className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                           <p className="text-xl font-bold text-[#0EA5E9]">{m.count}</p>
-                          <p className="text-xs text-slate-500 truncate px-2">{m.market}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate px-2">{m.market}</p>
                         </div>
                       ))}
                     </div>
                     {viewQBR.marketPerformance.leadsByStage && (
-                      <div className="text-xs text-slate-500 space-y-1">
-                        <p className="font-medium text-slate-600">Leads by Stage:</p>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                        <p className="font-medium text-slate-600 dark:text-slate-300">Leads by Stage:</p>
                         <div className="flex flex-wrap gap-2">
                           {Object.entries(viewQBR.marketPerformance.leadsByStage).map(
                             ([stage, count]) => (
                               <span
                                 key={stage}
-                                className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600"
+                                className="inline-flex items-center px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                               >
                                 {stage.replace(/_/g, " ")}: {count}
                               </span>
@@ -462,48 +462,48 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                 {/* ROI Analysis */}
                 {viewQBR.roiAnalysis && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">ROI Analysis</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">ROI Analysis</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                      <div className="text-center rounded-lg bg-slate-50 py-3">
+                      <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#1E3A5F]">
                           {viewQBR.roiAnalysis.totalActivities}
                         </p>
-                        <p className="text-xs text-slate-500">Activities</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Activities</p>
                       </div>
-                      <div className="text-center rounded-lg bg-slate-50 py-3">
+                      <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#1E3A5F]">
                           ${viewQBR.roiAnalysis.totalCost.toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500">Total Cost</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Total Cost</p>
                       </div>
-                      <div className="text-center rounded-lg bg-slate-50 py-3">
+                      <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#0EA5E9]">
                           ${viewQBR.roiAnalysis.costPerLead.toFixed(2)}
                         </p>
-                        <p className="text-xs text-slate-500">Cost / Lead</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Cost / Lead</p>
                       </div>
-                      <div className="text-center rounded-lg bg-slate-50 py-3">
+                      <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#22C55E]">
                           {viewQBR.roiAnalysis.enrolled}
                         </p>
-                        <p className="text-xs text-slate-500">Enrolled</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Enrolled</p>
                       </div>
                     </div>
                     {viewQBR.roiAnalysis.activityBreakdown?.length > 0 && (
-                      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                         <table className="w-full text-xs">
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
-                              <th className="text-left font-semibold text-slate-500 py-2 px-3">
+                            <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+                              <th className="text-left font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                                 Activity Type
                               </th>
-                              <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                              <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                                 Count
                               </th>
-                              <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                              <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                                 Cost
                               </th>
-                              <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                              <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                                 Leads
                               </th>
                             </tr>
@@ -514,16 +514,16 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                                 key={ab.type}
                                 className="border-b border-slate-50 last:border-0"
                               >
-                                <td className="py-2 px-3 text-slate-700">
+                                <td className="py-2 px-3 text-slate-700 dark:text-slate-300">
                                   {ab.type.replace(/_/g, " ")}
                                 </td>
-                                <td className="py-2 px-3 text-right text-slate-600">
+                                <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
                                   {ab.count}
                                 </td>
-                                <td className="py-2 px-3 text-right text-slate-600">
+                                <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
                                   ${ab.cost.toLocaleString()}
                                 </td>
-                                <td className="py-2 px-3 text-right text-slate-600">
+                                <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
                                   {ab.leads}
                                 </td>
                               </tr>
@@ -538,21 +538,21 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                 {/* KPI Summary */}
                 {viewQBR.kpiSummary && viewQBR.kpiSummary.kpis?.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">KPI Summary</h3>
-                    <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">KPI Summary</h3>
+                    <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="text-left font-semibold text-slate-500 py-2 px-3">
+                          <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800">
+                            <th className="text-left font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                               KPI
                             </th>
-                            <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                            <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                               Target
                             </th>
-                            <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                            <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                               Current
                             </th>
-                            <th className="text-right font-semibold text-slate-500 py-2 px-3">
+                            <th className="text-right font-semibold text-slate-500 dark:text-slate-400 py-2 px-3">
                               Achievement
                             </th>
                           </tr>
@@ -563,20 +563,20 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                               key={i}
                               className="border-b border-slate-50 last:border-0"
                             >
-                              <td className="py-2 px-3 text-slate-700">{k.name}</td>
-                              <td className="py-2 px-3 text-right text-slate-600">
+                              <td className="py-2 px-3 text-slate-700 dark:text-slate-300">{k.name}</td>
+                              <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
                                 {k.target} {k.unit}
                               </td>
-                              <td className="py-2 px-3 text-right text-slate-600">
+                              <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
                                 {k.current} {k.unit}
                               </td>
                               <td
                                 className={`py-2 px-3 text-right font-semibold ${
                                   k.achievement >= 100
-                                    ? "text-green-600"
+                                    ? "text-green-600 dark:text-green-400"
                                     : k.achievement >= 70
-                                    ? "text-amber-600"
-                                    : "text-red-500"
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-red-500 dark:text-red-400"
                                 }`}
                               >
                                 {k.achievement}%
@@ -592,10 +592,10 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                 {/* Strategic Recommendations */}
                 {viewQBR.strategicRecommendations && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                       Strategic Recommendations
                     </h3>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-lg p-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-slate-900/40 rounded-lg p-4">
                       {viewQBR.strategicRecommendations}
                     </p>
                   </div>

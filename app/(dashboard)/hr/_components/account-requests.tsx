@@ -208,18 +208,18 @@ export function AccountRequests() {
   const decided = (requests ?? []).filter((r) => r.status !== "PENDING");
 
   const Row = ({ r }: { r: AccountRequest }) => (
-    <div className="rounded-lg border border-slate-200 p-3.5 space-y-2.5">
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-slate-900">{r.fullName}</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.fullName}</p>
             <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABELS[r.status]}</Badge>
             {r.status === "APPROVED" && !r.fulfilledAt && (
               <Badge variant="secondary">Account not created yet</Badge>
             )}
             {r.fulfilledAt && <Badge variant="success">Account created</Badge>}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {r.jobTitle} · {roleLabel(r.requestedRole)} ·{" "}
             {EMPLOYMENT_TYPE_LABELS[r.employmentType] ?? r.employmentType}
           </p>
@@ -239,7 +239,7 @@ export function AccountRequests() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 text-red-600 border-red-200 hover:bg-red-50 gap-1.5"
+                className="h-8 text-red-600 border-red-200 hover:bg-red-50 dark:text-red-300 dark:border-red-500/30 dark:hover:bg-red-500/10 gap-1.5"
                 disabled={busy === r.id}
                 onClick={() => { setRejecting(r); setRejectReason(""); }}
               >
@@ -263,7 +263,7 @@ export function AccountRequests() {
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 text-slate-400 hover:text-red-600"
+              className="h-8 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400"
               disabled={busy === r.id}
               onClick={() => withdraw(r)}
             >
@@ -283,20 +283,20 @@ export function AccountRequests() {
       </div>
 
       <div>
-        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">Justification</p>
-        <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{r.justification}</p>
+        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">Justification</p>
+        <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">{r.justification}</p>
       </div>
 
       {r.reviewNotes && (
-        <div className="rounded-md bg-slate-50 border border-slate-200 p-2.5">
-          <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+        <div className="rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-2.5">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">
             Reviewer notes
           </p>
-          <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{r.reviewNotes}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">{r.reviewNotes}</p>
         </div>
       )}
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">
         Raised by {r.requestedBy?.name ?? "Unknown"} on {formatDate(r.createdAt)}
         {r.reviewedBy && r.reviewedAt
           ? ` · reviewed by ${r.reviewedBy.name ?? "Unknown"} on ${formatDate(r.reviewedAt)}`
@@ -309,13 +309,13 @@ export function AccountRequests() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             {canReview
               ? "Account requests raised by managers. Approving does not create the account — set it up in the Employees tab."
               : "Ask IT to create a portal account for a new joiner."}
           </p>
           {pending.length > 0 && (
-            <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1.5">
+            <p className="text-xs text-amber-600 dark:text-amber-300 font-medium mt-1 flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               {pending.length} awaiting review
             </p>
@@ -333,13 +333,13 @@ export function AccountRequests() {
       </div>
 
       {requests === null ? (
-        <p className="text-sm text-slate-400 py-8 text-center">Loading…</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">Loading…</p>
       ) : requests.length === 0 ? (
-        <div className="text-center py-10 border border-dashed border-slate-200 rounded-lg">
-          <UserPlus className="h-7 w-7 mx-auto text-slate-300 mb-2" />
-          <p className="text-sm text-slate-500">No account requests yet.</p>
+        <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+          <UserPlus className="h-7 w-7 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+          <p className="text-sm text-slate-500 dark:text-slate-400">No account requests yet.</p>
           {canRequest && (
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               Use “Request an account” when you are onboarding someone new.
             </p>
           )}
@@ -353,7 +353,7 @@ export function AccountRequests() {
           )}
           {decided.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
                 Decided
               </p>
               <div className="space-y-2.5">
@@ -371,9 +371,9 @@ export function AccountRequests() {
             <DialogTitle>Request a new account</DialogTitle>
           </DialogHeader>
 
-          <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 p-2.5">
-            <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-sky-800">
+          <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+            <Info className="h-4 w-4 text-sky-600 dark:text-sky-300 shrink-0 mt-0.5" />
+            <p className="text-xs text-sky-800 dark:text-sky-300">
               This notifies IT — it does not create the account. They will review the
               details and set it up, and the new joiner gets their own onboarding email.
             </p>
@@ -420,7 +420,7 @@ export function AccountRequests() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   Super Admin cannot be requested — ask IT directly.
                 </p>
               </div>
@@ -458,7 +458,7 @@ export function AccountRequests() {
                   </SelectContent>
                 </Select>
                 {/* Says why it is asked, rather than collecting it unexplained. */}
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   Sets maternity / paternity leave eligibility.
                 </p>
               </div>
@@ -508,7 +508,7 @@ export function AccountRequests() {
                 onChange={(e) => set("justification", e.target.value)}
                 placeholder="e.g. Replacing Sarah in the Africa team; starts on the 1st and needs pipeline access from day one."
               />
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 At least 10 characters — this is what IT reads when deciding.
               </p>
             </div>
@@ -535,7 +535,7 @@ export function AccountRequests() {
             <DialogTitle>Decline this request</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               {rejecting?.requestedBy?.name ?? "The requester"} will be told, so give them
               something they can act on.
             </p>
@@ -569,8 +569,8 @@ export function AccountRequests() {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{label}</p>
-      <p className="text-xs text-slate-700 truncate">{value}</p>
+      <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs text-slate-700 dark:text-slate-300 truncate">{value}</p>
     </div>
   );
 }

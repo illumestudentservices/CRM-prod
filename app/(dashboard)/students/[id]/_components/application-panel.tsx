@@ -163,7 +163,7 @@ export function ApplicationPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           {active
             ? `Active: ${active.institution.name}`
             : "No application recorded yet."}
@@ -180,11 +180,11 @@ export function ApplicationPanel({
       </div>
 
       {active && (
-        <div className="rounded-lg border border-slate-200 p-3 space-y-3">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-3">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-slate-400" />
-            <span className="text-sm font-medium text-slate-800">{active.institution.name}</span>
-            <span className="text-xs text-slate-400">· {active.program}</span>
+            <Building2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{active.institution.name}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">· {active.program}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -281,14 +281,14 @@ export function ApplicationPanel({
                 patch(active.id, { depositDeadlineNotApplicable: v === true })
               }
             />
-            <span className="text-xs text-slate-500">No deposit deadline applies</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">No deposit deadline applies</span>
           </label>
         </div>
       )}
 
       {superseded.length > 0 && (
         <div className="pt-1">
-          <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
             <Archive className="h-3 w-3" />
             Previous applications
           </p>
@@ -296,12 +296,12 @@ export function ApplicationPanel({
             {superseded.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-2 text-xs text-slate-500 rounded-md bg-slate-50 px-2.5 py-1.5"
+                className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-md bg-slate-50 dark:bg-slate-900/40 px-2.5 py-1.5"
               >
-                <span className="font-medium text-slate-600">{a.institution.name}</span>
-                <span className="text-slate-400">· {a.program}</span>
+                <span className="font-medium text-slate-600 dark:text-slate-300">{a.institution.name}</span>
+                <span className="text-slate-400 dark:text-slate-500">· {a.program}</span>
                 {a.offerType === "REJECTED" && (
-                  <span className="ml-auto text-red-600">Rejected</span>
+                  <span className="ml-auto text-red-600 dark:text-red-400">Rejected</span>
                 )}
               </div>
             ))}
@@ -316,7 +316,7 @@ export function ApplicationPanel({
           </DialogHeader>
           <div className="space-y-4 py-1">
             {active && (
-              <p className="text-xs text-slate-500 rounded-lg bg-slate-50 p-2.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 rounded-lg bg-slate-50 dark:bg-slate-900/40 p-2.5">
                 This becomes the active application. The current one is kept on the
                 record rather than replaced.
               </p>
@@ -378,7 +378,7 @@ export function ApplicationPanel({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[11px] text-slate-400">{label}</Label>
+      <Label className="text-[11px] text-slate-400 dark:text-slate-500">{label}</Label>
       {children}
     </div>
   );

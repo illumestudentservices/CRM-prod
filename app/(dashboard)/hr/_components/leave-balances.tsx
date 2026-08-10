@@ -131,7 +131,7 @@ export function LeaveBalances() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500 pointer-events-none" />
           <Input
             placeholder="Search by name or ID…"
             value={search}
@@ -163,16 +163,16 @@ export function LeaveBalances() {
           </SelectContent>
         </Select>
 
-        <p className="text-xs text-slate-500 ml-auto">
+        <p className="text-xs text-slate-500 dark:text-slate-400 ml-auto">
           {filtered.length} record{filtered.length !== 1 ? "s" : ""}
         </p>
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden bg-white">
+      <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50">
+            <TableRow className="bg-slate-50 dark:bg-slate-900/40">
               <TableHead className="w-[200px]">Employee</TableHead>
               <TableHead>Dept</TableHead>
               <TableHead>Leave Type</TableHead>
@@ -188,13 +188,13 @@ export function LeaveBalances() {
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
                   {Array.from({ length: 8 }).map((__, j) => (
-                    <TableCell key={j}><div className="h-4 bg-slate-100 animate-pulse rounded" /></TableCell>
+                    <TableCell key={j}><div className="h-4 bg-slate-100 dark:bg-slate-800 animate-pulse rounded" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-slate-400 text-sm">
+                <TableCell colSpan={8} className="text-center py-12 text-slate-400 dark:text-slate-500 text-sm">
                   No leave balances found. Balances are created when employees apply for leave.
                 </TableCell>
               </TableRow>
@@ -205,27 +205,27 @@ export function LeaveBalances() {
                 const remaining = b.availableDays;
                 const usedPct = b.totalDays > 0 ? Math.round((b.usedDays / b.totalDays) * 100) : 0;
                 return (
-                  <TableRow key={b.id} className="hover:bg-slate-50">
+                  <TableRow key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                     <TableCell>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">{b.employee.user.name ?? "—"}</p>
-                        <p className="text-xs text-slate-400">{b.employee.employeeId}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{b.employee.user.name ?? "—"}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{b.employee.employeeId}</p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-slate-600">{b.employee.department?.name ?? "—"}</span>
+                      <span className="text-sm text-slate-600 dark:text-slate-300">{b.employee.department?.name ?? "—"}</span>
                     </TableCell>
                     <TableCell>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${(LEAVE_TYPE_BADGE_CLASSES as Record<string,string>)[b.leaveType] ?? "bg-slate-100 text-slate-600"}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${(LEAVE_TYPE_BADGE_CLASSES as Record<string,string>)[b.leaveType] ?? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
                         {LEAVE_LABELS[b.leaveType] ?? b.leaveType}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
                       {!b.tracksBalance ? (
-                        <span className="text-xs text-slate-400">Not tracked</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">Not tracked</span>
                       ) : b.inWaitingPeriod ? (
                         <span
-                          className="text-xs text-amber-600"
+                          className="text-xs text-amber-600 dark:text-amber-300"
                           title={
                             b.eligibleFrom
                               ? `Eligible from ${new Date(b.eligibleFrom).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
@@ -236,10 +236,10 @@ export function LeaveBalances() {
                         </span>
                       ) : (
                         <>
-                          <span className="text-sm font-semibold text-slate-900">{b.totalDays}d</span>
+                          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{b.totalDays}d</span>
                           {b.adjustmentDays !== 0 && (
                             <span
-                              className="text-[10px] text-slate-400 ml-1"
+                              className="text-[10px] text-slate-400 dark:text-slate-500 ml-1"
                               title="Includes an HR adjustment"
                             >
                               ({b.accruedDays}
@@ -251,20 +251,20 @@ export function LeaveBalances() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="text-sm text-slate-700">{b.usedDays}d</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-200">{b.usedDays}d</span>
                       {b.usedDays > 0 && (
-                        <span className="text-xs text-slate-400 ml-1">({usedPct}%)</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">({usedPct}%)</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {b.pendingDays > 0 ? (
-                        <span className="text-sm text-amber-600">{b.pendingDays}d</span>
+                        <span className="text-sm text-amber-600 dark:text-amber-300">{b.pendingDays}d</span>
                       ) : (
-                        <span className="text-sm text-slate-400">—</span>
+                        <span className="text-sm text-slate-400 dark:text-slate-500">—</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={`text-sm font-semibold ${remaining <= 0 ? "text-red-600" : remaining <= 3 ? "text-amber-600" : "text-green-600"}`}>
+                      <span className={`text-sm font-semibold ${remaining <= 0 ? "text-red-600 dark:text-red-400" : remaining <= 3 ? "text-amber-600 dark:text-amber-300" : "text-green-600 dark:text-green-400"}`}>
                         {remaining}d
                       </span>
                     </TableCell>
@@ -294,20 +294,20 @@ export function LeaveBalances() {
           </DialogHeader>
           {editTarget && (
             <div className="space-y-4">
-              <div className="bg-slate-50 rounded-lg p-3 space-y-1 text-sm">
+              <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3 space-y-1 text-sm">
                 <p className="font-medium">{editTarget.employee.user.name}</p>
-                <p className="text-slate-500">{LEAVE_LABELS[editTarget.leaveType]} · {editTarget.year}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1">
-                  <span>Accrued: <strong className="text-slate-700">{editTarget.accruedDays}d</strong></span>
-                  <span>Used: <strong className="text-slate-700">{editTarget.usedDays}d</strong></span>
-                  <span>Pending: <strong className="text-slate-700">{editTarget.pendingDays}d</strong></span>
-                  <span>Available: <strong className="text-slate-700">{editTarget.availableDays}d</strong></span>
+                <p className="text-slate-500 dark:text-slate-400">{LEAVE_LABELS[editTarget.leaveType]} · {editTarget.year}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 dark:text-slate-500 pt-1">
+                  <span>Accrued: <strong className="text-slate-700 dark:text-slate-200">{editTarget.accruedDays}d</strong></span>
+                  <span>Used: <strong className="text-slate-700 dark:text-slate-200">{editTarget.usedDays}d</strong></span>
+                  <span>Pending: <strong className="text-slate-700 dark:text-slate-200">{editTarget.pendingDays}d</strong></span>
+                  <span>Available: <strong className="text-slate-700 dark:text-slate-200">{editTarget.availableDays}d</strong></span>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Policy</p>
-                <p className="text-xs text-slate-600 leading-relaxed">{editTarget.policySummary}</p>
+              <div className="rounded-lg border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">Policy</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{editTarget.policySummary}</p>
               </div>
 
               <div className="space-y-2">
@@ -323,10 +323,10 @@ export function LeaveBalances() {
                 />
                 {/* The entitlement itself is recomputed from the policy, so an
                     override would be overwritten — an adjustment layers on top. */}
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   Added on top of the accrued {editTarget.accruedDays}d. Use a negative
                   number to dock days. Entitlement becomes{" "}
-                  <strong className="text-slate-600">
+                  <strong className="text-slate-600 dark:text-slate-300">
                     {Math.round((editTarget.accruedDays + (parseFloat(newTotal) || 0)) * 100) / 100}d
                   </strong>.
                 </p>

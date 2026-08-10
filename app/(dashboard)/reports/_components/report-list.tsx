@@ -46,12 +46,12 @@ interface ReportListProps {
 const MONTH_NAMES = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string }> = {
-  DRAFT: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200" },
-  PENDING_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  REGIONAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  HQ_REVIEW: { label: "Submitted", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  FINAL_APPROVED: { label: "Submitted", className: "bg-blue-100 text-blue-800 border-blue-200" },
-  RETURNED: { label: "Submitted", className: "bg-blue-100 text-blue-800 border-blue-200" },
+  DRAFT: { label: "Draft", className: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700" },
+  PENDING_REVIEW: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30" },
+  REGIONAL_APPROVED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30" },
+  HQ_REVIEW: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30" },
+  FINAL_APPROVED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30" },
+  RETURNED: { label: "Submitted", className: "bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30" },
 };
 
 export function ReportList({
@@ -72,7 +72,7 @@ export function ReportList({
 
   if (!reports.length) {
     return (
-      <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-slate-200 rounded-xl">
+      <div className="text-center py-16 text-slate-400 dark:text-slate-500 text-sm border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
         No reports found.
       </div>
     );
@@ -102,26 +102,26 @@ export function ReportList({
           title="Export Reports"
         />
       </div>
-      <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50 hover:bg-slate-50">
-              <TableHead className="text-xs font-semibold text-slate-500">ICR</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-500">Institution</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-500">Period</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-500">Status</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-500">Created</TableHead>
-              <TableHead className="text-xs font-semibold text-slate-500 text-right">Actions</TableHead>
+            <TableRow className="bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900/40">
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400">ICR</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400">Institution</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400">Period</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400">Created</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {reports.map((report) => (
-              <TableRow key={report.id} className="hover:bg-slate-50/50">
-                <TableCell className="text-sm font-medium text-slate-800">
+              <TableRow key={report.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/60">
+                <TableCell className="text-sm font-medium text-slate-800 dark:text-slate-200">
                   {report.icr.name ?? report.icr.email}
                 </TableCell>
-                <TableCell className="text-sm text-slate-600">{report.institution.name}</TableCell>
-                <TableCell className="text-sm text-slate-600">
+                <TableCell className="text-sm text-slate-600 dark:text-slate-300">{report.institution.name}</TableCell>
+                <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                   {MONTH_NAMES[report.reportingMonth]} {report.reportingYear}
                 </TableCell>
                 <TableCell>
@@ -129,7 +129,7 @@ export function ReportList({
                     {STATUS_CONFIG[report.status].label}
                   </span>
                 </TableCell>
-                <TableCell className="text-xs text-slate-500">
+                <TableCell className="text-xs text-slate-500 dark:text-slate-400">
                   {report.submittedAt
                     ? new Date(report.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
                     : "—"}
@@ -158,7 +158,7 @@ export function ReportList({
 
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Page {pagination.page} of {pagination.totalPages}
           </p>
           <div className="flex gap-2">

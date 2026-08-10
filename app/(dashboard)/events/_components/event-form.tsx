@@ -333,7 +333,7 @@ export function EventForm({
           {institutions.length > 0 && (
             <div className="space-y-1.5">
               <Label>Institutions</Label>
-              <div className="border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
                 {institutions.map((inst) => (
                   <div key={inst.id} className="flex items-center gap-2">
                     <Checkbox
@@ -343,7 +343,7 @@ export function EventForm({
                     />
                     <label
                       htmlFor={`inst-${inst.id}`}
-                      className="text-sm text-slate-700 cursor-pointer"
+                      className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
                     >
                       {inst.name}
                     </label>
@@ -365,7 +365,7 @@ export function EventForm({
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border border-transparent dark:border-red-500/30 px-3 py-2 rounded-md">{error}</p>
           )}
 
           <div className="flex justify-end gap-2 pt-2">

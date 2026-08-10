@@ -161,7 +161,7 @@ export default function AccountPage() {
             {twoFactorEnabled !== null && (
               <Badge
                 variant={twoFactorEnabled ? "default" : "secondary"}
-                className={twoFactorEnabled ? "bg-emerald-100 text-emerald-800 border-emerald-200" : ""}
+                className={twoFactorEnabled ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30" : ""}
               >
                 {twoFactorEnabled ? "Enabled" : "Disabled"}
               </Badge>
@@ -181,9 +181,9 @@ export default function AccountPage() {
               )}
               {twoFactorEnabled === false && (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-amber-800">
+                  <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 rounded-lg text-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
+                    <p className="text-amber-800 dark:text-amber-300">
                       Your account is protected by password only. Enable 2FA for stronger security.
                     </p>
                   </div>
@@ -195,9 +195,9 @@ export default function AccountPage() {
               )}
               {twoFactorEnabled === true && (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <p className="text-emerald-800">
+                  <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30 rounded-lg text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300 shrink-0 mt-0.5" />
+                    <p className="text-emerald-800 dark:text-emerald-300">
                       2FA is active. You&apos;ll be prompted for a code from your authenticator app each time you sign in.
                     </p>
                   </div>
@@ -222,7 +222,7 @@ export default function AccountPage() {
               {qrDataUrl && (
                 <div className="flex justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrDataUrl} alt="2FA QR code" className="rounded-lg border p-2 bg-white" width={220} height={220} />
+                  <img src={qrDataUrl} alt="2FA QR code" className="rounded-lg border p-2 bg-white dark:bg-slate-100" width={220} height={220} />
                 </div>
               )}
 
@@ -302,11 +302,11 @@ export default function AccountPage() {
           {/* ── Step 3: Show backup codes ── */}
           {step === "setup-done" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 rounded-lg text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-amber-900">Save your backup codes now</p>
-                  <p className="text-amber-800 mt-0.5">
+                  <p className="font-semibold text-amber-900 dark:text-amber-200">Save your backup codes now</p>
+                  <p className="text-amber-800 dark:text-amber-300 mt-0.5">
                     These codes let you sign in if you lose access to your authenticator.
                     Each code can only be used once. Store them somewhere safe.
                   </p>
@@ -333,9 +333,9 @@ export default function AccountPage() {
           {/* ── Disable confirmation ── */}
           {step === "disable-confirm" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-                <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                <p className="text-red-800">
+              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/30 rounded-lg text-sm">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-300 shrink-0 mt-0.5" />
+                <p className="text-red-800 dark:text-red-300">
                   Disabling 2FA will remove the extra security layer from your account.
                   Enter your current authentication code to confirm.
                 </p>

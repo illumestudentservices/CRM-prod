@@ -223,9 +223,9 @@ export function CloseOutcomeDialog({ leadId, outcome, open, onClose, onDone }: P
                   placeholder="Why are they deferring?"
                 />
               </div>
-              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 p-2.5">
-                <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-sky-800">
+              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-sky-800 dark:text-sky-200">
                   This student will reopen automatically ahead of the intake you choose.
                 </p>
               </div>
@@ -257,9 +257,9 @@ export function CloseOutcomeDialog({ leadId, outcome, open, onClose, onDone }: P
                 <Label>Notes</Label>
                 <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
-              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 p-2.5">
-                <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-sky-800">
+              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-sky-800 dark:text-sky-200">
                   A rejection from one institution needn&apos;t end the case — consider an
                   alternative application for this student.
                 </p>

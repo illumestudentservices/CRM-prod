@@ -36,19 +36,19 @@ const COLUMN_CONFIG: Record<
   LeadStage,
   { headerBg: string; headerText: string; countBg: string; countText: string; borderColor: string }
 > = {
-  NEW_LEAD:              { headerBg: "bg-slate-50",   headerText: "text-slate-700",   countBg: "bg-slate-200",   countText: "text-slate-700",   borderColor: "border-slate-200" },
-  CONTACTED:             { headerBg: "bg-sky-50",     headerText: "text-sky-700",     countBg: "bg-sky-200",     countText: "text-sky-800",     borderColor: "border-sky-200" },
-  QUALIFIED:             { headerBg: "bg-cyan-50",    headerText: "text-cyan-700",    countBg: "bg-cyan-200",    countText: "text-cyan-800",    borderColor: "border-cyan-200" },
-  APPLICATION_SUBMITTED: { headerBg: "bg-indigo-50",  headerText: "text-indigo-700",  countBg: "bg-indigo-200",  countText: "text-indigo-800",  borderColor: "border-indigo-200" },
-  AWAITING_DECISION:     { headerBg: "bg-violet-50",  headerText: "text-violet-700",  countBg: "bg-violet-200",  countText: "text-violet-800",  borderColor: "border-violet-200" },
-  OFFER_RECEIVED:        { headerBg: "bg-blue-50",    headerText: "text-blue-700",    countBg: "bg-blue-200",    countText: "text-blue-800",    borderColor: "border-blue-200" },
-  DEPOSIT_PAID:          { headerBg: "bg-teal-50",    headerText: "text-teal-700",    countBg: "bg-teal-200",    countText: "text-teal-800",    borderColor: "border-teal-200" },
-  ENROLLED:              { headerBg: "bg-green-50",   headerText: "text-green-700",   countBg: "bg-green-200",   countText: "text-green-800",   borderColor: "border-green-200" },
-  LOST:                  { headerBg: "bg-gray-50",    headerText: "text-gray-600",    countBg: "bg-gray-200",    countText: "text-gray-700",    borderColor: "border-gray-200" },
-  DEFERRED:              { headerBg: "bg-orange-50",  headerText: "text-orange-700",  countBg: "bg-orange-200",  countText: "text-orange-800",  borderColor: "border-orange-200" },
-  APPLICATION_REJECTED:  { headerBg: "bg-red-50",     headerText: "text-red-700",     countBg: "bg-red-200",     countText: "text-red-800",     borderColor: "border-red-200" },
-  WITHDRAWN:             { headerBg: "bg-zinc-50",    headerText: "text-zinc-700",    countBg: "bg-zinc-200",    countText: "text-zinc-800",    borderColor: "border-zinc-200" },
-  VISA_REFUSED:          { headerBg: "bg-rose-50",    headerText: "text-rose-700",    countBg: "bg-rose-200",    countText: "text-rose-800",    borderColor: "border-rose-200" },
+  NEW_LEAD:              { headerBg: "bg-slate-50 dark:bg-slate-800/60",   headerText: "text-slate-700 dark:text-slate-300",   countBg: "bg-slate-200 dark:bg-slate-700",   countText: "text-slate-700 dark:text-slate-200",   borderColor: "border-slate-200 dark:border-slate-800" },
+  CONTACTED:             { headerBg: "bg-sky-50 dark:bg-sky-500/10",     headerText: "text-sky-700 dark:text-sky-300",     countBg: "bg-sky-200 dark:bg-sky-500/25",     countText: "text-sky-800 dark:text-sky-200",     borderColor: "border-sky-200 dark:border-sky-500/30" },
+  QUALIFIED:             { headerBg: "bg-cyan-50 dark:bg-cyan-500/10",    headerText: "text-cyan-700 dark:text-cyan-300",    countBg: "bg-cyan-200 dark:bg-cyan-500/25",    countText: "text-cyan-800 dark:text-cyan-200",    borderColor: "border-cyan-200 dark:border-cyan-500/30" },
+  APPLICATION_SUBMITTED: { headerBg: "bg-indigo-50 dark:bg-indigo-500/10",  headerText: "text-indigo-700 dark:text-indigo-300",  countBg: "bg-indigo-200 dark:bg-indigo-500/25",  countText: "text-indigo-800 dark:text-indigo-200",  borderColor: "border-indigo-200 dark:border-indigo-500/30" },
+  AWAITING_DECISION:     { headerBg: "bg-violet-50 dark:bg-violet-500/10",  headerText: "text-violet-700 dark:text-violet-300",  countBg: "bg-violet-200 dark:bg-violet-500/25",  countText: "text-violet-800 dark:text-violet-200",  borderColor: "border-violet-200 dark:border-violet-500/30" },
+  OFFER_RECEIVED:        { headerBg: "bg-blue-50 dark:bg-blue-500/10",    headerText: "text-blue-700 dark:text-blue-300",    countBg: "bg-blue-200 dark:bg-blue-500/25",    countText: "text-blue-800 dark:text-blue-200",    borderColor: "border-blue-200 dark:border-blue-500/30" },
+  DEPOSIT_PAID:          { headerBg: "bg-teal-50 dark:bg-teal-500/10",    headerText: "text-teal-700 dark:text-teal-300",    countBg: "bg-teal-200 dark:bg-teal-500/25",    countText: "text-teal-800 dark:text-teal-200",    borderColor: "border-teal-200 dark:border-teal-500/30" },
+  ENROLLED:              { headerBg: "bg-green-50 dark:bg-green-500/10",   headerText: "text-green-700 dark:text-green-300",   countBg: "bg-green-200 dark:bg-green-500/25",   countText: "text-green-800 dark:text-green-200",   borderColor: "border-green-200 dark:border-green-500/30" },
+  LOST:                  { headerBg: "bg-gray-50 dark:bg-slate-800/60",    headerText: "text-gray-600 dark:text-slate-400",    countBg: "bg-gray-200 dark:bg-slate-700",    countText: "text-gray-700 dark:text-slate-300",    borderColor: "border-gray-200 dark:border-slate-800" },
+  DEFERRED:              { headerBg: "bg-orange-50 dark:bg-orange-500/10",  headerText: "text-orange-700 dark:text-orange-300",  countBg: "bg-orange-200 dark:bg-orange-500/25",  countText: "text-orange-800 dark:text-orange-200",  borderColor: "border-orange-200 dark:border-orange-500/30" },
+  APPLICATION_REJECTED:  { headerBg: "bg-red-50 dark:bg-red-500/10",     headerText: "text-red-700 dark:text-red-300",     countBg: "bg-red-200 dark:bg-red-500/25",     countText: "text-red-800 dark:text-red-200",     borderColor: "border-red-200 dark:border-red-500/30" },
+  WITHDRAWN:             { headerBg: "bg-zinc-50 dark:bg-zinc-500/10",    headerText: "text-zinc-700 dark:text-zinc-300",    countBg: "bg-zinc-200 dark:bg-zinc-500/25",    countText: "text-zinc-800 dark:text-zinc-200",    borderColor: "border-zinc-200 dark:border-zinc-500/30" },
+  VISA_REFUSED:          { headerBg: "bg-rose-50 dark:bg-rose-500/10",    headerText: "text-rose-700 dark:text-rose-300",    countBg: "bg-rose-200 dark:bg-rose-500/25",    countText: "text-rose-800 dark:text-rose-200",    borderColor: "border-rose-200 dark:border-rose-500/30" },
 };
 
 // ─── Column component ─────────────────────────────────────────────────────────
@@ -69,8 +69,8 @@ function KanbanColumn({ stage, leads, isOver }: KanbanColumnProps) {
       className={cn(
         "flex flex-col w-64 shrink-0 rounded-xl border",
         config.borderColor,
-        "bg-white/80 backdrop-blur-sm",
-        isOver && "ring-2 ring-[#1E3A5F] ring-offset-1"
+        "bg-white/80 dark:bg-slate-900/60 backdrop-blur-sm",
+        isOver && "ring-2 ring-[#1E3A5F] dark:ring-sky-500 ring-offset-1 dark:ring-offset-slate-950"
       )}
     >
       {/* Column header */}
@@ -100,8 +100,8 @@ function KanbanColumn({ stage, leads, isOver }: KanbanColumnProps) {
         ref={setNodeRef}
         className={cn(
           "flex-1 overflow-y-auto p-2 space-y-2 min-h-[120px] max-h-[calc(100vh-240px)]",
-          "scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent",
-          isOver && "bg-slate-50/60"
+          "scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent",
+          isOver && "bg-slate-50/60 dark:bg-slate-800/40"
         )}
       >
         <SortableContext items={leadIds} strategy={verticalListSortingStrategy}>
@@ -111,7 +111,7 @@ function KanbanColumn({ stage, leads, isOver }: KanbanColumnProps) {
         </SortableContext>
 
         {leads.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+          <div className="flex items-center justify-center h-20 text-xs text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
             Drop cards here
           </div>
         )}
