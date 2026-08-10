@@ -1,47 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
-const MAX_ATTEMPTS = 5;
-
-// POST /api/auth/login-status
-// Called client-side after a failed sign-in to show richer error messaging
-// (lockout countdown, remaining attempts).
-//
-// Security note: we intentionally do NOT distinguish "unknown email" from
-// "wrong password" — always return a generic status for unrecognised addresses
-// to prevent user enumeration.
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json().catch(() => null);
-    const email = typeof body?.email === "string" ? body.email.trim() : null;
-    if (!email) return NextResponse.json({ status: "unknown" });
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { loginAttempts: true, lockedUntil: true, isActive: true, deletedAt: true },
-    });
-
-    // Unknown email — return generic response (same shape as other non-actionable states)
-    if (!user || user.deletedAt) return NextResponse.json({ status: "unknown" });
-
-    // Inactive account — safe to disclose so the user doesn't keep trying
-    if (!user.isActive) return NextResponse.json({ status: "inactive" });
-
-    // Locked account — disclose lockout details so the user knows to wait
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      return NextResponse.json({
-        status: "locked",
-        lockedUntil: user.lockedUntil.toISOString(),
-      });
-    }
-
-    // Active, not locked — return remaining attempts so the user can self-correct.
-    // Only surface this when attempts are meaningful (> 0 failed).
-    const attemptsUsed = user.loginAttempts ?? 0;
-    const attemptsRemaining = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
-
-    return NextResponse.json({ status: "ok", attemptsUsed, attemptsRemaining });
-  } catch {
-    return NextResponse.json({ status: "unknown" });
-  }
+/**
+ * POST /api/auth/login-status
+ *
+ * Historical purpose: fetch richer post-failure UX (attempts remaining,
+ * lockout countdown) so the login page could tell a user why they were
+ * blocked.
+ *
+ * Security change (pentest H-1, 2026-08-10): the endpoint was authored
+ * unauthenticated and returned FOUR distinct response shapes depending on
+ * account state:
+ *
+ *   { status: "ok",       attemptsUsed, attemptsRemaining }  -- real account
+ *   { status: "unknown" }                                    -- email not in DB
+ *   { status: "locked",   lockedUntil }                      -- real, locked
+ *   { status: "inactive" }                                   -- real, deactivated
+ *
+ * That's user enumeration: an attacker can (a) confirm which emails
+ * correspond to real accounts, (b) spot deactivated employees, and
+ * (c) watch attemptsUsed to pace credential-stuffing under the 5-attempt
+ * lockout ceiling.
+ *
+ * The fix: the endpoint now always returns the SAME payload — a fixed
+ * "ok" shape with no per-account values. The client-side login page
+ * cannot show a lockout timer or attempts remaining from an unauthenticated
+ * call any more, but that information is still available AFTER a successful
+ * credential match (delivered through the session), which is the only
+ * point at which we know the caller is legitimate.
+ *
+ * We intentionally keep the endpoint responding to POST so old clients
+ * don't crash; they just receive a value that carries no signal.
+ */
+export async function POST(_req: NextRequest) {
+  // Constant-time-ish, constant-shape response. No DB query, no branching
+  // on user state — even the request body is ignored.
+  return NextResponse.json({ status: "ok" });
 }

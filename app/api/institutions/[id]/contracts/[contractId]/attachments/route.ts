@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { checkUploadSize } from "@/lib/uploads";
+import { validateAttachment } from "@/lib/attachment-safety";
 
 
 type Params = { params: Promise<{ id: string; contractId: string }> };
@@ -54,13 +55,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: sizeCheck.message }, { status: 413 });
   }
 
+  // Spec pentest H-4 — refuse blocked types (html/svg/exe/…), require an
+  // allowlisted MIME, and persist only the canonical MIME + sanitised name.
+  const check = validateAttachment(file);
+  if (!check.ok) {
+    return NextResponse.json({ error: check.message }, { status: 415 });
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const attachment = await db.contractAttachment.create({
     data: {
       contractId,
-      name: file.name,
-      mimeType: file.type || "application/octet-stream",
+      name: check.safeName!,
+      mimeType: check.canonicalMime!,
       size: file.size,
       data: buffer,
     },
