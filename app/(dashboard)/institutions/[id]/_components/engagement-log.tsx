@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime, cn } from "@/lib/utils";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -278,6 +279,11 @@ export function EngagementLog({ logs, institutionId }: EngagementLogProps) {
                         <p className="text-sm text-slate-700 dark:text-slate-300">{log.outcome}</p>
                       </div>
                     )}
+
+                    {/* Per-entry attachments (meeting notes, deck, receipt, etc.) */}
+                    <div className="mt-2">
+                      <AttachmentsPanel parentType="ENGAGEMENT_LOG" parentId={log.id} compact />
+                    </div>
                   </div>
                 </div>
               );

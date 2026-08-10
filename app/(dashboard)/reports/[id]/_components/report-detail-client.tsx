@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmailSectionButton } from "@/components/shared/email-section-button";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import {
   BarChart,
   Bar,
@@ -569,6 +570,13 @@ export function ReportDetailClient({
           </CardContent>
         </Card>
       ))}
+
+      {/* ── Attachments (evidence, backup docs, photo receipts) ── */}
+      <AttachmentsPanel
+        parentType="MONTHLY_REPORT"
+        parentId={report.id}
+        readOnly={!canEdit}
+      />
 
       {/* ── Email Full Report Dialog ── */}
       <Dialog open={emailOpen} onOpenChange={setEmailOpen}>

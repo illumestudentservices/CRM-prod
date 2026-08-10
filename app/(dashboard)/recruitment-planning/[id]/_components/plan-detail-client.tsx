@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Plan = any;
@@ -53,7 +54,7 @@ export function PlanDetailClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "budget" | "travel" | "events" | "variations">("overview");
+  const [tab, setTab] = useState<"overview" | "budget" | "travel" | "events" | "variations" | "documents">("overview");
 
   const availableTransitions = (TRANSITIONS[plan.status] ?? []).filter(t => t.role.includes(currentUserRole));
   const canEdit = ["DRAFT", "RETURNED"].includes(plan.status) && (currentUserRole !== "ICR" || plan.icrId === currentUserId);
@@ -107,7 +108,7 @@ export function PlanDetailClient({
       )}
 
       <nav className="flex gap-2 border-b">
-        {(["overview", "budget", "travel", "events", "variations"] as const).map(t => (
+        {(["overview", "budget", "travel", "events", "variations", "documents"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -161,6 +162,9 @@ export function PlanDetailClient({
         />
       )}
       {tab === "variations" && <VariationsTab plan={plan} canRequest={["APPROVED", "ACTIVE"].includes(plan.status)} canApprove={["HQ_EXECUTIVE", "SUPER_ADMIN"].includes(currentUserRole)} />}
+      {tab === "documents" && (
+        <AttachmentsPanel parentType="RECRUITMENT_PLAN" parentId={plan.id} readOnly={isLocked && !["HQ_EXECUTIVE", "SUPER_ADMIN"].includes(currentUserRole)} />
+      )}
     </div>
   );
 }
@@ -670,21 +674,29 @@ function VariationsTab({ plan, canRequest, canApprove }: { plan: Plan; canReques
           </thead>
           <tbody>
             {plan.variationRequests.map((v: {id: string; type: string; requestedBy: {name: string|null}; status: string; reason: string; incrementalCost: number | null}) => (
-              <tr key={v.id} className="border-t dark:border-slate-800">
-                <td className="p-2">{v.type}</td>
-                <td className="p-2">{v.requestedBy.name}</td>
-                <td className="p-2">{v.status}</td>
-                <td className="p-2 max-w-xs truncate">{v.reason}</td>
-                <td className="p-2 text-right">{v.incrementalCost ?? "—"}</td>
-                <td className="p-2">
-                  {v.status === "SUBMITTED" && canApprove && (
-                    <div className="flex gap-1">
-                      <button onClick={() => decide(v.id, "APPROVED")} className="text-xs px-2 py-1 bg-green-600 text-white rounded">Approve</button>
-                      <button onClick={() => decide(v.id, "RETURNED")} className="text-xs px-2 py-1 bg-gray-500 text-white rounded">Return</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
+              <Fragment key={v.id}>
+                <tr className="border-t dark:border-slate-800">
+                  <td className="p-2">{v.type}</td>
+                  <td className="p-2">{v.requestedBy.name}</td>
+                  <td className="p-2">{v.status}</td>
+                  <td className="p-2 max-w-xs truncate">{v.reason}</td>
+                  <td className="p-2 text-right">{v.incrementalCost ?? "—"}</td>
+                  <td className="p-2">
+                    {v.status === "SUBMITTED" && canApprove && (
+                      <div className="flex gap-1">
+                        <button onClick={() => decide(v.id, "APPROVED")} className="text-xs px-2 py-1 bg-green-600 text-white rounded">Approve</button>
+                        <button onClick={() => decide(v.id, "RETURNED")} className="text-xs px-2 py-1 bg-gray-500 text-white rounded">Return</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={6} className="p-2 bg-slate-50/40 dark:bg-slate-900/40">
+                    {/* Supporting documents — quotes, revised itineraries, receipts, approvals. */}
+                    <AttachmentsPanel parentType="VARIATION_REQUEST" parentId={v.id} compact />
+                  </td>
+                </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>

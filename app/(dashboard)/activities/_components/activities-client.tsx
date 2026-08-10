@@ -21,10 +21,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, formatDate } from "@/lib/utils";
 import {
   ClipboardList, CalendarDays, School, Handshake, Users, Flag,
-  Plus, Trash2, Loader2,
+  Plus, Trash2, Loader2, Paperclip,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import type { ActivityType } from "@prisma/client";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 // ─── Type configuration ──────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ export function ActivitiesClient({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [attachmentsActivity, setAttachmentsActivity] = useState<ActivityItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Form state
@@ -816,6 +818,7 @@ export function ActivitiesClient({
                 <TableHead>Client</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead className="text-center">Leads</TableHead>
+                <TableHead className="w-[40px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -828,7 +831,7 @@ export function ActivitiesClient({
                 if (filtered.length === 0) {
                   return (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-slate-400 dark:text-slate-500 py-8">
+                      <TableCell colSpan={9} className="text-center text-slate-400 dark:text-slate-500 py-8">
                         No activities match the current filter.
                       </TableCell>
                     </TableRow>
@@ -873,6 +876,17 @@ export function ActivitiesClient({
                         {[a.city, a.country].filter(Boolean).join(", ") || "—"}
                       </TableCell>
                       <TableCell className="text-center text-sm">{a.leadsGenerated ?? "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => setAttachmentsActivity(a)}
+                          className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded"
+                          title="Attachments"
+                          aria-label="Attachments"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </button>
+                      </TableCell>
                     </TableRow>
                   );
                 });
@@ -881,6 +895,18 @@ export function ActivitiesClient({
           </Table>
         </CardContent>
       </Card>
+
+      {/* Per-activity attachments modal — opened from the row's paperclip icon */}
+      <Dialog open={!!attachmentsActivity} onOpenChange={(o) => !o && setAttachmentsActivity(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Attachments — {attachmentsActivity?.title}</DialogTitle>
+          </DialogHeader>
+          {attachmentsActivity && (
+            <AttachmentsPanel parentType="ACTIVITY" parentId={attachmentsActivity.id} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

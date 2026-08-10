@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 interface Institution {
   id: string;
@@ -600,6 +601,14 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                     </p>
                   </div>
                 )}
+
+                {/* Attachments — meeting minutes, board packs, signed cover letter. */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Attachments
+                  </h3>
+                  <AttachmentsPanel parentType="QUARTERLY_BUSINESS_REVIEW" parentId={viewQBR.id} compact />
+                </div>
               </div>
             </>
           )}

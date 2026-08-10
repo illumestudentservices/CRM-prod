@@ -932,6 +932,9 @@ model User {
   ownedRisks          RiskRegister[]
   assignedCompliance  ComplianceItem[]
 
+  // Phase 8 — polymorphic attachments (spec §20 doc handling; migration 022)
+  uploadedAttachments Attachment[]     @relation("AttachmentUploader")
+
   @@index([deletedAt, purgedAt])
   @@map("users")
 }
@@ -3384,4 +3387,64 @@ model TaskTemplate {
   tasks Task[]
 
   @@map("task_templates")
+}
+
+// ─── Polymorphic attachments (Phase 8, migration 022) ─────────────────────
+//
+// Rather than a new attachment table for every module that needs one, a
+// single `attachments` row can belong to any parent record via
+// (parentType, parentId). Existing purpose-built tables stay in place
+// (KnowledgeBaseAttachment, ContractAttachment, LeadDocument,
+// InstitutionDocument, EmployeeDocument) — this is additive for the
+// modules that didn't have one.
+//
+// Security posture: every upload goes through lib/attachment-safety.ts
+// (validateAttachment) — same MIME + filename allowlist as the H-4 fix.
+// Downloads use safeAttachmentHeaders so a stored bad row can't be served
+// as HTML/SVG.
+
+enum AttachmentParentType {
+  TASK
+  ACTIVITY
+  CLIENT_ISSUE
+  RECRUITMENT_EVENT
+  MARKETING_CAMPAIGN
+  RECRUITMENT_PARTNER
+  MARKET_UPDATE_SUGGESTION
+  RECRUITMENT_PLAN
+  VARIATION_REQUEST
+  MONTHLY_REPORT
+  ENGAGEMENT_LOG
+  LEAD_NOTE
+  LEAD
+  INSTITUTION_INTEREST
+  RISK_REGISTER
+  COMPLIANCE_ITEM
+  ACCOUNT_INTERVENTION
+  QUARTERLY_BUSINESS_REVIEW
+}
+
+model Attachment {
+  id           String               @id @default(uuid())
+  /// Which module the attachment belongs to. Together with parentId this
+  /// forms a polymorphic foreign key — the referenced row lives in whichever
+  /// table this enum names.
+  parentType   AttachmentParentType
+  /// FK-less parent reference. Each parent-owning API route validates that
+  /// the referenced row actually exists and that the caller can access it,
+  /// so a broken parentId can't create an orphan attachment.
+  parentId     String
+  name         String
+  mimeType     String
+  size         Int
+  data         Bytes
+  /// Author of the upload; used for audit + display. Nullable to survive
+  /// user soft-delete without losing the file itself.
+  uploadedById String?
+  uploadedBy   User?                @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime             @default(now())
+
+  @@index([parentType, parentId])
+  @@index([uploadedById])
+  @@map("attachments")
 }

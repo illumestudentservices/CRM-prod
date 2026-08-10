@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 interface Note {
   id: string;
@@ -166,6 +167,10 @@ export function AddNoteForm({ leadId, initialNotes, currentUser }: AddNoteFormPr
               <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
                 {note.content}
               </p>
+              {/* Per-note attachments — optimistic notes have no server id yet. */}
+              {!note.id.startsWith("optimistic-") && (
+                <AttachmentsPanel parentType="LEAD_NOTE" parentId={note.id} compact />
+              )}
             </div>
           ))}
         </div>

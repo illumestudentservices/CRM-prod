@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 interface Interest {
   id: string;
@@ -169,6 +170,10 @@ export function InstitutionInterestsPanel({
                 <button onClick={() => reopen(i.id)} className="text-xs px-2 py-1 border rounded hover:bg-muted">Reopen</button>
               )}
             </div>
+          </div>
+          {/* Per-interest attachments — LOR for this institution, offer letter, etc. */}
+          <div className="mt-2">
+            <AttachmentsPanel parentType="INSTITUTION_INTEREST" parentId={i.id} compact readOnly={!!i.closedAt} />
           </div>
         </div>
       ))}
