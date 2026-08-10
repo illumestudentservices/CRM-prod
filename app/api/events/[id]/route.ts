@@ -98,14 +98,28 @@ export async function PATCH(
     });
     const totalCost = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Update institutions if provided
+    // Update participations if institutionIds provided.
+    //
+    // Spec §7 — EventParticipation is the authoritative join going forward
+    // (per-institution ICR / status / notes). During cutover we ALSO wrote
+    // to the flat EventInstitution join for legacy readers; now that
+    // /(dashboard)/events reads participations, we STOP dual-writing on
+    // PATCH. The flat table will be dropped in a future migration once no
+    // reader references it (grep confirms none as of this change).
+    //
+    // Reconciliation is delete-then-insert: PATCH's contract is "the list I
+    // provide is the complete new list", and preserving un-referenced rows
+    // would silently retain an institution the caller thinks they removed.
+    // Existing per-institution ICR/status/notes are lost if you remove an
+    // institution from the list — matching the previous PATCH semantics.
     if (Array.isArray(institutionIds)) {
-      await db.eventInstitution.deleteMany({ where: { eventId: id } });
+      await db.eventParticipation.deleteMany({ where: { eventId: id } });
       if (institutionIds.length > 0) {
-        await db.eventInstitution.createMany({
+        await db.eventParticipation.createMany({
           data: institutionIds.map((iid: string) => ({
             eventId: id,
             institutionId: iid,
+            status: "CONFIRMED" as const,
           })),
           skipDuplicates: true,
         });
@@ -129,7 +143,7 @@ export async function PATCH(
         totalCost,
       },
       include: {
-        institutions: {
+        participations: {
           include: { institution: { select: { id: true, name: true } } },
         },
       },

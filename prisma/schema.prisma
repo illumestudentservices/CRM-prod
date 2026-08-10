@@ -1906,6 +1906,12 @@ model Event {
   totalCost      Float       @default(0)
   notes          String?     @db.Text
   postEventNotes String?     @db.Text
+  /// Spec §9 (Recruitment Events) — measurable objectives defined before the
+  /// event begins. Stored as JSON so we don't need a child table for a small
+  /// number of items per event. Shape:
+  ///   [{ target: "Generate 100 student enquiries", metric?: "enquiries",
+  ///      goal?: 100, achieved?: 87, notes?: "..." }, ...]
+  objectives     Json?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   deletedAt      DateTime?

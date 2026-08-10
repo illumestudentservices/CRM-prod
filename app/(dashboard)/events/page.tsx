@@ -55,10 +55,15 @@ async function getEventStats() {
 }
 
 async function getEvents() {
+  // Spec §7 (Recruitment Events) — participations is the authoritative join
+  // (per-institution ICR / status / notes). The flat EventInstitution join is
+  // being retired; the API kept dual-writing during the cutover so we can
+  // safely read from participations now. Institution + participations were
+  // kept in lockstep by migration 013 + POST /api/events.
   return db.event.findMany({
     where: { deletedAt: null },
     include: {
-      institutions: {
+      participations: {
         include: { institution: { select: { id: true, name: true } } },
       },
       _count: { select: { leads: true } },
@@ -116,7 +121,7 @@ export default async function EventsPage() {
       leadsCount,
       enrollmentsCount,
       roi,
-      institutionNames: e.institutions.map((ei) => ei.institution.name),
+      institutionNames: e.participations.map((p) => p.institution.name),
     };
   });
 
