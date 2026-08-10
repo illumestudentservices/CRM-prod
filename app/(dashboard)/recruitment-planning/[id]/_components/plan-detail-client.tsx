@@ -343,7 +343,7 @@ function EventsTab({
               to the events form. Adds the event to the Recruitment Network
               first, then the ICR comes back to link it here. */}
           <a
-            href="/events/new"
+            href="/events"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm px-3 py-1 border rounded hover:bg-muted"

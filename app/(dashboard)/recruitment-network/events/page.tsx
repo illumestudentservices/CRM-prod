@@ -79,7 +79,7 @@ export default async function EventsPage({ searchParams }: Props) {
           {q && <span> · filtered by &quot;{q}&quot;</span>}
         </div>
         <Link
-          href="/events/new"
+          href="/events"
           className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
         >
           + New event
