@@ -130,6 +130,21 @@ function trendPercent(current: number | undefined, prev: number | undefined): nu
   return ((current - prev) / prev) * 100;
 }
 
+/**
+ * Wraps a narrative section for the "email this section" body.
+ *
+ * dark-ok — this markup is inlined into an email, where there is no theme to
+ * respond to and Tailwind variants would not survive inlining anyway.
+ */
+function emailSectionHtml(value: string): string {
+  const escaped = value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+  return `<div style="border-left:3px solid #1E3A5F;padding:12px 18px;background:#f8fafc;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:13px;color:#334155;line-height:1.7;white-space:pre-wrap;">${escaped}</p></div>`;
+}
+
 /** An em dash says "never recorded"; 0 would claim the metric was measured. */
 const showNum = (v: number | undefined) => (typeof v === "number" ? v : "—");
 const showPct = (v: number | undefined) => (typeof v === "number" ? `${v}%` : "—");
@@ -592,7 +607,7 @@ export function ReportDetailClient({
               </CardTitle>
               <EmailSectionButton
                 sectionTitle={section.label}
-                sectionHtml={`<div style="border-left:3px solid #1E3A5F;padding:12px 18px;background:#f8fafc;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:13px;color:#334155;line-height:1.7;white-space:pre-wrap;">${section.value!.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</p></div>`}
+                sectionHtml={emailSectionHtml(section.value!)}
                 defaultSubject={`${section.label} — ${report.institution.name} — ${period}`}
               />
             </div>

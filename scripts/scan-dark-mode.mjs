@@ -61,14 +61,22 @@ function hasDarkVariant(value, property) {
 }
 
 /**
- * Escape hatch for surfaces that are meant to stay light in both themes —
- * the white tile the logo sits on, for instance. Put `dark-ok` in a comment
- * on the same line or the line above.
+ * Escape hatch for surfaces meant to stay light in both themes — the white tile
+ * the logo sits on, a print stylesheet, the light half of the chart palette.
+ *
+ * Put `dark-ok` in a comment on the same line, or in the comment that
+ * introduces the declaration containing it. The lookback walks upward and stops
+ * at the first blank line, so a doc comment covers its whole function or object
+ * but does not leak into whatever precedes it. A one-line window was too tight
+ * to annotate anything larger than a single JSX element.
  */
 function isSuppressed(lines, lineNo) {
-  const here = lines[lineNo - 1] ?? "";
-  const above = lines[lineNo - 2] ?? "";
-  return /dark-ok/.test(here) || /dark-ok/.test(above);
+  for (let i = lineNo - 1; i >= 0; i--) {
+    const line = lines[i] ?? "";
+    if (/dark-ok/.test(line)) return true;
+    if (i < lineNo - 1 && line.trim() === "") return false;
+  }
+  return false;
 }
 
 /**
@@ -102,6 +110,8 @@ const ALWAYS_LIGHT = [
   path.join("lib", "pdf-generator.ts"),
   path.join("app", "api", "email"),
   path.join("app", "api", "reports", "[id]", "pdf"),
+  // Builds the emailed/printed report body as an HTML string, not components.
+  path.join("app", "(dashboard)", "reports", "[id]", "_components", "report-section-html.ts"),
 ];
 
 function isAlwaysLight(rel) {
@@ -137,14 +147,59 @@ function classAttributes(src) {
   let m;
   while ((m = attrRe.exec(src)) !== null) {
     const raw = m[1] ?? m[2] ?? m[3] ?? "";
-    // Inside a braced expression, only string literals carry classes.
-    const literals = m[3]
-      ? [...m[3].matchAll(/["'`]([^"'`]*)["'`]/g)].map((x) => x[1]).join(" ")
-      : raw;
     const line = src.slice(0, m.index).split("\n").length;
-    out.push({ value: literals, line });
+
+    if (!m[3]) { out.push({ value: raw, line }); continue; }
+
+    // Inside a braced expression, only string literals carry classes.
+    const literals = [...m[3].matchAll(/["'`]([^"'`]*)["'`]/g)].map((x) => x[1]);
+
+    // Ternary branches are alternatives, never both applied. Joining them let a
+    // `dark:` in one branch vouch for the other, so
+    //   cond ? "bg-white dark:bg-slate-900" : "bg-slate-50"
+    // passed while the else-branch had no dark value at all. Emit each branch
+    // as its own candidate, plus the unconditional classes as one.
+    if (/\?[\s\S]*:/.test(m[3])) {
+      const branches = splitTernaryBranches(m[3]);
+      for (const b of branches) out.push({ value: b, line });
+      continue;
+    }
+
+    out.push({ value: literals.join(" "), line });
   }
   return out;
+}
+
+/**
+ * Group a braced className expression into the alternative class lists it can
+ * produce. Deliberately approximate — it walks `?` and `:` at depth zero and
+ * treats everything outside a conditional as always-applied. Getting this
+ * slightly wrong over-reports, which is the safe direction.
+ */
+function splitTernaryBranches(expr) {
+  const literals = [...expr.matchAll(/["'`]([^"'`]*)["'`]/g)];
+  const always = [];
+  const branches = [];
+  let depth = 0, inConditional = false, current = null;
+
+  for (const lit of literals) {
+    const before = expr.slice(0, lit.index);
+    // Count only the conditional operators, not object/array nesting.
+    const q = (before.match(/\?/g) ?? []).length;
+    const c = (before.match(/(?<!\?[^:]*):/g) ?? []).length;
+    depth = q;
+    inConditional = depth > 0;
+    if (!inConditional) { always.push(lit[1]); continue; }
+    // A `:` since the last literal starts the alternative branch.
+    const since = expr.slice(literals[literals.indexOf(lit) - 1]?.index ?? 0, lit.index);
+    if (current === null || /[?:]/.test(since)) { current = []; branches.push(current); }
+    current.push(lit[1]);
+    void c;
+  }
+
+  const base = always.join(" ");
+  if (!branches.length) return [base];
+  return branches.map((b) => `${base} ${b.join(" ")}`.trim());
 }
 
 /**
@@ -164,10 +219,16 @@ const COLOUR_TOKEN = /\b(?:bg|text|border|divide|ring|from|via|to)-(?:\[#[0-9a-f
 
 function classLikeStrings(src) {
   const groups = [];
-  const re = /(["'`])((?:[^"'`\\\n]|\\.){8,})\1/g;
+  // Each quote type gets its own alternative so openers and closers stay
+  // paired. An earlier version used one `(["'`])…\1` with a `{8,}` minimum
+  // length; that skipped short literals like cva's `"base"`, then happily
+  // matched the text *between* two strings — every quote after it was off by
+  // one and the real class list was never seen. Length is filtered below, not
+  // in the pattern.
+  const re = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\\n]|\\.)*)`/g;
   let m, prevEnd = -1;
   while ((m = re.exec(src)) !== null) {
-    const value = m[2];
+    const value = m[1] ?? m[2] ?? m[3] ?? "";
     const line = src.slice(0, m.index).split("\n").length;
 
     // The primitives write `cn("… bg-white …", "… dark:bg-slate-900 …")`, so a
@@ -197,8 +258,21 @@ function classLikeStrings(src) {
   });
 }
 
+/**
+ * Blank out comments, preserving line structure so reported line numbers stay
+ * correct. Without this the scanner flagged the hex values in its own
+ * explanatory comments, and in use-chart-theme's docs describing the very
+ * problem it fixes.
+ */
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p) => p + " ".repeat(m.length - p.length));
+}
+
 /** Hex colours inside inline style props or SVG paint attributes. */
-function literalColours(src) {
+function literalColours(rawSrc) {
+  const src = stripComments(rawSrc);
   const out = [];
   const patterns = [
     // style={{ ... "#fff" ... }}
@@ -228,6 +302,33 @@ function literalColours(src) {
       const line = src.slice(0, m.index).split("\n").length;
       out.push({ hex, kind, line });
     }
+  }
+
+  /**
+   * Near-white and near-black hexes anywhere in the file, whatever the
+   * surrounding syntax.
+   *
+   * The patterns above all require the colour to sit inside a recognised prop.
+   * The permission matrix computed its row striping first —
+   *
+   *   const rowBg = rIdx % 2 === 0 ? (aIdx % 2 === 0 ? "#ffffff" : "#fafafa")
+   *                                : "#f8fafc";
+   *   <tr style={{ backgroundColor: rowBg }}>
+   *
+   * — so the hex never appeared in a `style={{…}}` literal and the whole table
+   * rendered white on a dark page. Chasing every syntax that can carry a colour
+   * into a style prop is a losing game; the useful invariant is simpler. A
+   * value this close to white or black cannot be correct in both themes no
+   * matter how it gets applied, so flag it wherever it appears and let the
+   * `dark-ok` comment handle the exceptions.
+   */
+  const EXTREME = /(#(?:fff|000)(?:f|0)?\b|#(?:f[0-9a-f]){3}\b|#(?:0[0-9a-f]){3}\b|#f[0-9a-f]f[0-9a-f]f[0-9a-f]\b)/gi;
+  let e;
+  while ((e = EXTREME.exec(src)) !== null) {
+    const hex = e[1].toLowerCase();
+    const line = src.slice(0, e.index).split("\n").length;
+    if (out.some((f) => f.line === line && f.hex === hex)) continue;
+    out.push({ hex, kind: "near-white/black literal", line });
   }
   return out;
 }

@@ -407,10 +407,10 @@ export function SecurityTab() {
                   {!isCollapsed && group.resources.map((resource, rIdx) => (
                     <React.Fragment key={resource.key}>
                       {/* Resource sub-header */}
-                      <tr className={cn("border-b", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/60")}>
+                      <tr className={cn("border-b dark:border-slate-800", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/60 dark:bg-slate-950/50")}>
                         <td
                           colSpan={ROLES.length + 1}
-                          className={cn("py-2.5 px-4", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50")}
+                          className={cn("py-2.5 px-4", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-950/50")}
                           style={{ position: "sticky", left: 0, zIndex: 10 }}
                         >
                           <div className="flex items-center gap-2">
@@ -423,19 +423,33 @@ export function SecurityTab() {
 
                       {/* Action rows */}
                       {ACTIONS.map((action, aIdx) => {
+                        // Striping used to be three hardcoded near-white hexes
+                        // applied as an inline style. A colour computed in JS
+                        // can't carry a `dark:` variant, so the whole matrix
+                        // stayed white on a dark page — and because the hex
+                        // never appeared inside a style={{…}} literal, no
+                        // class-based scan could see it either.
                         const rowBg = rIdx % 2 === 0
-                          ? (aIdx % 2 === 0 ? "#ffffff" : "#fafafa")
-                          : "#f8fafc";
+                          ? (aIdx % 2 === 0
+                              ? "bg-white dark:bg-slate-900"
+                              : "bg-slate-50/50 dark:bg-slate-900/60")
+                          : "bg-slate-50 dark:bg-slate-950/50";
                         return (
                           <tr
                             key={action.key}
-                            className="border-b border-slate-50 hover:brightness-95 transition-all"
-                            style={{ backgroundColor: rowBg }}
+                            className={cn(
+                              "border-b border-slate-50 dark:border-slate-800 transition-all",
+                              // brightness-95 darkens, which reads as a hover
+                              // on white and as nothing on slate-900.
+                              "hover:brightness-95 dark:hover:brightness-125",
+                              rowBg
+                            )}
                           >
-                            {/* Action label — sticky left */}
+                            {/* Action label — sticky left. Needs its own copy of
+                                the row background or cells scroll under it. */}
                             <td
-                              className="py-2 pl-10 pr-4"
-                              style={{ position: "sticky", left: 0, zIndex: 10, backgroundColor: rowBg }}
+                              className={cn("py-2 pl-10 pr-4", rowBg)}
+                              style={{ position: "sticky", left: 0, zIndex: 10 }}
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-slate-600 dark:text-slate-300 w-24">{action.label}</span>

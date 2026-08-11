@@ -95,6 +95,7 @@ function printAsPDF(
     thead tr { background: #1E3A5F; color: white; }
     thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
     tbody tr { border-bottom: 1px solid #e5e7eb; }
+    /* dark-ok — print stylesheet; the paper is always white. */
     tbody tr:nth-child(even) { background: #f8fafc; }
     tbody td { padding: 7px 10px; vertical-align: top; word-break: break-word; }
     .footer { margin-top: 20px; font-size: 9px; color: #999; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 10px; }
