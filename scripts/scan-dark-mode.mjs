@@ -90,6 +90,24 @@ function isAlwaysDark(rel) {
   return ALWAYS_DARK.some((p) => rel.startsWith(p) || rel === p);
 }
 
+/**
+ * Email bodies and generated PDFs, which are always light documents.
+ *
+ * These build HTML strings rather than render components — there is no `dark`
+ * class on an email client's document, and Tailwind variants would not survive
+ * inlining anyway. Their light values are the only correct choice.
+ */
+const ALWAYS_LIGHT = [
+  path.join("lib", "email.ts"),
+  path.join("lib", "pdf-generator.ts"),
+  path.join("app", "api", "email"),
+  path.join("app", "api", "reports", "[id]", "pdf"),
+];
+
+function isAlwaysLight(rel) {
+  return ALWAYS_LIGHT.some((p) => rel.startsWith(p) || rel === p);
+}
+
 const findings = [];
 
 function walk(dir, out = []) {
@@ -97,7 +115,11 @@ function walk(dir, out = []) {
     if (entry.name === "node_modules" || entry.name === ".next" || entry.name === ".git") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full, out);
-    else if (/\.tsx$/.test(entry.name)) out.push(full);
+    // `.ts` as well as `.tsx`: the shared class maps live in plain modules.
+    // `lib/lead-pipeline.ts` holds STAGE_BADGE_CLASSES, which every lead stage
+    // chip in the app renders from — the largest single gap in the theme, and
+    // invisible to a scan restricted to components.
+    else if (/\.tsx?$/.test(entry.name)) out.push(full);
   }
   return out;
 }
@@ -210,10 +232,12 @@ function literalColours(src) {
   return out;
 }
 
-for (const file of walk(path.join(ROOT, "app")).concat(walk(path.join(ROOT, "components")))) {
+const ROOTS = ["app", "components", "lib", "hooks"];
+
+for (const file of ROOTS.flatMap((d) => walk(path.join(ROOT, d)))) {
   const src = fs.readFileSync(file, "utf8");
   const rel = path.relative(ROOT, file);
-  if (isAlwaysDark(rel)) continue;
+  if (isAlwaysDark(rel) || isAlwaysLight(rel)) continue;
 
   const lines = src.split("\n");
 
@@ -222,7 +246,7 @@ for (const file of walk(path.join(ROOT, "app")).concat(walk(path.join(ROOT, "com
   const seen = new Set();
   const candidates = [...classAttributes(src), ...classLikeStrings(src)]
     .filter(({ value, line }) => {
-      const k = `${line} ${value}`;
+      const k = `${line}::${value}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
