@@ -129,7 +129,10 @@ async function main() {
         expect(contact.ok || contact.status === 201, "POST institution contact → 2xx", `got ${contact.status}`);
 
         const kpi = await api(jar, "POST", `/api/institutions/${id}/kpis`, {
-          name: `${TAG} KPI`, category: "RECRUITMENT", targetValue: 100, currentValue: 40, unit: "students",
+          name: `${TAG} KPI`, category: "RECRUITMENT", targetValue: 100,
+          currentValue: 40, unit: "students",
+          // period + year are required by the route.
+          period: "MONTHLY", year: new Date().getFullYear(),
         });
         expect(kpi.ok || kpi.status === 201, "POST institution KPI → 2xx", `got ${kpi.status}`);
         if (kpi.ok || kpi.status === 201) {
@@ -206,7 +209,7 @@ async function main() {
     startSection("Event + expenses");
     {
       const sent = {
-        name: `${TAG} Event`, type: "FAIR", date: new Date(Date.now() + 86400000).toISOString(),
+        name: `${TAG} Event`, type: "EDUCATION_FAIR", date: new Date(Date.now() + 86400000).toISOString(),
         city: "Testville", country: "Testland", status: "PLANNED", budget: 5000,
       };
       const c = await api(jar, "POST", "/api/events", sent);
@@ -237,7 +240,13 @@ async function main() {
     // ══════════════════════════════════════════════════════════════════
     startSection("Task");
     {
-      const sent = { title: `${TAG} Task`, description: "QA task body", priority: "HIGH" };
+      // Spec §1 requires a parent link unless the category is PERSONAL, so a
+      // standalone task must declare PERSONAL. (The HR task board posts to
+      // /api/hr/tasks, which has no such requirement.)
+      const sent = {
+        title: `${TAG} Task`, description: "QA task body",
+        priority: "HIGH", category: "PERSONAL",
+      };
       const c = await api(jar, "POST", "/api/tasks", sent);
       if (expect(c.status === 201 || c.ok, "POST /api/tasks → 2xx", `got ${c.status} ${JSON.stringify(c.payload)?.slice(0,160)}`)) {
         const id = idOf(c.payload);
@@ -375,7 +384,7 @@ async function main() {
           assertPersisted({ program: `${TAG} Programme`, intakeYear: 2027, intakeMonth: 9 }, dbRow, "Interest create");
 
           // stage transition
-          const stg = await api(jar, "PATCH", `/api/institution-interests/${iid}/stage`, { stage: "CONTACTED" });
+          const stg = await api(jar, "POST", `/api/institution-interests/${iid}/stage`, { stage: "CONTACTED" });
           expect([200, 201, 422].includes(stg.status), "Interest stage transition handled", `got ${stg.status}`);
 
           // close then reopen

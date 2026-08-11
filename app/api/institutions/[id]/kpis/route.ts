@@ -72,7 +72,7 @@ export async function POST(
     }
 
     const body = await readJsonBody(req);
-    const { category, name, description, targetValue, unit, period, year, month, quarter } = body;
+    const { category, name, description, targetValue, currentValue, unit, period, year, month, quarter } = body;
 
     if (!category || !name || targetValue === undefined || !unit || !period || !year) {
       return NextResponse.json(
@@ -87,6 +87,7 @@ export async function POST(
     assertEnum(period, KPIPeriodEnum, "period");
     assertString(name, "name", { max: 300 });
     assertNumber(targetValue, "targetValue");
+    assertNumber(currentValue, "currentValue", { required: false });
     assertNumber(year, "year", { min: 2000, max: 2100, integer: true });
     assertNumber(month, "month", { required: false, min: 1, max: 12, integer: true });
     assertNumber(quarter, "quarter", { required: false, min: 1, max: 4, integer: true });
@@ -98,6 +99,13 @@ export async function POST(
         name,
         description: description || null,
         targetValue: Number(targetValue),
+        // The KPI dialog collects a starting value ("we're at 40 of 100
+        // already"), and PATCH has always honoured it — but create dropped it
+        // on the floor, so every new KPI began at 0 and had to be edited
+        // immediately to show its real position.
+        ...(currentValue !== undefined && currentValue !== null
+          ? { currentValue: Number(currentValue) }
+          : {}),
         unit,
         period: period as KPIPeriod,
         year: parseInt(year, 10),
