@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import {
   readJsonBody, handleApiError, assertEnum, assertString,
 } from "@/lib/api-validation";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 // ─── GET /api/institutions ─────────────────────────────────────────────────
 
@@ -22,9 +23,20 @@ export async function GET(req: NextRequest) {
     const regionId = searchParams.get("regionId");
     const search = searchParams.get("search");
 
+    // `institutions:read` is a module grant, not a row grant. An
+    // INSTITUTION_CLIENT must only see the institutions they're assigned to,
+    // otherwise the list hands them every other client's account.
+    const scopedIds = await institutionIdsForUser(
+      session.user.id,
+      session.user.role as Role
+    );
+    const clientScope =
+      session.user.role === "INSTITUTION_CLIENT" ? { id: { in: scopedIds } } : {};
+
     const institutions = await db.institution.findMany({
       where: {
         deletedAt: null,
+        ...clientScope,
         ...(status ? { accountStatus: status } : {}),
         ...(country ? { country: { contains: country, mode: "insensitive" } } : {}),
         ...(regionId ? { regionId } : {}),
