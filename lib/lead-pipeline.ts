@@ -80,7 +80,7 @@ export function stageHex(stage: string): string {
 export function stageBadgeClass(stage: string): string {
   return (
     STAGE_BADGE_CLASSES[stage as LeadStage] ??
-    "bg-slate-100 text-slate-600 border-slate-200"
+    "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
   );
 }
 
@@ -125,20 +125,26 @@ export const STAGE_OBJECTIVES: Record<LeadStage, string> = {
 };
 
 /** Tailwind classes for badges. */
+/**
+ * Every lead stage chip in the app renders from this map, so it was the single
+ * biggest dark-mode gap: `-100` surfaces stayed pastel on a near-black card and
+ * the Pipeline Snapshot read as a column of bright blobs. The `-500/15` +
+ * `-300` pairing matches the status badges elsewhere.
+ */
 export const STAGE_BADGE_CLASSES: Record<LeadStage, string> = {
-  NEW_LEAD: "bg-slate-100 text-slate-700 border-slate-200",
-  CONTACTED: "bg-sky-100 text-sky-700 border-sky-200",
-  QUALIFIED: "bg-cyan-100 text-cyan-700 border-cyan-200",
-  APPLICATION_SUBMITTED: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  AWAITING_DECISION: "bg-violet-100 text-violet-700 border-violet-200",
-  OFFER_RECEIVED: "bg-blue-100 text-blue-700 border-blue-200",
-  DEPOSIT_PAID: "bg-teal-100 text-teal-700 border-teal-200",
-  ENROLLED: "bg-green-100 text-green-700 border-green-200",
-  LOST: "bg-gray-100 text-gray-600 border-gray-200",
-  DEFERRED: "bg-orange-100 text-orange-700 border-orange-200",
-  APPLICATION_REJECTED: "bg-red-100 text-red-700 border-red-200",
-  WITHDRAWN: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  VISA_REFUSED: "bg-rose-100 text-rose-700 border-rose-200",
+  NEW_LEAD: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  CONTACTED: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
+  QUALIFIED: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30",
+  APPLICATION_SUBMITTED: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30",
+  AWAITING_DECISION: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
+  OFFER_RECEIVED: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+  DEPOSIT_PAID: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-500/30",
+  ENROLLED: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+  LOST: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+  DEFERRED: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30",
+  APPLICATION_REJECTED: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
+  WITHDRAWN: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  VISA_REFUSED: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30",
 };
 
 /** Hex values, for chart libraries that can't take Tailwind classes. */
