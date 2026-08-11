@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -83,8 +84,14 @@ async function canAccessLead(
       return { allowed: !regionId || lead.regionId === regionId, lead };
     case "ICR":
       return { allowed: lead.assignedICRId === userId, lead };
-    case "INSTITUTION_CLIENT":
-      return { allowed: !!lead.institutionId, lead };
+    case "INSTITUTION_CLIENT": {
+      // Scope to the institutions this client is actually assigned to.
+      // Previously `!!lead.institutionId`, which let any client read any
+      // other client's students by id.
+      if (!lead.institutionId) return { allowed: false, lead };
+      const ids = await institutionIdsForUser(userId, role);
+      return { allowed: ids.includes(lead.institutionId), lead };
+    }
     default:
       return { allowed: false };
   }

@@ -12,7 +12,13 @@ export function canAccessLead(
   lead: { regionId: string | null; assignedICRId: string | null; institutionId: string | null },
   userId: string,
   regionId: string | null,
-  role: Role
+  role: Role,
+  /**
+   * Institutions this user is actually assigned to, via InstitutionUser.
+   * Only consulted for INSTITUTION_CLIENT. Defaults to none so the check is
+   * fail-closed: a caller that forgets to pass it denies rather than allows.
+   */
+  institutionIds: readonly string[] = []
 ): boolean {
   switch (role) {
     case "SUPER_ADMIN":
@@ -24,10 +30,27 @@ export function canAccessLead(
     case "ICR":
       return lead.assignedICRId === userId;
     case "INSTITUTION_CLIENT":
-      return !!lead.institutionId;
+      // Must be a lead belonging to one of THIS client's institutions.
+      // This previously read `return !!lead.institutionId`, which was true for
+      // any lead attached to any institution — so one client could read every
+      // other client's students by walking ids.
+      return !!lead.institutionId && institutionIds.includes(lead.institutionId);
     default:
       return false;
   }
+}
+
+/**
+ * Institution ids an INSTITUTION_CLIENT is assigned to. Returns [] for every
+ * other role, so callers can pass the result unconditionally.
+ */
+export async function institutionIdsForUser(userId: string, role: Role): Promise<string[]> {
+  if (role !== "INSTITUTION_CLIENT") return [];
+  const rows = await db.institutionUser.findMany({
+    where: { userId, assignmentStatus: "ACTIVE" },
+    select: { institutionId: true },
+  });
+  return rows.map((r) => r.institutionId);
 }
 
 /**
