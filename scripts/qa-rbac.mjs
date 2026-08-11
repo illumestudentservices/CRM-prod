@@ -118,11 +118,17 @@ async function main() {
           // 200 = rendered. 3xx = redirected away (denied, or a module alias).
           const got200 = r.status === 200;
 
+          const loc = r.headers.get("location") ?? "";
+          // A redirect that stays inside the same module is the module working
+          // as designed, not a denial — e.g. EMPLOYEE hitting /hr is sent to
+          // their own /hr/employees/<id> profile.
+          const redirectedWithinModule =
+            r.status >= 300 && r.status < 400 && loc.startsWith(path);
+
           if (r.status >= 500) {
             fail(`${role} → ${path}`, `500`);
-          } else if (shouldSee && !got200) {
+          } else if (shouldSee && !got200 && !redirectedWithinModule) {
             // Redirect to login means the session broke, not an RBAC result.
-            const loc = r.headers.get("location") ?? "";
             if (loc.includes("/login")) fail(`${role} → ${path}`, "bounced to login (session lost)");
             else fail(`${role} → ${path}`, `allowed by matrix but got ${r.status} → ${loc}`);
           } else if (!shouldSee && got200) {

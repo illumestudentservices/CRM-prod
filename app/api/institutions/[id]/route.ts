@@ -4,6 +4,28 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type AccountStatus } from "@prisma/client";
 import { trashRecord } from "@/lib/recycle-bin";
+import { institutionIdsForUser } from "@/lib/lead-access";
+import type { Role } from "@/lib/permissions";
+
+/**
+ * An INSTITUTION_CLIENT holds `institutions:read`, but that is a *module*
+ * grant, not a row grant — it must still be scoped to the institutions they
+ * are assigned to. Without this an authenticated client could read any other
+ * client's record by id, and the response embeds contracts, engagement logs,
+ * documents and the full lead list.
+ *
+ * Returns 404 rather than 403 so the endpoint doesn't confirm that an id
+ * exists to someone not entitled to know.
+ */
+async function assertInstitutionVisible(
+  institutionId: string,
+  userId: string,
+  role: Role
+): Promise<boolean> {
+  if (role !== "INSTITUTION_CLIENT") return true;
+  const ids = await institutionIdsForUser(userId, role);
+  return ids.includes(institutionId);
+}
 
 // ─── GET /api/institutions/:id ─────────────────────────────────────────────
 
@@ -18,6 +40,10 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role as Role))) {
+      return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+    }
 
     const institution = await db.institution.findUnique({
       where: { id },
