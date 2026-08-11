@@ -5,6 +5,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { StudentsClientPage } from "./_components/students-client";
+import { MergeLeadsButton } from "./_components/merge-leads-button";
 import type { LeadWithRelations } from "./_components/lead-card";
 
 // ─── Data fetching ─────────────────────────────────────────────────────────────
@@ -72,6 +73,19 @@ export default async function StudentsPage() {
         title="Student Pipeline"
         description="Track and manage student leads through the recruitment funnel."
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Students" }]}
+        actions={
+          role === "SUPER_ADMIN" ? (
+            <MergeLeadsButton
+              leads={leads.map((l) => ({
+                id: l.id,
+                firstName: l.firstName,
+                lastName: l.lastName,
+                email: l.email,
+                stage: l.stage,
+              }))}
+            />
+          ) : undefined
+        }
       />
       <StudentsClientPage
         initialLeads={leads}
