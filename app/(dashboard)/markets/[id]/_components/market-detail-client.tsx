@@ -118,20 +118,23 @@ const RISK_LABEL: Record<string, string> = {
   CRITICAL: "Critical",
 };
 
+// Tinted-surface pairing (`dark:bg-<hue>-500/15 dark:text-<hue>-300`) matches
+// how every other status badge in the app handles dark mode; these two maps
+// were still light-only, so the chips stayed pastel on a near-black card.
 const RELATIONSHIP_BADGE: Record<string, string> = {
-  NEW: "bg-slate-100 text-slate-600 border-slate-200",
-  DEVELOPING: "bg-blue-100 text-blue-700 border-blue-200",
-  ESTABLISHED: "bg-green-100 text-green-700 border-green-200",
-  STRATEGIC: "bg-purple-100 text-purple-700 border-purple-200",
-  AT_RISK: "bg-red-100 text-red-700 border-red-200",
-  DORMANT: "bg-slate-200 text-slate-500 border-slate-300",
+  NEW: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  DEVELOPING: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+  ESTABLISHED: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+  STRATEGIC: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
+  AT_RISK: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
+  DORMANT: "bg-slate-200 text-slate-500 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
 };
 
 const RISK_STATUS_BADGE: Record<string, string> = {
-  OPEN: "bg-amber-100 text-amber-700 border-amber-200",
-  MITIGATED: "bg-green-100 text-green-700 border-green-200",
-  CLOSED: "bg-slate-100 text-slate-500 border-slate-200",
-  ESCALATED: "bg-red-100 text-red-700 border-red-200",
+  OPEN: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+  MITIGATED: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
+  CLOSED: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+  ESCALATED: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
 };
 
 function HealthScoreBar({ score }: { score: number | null }) {

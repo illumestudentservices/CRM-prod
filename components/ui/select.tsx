@@ -136,7 +136,8 @@ const SelectItem = React.forwardRef<
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-[#1E3A5F]" />
+        {/* Navy tick on a slate-900 menu is 1.55:1 — invisible. */}
+        <Check className="h-4 w-4 text-[#1E3A5F] dark:text-sky-300" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

@@ -289,10 +289,10 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                       {header.column.getIsSorted() === "asc" && (
-                        <span className="text-[#1E3A5F]">↑</span>
+                        <span className="text-[#1E3A5F] dark:text-sky-300">↑</span>
                       )}
                       {header.column.getIsSorted() === "desc" && (
-                        <span className="text-[#1E3A5F]">↓</span>
+                        <span className="text-[#1E3A5F] dark:text-sky-300">↓</span>
                       )}
                     </div>
                   </TableHead>

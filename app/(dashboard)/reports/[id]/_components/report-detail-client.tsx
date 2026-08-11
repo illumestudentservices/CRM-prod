@@ -420,7 +420,7 @@ export function ReportDetailClient({
                   {programs.map((prog, i) => (
                     <tr key={prog.program} className={i % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/50 dark:bg-slate-900/40"}>
                       <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{prog.program}</td>
-                      <td className="py-2.5 px-4 text-right font-bold text-[#1E3A5F]">{prog.count}</td>
+                      <td className="py-2.5 px-4 text-right font-bold text-[#1E3A5F] dark:text-sky-300">{prog.count}</td>
                       <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["UNDERGRADUATE"] ?? 0}</td>
                       <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["POSTGRADUATE"] ?? 0}</td>
                       <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{prog.levels?.["FOUNDATION"] ?? 0}</td>
@@ -605,7 +605,7 @@ export function ReportDetailClient({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-[#1E3A5F]" />
+              <Mail className="h-5 w-5 text-[#1E3A5F] dark:text-sky-300" />
               Email Full Report
             </DialogTitle>
           </DialogHeader>

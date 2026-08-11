@@ -197,7 +197,10 @@ export function GranularPermissionsPanel() {
             className={cn(
               "text-xs px-2.5 py-1 rounded-full border transition-colors",
               activeRole === r
-                ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                // Inverting to solid white on a dark page read as a glaring
+                // blob and matched nothing else in the app, which marks
+                // selection with a tinted brand surface.
+                ? "bg-slate-900 text-white border-slate-900 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/40"
                 : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60"
             )}
           >
@@ -217,7 +220,9 @@ export function GranularPermissionsPanel() {
               "text-xs px-3 py-1.5 rounded-md border transition-colors capitalize",
               tab === t
                 ? "bg-slate-100 border-slate-300 font-medium dark:bg-slate-800 dark:border-slate-600"
-                : "bg-white border-slate-200 text-slate-500 dark:bg-slate-900 dark:border-slate-800"
+                // slate-500 on slate-900 is ~4:1 — legible in light mode but
+                // muddy on dark, so the inactive tab needs its own step up.
+                : "bg-white border-slate-200 text-slate-500 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
             )}
           >
             {t === "capabilities" ? "Functions" : "Fields / columns"}
