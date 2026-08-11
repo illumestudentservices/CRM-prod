@@ -293,7 +293,12 @@ export async function POST(req: NextRequest) {
         stage: "NEW_LEAD",
         createdById: userId,
         regionId: effectiveRegionId,
-        assignedICRId: data.assignedICRId ?? (role === "ICR" ? userId : undefined),
+        // If the caller didn't pick an ICR, assign the creator by default.
+        // Previously this only applied when role === "ICR", which meant
+        // SUPER_ADMINs / RMs / HQ users who created a lead without picking
+        // an ICR ended up with an unassigned row — invisible on every
+        // personal dashboard until an admin fixed it in the DB.
+        assignedICRId: data.assignedICRId ?? userId,
         institutionId: data.institutionId,
         sourceId: data.sourceId,
         eventId: data.eventId,
