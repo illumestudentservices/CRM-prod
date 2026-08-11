@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 import { CampaignAttachmentsButton } from "./_components/campaign-attachments-button";
+import { CampaignForm } from "./_components/campaign-form";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +19,25 @@ interface Props {
  * and a "Join Existing" option. This page just shows what's on file.
  */
 export default async function CampaignsPage({ searchParams }: Props) {
+  const session = await auth();
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
+
   const sp = (await searchParams) ?? {};
   const statusFilter = sp.status && sp.status !== "all" ? sp.status : null;
   const q = sp.q ?? "";
+
+  const [partners, users] = await Promise.all([
+    db.recruitmentPartner.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const campaigns = await db.campaign.findMany({
     where: {
@@ -80,6 +98,11 @@ export default async function CampaignsPage({ searchParams }: Props) {
           {campaigns.length} of {total} campaigns
           {q && <span> · filtered by &quot;{q}&quot;</span>}
         </div>
+        <CampaignForm
+          partners={partners}
+          users={users.filter((u): u is { id: string; name: string } => u.name !== null)}
+          isSuperAdmin={isSuperAdmin}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-1 border-b pb-2">
