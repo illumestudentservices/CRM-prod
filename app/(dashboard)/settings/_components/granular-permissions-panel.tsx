@@ -291,7 +291,7 @@ export function GranularPermissionsPanel() {
                   <td className="p-2 text-center">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-slate-900 dark:accent-slate-100 disabled:opacity-40"
+                      className="h-4 w-4 accent-slate-900 dark:accent-sky-400 disabled:opacity-40"
                       checked={c.granted}
                       disabled={c.blockedByAction}
                       title={c.blockedByAction ? "Grant the underlying action first" : undefined}
@@ -354,7 +354,7 @@ export function GranularPermissionsPanel() {
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-slate-900 dark:accent-slate-100"
+                            className="h-4 w-4 accent-slate-900 dark:accent-sky-400"
                             checked={f.read.granted}
                             onChange={(e) => toggleField(activeRole, grp.resource, f, "read", e.target.checked)}
                           />
@@ -362,7 +362,7 @@ export function GranularPermissionsPanel() {
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 accent-slate-900 dark:accent-slate-100 disabled:opacity-40"
+                            className="h-4 w-4 accent-slate-900 dark:accent-sky-400 disabled:opacity-40"
                             checked={f.write.granted}
                             disabled={!f.read.granted}
                             title={!f.read.granted ? "Grant View first — a field you can edit but not see is worse than either" : undefined}

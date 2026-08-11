@@ -55,6 +55,7 @@ type Palette = Omit<
   "isDark" | "tickStyle" | "tooltipContentStyle" | "legendStyle" | "tooltipCursor"
 >;
 
+// dark-ok — this is the light half of the pair, by definition.
 const LIGHT: Palette = {
   grid: "#e2e8f0",
   axis: "#cbd5e1",
