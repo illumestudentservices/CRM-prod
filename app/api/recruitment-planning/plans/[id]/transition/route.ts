@@ -67,7 +67,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const updated = await db.quarterlyRecruitmentPlan.update({ where: { id }, data: patch });
 
     if (parsed.data.toStatus === "APPROVED") {
-      await activatePlan(id);
+      // Activation is a chain of side effects (raise travel, schedule field
+      // ops, fire task templates). The status change above has already
+      // committed, so letting a failure here throw would answer 500 while
+      // leaving the plan stranded in APPROVED — approved on paper, with none
+      // of the work created and no indication why.
+      //
+      // Report it instead. activatePlan is idempotent and re-checks for
+      // APPROVED, so it can safely be retried by transitioning again.
+      try {
+        await activatePlan(id);
+      } catch (activationErr) {
+        console.error(`[transition] activation failed for plan ${id}`, activationErr);
+        return NextResponse.json(
+          {
+            ...updated,
+            warning:
+              "Plan approved, but activation did not complete. Travel and field operations may not have been created. Retry the approval to finish activation.",
+          },
+          { status: 207 }
+        );
+      }
     }
 
     return NextResponse.json(updated);

@@ -56,6 +56,18 @@ async function main() {
       const readStatus = async () =>
         (await db.quarterlyRecruitmentPlan.findUnique({ where: { id: plan.id }, select: { status: true } }))?.status;
 
+      // Seed the two things activation is supposed to materialise, so the
+      // assertions below test real behaviour rather than an empty plan.
+      await db.plannedFieldActivity.create({
+        data: { planId: plan.id, activityType: "SCHOOL_VISIT", plannedCount: 2, actualCount: 0 },
+      });
+      await db.plannedTravel.create({
+        data: {
+          planId: plan.id, destination: `${TAG}_Dest`, country: "Testland",
+          plannedStart: new Date(), plannedEnd: new Date(), purpose: `${TAG} travel`,
+        },
+      });
+
       const transition = (session, toStatus) => () =>
         api(session.jar, "POST", `/api/recruitment-planning/plans/${plan.id}/transition`, { toStatus });
 
@@ -79,15 +91,25 @@ async function main() {
         const r = await api(session.jar, "POST", `/api/recruitment-planning/plans/${plan.id}/transition`, { toStatus });
         if (!expect(r.ok, `${label} → ${toStatus}`, `got ${r.status} ${JSON.stringify(r.payload)?.slice(0, 120)}`)) break;
         const now = await readStatus();
-        expect(now === toStatus, `persisted status = ${toStatus}`, `got ${now}`);
+        // APPROVED is transient: activatePlan runs on approval and leaves the
+        // plan ACTIVE, so that hop settles one state further along.
+        const settled = toStatus === "APPROVED" ? "ACTIVE" : toStatus;
+        expect(now === settled, `persisted status = ${settled}`, `got ${now}`);
       }
 
-      // — once APPROVED, the plan is locked for scope edits —
-      await refuse("APPROVED → SUBMITTED (cannot reopen)", transition(icr, "SUBMITTED"), readStatus, "APPROVED");
+      // — once activated, the plan is locked for scope edits —
+      await refuse("ACTIVE → SUBMITTED (cannot reopen)", transition(icr, "SUBMITTED"), readStatus, "ACTIVE");
 
-      // — spec §7: approval generates planned field activities —
-      const pfa = await db.plannedFieldActivity.count({ where: { planId: plan.id } });
-      expect(pfa > 0, "APPROVED generated PlannedFieldActivity rows (spec §7)", `count=${pfa}`);
+      // — activation materialises the plan into real work —
+      const activated = await db.quarterlyRecruitmentPlan.findUnique({
+        where: { id: plan.id }, select: { activatedAt: true },
+      });
+      expect(activated?.activatedAt != null, "activatedAt stamped on activation");
+
+      const travelReqs = await db.travelRequest.count({
+        where: { destination: `${TAG}_Dest` },
+      });
+      expect(travelReqs > 0, "planned travel materialised into a TravelRequest", `count=${travelReqs}`);
 
       // — variation request is the sanctioned way to change a locked plan —
       const vr = await api(icr.jar, "POST", `/api/recruitment-planning/plans/${plan.id}/variations`, {
@@ -305,6 +327,8 @@ async function main() {
         try { await db[model].delete({ where: { id: c.id } }); } catch { /* cascaded */ }
       }
     }
+    await db.$executeRawUnsafe(`DELETE FROM travel_requests WHERE destination LIKE '${TAG}%'`).catch(() => {});
+    await db.$executeRawUnsafe(`DELETE FROM activities WHERE title LIKE '%${TAG}%'`).catch(() => {});
     await db.$executeRawUnsafe(`DELETE FROM leads WHERE "firstName" LIKE '${TAG}%'`).catch(() => {});
     await db.$executeRawUnsafe(`DELETE FROM client_issues WHERE title LIKE '${TAG}%'`).catch(() => {});
     await db.$executeRawUnsafe(`DELETE FROM markets WHERE name LIKE '${TAG}%'`).catch(() => {});

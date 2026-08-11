@@ -78,26 +78,48 @@ export async function activatePlan(planId: string): Promise<void> {
   });
   if (!plan || plan.status !== "APPROVED") return;
 
-  // Materialise Travel records from planned travel entries
-  for (const pt of plan.plannedTravel) {
-    if (pt.activatedTravelRequestId) continue;
-    const tr = await db.travelRequest.create({
-      data: {
-        employeeId: plan.icrId,
-        destination: pt.destination,
-        purpose: pt.purpose,
-        departDate: pt.plannedStart,
-        returnDate: pt.plannedEnd,
-        estimatedCost: pt.estimatedCost ?? undefined,
-        status: "APPROVED",
-        approvedById: plan.icrId,
-        approvedAt: new Date(),
-      },
-    });
-    await db.plannedTravel.update({
-      where: { id: pt.id },
-      data: { activatedAt: new Date(), activatedTravelRequestId: tr.id },
-    });
+  // TravelRequest.employeeId references Employee, not User — the same trap
+  // already noted for Task.createdById further down. Passing plan.icrId (a
+  // User id) violated travel_requests_employeeId_fkey, so approving any plan
+  // that had planned travel threw a 500 and left the plan stranded in
+  // APPROVED: never ACTIVE, no travel raised, no field ops scheduled.
+  //
+  // Resolved once here. An ICR with no Employee row can't own a travel
+  // request, so their travel is skipped rather than crashing the activation —
+  // the rest of the plan still activates.
+  const icrEmployee = await db.employee.findFirst({
+    where: { userId: plan.icrId },
+    select: { id: true },
+  });
+
+  if (icrEmployee) {
+    // Materialise Travel records from planned travel entries
+    for (const pt of plan.plannedTravel) {
+      if (pt.activatedTravelRequestId) continue;
+      const tr = await db.travelRequest.create({
+        data: {
+          employeeId: icrEmployee.id,
+          destination: pt.destination,
+          purpose: pt.purpose,
+          departDate: pt.plannedStart,
+          returnDate: pt.plannedEnd,
+          estimatedCost: pt.estimatedCost ?? undefined,
+          status: "APPROVED",
+          // approvedById references User, which plan.icrId already is.
+          approvedById: plan.icrId,
+          approvedAt: new Date(),
+        },
+      });
+      await db.plannedTravel.update({
+        where: { id: pt.id },
+        data: { activatedAt: new Date(), activatedTravelRequestId: tr.id },
+      });
+    }
+  } else if (plan.plannedTravel.length > 0) {
+    console.warn(
+      `[activatePlan] plan ${planId}: ICR ${plan.icrId} has no Employee row; ` +
+      `${plan.plannedTravel.length} planned travel item(s) not materialised`
+    );
   }
 
   // Spec §7 (Recruitment Planning) — materialise a PLANNED Field Operation
