@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PasswordResetSection } from "./password-reset-section";
 import { MfaStatusCard } from "./mfa-status-card";
+import { GranularPermissionsPanel } from "./granular-permissions-panel";
 
 // ─── Meta ─────────────────────────────────────────────────────────────────────
 
@@ -475,6 +476,20 @@ export function SecurityTab() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Granular permissions (functions + columns) ── */}
+      <div className="border rounded-xl p-5 space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Function &amp; field permissions
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Finer control than the matrix above — grant or withhold individual
+            operations and individual columns per role.
+          </p>
+        </div>
+        <GranularPermissionsPanel />
       </div>
 
       {/* ── Two-Factor Authentication ── */}

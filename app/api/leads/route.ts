@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 import { LeadStage } from "@prisma/client";
+import { redactFields } from "@/lib/granular-permissions";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -201,7 +202,10 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: leads,
+      // Field-level read control (Phase 10) — applied to the list as well as
+      // the detail view, otherwise a column withheld on one screen leaks from
+      // the other.
+      data: await redactFields(session.user.role as Role, "leads", leads),
       meta: {
         total,
         page,

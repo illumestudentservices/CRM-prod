@@ -3514,3 +3514,50 @@ model DeletedRecord {
   @@index([deletedAt(sort: Desc)])
   @@map("deleted_records")
 }
+
+// ─── PHASE 10: GRANULAR PERMISSIONS ───────────────────────────────────────
+
+/// What a GranularPermission row is talking about.
+///
+/// The existing PermissionOverride table already covers resource × action
+/// ("leads:write"). These two scopes sit *below* that and are only consulted
+/// once the coarse action check has passed — they can narrow access, never
+/// widen it.
+enum PermissionScope {
+  /// A named operation finer than an action, e.g. "leads.merge" or
+  /// "leads.export_pii". Lets you grant `leads:write` while withholding the
+  /// destructive or sensitive subset of it.
+  CAPABILITY
+  /// A single column, e.g. leads.passportNumber. Carries an access mode so
+  /// read and write can be granted independently — the common case is
+  /// "may see it, may not change it".
+  FIELD
+}
+
+/// Role-level grant or revoke for one capability or one field.
+///
+/// Absence of a row means "use the registry default" — the table only stores
+/// deviations, which keeps it small and makes "reset to defaults" a delete.
+model GranularPermission {
+  id       String          @id @default(uuid())
+  role     Role
+  scope    PermissionScope
+  /// Owning resource key, matching lib/permissions Resource ("leads").
+  resource String
+  /// Capability key for CAPABILITY, column name for FIELD.
+  target   String
+  /// "read" | "write" for FIELD. Null for CAPABILITY, which is binary.
+  access   String?
+  granted  Boolean
+
+  updatedAt   DateTime @updatedAt
+  updatedById String
+
+  /// access is part of the key so a field can carry separate read and write
+  /// rows. Postgres treats NULLs as distinct in a unique index, so CAPABILITY
+  /// rows (access = null) are deduplicated by the partial index in the
+  /// migration rather than by this constraint.
+  @@unique([role, scope, resource, target, access])
+  @@index([role, scope])
+  @@map("granular_permissions")
+}

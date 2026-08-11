@@ -8,6 +8,7 @@ import {
   readJsonBody, handleApiError, assertEnum, assertString,
 } from "@/lib/api-validation";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { redactFields } from "@/lib/granular-permissions";
 
 // ─── GET /api/institutions ─────────────────────────────────────────────────
 
@@ -58,7 +59,11 @@ export async function GET(req: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json(institutions);
+    // Field-level read control (Phase 10) — same redaction as the detail view,
+    // so a withheld column doesn't leak through the list.
+    return NextResponse.json(
+      await redactFields(session.user.role as Role, "institutions", institutions)
+    );
   } catch (error) {
     return handleApiError(error, "[GET /api/institutions]");
   }

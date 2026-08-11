@@ -1,13 +1,15 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { PERMISSION_MATRIX } from "@/lib/permissions";
+import { PERMISSION_MATRIX, ALL_ROLES, ALL_RESOURCES, ALL_ACTIONS } from "@/lib/permissions";
 
 type PermMatrix = Record<string, Record<string, Record<string, boolean>>>;
 
-const ALL_ROLES    = ["SUPER_ADMIN","HQ_EXECUTIVE","HQ_ANALYTICS","REGIONAL_MANAGER","ICR","INSTITUTION_CLIENT","HR_MANAGER","EMPLOYEE"] as const;
-const ALL_RESOURCES = ["leads","sources","institutions","events","reports","analytics","executive_dashboard","erp","erp_hr","users","settings","announcements","knowledge_base"] as const;
-const ALL_ACTIONS   = ["read","write","delete","approve","export"] as const;
+// These lists used to be hardcoded here and had drifted from the matrix:
+// ACCOUNT_MANAGER, ADMISSIONS_SUPPORT and VP_GLOBAL_SALES carried real
+// permissions this screen never rendered, so nobody could see or change them,
+// and twelve resources were missing for the same reason. Now derived from
+// PERMISSION_MATRIX so the screen always shows everything that exists.
 
 function buildDefaultMatrix(): PermMatrix {
   const m: PermMatrix = {};

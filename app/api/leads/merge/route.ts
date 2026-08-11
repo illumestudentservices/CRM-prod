@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 
 /// Spec — Merge Student Profiles. SUPER_ADMIN only.
 ///
@@ -27,8 +29,15 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { role, id: userId } = session.user;
-    if (role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Only SUPER_ADMIN may merge student profiles" }, { status: 403 });
+    // Capability-gated (Phase 10) rather than a hardcoded role test, so the
+    // grant can be moved in Settings → Security without a deploy. Defaults to
+    // SUPER_ADMIN only, and still requires leads:delete underneath — so
+    // granting it to a role without delete has no effect.
+    if (!(await hasCapability(role as Role, "leads.merge"))) {
+      return NextResponse.json(
+        { error: "Your role is not permitted to merge student profiles" },
+        { status: 403 }
+      );
     }
 
     let body: unknown;

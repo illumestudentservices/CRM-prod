@@ -30,6 +30,18 @@ type Resource =
 
 type Action = "read" | "write" | "delete" | "approve" | "export";
 
+/**
+ * Every role the matrix defines, derived from the matrix itself.
+ *
+ * Callers used to hardcode this list, and the copy in the Security tab's API
+ * had drifted: ACCOUNT_MANAGER, ADMISSIONS_SUPPORT and VP_GLOBAL_SALES held
+ * permissions that no administrator could see or change, because the screen
+ * simply didn't render them. Deriving it removes the class of bug — a role
+ * added to the matrix now appears in the UI automatically.
+ *
+ * Declared after the matrix (see the export at the bottom of this file) so it
+ * can read the object's keys.
+ */
 export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   SUPER_ADMIN: {
     leads: ["read", "write", "delete", "approve", "export"],
@@ -421,3 +433,16 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
 };
 
 export type { Role, Resource, Action };
+
+/**
+ * Canonical role list, derived from PERMISSION_MATRIX so it can never drift
+ * from the roles that actually carry permissions. Use this instead of a local
+ * array — see the note above PERMISSION_MATRIX for what drift cost last time.
+ */
+export const ALL_ROLES = Object.keys(PERMISSION_MATRIX) as Role[];
+
+/** Canonical resource and action lists, likewise derived. */
+export const ALL_RESOURCES = Object.keys(
+  PERMISSION_MATRIX.SUPER_ADMIN
+) as Resource[];
+export const ALL_ACTIONS: Action[] = ["read", "write", "delete", "approve", "export"];

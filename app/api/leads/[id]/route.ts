@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -151,7 +152,10 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ data: lead });
+    // Field-level read control (Phase 10). Columns the role may not read are
+    // deleted from the payload rather than nulled — a null would read as "no
+    // passport on file", which is a different and misleading claim.
+    return NextResponse.json({ data: await redactFields(role, "leads", lead) });
   } catch (error) {
     console.error("[GET /api/leads/[id]]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -215,6 +219,21 @@ export async function PATCH(
     }
 
     const updates = parsed.data;
+
+    // Field-level write control (Phase 10). Reject the whole request rather
+    // than silently dropping the offending keys — a caller who thinks they
+    // updated a passport number and didn't is worse off than one who got an
+    // error naming the field.
+    const writeCheck = await checkFieldWrites(role as Role, "leads", updates);
+    if (!writeCheck.ok) {
+      return NextResponse.json(
+        {
+          error: `Your role cannot change: ${writeCheck.rejected.join(", ")}`,
+          fields: writeCheck.rejected,
+        },
+        { status: 403 }
+      );
+    }
 
     // The timestamp is what makes the consent record defensible, so it moves
     // with the flag rather than being set independently. Clearing consent back
