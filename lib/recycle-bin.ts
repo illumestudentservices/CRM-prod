@@ -82,7 +82,11 @@ export const REGISTRY: Record<string, EntityDef> = {
   Market: { delegate: "market", softDelete: true, label: (r) => r.name },
   RecruitmentPartner: { delegate: "recruitmentPartner", softDelete: true, label: (r) => r.name },
   Task: { delegate: "task", softDelete: true, label: (r) => r.title },
-  HRTask: { delegate: "hRTask", softDelete: true, label: (r) => r.title },
+  // HR tasks are rows in the ordinary Task table — there is no HRTask model,
+  // and `db.hRTask` was undefined, so delegate() threw and DELETE
+  // /api/hr/tasks/[id] returned 500 without deleting anything. Kept as its own
+  // entity type so the bin can say which surface the task was deleted from.
+  HRTask: { delegate: "task", softDelete: true, label: (r) => r.title },
   User: { delegate: "user", softDelete: true, label: (r) => `${dispName(r)} (${r?.email})` },
   School: { delegate: "school", softDelete: true, label: (r) => r.name },
   Campaign: { delegate: "campaign", softDelete: true, label: (r) => r.name },
@@ -108,23 +112,30 @@ export const REGISTRY: Record<string, EntityDef> = {
   },
   Region: { delegate: "region", softDelete: false, label: (r) => r.name },
   TravelRequest: { delegate: "travelRequest", softDelete: false, label: (r) => r.purpose ?? "Travel" },
-  ITAsset: { delegate: "iTAsset", softDelete: false, label: (r) => `${r.assetType} · ${r.serialNumber ?? "?"}` },
+  // The label is what identifies an entry in the bin, so a field name that
+  // doesn't exist renders "undefined · ABC123" and makes the deletion
+  // effectively unfindable. ITAsset has `type`, not `assetType`.
+  ITAsset: {
+    delegate: "iTAsset",
+    softDelete: false,
+    label: (r) => `${r.name} · ${r.type}${r.serialNumber ? ` · ${r.serialNumber}` : ""}`,
+  },
   Announcement: { delegate: "announcement", softDelete: false, label: (r) => r.title },
   Holiday: { delegate: "holiday", softDelete: false, label: (r) => r.name },
   AccountRequest: {
     delegate: "accountRequest",
     softDelete: false,
-    label: (r) => `${r?.email ?? "Request"} · ${r?.role ?? ""}`.trim(),
+    label: (r) => `${r?.email ?? "Request"} · ${r?.requestedRole ?? ""}`.trim(),
   },
   ContractAttachment: {
     delegate: "contractAttachment",
     softDelete: false,
-    label: (r) => r.filename ?? r.name ?? "Contract attachment",
+    label: (r) => r.name ?? "Contract attachment",
   },
   KnowledgeBaseAttachment: {
     delegate: "knowledgeBaseAttachment",
     softDelete: false,
-    label: (r) => r.filename ?? r.name ?? "KB attachment",
+    label: (r) => r.name ?? "KB attachment",
   },
   Counsellor: { delegate: "counsellor", softDelete: false, label: (r) => r.name },
   AgentProfile: {
@@ -133,7 +144,8 @@ export const REGISTRY: Record<string, EntityDef> = {
     label: (r) => `Agent profile · tier ${r?.tier ?? "?"}`,
   },
   PartnerContact: { delegate: "partnerContact", softDelete: false, label: (r) => r.fullName },
-  LeadChecklistItem: { delegate: "leadChecklistItem", softDelete: false, label: (r) => r.title },
+  // `label`, not `title` — see the ITAsset note above.
+  LeadChecklistItem: { delegate: "leadChecklistItem", softDelete: false, label: (r) => r.label },
   QuarterlyBusinessReview: {
     delegate: "quarterlyBusinessReview",
     softDelete: false,
@@ -142,12 +154,12 @@ export const REGISTRY: Record<string, EntityDef> = {
   PerformanceReview: {
     delegate: "performanceReview",
     softDelete: false,
-    label: (r) => `Performance review · ${r?.reviewPeriod ?? ""}`.trim(),
+    label: (r) => `Performance review · ${r?.period ?? ""}`.trim(),
   },
   SuccessionPlan: {
     delegate: "successionPlan",
     softDelete: false,
-    label: (r) => `Succession plan · ${r?.rolePosition ?? ""}`.trim(),
+    label: (r) => `Succession plan · ${r?.backupPersonnel ?? r?.readinessLevel ?? ""}`.trim(),
   },
 };
 
