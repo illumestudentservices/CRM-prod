@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { type InteractionType } from "@prisma/client";
+import { type InteractionType, InteractionType as InteractionTypeEnum } from "@prisma/client";
+import {
+  readJsonBody, handleApiError, assertEnum, assertDate,
+} from "@/lib/api-validation";
 
 // ─── GET /api/institutions/:id/engagement ──────────────────────────────────
 
@@ -34,8 +37,7 @@ export async function GET(
 
     return NextResponse.json(logs);
   } catch (error) {
-    console.error("[GET /api/institutions/:id/engagement]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/institutions/:id/engagement]");
   }
 }
 
@@ -59,19 +61,23 @@ export async function POST(
     });
     if (!institution || institution.deletedAt) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const { type, date, notes, outcome } = body;
 
     if (!type || !date) {
       return NextResponse.json({ error: "Type and date are required" }, { status: 400 });
     }
 
+    // Guard before Prisma: an unknown InteractionType used to answer 500.
+    assertEnum(type, InteractionTypeEnum, "type");
+    const engagementDate = assertDate(date, "date")!;
+
     const log = await db.engagementLog.create({
       data: {
         institutionId: id,
         userId: session.user.id,
         type: type as InteractionType,
-        date: new Date(date),
+        date: engagementDate,
         notes: notes || null,
         outcome: outcome || null,
       },
@@ -82,7 +88,6 @@ export async function POST(
 
     return NextResponse.json(log, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/institutions/:id/engagement]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/institutions/:id/engagement]");
   }
 }

@@ -1,0 +1,211 @@
+/**
+ * Shared QA harness. Handles disposable-admin creation, the full MFA login
+ * dance, an HTTP helper with rate-limit spacing, and result bookkeeping.
+ *
+ * Every test script imports from here so login logic lives in one place.
+ */
+
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+import bcrypt from "bcryptjs";
+import { generateSecret, generate as totpGenerate } from "otplib";
+import crypto from "node:crypto";
+
+export const BASE = process.env.BASE_URL ?? "https://illumestudentservices.cloud";
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = new PrismaClient({ adapter: new PrismaPg(pool) });
+
+export const TAG = "QA" + crypto.randomBytes(3).toString("hex").toUpperCase();
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── Result bookkeeping ────────────────────────────────────────────────
+export const failures = [];
+const perSection = new Map();
+let section = "";
+
+export function startSection(name) {
+  section = name;
+  if (!perSection.has(name)) perSection.set(name, { pass: 0, fail: 0 });
+  process.stdout.write(`\n── ${name} ${"─".repeat(Math.max(0, 56 - name.length))}\n`);
+}
+
+export function ok(label, extra = "") {
+  perSection.get(section).pass++;
+  process.stdout.write(`  ✓  ${label}${extra ? "  " + extra : ""}\n`);
+}
+
+export function fail(label, detail = "") {
+  perSection.get(section).fail++;
+  process.stdout.write(`  ✗  ${label}${detail ? "  → " + detail : ""}\n`);
+  failures.push({ section, label, detail });
+}
+
+/** assert(cond) with a label. Returns the boolean so callers can branch. */
+export function expect(cond, label, detail = "") {
+  if (cond) { ok(label); return true; }
+  fail(label, detail);
+  return false;
+}
+
+export function summary() {
+  process.stdout.write(`\n${"═".repeat(64)}\n  SUMMARY\n${"═".repeat(64)}\n`);
+  let p = 0, f = 0;
+  for (const [name, b] of perSection) {
+    process.stdout.write(
+      `  ${b.fail === 0 ? "✓" : "✗"} ${name.padEnd(50)} ${String(b.pass).padStart(3)} pass / ${b.fail} fail\n`
+    );
+    p += b.pass; f += b.fail;
+  }
+  process.stdout.write(`\n  TOTAL: ${p} pass / ${f} fail\n`);
+  if (failures.length) {
+    process.stdout.write(`\n  FAILURES:\n`);
+    for (const x of failures) {
+      process.stdout.write(`   ✗ [${x.section}] ${x.label}${x.detail ? " → " + x.detail : ""}\n`);
+    }
+  }
+  return f;
+}
+
+// ── Cookie jar ────────────────────────────────────────────────────────
+export class Jar {
+  constructor() { this.cookies = new Map(); }
+  ingest(headers) {
+    for (const line of headers.getSetCookie?.() ?? []) {
+      const [pair] = line.split(";");
+      const eq = pair.indexOf("=");
+      if (eq > 0) this.cookies.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+    }
+  }
+  header() {
+    return [...this.cookies.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+  }
+}
+
+// ── Disposable user + login ───────────────────────────────────────────
+
+/**
+ * Creates a throwaway user with MFA properly enrolled and returns
+ * { user, jar, employee }. Caller must call destroyUser() when done.
+ */
+export async function createAndLogin({ role = "SUPER_ADMIN", withEmployee = false } = {}) {
+  const email = `${TAG.toLowerCase()}-${role.toLowerCase()}-${Date.now()}@illume.local`;
+  const password = crypto.randomBytes(24).toString("base64url");
+  const secret = generateSecret();
+  const user = await db.user.create({
+    data: {
+      email,
+      firstName: TAG,
+      lastName: role,
+      name: `${TAG} ${role}`,
+      password: await bcrypt.hash(password, 12),
+      role,
+      isActive: true,
+      twoFactorEnabled: true,
+      twoFactorSecret: secret,
+      passwordChangedAt: new Date(),
+    },
+  });
+
+  let employee = null;
+  if (withEmployee) {
+    employee = await db.employee.create({
+      data: {
+        userId: user.id,
+        employeeId: `${TAG}-${Date.now().toString().slice(-6)}`,
+        jobTitle: "QA Bot",
+        employmentType: "FULL_TIME",
+        startDate: new Date(),
+      },
+    }).catch(() => null);
+  }
+
+  const jar = new Jar();
+  const csrfRes = await fetch(`${BASE}/api/auth/csrf`);
+  jar.ingest(csrfRes.headers);
+  const { csrfToken } = await csrfRes.json();
+
+  const loginRes = await fetch(`${BASE}/api/auth/callback/credentials`, {
+    method: "POST", redirect: "manual",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: jar.header() },
+    body: new URLSearchParams({ csrfToken, email, password, callbackUrl: BASE, json: "true" }),
+  });
+  jar.ingest(loginRes.headers);
+
+  const code = await totpGenerate({ secret });
+  const totpRes = await fetch(`${BASE}/api/auth/2fa/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: jar.header() },
+    body: JSON.stringify({ code }),
+  });
+  jar.ingest(totpRes.headers);
+  if (!totpRes.ok) throw new Error(`[${role}] 2fa verify ${totpRes.status}`);
+
+  const csrf2Res = await fetch(`${BASE}/api/auth/csrf`, { headers: { Cookie: jar.header() } });
+  jar.ingest(csrf2Res.headers);
+  const { csrfToken: csrf2 } = await csrf2Res.json();
+  await fetch(`${BASE}/api/auth/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: jar.header() },
+    body: JSON.stringify({ csrfToken: csrf2, data: { twoFactorVerified: true } }),
+  }).then((r) => jar.ingest(r.headers));
+
+  return { user, jar, employee, email, password };
+}
+
+export async function destroyUser(ctx) {
+  if (!ctx?.user) return;
+  const id = ctx.user.id;
+  await db.deletedRecord.deleteMany({ where: { deletedById: id } }).catch(() => {});
+  await db.task.deleteMany({ where: { createdById: ctx.employee?.id } }).catch(() => {});
+  if (ctx.employee) await db.employee.delete({ where: { id: ctx.employee.id } }).catch(() => {});
+  await db.auditLog.deleteMany({ where: { userId: id } }).catch(() => {});
+  await db.$executeRaw`DELETE FROM attachments WHERE "uploadedById" = ${id}`.catch(() => {});
+  await db.user.delete({ where: { id } }).catch(() => {});
+}
+
+// ── HTTP helper ───────────────────────────────────────────────────────
+
+/**
+ * Nginx rate-limits /api at 10r/s burst 20 — 110ms spacing keeps us clear
+ * without making a 400-request suite take forever.
+ */
+export async function api(jar, method, path, body) {
+  await sleep(110);
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    redirect: "manual",
+    headers: {
+      Cookie: jar.header(),
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const ct = res.headers.get("content-type") ?? "";
+  let payload = null;
+  if (ct.includes("application/json")) {
+    payload = await res.json().catch(() => null);
+  } else {
+    payload = await res.text().catch(() => null);
+  }
+  return { ok: res.ok, status: res.status, payload, headers: res.headers };
+}
+
+/** Raw-body variant for malformed-JSON tests. */
+export async function apiRaw(jar, method, path, rawBody, contentType = "application/json") {
+  await sleep(110);
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    redirect: "manual",
+    headers: { Cookie: jar.header(), "Content-Type": contentType },
+    body: rawBody,
+  });
+  let payload = null;
+  try { payload = await res.json(); } catch { payload = await res.text().catch(() => null); }
+  return { ok: res.ok, status: res.status, payload };
+}
+
+/** Pull an id out of the many response envelopes the API uses. */
+export function idOf(payload) {
+  return payload?.id ?? payload?.data?.id ?? payload?.lead?.id ?? payload?.user?.id ?? null;
+}

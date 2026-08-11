@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { type KPICategory, type KPIPeriod } from "@prisma/client";
+import {
+  type KPICategory, type KPIPeriod,
+  KPICategory as KPICategoryEnum, KPIPeriod as KPIPeriodEnum,
+} from "@prisma/client";
+import {
+  readJsonBody, handleApiError, assertEnum, assertString, assertNumber,
+} from "@/lib/api-validation";
 
 // ─── GET /api/institutions/:id/kpis ───────────────────────────────────────
 
@@ -39,8 +45,7 @@ export async function GET(
 
     return NextResponse.json(kpis);
   } catch (error) {
-    console.error("[GET /api/institutions/:id/kpis]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/institutions/:id/kpis]");
   }
 }
 
@@ -66,7 +71,7 @@ export async function POST(
       return NextResponse.json({ error: "Institution not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const { category, name, description, targetValue, unit, period, year, month, quarter } = body;
 
     if (!category || !name || targetValue === undefined || !unit || !period || !year) {
@@ -75,6 +80,16 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Enum + numeric guards run before Prisma, which otherwise answers 500 on
+    // an unknown category/period or a non-numeric target.
+    assertEnum(category, KPICategoryEnum, "category");
+    assertEnum(period, KPIPeriodEnum, "period");
+    assertString(name, "name", { max: 300 });
+    assertNumber(targetValue, "targetValue");
+    assertNumber(year, "year", { min: 2000, max: 2100, integer: true });
+    assertNumber(month, "month", { required: false, min: 1, max: 12, integer: true });
+    assertNumber(quarter, "quarter", { required: false, min: 1, max: 4, integer: true });
 
     const kpi = await db.clientKPI.create({
       data: {
@@ -103,7 +118,6 @@ export async function POST(
 
     return NextResponse.json(kpi, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/institutions/:id/kpis]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/institutions/:id/kpis]");
   }
 }

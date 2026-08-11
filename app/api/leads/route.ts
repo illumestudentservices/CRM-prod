@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
+import { LeadStage } from "@prisma/client";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -76,7 +77,10 @@ const createLeadSchema = z.object({
 });
 
 const listLeadsQuerySchema = z.object({
-  stage: z.string().optional(),
+  // Must be a real LeadStage. As a free string it was passed straight into
+  // `where.stage`, and Prisma answered 500 for anything outside the enum —
+  // so a hand-edited URL crashed the endpoint instead of 422-ing.
+  stage: z.nativeEnum(LeadStage).optional(),
   institutionId: z.string().optional(),
   assignedICRId: z.string().optional(),
   regionId: z.string().optional(),

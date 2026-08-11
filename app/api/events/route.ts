@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { type EventType, type EventStatus } from "@prisma/client";
+import {
+  type EventType, type EventStatus,
+  EventType as EventTypeEnum, EventStatus as EventStatusEnum,
+} from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import {
+  readJsonBody, assertEnum, assertString, assertDate, assertNumber, handleApiError,
+} from "@/lib/api-validation";
 
 // ─── GET /api/events ───────────────────────────────────────────────────────
 
@@ -78,15 +84,8 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!await effectiveHasPermission(session.user.role as Role, "events", "write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
-      name,
-      type,
-      date,
-      city,
-      country,
-      status,
-      budget,
       regionId,
       assignedICRId,
       institutionIds,
@@ -96,17 +95,19 @@ export async function POST(req: NextRequest) {
       forceCreate,
     } = body;
 
-    if (!name || !type || !date || !city || !country) {
-      return NextResponse.json(
-        { error: "Name, type, date, city and country are required" },
-        { status: 400 }
-      );
-    }
+    // Validated before Prisma sees any of it: an unrecognised enum used to
+    // surface as a 500 from PrismaClientValidationError rather than a 422.
+    const name = assertString(body.name, "name", { max: 300 })!;
+    const type = assertEnum(body.type, EventTypeEnum, "type")!;
+    const eventDate = assertDate(body.date, "date")!;
+    const city = assertString(body.city, "city", { max: 200 })!;
+    const country = assertString(body.country, "country", { max: 200 })!;
+    const status = assertEnum(body.status, EventStatusEnum, "status", { required: false });
+    const budget = assertNumber(body.budget, "budget", { required: false, min: 0 });
 
     // Spec §3 — duplicate check by (Event Name + Date + City + Country) with
     // a ±14-day date window. Returns 409 with "Join Existing" info; only
     // SUPER_ADMIN + forceCreate:true proceeds.
-    const eventDate = new Date(date);
     const dupWindowMs = 14 * 24 * 60 * 60 * 1000;
     const existing = await db.event.findFirst({
       where: {
@@ -159,14 +160,14 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         type: type as EventType,
-        date: new Date(date),
+        date: eventDate,
         city,
         country,
         status: (status as EventStatus) ?? "PLANNED",
         budget: budget ?? null,
-        regionId: regionId || null,
-        assignedICRId: assignedICRId || null,
-        notes: notes || null,
+        regionId: (regionId as string) || null,
+        assignedICRId: (assignedICRId as string) || null,
+        notes: (notes as string) || null,
         createdById: session.user.id,
         participations:
           Array.isArray(institutionIds) && institutionIds.length > 0
@@ -187,7 +188,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/events]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/events]");
   }
 }

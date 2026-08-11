@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { type SourceType } from "@prisma/client";
+import { type SourceType, SourceType as SourceTypeEnum } from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import {
+  readJsonBody, assertEnum, assertString, assertNumber, handleApiError,
+} from "@/lib/api-validation";
 
 // ─── GET /api/sources ──────────────────────────────────────────────────────
 
@@ -70,38 +73,28 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!await effectiveHasPermission(session.user.role as Role, "sources", "write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
-    const {
-      name,
-      type,
-      country,
-      city,
-      regionId,
-      contactPerson,
-      email,
-      phone,
-      agreementStatus,
-      rating,
-      notes,
-    } = body;
+    const body = await readJsonBody(req);
+    const { regionId, contactPerson, email, phone, agreementStatus, notes } = body;
 
-    if (!name || !type || !country) {
-      return NextResponse.json({ error: "Name, type and country are required" }, { status: 400 });
-    }
+    const name = assertString(body.name, "name", { max: 300 })!;
+    const type = assertEnum(body.type, SourceTypeEnum, "type")!;
+    const country = assertString(body.country, "country", { max: 200 })!;
+    const city = assertString(body.city, "city", { required: false, max: 200 });
+    const rating = assertNumber(body.rating, "rating", { required: false, min: 1, max: 5, integer: true });
 
     const source = await db.recruitmentPartner.create({
       data: {
         name,
         type,
         country,
-        city: city || null,
-        regionId: regionId || null,
-        contactPerson: contactPerson || null,
-        email: email || null,
-        phone: phone || null,
-        agreementStatus: agreementStatus || null,
+        city: city ?? null,
+        regionId: (regionId as string) || null,
+        contactPerson: (contactPerson as string) || null,
+        email: (email as string) || null,
+        phone: (phone as string) || null,
+        agreementStatus: (agreementStatus as string) || null,
         rating: rating ?? null,
-        notes: notes || null,
+        notes: (notes as string) || null,
         createdById: session.user.id,
       },
     });
@@ -119,7 +112,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(source, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/sources]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/sources]");
   }
 }

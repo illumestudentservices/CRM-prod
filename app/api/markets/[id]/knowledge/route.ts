@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/markets/:id/knowledge ───────────────────────────────────────
 
@@ -43,8 +44,7 @@ export async function GET(
 
     return NextResponse.json({ articles });
   } catch (error) {
-    console.error("[GET /api/markets/:id/knowledge]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/markets/:id/knowledge]");
   }
 }
 
@@ -103,7 +103,6 @@ export async function POST(
 
     return NextResponse.json({ article }, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/markets/:id/knowledge]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/markets/:id/knowledge]");
   }
 }
