@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
 import { Loader2, ShieldCheck, AlertCircle, KeyRound } from "lucide-react";
-import { WelcomeOverlay } from "@/components/shared/welcome-overlay";
+import { MfaUnlockOverlay } from "@/components/shared/mfa-unlock-overlay";
 
 export default function Verify2FAPage() {
   const { data: session, update } = useSession();
@@ -96,7 +96,7 @@ export default function Verify2FAPage() {
   return (
     <div ref={cardRef} style={{ opacity: 0 }}>
       {welcomeName && (
-        <WelcomeOverlay
+        <MfaUnlockOverlay
           name={welcomeName}
           onComplete={() => { router.replace("/dashboard"); router.refresh(); }}
         />
