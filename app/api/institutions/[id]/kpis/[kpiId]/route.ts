@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type KPICategory, type KPIPeriod } from "@prisma/client";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── PATCH /api/institutions/:id/kpis/:kpiId ─────────────────────────────
 
@@ -82,7 +83,7 @@ export async function DELETE(
       return NextResponse.json({ error: "KPI not found" }, { status: 404 });
     }
 
-    await db.clientKPI.delete({ where: { id: kpiId } });
+    await trashRecord({ entityType: "ClientKPI", entityId: kpiId, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

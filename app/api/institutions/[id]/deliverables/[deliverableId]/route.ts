@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── PATCH /api/institutions/:id/deliverables/:deliverableId ──────────────
 
@@ -76,7 +77,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Deliverable not found" }, { status: 404 });
     }
 
-    await db.deliverable.delete({ where: { id: deliverableId } });
+    await trashRecord({ entityType: "Deliverable", entityId: deliverableId, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

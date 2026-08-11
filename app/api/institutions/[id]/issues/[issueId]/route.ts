@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -121,6 +122,6 @@ export async function DELETE(
   });
   if (!existing) return NextResponse.json({ error: "Issue not found" }, { status: 404 });
 
-  await db.clientIssue.delete({ where: { id: issueId } });
+  await trashRecord({ entityType: "ClientIssue", entityId: issueId, userId: session.user.id });
   return NextResponse.json({ ok: true });
 }

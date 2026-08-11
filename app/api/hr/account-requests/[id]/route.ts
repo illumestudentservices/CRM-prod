@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logActivity } from "@/lib/activity-logger";
 import { sendAccountRequestDecisionEmail } from "@/lib/email";
 import { canReviewAccountRequest } from "@/lib/account-requests";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const patchSchema = z
   .object({
@@ -156,7 +157,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await db.accountRequest.delete({ where: { id } });
+  await trashRecord({ entityType: "AccountRequest", entityId: id, userId: session.user.id });
   void logActivity(userId, "DELETE", "AccountRequest", id, {});
   return NextResponse.json({ deleted: true });
 }

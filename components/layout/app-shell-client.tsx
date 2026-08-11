@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   BookOpen,
   MessageCircle,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
@@ -72,6 +73,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
   { key: "activity_log", label: "Activity Log", href: "/activity-log", icon: ShieldCheck },
   { key: "settings",    label: "Settings",     href: "/settings",    icon: Settings },
+  { key: "recycle_bin", label: "Recycle Bin",  href: "/recycle-bin", icon: Trash2 },
 ];
 
 const ROLE_LABELS: Record<Role, string> = {

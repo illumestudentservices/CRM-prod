@@ -5,6 +5,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
+import { trashRecord } from "@/lib/recycle-bin";
 
 /// Roles that can manage KB attachments (matches the sibling parent-article
 /// write gate). Any role at or above this level can also read all attachments
@@ -97,7 +98,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { attachmentId } = await params;
-  await db.knowledgeBaseAttachment.delete({ where: { id: attachmentId } });
+  await trashRecord({ entityType: "KnowledgeBaseAttachment", entityId: attachmentId, userId: session.user.id });
   void logActivity(session.user.id, "DELETE", "KB_ATTACHMENT", attachmentId, null, req);
   return NextResponse.json({ ok: true });
 }

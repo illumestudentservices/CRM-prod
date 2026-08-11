@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/stakeholders/schools/:id ────────────────────────────────────
 
@@ -183,10 +184,7 @@ export async function DELETE(
       return NextResponse.json({ error: "School not found" }, { status: 404 });
 
     // Soft delete
-    await db.school.update({
-      where: { id },
-      data: { deletedAt: new Date(), isActive: false },
-    });
+    await trashRecord({ entityType: "School", entityId: id, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

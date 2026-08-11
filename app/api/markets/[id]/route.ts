@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { MarketRiskLevel } from "@prisma/client";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/markets/:id ─────────────────────────────────────────────────
 
@@ -192,10 +193,7 @@ export async function DELETE(
         { status: 404 }
       );
 
-    await db.market.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await trashRecord({ entityType: "Market", entityId: id, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

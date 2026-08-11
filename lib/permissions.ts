@@ -412,6 +412,7 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
   settings:     ["SUPER_ADMIN"],
   activity_log: ["SUPER_ADMIN"],
+  recycle_bin:  ["SUPER_ADMIN"],
   // ─── Redesign nav (Phases 2–7) ───────────────────────────────────────────
   recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   recruitment_planning: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR"],

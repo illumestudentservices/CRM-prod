@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -126,10 +127,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await db.task.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  await trashRecord({ entityType: "HRTask", entityId: id, userId: session.user.id });
 
   return NextResponse.json({ success: true });
 }
