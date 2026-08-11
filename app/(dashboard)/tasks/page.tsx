@@ -5,6 +5,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
 import { MyDashboard } from "./_components/my-dashboard";
+import { FireTemplatesButton } from "./_components/fire-templates-button";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 async function getAllTasks() {
@@ -38,7 +39,17 @@ export default async function TasksPage() {
   if (!session?.user) redirect("/login");
   if (!(await effectiveHasPermission(session.user.role, "tasks", "read"))) redirect("/dashboard");
 
-  const [tasks, employees] = await Promise.all([getAllTasks(), getEmployees()]);
+  const canWrite = await effectiveHasPermission(session.user.role, "tasks", "write");
+
+  const [tasks, employees, templates] = await Promise.all([
+    getAllTasks(),
+    getEmployees(),
+    canWrite
+      ? db.taskTemplate.findMany({
+          orderBy: [{ isActive: "desc" }, { name: "asc" }],
+        })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -49,6 +60,21 @@ export default async function TasksPage() {
           { label: "Dashboard", href: "/dashboard" },
           { label: "Tasks" },
         ]}
+        actions={
+          canWrite ? (
+            <FireTemplatesButton
+              templates={templates.map((t) => ({
+                id: t.id,
+                name: t.name,
+                description: t.description,
+                triggerEvent: t.triggerEvent,
+                category: t.category,
+                recurrence: t.recurrence,
+                isActive: t.isActive,
+              }))}
+            />
+          ) : undefined
+        }
       />
       <MyDashboard />
       <TasksClient tasks={tasks} employees={employees} />

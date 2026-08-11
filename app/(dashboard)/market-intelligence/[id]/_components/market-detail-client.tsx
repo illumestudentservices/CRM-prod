@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { QuarterlyReportButton } from "./quarterly-report-button";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Market = any;
@@ -55,11 +56,14 @@ export function MarketDetailClient({ market, currentUserRole }: { market: Market
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{market.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Priority: <strong>{market.priority}</strong> · Potential: <strong>{market.potential}</strong> · Risk: <strong>{market.politicalRiskLevel}</strong> · RM: {market.regionalManager?.name ?? "—"}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{market.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Priority: <strong>{market.priority}</strong> · Potential: <strong>{market.potential}</strong> · Risk: <strong>{market.politicalRiskLevel}</strong> · RM: {market.regionalManager?.name ?? "—"}
+          </p>
+        </div>
+        <QuarterlyReportButton marketId={market.id} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
