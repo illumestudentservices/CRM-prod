@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { canAccessLead } from "@/lib/lead-access";
+import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { logActivity } from "@/lib/activity-logger";
 
 /**
@@ -64,7 +64,7 @@ async function authorise(id: string) {
     select: { id: true, regionId: true, assignedICRId: true, institutionId: true },
   });
   if (!lead) return { error: NextResponse.json({ error: "Lead not found" }, { status: 404 }) };
-  if (!canAccessLead(lead, userId, regionId, role as Role)) {
+  if (!canAccessLead(lead, userId, regionId, role as Role, await institutionIdsForUser(userId, role as Role))) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
   return { lead, userId };

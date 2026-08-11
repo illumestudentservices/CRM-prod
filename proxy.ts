@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { NAV_PERMISSIONS, type Role } from "@/lib/permissions";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -76,8 +77,64 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  // ── Module authorisation ───────────────────────────────────────────────
+  //
+  // NAV_PERMISSIONS decides which modules appear in the sidebar. Until now it
+  // only decided that: individual pages checked you were signed in, and most
+  // did not check your role was allowed the module. Hiding the link while
+  // leaving the route open means anyone who types the URL — or keeps a
+  // bookmark after a role change — still gets in.
+  //
+  // Enforcing here rather than per-page keeps one source of truth, so the nav
+  // and the guard cannot drift apart.
+  const moduleKey = moduleForPath(pathname);
+  if (moduleKey) {
+    const role = req.auth.user?.role as Role | undefined;
+    const allowedRoles = NAV_PERMISSIONS[moduleKey];
+    if (role && allowedRoles && !allowedRoles.includes(role)) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
   return NextResponse.next({ request: { headers } });
 });
+
+/**
+ * Ordered most-specific-first so `/recruitment-network/...` can't match a
+ * shorter prefix by accident.
+ */
+const PATH_TO_MODULE: ReadonlyArray<readonly [string, string]> = [
+  ["/recruitment-network", "recruitment_network"],
+  ["/recruitment-planning", "recruitment_planning"],
+  ["/market-intelligence", "market_intelligence"],
+  ["/field-operations", "field_operations"],
+  ["/risk-compliance", "risk_compliance"],
+  ["/activity-log", "activity_log"],
+  ["/recycle-bin", "recycle_bin"],
+  ["/institutions", "institutions"],
+  ["/stakeholders", "stakeholders"],
+  ["/students", "students"],
+  ["/analytics", "analytics"],
+  ["/knowledge", "knowledge"],
+  ["/whatsapp", "whatsapp"],
+  ["/settings", "settings"],
+  ["/reports", "reports"],
+  ["/markets", "markets"],
+  ["/events", "events"],
+  ["/tasks", "tasks"],
+  ["/hr", "hr"],
+];
+
+/**
+ * Longest-prefix match from a pathname to its NAV_PERMISSIONS key. Returns
+ * undefined for anything that isn't a module page, which is left alone.
+ */
+function moduleForPath(pathname: string): string | undefined {
+  for (const [prefix, key] of PATH_TO_MODULE) {
+    if (pathname === prefix || pathname.startsWith(prefix + "/")) return key;
+  }
+  return undefined;
+}
 
 export const config = {
   matcher: [

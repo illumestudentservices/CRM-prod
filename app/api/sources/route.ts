@@ -74,13 +74,20 @@ export async function POST(req: NextRequest) {
     if (!await effectiveHasPermission(session.user.role as Role, "sources", "write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await readJsonBody(req);
-    const { regionId, contactPerson, email, phone, agreementStatus, notes } = body;
+    const { regionId } = body;
 
     const name = assertString(body.name, "name", { max: 300 })!;
     const type = assertEnum(body.type, SourceTypeEnum, "type")!;
     const country = assertString(body.country, "country", { max: 200 })!;
     const city = assertString(body.city, "city", { required: false, max: 200 });
     const rating = assertNumber(body.rating, "rating", { required: false, min: 1, max: 5, integer: true });
+    // Free-text columns still need a type check: an object here reached the
+    // driver and came back as a 500 rather than a 422.
+    const contactPerson = assertString(body.contactPerson, "contactPerson", { required: false, max: 300 });
+    const email = assertString(body.email, "email", { required: false, max: 320 });
+    const phone = assertString(body.phone, "phone", { required: false, max: 50 });
+    const agreementStatus = assertString(body.agreementStatus, "agreementStatus", { required: false, max: 100 });
+    const notes = assertString(body.notes, "notes", { required: false, max: 20_000 });
 
     const source = await db.recruitmentPartner.create({
       data: {
@@ -89,12 +96,12 @@ export async function POST(req: NextRequest) {
         country,
         city: city ?? null,
         regionId: (regionId as string) || null,
-        contactPerson: (contactPerson as string) || null,
-        email: (email as string) || null,
-        phone: (phone as string) || null,
-        agreementStatus: (agreementStatus as string) || null,
+        contactPerson: contactPerson ?? null,
+        email: email ?? null,
+        phone: phone ?? null,
+        agreementStatus: agreementStatus ?? null,
         rating: rating ?? null,
-        notes: (notes as string) || null,
+        notes: notes ?? null,
         createdById: session.user.id,
       },
     });

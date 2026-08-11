@@ -6,7 +6,7 @@ import type { Role } from "@/lib/permissions";
 import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS, CLOSED_STAGES } from "@/lib/lead-pipeline";
 import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
-import { canAccessLead, loadLeadForGate } from "@/lib/lead-access";
+import { canAccessLead, institutionIdsForUser, loadLeadForGate } from "@/lib/lead-access";
 import { CHECKLIST_TRIGGERS, resolveChecklist } from "@/lib/lead-checklists";
 import { sendLeadStageChangeEmail } from "@/lib/email";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -50,7 +50,7 @@ export async function PATCH(
     if (!lead) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-    if (!canAccessLead(lead, userId, regionId, role as Role)) {
+    if (!canAccessLead(lead, userId, regionId, role as Role, await institutionIdsForUser(userId, role as Role))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -317,7 +317,7 @@ export async function GET(
   const { id } = await params;
   const lead = await loadLeadForGate(id);
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-  if (!canAccessLead(lead, userId, regionId, role as Role)) {
+  if (!canAccessLead(lead, userId, regionId, role as Role, await institutionIdsForUser(userId, role as Role))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

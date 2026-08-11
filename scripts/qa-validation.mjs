@@ -359,7 +359,9 @@ async function main() {
           const nosniff = dl.headers.get("x-content-type-options") ?? "";
           const csp = dl.headers.get("content-security-policy") ?? "";
           expect(cd.includes("attachment"), "download Content-Disposition: attachment", cd);
-          expect(nosniff === "nosniff", "download X-Content-Type-Options: nosniff", nosniff);
+          // May arrive duplicated ("nosniff, nosniff") when both the platform
+          // and the route set it. Same value, so harmless — assert presence.
+          expect(nosniff.includes("nosniff"), "download X-Content-Type-Options: nosniff", nosniff);
           expect(csp.includes("sandbox"), "download CSP sandbox present", csp.slice(0, 60));
           await db.attachment.delete({ where: { id: aid } }).catch(() => {});
         }
