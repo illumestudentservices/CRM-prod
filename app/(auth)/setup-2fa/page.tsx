@@ -8,7 +8,7 @@ import {
   ShieldCheck, Loader2, Copy, Check, AlertTriangle, LogOut, ArrowRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { WelcomeOverlay } from "@/components/shared/welcome-overlay";
+import { MfaUnlockOverlay } from "@/components/shared/mfa-unlock-overlay";
 
 /**
  * Mandatory 2FA enrolment.
@@ -102,7 +102,7 @@ export default function Setup2FAPage() {
   return (
     <div>
       {welcomeName && (
-        <WelcomeOverlay
+        <MfaUnlockOverlay
           name={welcomeName}
           onComplete={() => { router.push("/dashboard"); router.refresh(); }}
         />
