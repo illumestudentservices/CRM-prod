@@ -57,8 +57,8 @@ export function EnrollmentChart({ targets }: EnrollmentChartProps) {
             tickLine={false}
           />
           <Tooltip
+            cursor={chart.tooltipCursor}
             contentStyle={chart.tooltipContentStyle}
-            cursor={{ fill: "#f1f5f9" }}
           />
           <Legend
             iconType="circle"

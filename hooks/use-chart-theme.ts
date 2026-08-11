@@ -39,13 +39,20 @@ export interface ChartTheme {
   /** Ready-made recharts prop objects, so call sites stay short. */
   tickStyle: { fontSize: number; fill: string };
   tooltipContentStyle: React.CSSProperties;
+  /**
+   * `<Tooltip cursor>` — the band recharts paints behind the hovered category.
+   * Its default is a solid `#ccc`, which on a dark card is a light grey slab;
+   * on a chart with a single category it covers the entire plot area and reads
+   * as a broken white background. Pass this to every categorical Tooltip.
+   */
+  tooltipCursor: { fill: string };
   /** For <Legend formatter> spans, which recharts renders as raw JSX. */
   legendStyle: React.CSSProperties;
 }
 
 type Palette = Omit<
   ChartTheme,
-  "isDark" | "tickStyle" | "tooltipContentStyle" | "legendStyle"
+  "isDark" | "tickStyle" | "tooltipContentStyle" | "legendStyle" | "tooltipCursor"
 >;
 
 const LIGHT: Palette = {
@@ -107,6 +114,11 @@ export function useChartTheme(): ChartTheme {
       boxShadow: isDark
         ? "0 4px 12px rgba(0,0,0,0.5)"
         : "0 4px 12px rgba(15,23,42,0.08)",
+    },
+    // Translucent so it reads as a highlight in either theme rather than a
+    // slab, and so bars stay visible through it.
+    tooltipCursor: {
+      fill: isDark ? "rgba(148,163,184,0.10)" : "rgba(15,23,42,0.05)",
     },
     legendStyle: { fontSize: 11, color: base.axisText },
   };

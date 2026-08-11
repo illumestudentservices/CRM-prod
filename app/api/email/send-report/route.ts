@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { safeSend, wrapEmail } from "@/lib/email";
+import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
 import type { Role } from "@/lib/permissions";
 import { snapshotName, type SnapshotName } from "@/lib/person-name";
@@ -33,7 +34,7 @@ function buildReportHtml(opts: {
   period: string;
   icrName: string;
   regionName: string;
-  kpi: { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
+  kpi: PartialKpi;
   leads: Array<SnapshotName & { nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
   programs: Array<{ program: string; count: number; levels: Record<string, number> }>;
   sources: Array<{ name: string; leads: number; enrolled: number }>;
@@ -51,12 +52,12 @@ function buildReportHtml(opts: {
     const k = opts.kpi;
     body += `<h2><span class="sn">${sectionNum++}</span> KPI Summary</h2>
 <div class="kpi-grid">
-  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">${k.totalLeads}</div><div class="kpi-label">Total Leads</div></div>
-  <div class="kpi-box" style="background:#f0fdf4;border-color:#bbf7d0;"><div class="kpi-value" style="color:#22C55E;">${k.enrolled}</div><div class="kpi-label">Enrolled</div></div>
-  <div class="kpi-box" style="background:#eff6ff;border-color:#bfdbfe;"><div class="kpi-value" style="color:#0369A1;">${k.conversionRate}%</div><div class="kpi-label">Conversion Rate</div></div>
-  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">${k.contactRate}%</div><div class="kpi-label">Contact Rate</div></div>
-  <div class="kpi-box" style="background:#fefce8;border-color:#fde68a;"><div class="kpi-value" style="color:#F59E0B;">${k.eventsCount}</div><div class="kpi-label">Events</div></div>
-  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">$${(k.totalEventCost ?? 0).toLocaleString()}</div><div class="kpi-label">Event Cost</div></div>
+  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">${kpiNum(k, "totalLeads")}</div><div class="kpi-label">Total Leads</div></div>
+  <div class="kpi-box" style="background:#f0fdf4;border-color:#bbf7d0;"><div class="kpi-value" style="color:#22C55E;">${kpiNum(k, "enrolled")}</div><div class="kpi-label">Enrolled</div></div>
+  <div class="kpi-box" style="background:#eff6ff;border-color:#bfdbfe;"><div class="kpi-value" style="color:#0369A1;">${kpiPct(k, "conversionRate")}</div><div class="kpi-label">Conversion Rate</div></div>
+  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">${kpiPct(k, "contactRate")}</div><div class="kpi-label">Contact Rate</div></div>
+  <div class="kpi-box" style="background:#fefce8;border-color:#fde68a;"><div class="kpi-value" style="color:#F59E0B;">${kpiNum(k, "eventsCount")}</div><div class="kpi-label">Events</div></div>
+  <div class="kpi-box"><div class="kpi-value" style="color:#1E3A5F;">${kpiMoney(k, "totalEventCost")}</div><div class="kpi-label">Event Cost</div></div>
 </div>`;
   }
 
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     const icrName = report.icr.name ?? report.icr.email;
     const senderName = (session.user as { name?: string }).name ?? "An Illume user";
 
-    const kpi = report.kpiSummary as { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
+    const kpi = report.kpiSummary as PartialKpi;
     const leads = Array.isArray(report.leadsData) ? (report.leadsData as unknown as Array<SnapshotName & { nationality: string; interestedProgram: string; studyLevel: string; stage: string }>) : [];
     const programs = Array.isArray(report.programBreakdown) ? (report.programBreakdown as Array<{ program: string; count: number; levels: Record<string, number> }>) : [];
     const sources = Array.isArray(report.sourcePerformance) ? (report.sourcePerformance as Array<{ name: string; leads: number; enrolled: number }>) : [];
@@ -245,9 +246,9 @@ export async function POST(req: NextRequest) {
 
       ${kpi ? `<table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0;">
         <tr>
-          <td style="width:33%;padding:4px;"><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#1E3A5F;">${kpi.totalLeads}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">LEADS</div></div></td>
-          <td style="width:33%;padding:4px;"><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#22C55E;">${kpi.enrolled}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">ENROLLED</div></div></td>
-          <td style="width:33%;padding:4px;"><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#0369A1;">${kpi.conversionRate}%</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">CONVERSION</div></div></td>
+          <td style="width:33%;padding:4px;"><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#1E3A5F;">${kpiNum(kpi, "totalLeads")}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">LEADS</div></div></td>
+          <td style="width:33%;padding:4px;"><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#22C55E;">${kpiNum(kpi, "enrolled")}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">ENROLLED</div></div></td>
+          <td style="width:33%;padding:4px;"><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#0369A1;">${kpiPct(kpi, "conversionRate")}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;">CONVERSION</div></div></td>
         </tr>
       </table>` : ""}
 

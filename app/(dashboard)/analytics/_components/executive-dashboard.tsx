@@ -417,6 +417,7 @@ export function ExecutiveDashboard() {
                     tickLine={false}
                   />
                   <Tooltip
+                    cursor={chart.tooltipCursor}
                     formatter={(value, name) => [
                       value,
                       name === "leads" ? "Leads" : "Enrolled",
@@ -485,6 +486,7 @@ export function ExecutiveDashboard() {
                     tickLine={false}
                   />
                   <Tooltip
+                    cursor={chart.tooltipCursor}
                     formatter={(value, name) => [
                       name === "conversionRate" ? `${value}%` : value,
                       name === "leads" ? "Leads" : name === "enrolled" ? "Enrolled" : "Conv. Rate",

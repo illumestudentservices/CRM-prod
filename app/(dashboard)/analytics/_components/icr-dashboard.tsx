@@ -236,6 +236,7 @@ export function ICRDashboard() {
                     tickLine={false}
                   />
                   <Tooltip
+                    cursor={chart.tooltipCursor}
                     contentStyle={chart.tooltipContentStyle}
                     formatter={(v: unknown) => [v as number, "Leads"]}
                   />

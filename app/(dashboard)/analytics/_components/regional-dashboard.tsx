@@ -226,6 +226,7 @@ export function RegionalDashboard() {
                   />
                   <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
                   <Tooltip
+                    cursor={chart.tooltipCursor}
                     contentStyle={chart.tooltipContentStyle}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11px" }} />
@@ -299,6 +300,7 @@ export function RegionalDashboard() {
                 />
                 <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
                 <Tooltip
+                  cursor={chart.tooltipCursor}
                   contentStyle={chart.tooltipContentStyle}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11px" }} />
