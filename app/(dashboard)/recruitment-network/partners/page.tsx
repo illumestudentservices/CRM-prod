@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { PartnerForm } from "./_components/partner-form";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,22 @@ export default async function PartnersPage({ searchParams }: Props) {
     take: 300,
   });
 
+  const regions = await db.region.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  // Pre-select the type based on the current tab so "Add" from the Agents
+  // tab defaults to type=AGENT etc.
+  const tabTypeMap: Record<string, "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER" | "EDUCATION_PARTNER" | undefined> = {
+    all: undefined,
+    agents: "AGENT",
+    schools: "SCHOOL",
+    referral: "REFERRAL_PARTNER",
+    education: "EDUCATION_PARTNER",
+  };
+  const defaultType = tabTypeMap[activeTab];
+
   // Group counts for the tab bar. One groupBy query, five buckets.
   const grouped = await db.recruitmentPartner.groupBy({
     by: ["type"],
@@ -121,6 +138,7 @@ export default async function PartnersPage({ searchParams }: Props) {
           {partners.length} of {counts.all} partners
           {q && <span> · filtered by &quot;{q}&quot;</span>}
         </div>
+        <PartnerForm regions={regions} defaultType={defaultType} />
       </div>
 
       {/* Spec §1 hierarchy — tab bar */}
