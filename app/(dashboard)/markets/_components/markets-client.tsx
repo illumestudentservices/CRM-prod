@@ -55,7 +55,7 @@ function HealthScoreBar({ score }: { score: number | null }) {
   const color = score >= 80 ? "bg-green-500" : score >= 60 ? "bg-cyan-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-1.5 w-20 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
       </div>
       <span className="text-xs font-mono text-slate-500">{score}</span>
@@ -279,14 +279,14 @@ export function MarketsClient({ markets, canWrite }: MarketsClientProps) {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-slate-900">{m.name}</h3>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">{m.name}</h3>
                       <p className="text-xs text-slate-400 font-mono">{m.code}</p>
                     </div>
                     <Badge
                       variant="outline"
                       className={
                         RISK_COLOR[m.politicalRiskLevel] ??
-                        "bg-slate-100 text-slate-600"
+                        "bg-slate-100 dark:bg-slate-800 text-slate-600"
                       }
                     >
                       {m.politicalRiskLevel.replace(/_/g, " ")}
@@ -300,24 +300,24 @@ export function MarketsClient({ markets, canWrite }: MarketsClientProps) {
                     <HealthScoreBar score={m.healthScore} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100">
+                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                     <div className="text-center">
                       <School className="h-3.5 w-3.5 text-slate-400 mx-auto mb-1" />
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {m._count.schools}
                       </p>
                       <p className="text-[10px] text-slate-400">Schools</p>
                     </div>
                     <div className="text-center">
                       <Activity className="h-3.5 w-3.5 text-slate-400 mx-auto mb-1" />
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {m._count.activities}
                       </p>
                       <p className="text-[10px] text-slate-400">Activities</p>
                     </div>
                     <div className="text-center">
                       <AlertTriangle className="h-3.5 w-3.5 text-slate-400 mx-auto mb-1" />
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                         {m._count.riskRegisters}
                       </p>
                       <p className="text-[10px] text-slate-400">Risks</p>

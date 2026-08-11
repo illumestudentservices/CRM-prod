@@ -125,9 +125,9 @@ export function EmailSectionButton({
                 onChange={(e) => setMessage(e.target.value)}
               />
             </div>
-            <div className="p-3 bg-slate-50 rounded-lg">
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg">
               <p className="text-xs text-slate-500">
-                Sending: <span className="font-semibold text-slate-700">{sectionTitle}</span>
+                Sending: <span className="font-semibold text-slate-700 dark:text-slate-300">{sectionTitle}</span>
               </p>
             </div>
           </div>

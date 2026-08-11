@@ -69,7 +69,7 @@ const ToastAction = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors",
-      "hover:bg-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-950",
+      "hover:bg-slate-100 dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-950",
       "disabled:pointer-events-none disabled:opacity-50",
       "group-[.destructive]:border-white/30 group-[.destructive]:hover:border-white/50",
       "group-[.destructive]:hover:bg-white/20 group-[.destructive]:hover:text-white",
@@ -90,7 +90,7 @@ const ToastClose = React.forwardRef<
     ref={ref}
     className={cn(
       "absolute right-1 top-1 rounded-md p-1 opacity-0 transition-opacity",
-      "text-slate-900/50 hover:text-slate-900",
+      "text-slate-900/50 hover:text-slate-900 dark:text-slate-100/50 dark:hover:text-slate-100",
       "focus:opacity-100 focus:outline-none focus:ring-1",
       "group-hover:opacity-100",
       "group-[.destructive]:text-white/70 group-[.destructive]:hover:text-white",

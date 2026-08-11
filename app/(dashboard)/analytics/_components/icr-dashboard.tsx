@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
 import { displayName } from "@/lib/person-name";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   BarChart,
   Bar,
@@ -63,6 +64,7 @@ interface DrillDown {
 const CLOSED_DRILL: DrillDown = { open: false, title: "", filters: {} };
 
 export function ICRDashboard() {
+  const chart = useChartTheme();
   const router = useRouter();
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [attentionLeads, setAttentionLeads] = useState<LeadAttention[]>([]);
@@ -224,17 +226,17 @@ export function ICRDashboard() {
                   margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
                   barSize={14}
                 >
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" tick={chart.tickStyle} axisLine={false} tickLine={false} />
                   <YAxis
                     type="category"
                     dataKey="stage"
                     width={100}
-                    tick={{ fontSize: 10, fill: "#64748B" }}
+                    tick={{ ...chart.tickStyle, fontSize: 10 }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <Tooltip
-                    contentStyle={{ fontSize: "12px", border: "1px solid #E2E8F0", borderRadius: "8px" }}
+                    contentStyle={chart.tooltipContentStyle}
                     formatter={(v: unknown) => [v as number, "Leads"]}
                   />
                   <Bar

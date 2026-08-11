@@ -465,7 +465,7 @@ export function TravelClient({
                     {itineraryItems.map((item, idx) => (
                       <div
                         key={idx}
-                        className="border rounded-lg p-3 mb-2 space-y-2 bg-slate-50"
+                        className="border rounded-lg p-3 mb-2 space-y-2 bg-slate-50 dark:bg-slate-900/40"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium text-slate-500">
@@ -575,7 +575,7 @@ export function TravelClient({
                     {meetingItems.map((m, idx) => (
                       <div
                         key={idx}
-                        className="border rounded-lg p-3 mb-2 space-y-2 bg-slate-50"
+                        className="border rounded-lg p-3 mb-2 space-y-2 bg-slate-50 dark:bg-slate-900/40"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium text-slate-500">
@@ -721,13 +721,13 @@ export function TravelClient({
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <Card className="p-4">
               <p className="text-sm font-medium text-slate-500">Total Trips</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.totalTrips}
               </p>
             </Card>
             <Card className="p-4">
               <p className="text-sm font-medium text-slate-500">Total Cost</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.totalCost.toLocaleString("en-US", {
                   style: "currency",
                   currency: "USD",
@@ -737,13 +737,13 @@ export function TravelClient({
             </Card>
             <Card className="p-4">
               <p className="text-sm font-medium text-slate-500">Schools Visited</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.schoolsVisited}
               </p>
             </Card>
             <Card className="p-4">
               <p className="text-sm font-medium text-slate-500">Agents Visited</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
                 {stats.agentsVisited}
               </p>
             </Card>

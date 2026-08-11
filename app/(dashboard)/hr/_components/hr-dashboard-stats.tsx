@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEAVE_TYPE_COLORS, leaveTypeLabel } from "@/lib/leave-policy";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ export function HRDashboardStats({
   trainingCompletion,
   perfScoreDistribution,
 }: HRDashboardStatsProps) {
+  const chart = useChartTheme();
   // Convert trainingCompletion % to pie data
   const trainingData = [
     { name: "Completed", value: trainingCompletion },
@@ -79,21 +81,21 @@ export function HRDashboardStats({
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={deptHeadcount} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  tick={chart.tickStyle}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  tick={chart.tickStyle}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                  contentStyle={chart.tooltipContentStyle}
                   cursor={{ fill: "#f8fafc" }}
                 />
                 <Bar dataKey="count" fill="#1E3A5F" radius={[4, 4, 0, 0]} name="Employees" />
@@ -125,15 +127,15 @@ export function HRDashboardStats({
                   }))}
                 margin={{ top: 0, right: 10, left: -10, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis dataKey="name" tick={{ ...chart.tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={chart.tickStyle} axisLine={false} tickLine={false} />
                 <Tooltip
                   formatter={(value, name) => [`${value} days`, name] as [string, string]}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                  contentStyle={chart.tooltipContentStyle}
                 />
-                <Legend formatter={(value) => <span style={{ fontSize: 11, color: "#64748b" }}>{value}</span>} />
-                <Bar dataKey="Allocated" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
+                <Legend formatter={(value) => <span style={chart.legendStyle}>{value}</span>} />
+                <Bar dataKey="Allocated" fill={chart.neutralSeries} radius={[4, 4, 0, 0]} />
                 <Bar dataKey="Used" radius={[4, 4, 0, 0]}>
                   {leaveUtilization
                     .filter((l) => l.total > 0)
@@ -175,11 +177,11 @@ export function HRDashboardStats({
                 </Pie>
                 <Tooltip
                   formatter={(value) => [`${value}%`] as [string]}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                  contentStyle={chart.tooltipContentStyle}
                 />
                 <Legend
                   formatter={(value) => (
-                    <span style={{ fontSize: 11, color: "#64748b" }}>{value}</span>
+                    <span style={chart.legendStyle}>{value}</span>
                   )}
                 />
               </PieChart>
@@ -204,21 +206,21 @@ export function HRDashboardStats({
                 data={perfData}
                 margin={{ top: 0, right: 10, left: -10, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                 <XAxis
                   dataKey="range"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  tick={chart.tickStyle}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  tick={chart.tickStyle}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                  contentStyle={chart.tooltipContentStyle}
                   cursor={{ fill: "#f8fafc" }}
                 />
                 <Bar dataKey="count" fill="#0EA5E9" radius={[4, 4, 0, 0]} name="Employees" />

@@ -407,10 +407,10 @@ export function SecurityTab() {
                   {!isCollapsed && group.resources.map((resource, rIdx) => (
                     <React.Fragment key={resource.key}>
                       {/* Resource sub-header */}
-                      <tr className={cn("border-b", rIdx % 2 === 0 ? "bg-white" : "bg-slate-50/60")}>
+                      <tr className={cn("border-b", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/60")}>
                         <td
                           colSpan={ROLES.length + 1}
-                          className={cn("py-2.5 px-4", rIdx % 2 === 0 ? "bg-white" : "bg-slate-50")}
+                          className={cn("py-2.5 px-4", rIdx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50")}
                           style={{ position: "sticky", left: 0, zIndex: 10 }}
                         >
                           <div className="flex items-center gap-2">

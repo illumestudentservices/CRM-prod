@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 
 interface EnrollmentTarget {
   id: string;
@@ -24,6 +25,7 @@ interface EnrollmentChartProps {
 }
 
 export function EnrollmentChart({ targets }: EnrollmentChartProps) {
+  const chart = useChartTheme();
   if (targets.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
@@ -42,26 +44,20 @@ export function EnrollmentChart({ targets }: EnrollmentChartProps) {
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
           <XAxis
             dataKey="year"
-            tick={{ fontSize: 12, fill: "#64748b" }}
+            tick={{ ...chart.tickStyle, fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: "#64748b" }}
+            tick={{ ...chart.tickStyle, fontSize: 12 }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip
-            contentStyle={{
-              background: "#1e293b",
-              border: "none",
-              borderRadius: "8px",
-              color: "#f8fafc",
-              fontSize: "12px",
-            }}
+            contentStyle={chart.tooltipContentStyle}
             cursor={{ fill: "#f1f5f9" }}
           />
           <Legend
@@ -69,7 +65,7 @@ export function EnrollmentChart({ targets }: EnrollmentChartProps) {
             iconSize={8}
             wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }}
           />
-          <Bar dataKey="Target" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={48} />
+          <Bar dataKey="Target" fill={chart.neutralSeries} radius={[4, 4, 0, 0]} maxBarSize={48} />
           <Bar dataKey="Actual" fill="#1E3A5F" radius={[4, 4, 0, 0]} maxBarSize={48} />
         </BarChart>
       </ResponsiveContainer>

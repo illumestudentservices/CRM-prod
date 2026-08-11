@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
 import { stageLabel, stageHex } from "@/lib/lead-pipeline";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   PieChart,
   Pie,
@@ -49,6 +50,7 @@ interface DrillDown {
 const CLOSED_DRILL: DrillDown = { open: false, title: "", filters: {} };
 
 export function RegionalDashboard() {
+  const chart = useChartTheme();
   const router = useRouter();
   const [data, setData] = useState<RegionalData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -180,7 +182,7 @@ export function RegionalDashboard() {
                   </Pie>
                   <Tooltip
                     formatter={(value: unknown) => [(value as number).toLocaleString()]}
-                    contentStyle={{ fontSize: "12px", border: "1px solid #E2E8F0", borderRadius: "8px" }}
+                    contentStyle={chart.tooltipContentStyle}
                   />
                   <Legend
                     iconType="circle"
@@ -211,20 +213,20 @@ export function RegionalDashboard() {
                   margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                   barSize={14}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 11, fill: "#64748B" }}
-                    axisLine={{ stroke: "#E2E8F0" }}
+                    tick={chart.tickStyle}
+                    axisLine={{ stroke: chart.axis }}
                     tickLine={false}
                     interval={0}
                     angle={-25}
                     textAnchor="end"
                     height={45}
                   />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: "12px", border: "1px solid #E2E8F0", borderRadius: "8px" }}
+                    contentStyle={chart.tooltipContentStyle}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11px" }} />
                   <Bar
@@ -284,20 +286,20 @@ export function RegionalDashboard() {
                 margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                 barSize={18}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
-                  axisLine={{ stroke: "#E2E8F0" }}
+                  tick={chart.tickStyle}
+                  axisLine={{ stroke: chart.axis }}
                   tickLine={false}
                   interval={0}
                   angle={-20}
                   textAnchor="end"
                   height={40}
                 />
-                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ fontSize: "12px", border: "1px solid #E2E8F0", borderRadius: "8px" }}
+                  contentStyle={chart.tooltipContentStyle}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11px" }} />
                 <Bar

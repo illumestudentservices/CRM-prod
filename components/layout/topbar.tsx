@@ -156,7 +156,7 @@ export function Topbar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100 transition-colors outline-none"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:bg-slate-800 transition-colors outline-none"
               aria-label="User menu"
             >
               <Avatar className="h-7 w-7">
@@ -165,7 +165,7 @@ export function Topbar({
                   {getInitials(userName)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium text-slate-700 hidden sm:block max-w-[120px] truncate">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:block max-w-[120px] truncate">
                 {userName}
               </span>
             </button>
@@ -173,7 +173,7 @@ export function Topbar({
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div>
-                <p className="font-medium text-slate-900">{userName}</p>
+                <p className="font-medium text-slate-900 dark:text-slate-100">{userName}</p>
                 <p className="text-xs text-slate-500 font-normal">{userEmail}</p>
               </div>
             </DropdownMenuLabel>
