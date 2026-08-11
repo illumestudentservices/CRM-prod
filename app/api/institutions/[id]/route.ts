@@ -6,6 +6,7 @@ import { type AccountStatus } from "@prisma/client";
 import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import type { Role } from "@/lib/permissions";
+import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
 
 /**
  * An INSTITUTION_CLIENT holds `institutions:read`, but that is a *module*
@@ -78,7 +79,11 @@ export async function GET(
       return NextResponse.json({ error: "Institution not found" }, { status: 404 });
     }
 
-    return NextResponse.json(institution);
+    // Field-level read control (Phase 10) — commercial terms are withheld from
+    // roles that hold institutions:read but not the commercial fields.
+    return NextResponse.json(
+      await redactFields(session.user.role as Role, "institutions", institution)
+    );
   } catch (error) {
     console.error("[GET /api/institutions/:id]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -129,6 +134,24 @@ export async function PATCH(
       serviceScope,
       regionalManagerId,
     } = body;
+
+    // Field-level write control (Phase 10). Rejects the request naming the
+    // offending columns rather than dropping them, so a caller who believes
+    // they changed the contract value is told they didn't.
+    const writeCheck = await checkFieldWrites(
+      session.user.role as Role,
+      "institutions",
+      body as Record<string, unknown>
+    );
+    if (!writeCheck.ok) {
+      return NextResponse.json(
+        {
+          error: `Your role cannot change: ${writeCheck.rejected.join(", ")}`,
+          fields: writeCheck.rejected,
+        },
+        { status: 403 }
+      );
+    }
 
     const updated = await db.institution.update({
       where: { id },

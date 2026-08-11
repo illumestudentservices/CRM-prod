@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 
 export async function POST(
   req: NextRequest,
@@ -8,7 +10,11 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "SUPER_ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Capability-gated (Phase 10). Defaults to SUPER_ADMIN and still requires
+  // users:write underneath, so it cannot be widened past the coarse matrix.
+  if (!(await hasCapability(session.user.role as Role, "users.reset_mfa"))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
 
