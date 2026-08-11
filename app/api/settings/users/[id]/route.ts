@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { logActivity } from "@/lib/activity-logger";
 import { sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { guardUserRemoval, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
+import { trashRecord } from "@/lib/recycle-bin";
 
 /**
  * Soft delete and restore.
@@ -34,10 +35,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   const now = new Date();
+  // Route the soft-delete through the recycle bin so it appears alongside
+  // every other trashed item. trashRecord sets deletedAt; the additional
+  // session-revocation + isActive flags stay under this endpoint's control.
+  await trashRecord({ entityType: "User", entityId: id, userId: session.user.id });
   const updated = await db.user.update({
     where: { id },
     data: {
-      deletedAt: now,
       // Deactivated as well, so nothing anywhere treats them as a live account
       // if deletedAt is ever missed by a query.
       isActive: false,

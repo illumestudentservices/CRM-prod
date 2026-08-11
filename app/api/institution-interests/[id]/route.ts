@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -106,7 +107,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     const { id } = await ctx.params;
     const existing = await db.institutionInterest.findUnique({ where: { id }, select: { leadId: true } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await db.institutionInterest.delete({ where: { id } });
+    await trashRecord({ entityType: "InstitutionInterest", entityId: id, userId: session.user.id });
     await syncLeadFromInterests(existing.leadId);
     return NextResponse.json({ ok: true });
   } catch (err) {

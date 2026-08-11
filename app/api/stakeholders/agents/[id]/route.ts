@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/stakeholders/agents/:id ─────────────────────────────────────
 
@@ -190,7 +191,7 @@ export async function DELETE(
         { status: 404 }
       );
 
-    await db.agentProfile.delete({ where: { id } });
+    await trashRecord({ entityType: "AgentProfile", entityId: id, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

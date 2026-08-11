@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -91,6 +92,6 @@ export async function DELETE(
   if (!asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   if (asset.status === "ASSIGNED") return NextResponse.json({ error: "Cannot delete an assigned asset" }, { status: 422 });
 
-  await db.iTAsset.delete({ where: { id } });
+  await trashRecord({ entityType: "ITAsset", entityId: id, userId: session.user.id });
   return NextResponse.json({ success: true });
 }

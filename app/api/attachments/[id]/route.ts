@@ -5,6 +5,7 @@ import type { Role } from "@/lib/permissions";
 import { canReadParent, canWriteParent } from "@/lib/attachment-parent";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
 import { logActivity } from "@/lib/activity-logger";
+import { trashRecord } from "@/lib/recycle-bin";
 
 /**
  * Polymorphic attachment — download + delete.
@@ -75,7 +76,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await db.attachment.delete({ where: { id } });
+  await trashRecord({ entityType: "Attachment", entityId: id, userId: session.user.id });
   void logActivity(session.user.id, "DELETE", "ATTACHMENT", id, {
     parentType: attachment.parentType,
     parentId: attachment.parentId,

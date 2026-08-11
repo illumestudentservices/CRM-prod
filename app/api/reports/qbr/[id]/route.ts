@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const updateQBRSchema = z.object({
   executiveSummary: z.string().optional(),
@@ -121,7 +122,7 @@ export async function DELETE(
       return NextResponse.json({ error: "QBR not found" }, { status: 404 });
     }
 
-    await db.quarterlyBusinessReview.delete({ where: { id } });
+    await trashRecord({ entityType: "QuarterlyBusinessReview", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

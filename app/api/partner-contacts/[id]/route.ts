@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).optional(),
@@ -67,9 +68,10 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
-    // Soft-delete via isActive=false to preserve engagement history
-    const updated = await db.partnerContact.update({ where: { id }, data: { isActive: false } });
-    return NextResponse.json(updated);
+    // Snapshot to recycle bin (60-day retention) then remove. Restore
+    // re-INSERTs from the snapshot so engagement history is preserved.
+    await trashRecord({ entityType: "PartnerContact", entityId: id, userId: session.user.id });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[DELETE /api/partner-contacts/[id]]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

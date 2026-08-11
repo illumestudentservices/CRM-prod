@@ -934,6 +934,11 @@ model User {
 
   // Phase 8 — polymorphic attachments (spec §20 doc handling; migration 022)
   uploadedAttachments Attachment[]     @relation("AttachmentUploader")
+  deletedAttachments  Attachment[]     @relation("AttachmentDeleter")
+
+  // Phase 9 — recycle bin (migration 023)
+  deletedRecords          DeletedRecord[] @relation("DeletedRecordDeleter")
+  restoredDeletedRecords  DeletedRecord[] @relation("DeletedRecordRestorer")
 
   @@index([deletedAt, purgedAt])
   @@map("users")
@@ -3443,8 +3448,69 @@ model Attachment {
   uploadedById String?
   uploadedBy   User?                @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime             @default(now())
+  /// Recycle-bin support. Set by lib/recycle-bin.trashRecord; nullified on
+  /// restore. The 60-day purge cron hard-deletes rows where deletedAt is old.
+  deletedAt    DateTime?
+  deletedById  String?
+  deletedBy    User?                @relation("AttachmentDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([parentType, parentId])
   @@index([uploadedById])
   @@map("attachments")
+}
+
+// ─── PHASE 9: RECYCLE BIN ─────────────────────────────────────────────────
+
+/// System-wide recycle bin. Every DELETE endpoint routes through
+/// lib/recycle-bin.trashRecord(), which writes a row here before either
+/// setting deletedAt on the target (for soft-delete-capable entities) or
+/// snapshotting the row to `data` and hard-deleting it. A daily cron purges
+/// anything past expiresAt (60-day retention).
+model DeletedRecord {
+  id            String   @id @default(uuid())
+  /// Discriminator used to look up the entity in lib/recycle-bin's registry.
+  /// e.g. "Lead", "Attachment", "ClientKPI".
+  entityType    String
+  /// Original primary key of the deleted row. For hard-delete entities this
+  /// is only meaningful as an audit reference; for soft-delete entities it
+  /// still points at a real row that's been marked deletedAt.
+  entityId      String
+  /// Rendered display label for the item ("Passport.pdf", "Aisha Diallo",
+  /// "Q3 KPI: enrolments"). Used in the recycle-bin UI so admins can find
+  /// what they need without loading each entity.
+  entityLabel   String
+  /// Human context — the row's owner. Optional because top-level entities
+  /// (institutions, users) don't have a natural parent.
+  parentType    String?
+  parentId      String?
+  parentLabel   String?
+  /// True if the delete actually removed the row from its table (data
+  /// snapshot must be non-null in that case). False if the row still exists
+  /// with deletedAt set (data is null; restore just clears deletedAt).
+  hardDeleted   Boolean
+  /// Full row snapshot for hard-delete restore. Prisma's Json type serialises
+  /// bigints/dates as strings — the restore path converts them back using
+  /// the model shape.
+  data          Json?
+
+  deletedById   String?
+  deletedBy     User?     @relation("DeletedRecordDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedAt     DateTime  @default(now())
+  /// Materialised deletedAt + 60 days. The purge cron indexes this so it
+  /// runs as a single-index scan.
+  expiresAt     DateTime
+  /// Set when an admin restores the item. Non-null means this row is a
+  /// historical activity record, not a live bin entry.
+  restoredAt    DateTime?
+  restoredById  String?
+  restoredBy    User?     @relation("DeletedRecordRestorer", fields: [restoredById], references: [id], onDelete: SetNull)
+  /// Set when the item is permanently deleted (either by the cron or by
+  /// admin action). Same semantics as restoredAt for indexing.
+  purgedAt      DateTime?
+
+  @@index([expiresAt])
+  @@index([entityType, entityId])
+  @@index([deletedById])
+  @@index([deletedAt(sort: Desc)])
+  @@map("deleted_records")
 }

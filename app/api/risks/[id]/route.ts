@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { RiskStatus, RiskType } from "@prisma/client";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/risks/:id ──────────────────────────────────────────────────
 
@@ -166,7 +167,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Risk not found" }, { status: 404 });
     }
 
-    await db.riskRegister.delete({ where: { id } });
+    await trashRecord({ entityType: "RiskRegister", entityId: id, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

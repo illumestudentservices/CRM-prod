@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
+import { trashRecord } from "@/lib/recycle-bin";
 
 type Params = { params: Promise<{ id: string; contractId: string; attachmentId: string }> };
 
@@ -46,7 +47,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.contractAttachment.delete({ where: { id: attachmentId } });
+  await trashRecord({ entityType: "ContractAttachment", entityId: attachmentId, userId: session.user.id });
 
   return NextResponse.json({ success: true });
 }

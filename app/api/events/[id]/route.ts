@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type EventStatus } from "@prisma/client";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/events/:id ───────────────────────────────────────────────────
 
@@ -205,10 +206,7 @@ export async function DELETE(
     });
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    await db.event.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await trashRecord({ entityType: "Event", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

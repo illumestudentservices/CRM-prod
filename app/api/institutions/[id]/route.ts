@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type AccountStatus } from "@prisma/client";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/institutions/:id ─────────────────────────────────────────────
 
@@ -172,10 +173,7 @@ export async function DELETE(
     });
     if (!existing || existing.deletedAt) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
-    await db.institution.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await trashRecord({ entityType: "Institution", entityId: id, userId: session.user.id });
 
     await db.auditLog.create({
       data: {

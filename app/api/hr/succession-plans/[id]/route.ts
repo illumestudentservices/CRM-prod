@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── PATCH /api/hr/succession-plans/[id] ──────────────────────────────────────
 
@@ -76,7 +77,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Succession plan not found" }, { status: 404 });
     }
 
-    await db.successionPlan.delete({ where: { id } });
+    await trashRecord({ entityType: "SuccessionPlan", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

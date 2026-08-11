@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── PATCH /api/stakeholders/counsellors/:id ──────────────────────────────
 
@@ -130,12 +131,11 @@ export async function DELETE(
         { status: 404 }
       );
 
-    await db.counsellor.update({
-      where: { id },
-      data: { isActive: false },
-    });
-
-    // Mirror the soft-delete onto the PartnerContact.
+    // Mirror the soft-delete onto the PartnerContact BEFORE trashing so the
+    // legacyCounsellorId still resolves the mirror update. trashRecord
+    // snapshots then hard-deletes the counsellor row; restoring the item
+    // from the recycle bin recreates it, but the PartnerContact stays
+    // deactivated (the reactivation is a separate admin action).
     try {
       await db.partnerContact.updateMany({
         where: { legacyCounsellorId: id },
@@ -149,15 +149,7 @@ export async function DELETE(
       );
     }
 
-    await db.auditLog.create({
-      data: {
-        action: "DELETE",
-        entity: "Counsellor",
-        entityId: id,
-        userId: session.user.id,
-        changes: { before: existing },
-      },
-    });
+    await trashRecord({ entityType: "Counsellor", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

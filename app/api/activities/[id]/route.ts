@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -205,10 +206,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    await db.activity.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await trashRecord({ entityType: "Activity", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

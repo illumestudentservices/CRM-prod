@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/hr/performance-reviews/[id] ─────────────────────────────────────
 
@@ -137,7 +138,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
-    await db.performanceReview.delete({ where: { id } });
+    await trashRecord({ entityType: "PerformanceReview", entityId: id, userId: session.user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

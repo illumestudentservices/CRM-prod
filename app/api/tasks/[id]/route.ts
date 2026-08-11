@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -145,7 +146,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
-    await db.task.update({ where: { id }, data: { deletedAt: new Date() } });
+    await trashRecord({ entityType: "Task", entityId: id, userId: session.user.id });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[DELETE /api/tasks/[id]]", err);
