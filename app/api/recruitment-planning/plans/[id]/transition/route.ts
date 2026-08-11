@@ -21,7 +21,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { role } = session.user;
-    if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "write"))) {
+    // Advancing a plan is either authoring (ICR submitting) or reviewing
+    // (a manager moving it along), so accept `write` OR `approve`.
+    //
+    // Requiring `write` alone deadlocked the workflow: HQ_EXECUTIVE,
+    // ACCOUNT_MANAGER and VP_GLOBAL_SALES hold `approve` but not `write`,
+    // and PLAN_TRANSITIONS makes those three roles the owners of four of the
+    // five approval steps. Every plan therefore stopped at
+    // REGIONAL_MANAGER_REVIEW unless a SUPER_ADMIN pushed it through by hand.
+    //
+    // This is only the coarse module gate. canTransition() below is still the
+    // authority on which role may perform which specific hop, so widening
+    // here does not let anyone make a transition that isn't theirs.
+    const canWrite = await effectiveHasPermission(role as Role, "recruitment_planning", "write");
+    const canApprove = await effectiveHasPermission(role as Role, "recruitment_planning", "approve");
+    if (!canWrite && !canApprove) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
