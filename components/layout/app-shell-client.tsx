@@ -56,7 +56,10 @@ const NAV_ITEMS: NavItem[] = [
   { key: "institutions", label: "Clients", href: "/institutions", icon: Building2 },
   { key: "students", label: "Students & Pipeline", href: "/students", icon: Users },
   { key: "recruitment_network", label: "Recruitment Network", href: "/recruitment-network", icon: Globe },
-  { key: "stakeholders", label: "Stakeholders", href: "/stakeholders", icon: SchoolIcon },
+  // Stakeholders sidebar entry removed — schools/counsellors will be folded
+  // into the Clients (Institution) detail as a tab. Page + API routes at
+  // /stakeholders and /api/stakeholders/* remain live so the merge is a
+  // straight lift-and-shift, not a rebuild.
   { key: "market_intelligence", label: "Market Intelligence", href: "/market-intelligence", icon: Map },
   { key: "field_operations", label: "Field Operations", href: "/field-operations", icon: ClipboardList },
   // Events retired as a top-level module per spec §6 (retire standalone Events)
