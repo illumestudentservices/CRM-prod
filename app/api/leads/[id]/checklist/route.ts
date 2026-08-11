@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { resolveChecklist } from "@/lib/lead-checklists";
+import { trashRecord } from "@/lib/recycle-bin";
 
 const CATEGORIES = ["DOCUMENT", "VISA", "PRE_DEPARTURE", "ACCOMMODATION"] as const;
 
@@ -187,6 +188,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const existing = await db.leadChecklistItem.findFirst({ where: { id: itemId, leadId: id } });
   if (!existing) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
-  await db.leadChecklistItem.delete({ where: { id: itemId } });
+  // LeadChecklistItem is registered in the recycle bin as a hard-delete entity.
+  // This was calling db.leadChecklistItem.delete directly, so removing a
+  // document requirement from a student's file left no trace and no way back.
+  await trashRecord({ entityType: "LeadChecklistItem", entityId: itemId, userId: ctx.userId });
   return NextResponse.json({ deleted: true });
 }

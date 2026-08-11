@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { trashRecord } from "@/lib/recycle-bin";
 
 function forbidden() {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -63,7 +64,11 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   try {
-    await db.region.delete({ where: { id } });
+    // Region is registered in the recycle bin as a hard-delete entity — the row
+    // is snapshotted to deleted_records before removal so it can be restored
+    // within the retention window. This route was calling db.region.delete
+    // directly, which removed it with no way back.
+    await trashRecord({ entityType: "Region", entityId: id, userId: session.user.id });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[regions DELETE]", err);
