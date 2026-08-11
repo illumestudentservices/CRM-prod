@@ -169,7 +169,7 @@ function SidebarInner({
         >
           <div
             className={cn(
-              "flex items-center justify-center rounded-lg bg-white",
+              "flex items-center justify-center rounded-lg bg-white dark:bg-slate-900",
               // Inner ring for the recessed look, plus a soft drop shadow
               // matching the sidebar tone so the tile appears embedded.
               "ring-1 ring-inset ring-slate-200/60",

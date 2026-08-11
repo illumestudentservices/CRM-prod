@@ -1,0 +1,212 @@
+#!/usr/bin/env node
+/**
+ * Dark-mode gap scanner.
+ *
+ * Dark mode here is class-based (`@custom-variant dark`), so anything that
+ * sets a colour without a `dark:` counterpart keeps its light value on a dark
+ * background. That is invisible in code review and only shows up as a white
+ * card or unreadable text once you switch themes.
+ *
+ * Three classes of finding, roughly in order of how bad they look:
+ *
+ *   TEXT    a dark text colour with no dark: variant → near-black on near-black
+ *   SURFACE a light bg with no dark: variant         → white patch
+ *   BORDER  a light border with no dark: variant     → bright outline
+ *   LITERAL a hex colour in an inline style or SVG   → never adapts at all
+ *
+ * The checks are per-`className`, not per-file: a file can legitimately
+ * contain `bg-white` in one element and `dark:bg-slate-900` in another, and
+ * only looking at the same attribute catches real mismatches.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+
+const ROOT = process.cwd();
+const ONLY = process.argv.includes("--summary") ? "summary" : "full";
+
+// Light-valued utilities that need a dark counterpart of the same property.
+//
+// The trailing `(?![/\d])` matters: `bg-white/5` is a translucent overlay,
+// almost always sitting on a brand gradient or an already-dark panel, and is
+// correct in both themes. Without the guard `/` counted as a word boundary and
+// every one of those decorative blurs was reported.
+const LIGHT_BG = /\b(?:bg-white|bg-slate-(?:50|100|200)|bg-gray-(?:50|100|200)|bg-zinc-(?:50|100|200)|bg-neutral-(?:50|100|200))\b(?![/\d])/;
+
+// Dark text is the readability problem; light text on light bg is a separate
+// (rarer) issue we don't chase here.
+const DARK_TEXT = /\b(?:text-(?:slate|gray|zinc|neutral)-(?:700|800|900)|text-black)\b(?![/\d])/;
+
+const LIGHT_BORDER = /\bborder-(?:slate|gray|zinc|neutral)-(?:100|200|300)\b(?![/\d])/;
+
+// Divide/ring/shadow utilities have the same problem and are easy to miss.
+const LIGHT_DIVIDE = /\bdivide-(?:slate|gray|zinc)-(?:100|200)\b/;
+
+/**
+ * A dark counterpart may carry further modifiers between `dark:` and the
+ * property — `dark:focus:bg-slate-800`, `dark:group-hover:text-slate-100`.
+ * Matching a bare `dark:bg-` missed all of those and reported the shadcn
+ * primitives, which are in fact correct.
+ */
+function hasDarkVariant(value, property) {
+  // Modifiers between `dark:` and the property may be bracketed —
+  // `dark:[&_tr]:border-…`, `dark:data-[state=on]:bg-…`. Restricting this to
+  // `[a-z0-9-]+:` reported the shadcn primitives, which are in fact correct.
+  return new RegExp(String.raw`\bdark:(?:[^\s"']+:)*${property}-`).test(value);
+}
+
+/**
+ * Escape hatch for surfaces that are meant to stay light in both themes —
+ * the white tile the logo sits on, for instance. Put `dark-ok` in a comment
+ * on the same line or the line above.
+ */
+function isSuppressed(lines, lineNo) {
+  const here = lines[lineNo - 1] ?? "";
+  const above = lines[lineNo - 2] ?? "";
+  return /dark-ok/.test(here) || /dark-ok/.test(above);
+}
+
+/**
+ * Surfaces that are dark in *both* themes, so a `dark:` counterpart is
+ * meaningless there. The (auth) route group renders on a fixed #04080F
+ * background (see app/(auth)/layout.tsx) and the MFA overlay paints its own
+ * dark gradient — light values in those files are the correct choice, not an
+ * omission. Flagging them buried the real findings.
+ */
+const ALWAYS_DARK = [
+  path.join("app", "(auth)"),
+  path.join("components", "shared", "mfa-unlock-overlay.tsx"),
+  path.join("components", "shared", "welcome-overlay.tsx"),
+  path.join("app", "change-password"),
+  path.join("app", "reset-password"),
+];
+
+function isAlwaysDark(rel) {
+  return ALWAYS_DARK.some((p) => rel.startsWith(p) || rel === p);
+}
+
+const findings = [];
+
+function walk(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".next" || entry.name === ".git") continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, out);
+    else if (/\.tsx$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Pull out every className value, including the multi-line and cn(...) forms
+ * the codebase uses. Returns { value, line } pairs.
+ */
+function classAttributes(src) {
+  const out = [];
+  // className="..." | className={"..."} | className={cn("...", "...")} |
+  // className={`...`}  — capture the whole attribute up to the balancing quote
+  // or brace, then keep only the string literals inside it.
+  const attrRe = /className\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([\s\S]*?)\}(?=\s|\/?>))/g;
+  let m;
+  while ((m = attrRe.exec(src)) !== null) {
+    const raw = m[1] ?? m[2] ?? m[3] ?? "";
+    // Inside a braced expression, only string literals carry classes.
+    const literals = m[3]
+      ? [...m[3].matchAll(/["'`]([^"'`]*)["'`]/g)].map((x) => x[1]).join(" ")
+      : raw;
+    const line = src.slice(0, m.index).split("\n").length;
+    out.push({ value: literals, line });
+  }
+  return out;
+}
+
+/** Hex colours inside inline style props or SVG paint attributes. */
+function literalColours(src) {
+  const out = [];
+  const patterns = [
+    // style={{ ... "#fff" ... }}
+    { re: /style=\{\{[^}]*?(#[0-9a-fA-F]{3,8})[^}]*?\}\}/g, kind: "inline style" },
+    // fill="#fff" / stroke="#fff"
+    { re: /\b(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, kind: "svg paint" },
+    // recharts prop objects: tick={{ fill: "#94a3b8" }}
+    // axisLine and tickLine were missing from this list, which is how a
+    // near-white axis line survived the first pass on leads-trend-chart.
+    { re: /\b(?:tick|tickLine|axisLine|contentStyle|itemStyle|labelStyle|wrapperStyle|dot|activeDot)=\{\{[^}]*?(#[0-9a-fA-F]{3,8})[^}]*?\}\}/g, kind: "chart style" },
+  ];
+  for (const { re, kind } of patterns) {
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      const hex = m[1].toLowerCase();
+      // Brand colours are intentional and legible on both themes; skip them to
+      // keep the signal useful.
+      // Brand and semantic series colours. These carry meaning and are legible
+      // on both themes, so a `dark:` counterpart would change what the chart
+      // says rather than fix a contrast problem.
+      if ([
+        "#1e3a5f", "#0ea5e9", "#0369a1", "#22c55e",
+        "#f5a524", "#f59e0b", "#ef4444", "#8b5cf6", "#3b82f6",
+      ].includes(hex)) continue;
+      const line = src.slice(0, m.index).split("\n").length;
+      out.push({ hex, kind, line });
+    }
+  }
+  return out;
+}
+
+for (const file of walk(path.join(ROOT, "app")).concat(walk(path.join(ROOT, "components")))) {
+  const src = fs.readFileSync(file, "utf8");
+  const rel = path.relative(ROOT, file);
+  if (isAlwaysDark(rel)) continue;
+
+  const lines = src.split("\n");
+
+  for (const { value, line } of classAttributes(src)) {
+    if (isSuppressed(lines, line)) continue;
+    if (LIGHT_BG.test(value) && !hasDarkVariant(value, "bg")) {
+      findings.push({ file: rel, line, type: "SURFACE", detail: value.match(LIGHT_BG)[0] });
+    }
+    if (DARK_TEXT.test(value) && !hasDarkVariant(value, "text")) {
+      findings.push({ file: rel, line, type: "TEXT", detail: value.match(DARK_TEXT)[0] });
+    }
+    if (LIGHT_BORDER.test(value) && !hasDarkVariant(value, "border")) {
+      findings.push({ file: rel, line, type: "BORDER", detail: value.match(LIGHT_BORDER)[0] });
+    }
+    if (LIGHT_DIVIDE.test(value) && !hasDarkVariant(value, "divide")) {
+      findings.push({ file: rel, line, type: "BORDER", detail: value.match(LIGHT_DIVIDE)[0] });
+    }
+  }
+
+  for (const { hex, kind, line } of literalColours(src)) {
+    if (isSuppressed(lines, line)) continue;
+    findings.push({ file: rel, line, type: "LITERAL", detail: `${hex} (${kind})` });
+  }
+}
+
+// ── Report ────────────────────────────────────────────────────────────────
+const byType = findings.reduce((a, f) => { (a[f.type] ??= []).push(f); return a; }, {});
+const byFile = findings.reduce((a, f) => { (a[f.file] ??= []).push(f); return a; }, {});
+
+process.stdout.write(`\nDark-mode scan: ${findings.length} finding(s) across ${Object.keys(byFile).length} file(s)\n`);
+process.stdout.write(`${"─".repeat(70)}\n`);
+for (const t of ["TEXT", "SURFACE", "BORDER", "LITERAL"]) {
+  process.stdout.write(`  ${t.padEnd(8)} ${String(byType[t]?.length ?? 0).padStart(4)}\n`);
+}
+
+process.stdout.write(`\nWorst files:\n`);
+for (const [file, list] of Object.entries(byFile).sort((a, b) => b[1].length - a[1].length).slice(0, 20)) {
+  const counts = list.reduce((a, f) => { a[f.type] = (a[f.type] ?? 0) + 1; return a; }, {});
+  const summary = Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(" ");
+  process.stdout.write(`  ${String(list.length).padStart(3)}  ${file.padEnd(64)} ${summary}\n`);
+}
+
+if (ONLY === "full") {
+  process.stdout.write(`\nDetail:\n`);
+  for (const [file, list] of Object.entries(byFile).sort((a, b) => b[1].length - a[1].length)) {
+    process.stdout.write(`\n${file}\n`);
+    for (const f of list.sort((a, b) => a.line - b.line)) {
+      process.stdout.write(`  ${String(f.line).padStart(5)}  ${f.type.padEnd(8)} ${f.detail}\n`);
+    }
+  }
+}
+
+process.exit(findings.length > 0 ? 1 : 0);

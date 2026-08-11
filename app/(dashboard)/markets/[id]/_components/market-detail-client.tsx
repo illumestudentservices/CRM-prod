@@ -147,13 +147,13 @@ function HealthScoreBar({ score }: { score: number | null }) {
           : "bg-red-500";
   return (
     <div className="flex items-center gap-3">
-      <div className="h-2.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-2.5 flex-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${color}`}
           style={{ width: `${score}%` }}
         />
       </div>
-      <span className="text-sm font-semibold text-slate-700 tabular-nums">
+      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
         {score}/100
       </span>
     </div>
@@ -239,7 +239,7 @@ export function MarketDetailClient({
 
   return (
     <Tabs defaultValue="overview">
-      <TabsList className="bg-white border border-slate-200 flex-wrap h-auto">
+      <TabsList className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex-wrap h-auto">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="intelligence">Intelligence</TabsTrigger>
         <TabsTrigger value="schools">
@@ -258,7 +258,7 @@ export function MarketDetailClient({
         {/* Health Score */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-700">
+            <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               Market Health Score
             </CardTitle>
           </CardHeader>
@@ -316,7 +316,7 @@ export function MarketDetailClient({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-slate-700">
+              <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Market Intelligence
               </CardTitle>
               {canWrite && (
@@ -346,7 +346,7 @@ export function MarketDetailClient({
                   variant="outline"
                   className={
                     RISK_BADGE[market.politicalRiskLevel] ??
-                    "bg-slate-100 text-slate-600"
+                    "bg-slate-100 dark:bg-slate-800 text-slate-600"
                   }
                 >
                   {RISK_LABEL[market.politicalRiskLevel] ??
@@ -381,7 +381,7 @@ export function MarketDetailClient({
                     placeholder={`Enter ${field.label.toLowerCase()}...`}
                   />
                 ) : (
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 rounded-md p-3 min-h-[60px]">
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed bg-slate-50 dark:bg-slate-900/40 rounded-md p-3 min-h-[60px]">
                     {intelValues[field.key] || (
                       <span className="text-slate-400 italic">
                         No data entered
@@ -424,7 +424,7 @@ export function MarketDetailClient({
                 ) : (
                   market.schools.map((school) => (
                     <TableRow key={school.id}>
-                      <TableCell className="font-medium text-slate-900">
+                      <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                         {school.name}
                       </TableCell>
                       <TableCell className="text-slate-600">
@@ -440,7 +440,7 @@ export function MarketDetailClient({
                           variant="outline"
                           className={
                             RELATIONSHIP_BADGE[school.relationshipStatus] ??
-                            "bg-slate-100 text-slate-600"
+                            "bg-slate-100 dark:bg-slate-800 text-slate-600"
                           }
                         >
                           {school.relationshipStatus.replace(/_/g, " ")}
@@ -493,13 +493,13 @@ export function MarketDetailClient({
                 ) : (
                   market.activities.map((activity) => (
                     <TableRow key={activity.id}>
-                      <TableCell className="font-medium text-slate-900">
+                      <TableCell className="font-medium text-slate-900 dark:text-slate-100">
                         {activity.title}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className="bg-slate-100 text-slate-600 border-slate-200"
+                          className="bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-800"
                         >
                           {activity.type.replace(/_/g, " ")}
                         </Badge>
@@ -559,7 +559,7 @@ export function MarketDetailClient({
                     <TableRow key={risk.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-slate-900">
+                          <p className="font-medium text-slate-900 dark:text-slate-100">
                             {risk.title}
                           </p>
                           {risk.description && (
@@ -572,7 +572,7 @@ export function MarketDetailClient({
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className="bg-slate-100 text-slate-600 border-slate-200"
+                          className="bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200 dark:border-slate-800"
                         >
                           {risk.type}
                         </Badge>
@@ -582,7 +582,7 @@ export function MarketDetailClient({
                           variant="outline"
                           className={
                             RISK_STATUS_BADGE[risk.status] ??
-                            "bg-slate-100 text-slate-600"
+                            "bg-slate-100 dark:bg-slate-800 text-slate-600"
                           }
                         >
                           {risk.status}

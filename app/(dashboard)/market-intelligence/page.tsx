@@ -45,7 +45,7 @@ export default async function MarketIntelligencePage() {
                 <span className={
                   m.priority === "HIGH" ? "text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded" :
                   m.priority === "MEDIUM" ? "text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded" :
-                  "text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded"
+                  "text-xs px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 rounded"
                 }>{m.priority ?? "—"}</span>
               </td>
               <td className="p-2">{m.potential ?? "—"}</td>

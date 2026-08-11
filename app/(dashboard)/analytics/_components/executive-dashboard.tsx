@@ -18,6 +18,7 @@ import { LeadsTrendChart } from "./leads-trend-chart";
 import { ConversionFunnel } from "./conversion-funnel";
 import { DrillDownSheet } from "./drill-down-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
   BarChart,
   Bar,
@@ -138,6 +139,7 @@ interface DrillDown {
 const CLOSED_DRILL: DrillDown = { open: false, title: "", filters: {} };
 
 export function ExecutiveDashboard() {
+  const chart = useChartTheme();
   const router = useRouter();
   const [dateRange, setDateRange] = useState("ytd");
   const [data, setData] = useState<AnalyticsOverview | null>(null);
@@ -399,10 +401,10 @@ export function ExecutiveDashboard() {
                   layout="vertical"
                   margin={{ top: 0, right: 50, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
                   <XAxis
                     type="number"
-                    tick={{ fontSize: 11, fill: "#64748B" }}
+                    tick={chart.tickStyle}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -410,7 +412,7 @@ export function ExecutiveDashboard() {
                     type="category"
                     dataKey="country"
                     width={110}
-                    tick={{ fontSize: 11, fill: "#64748B" }}
+                    tick={chart.tickStyle}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -419,12 +421,7 @@ export function ExecutiveDashboard() {
                       value,
                       name === "leads" ? "Leads" : "Enrolled",
                     ]}
-                    contentStyle={{
-                      fontSize: "12px",
-                      border: "1px solid #E2E8F0",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                    }}
+                    contentStyle={chart.tooltipContentStyle}
                   />
                   <Bar
                     dataKey="leads"
@@ -472,10 +469,10 @@ export function ExecutiveDashboard() {
                   layout="vertical"
                   margin={{ top: 0, right: 50, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
                   <XAxis
                     type="number"
-                    tick={{ fontSize: 11, fill: "#64748B" }}
+                    tick={chart.tickStyle}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -483,7 +480,7 @@ export function ExecutiveDashboard() {
                     type="category"
                     dataKey="name"
                     width={90}
-                    tick={{ fontSize: 11, fill: "#64748B" }}
+                    tick={chart.tickStyle}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -492,11 +489,7 @@ export function ExecutiveDashboard() {
                       name === "conversionRate" ? `${value}%` : value,
                       name === "leads" ? "Leads" : name === "enrolled" ? "Enrolled" : "Conv. Rate",
                     ]}
-                    contentStyle={{
-                      fontSize: "12px",
-                      border: "1px solid #E2E8F0",
-                      borderRadius: "8px",
-                    }}
+                    contentStyle={chart.tooltipContentStyle}
                   />
                   <Bar
                     dataKey="leads"
@@ -681,7 +674,7 @@ export function ExecutiveDashboard() {
                     <svg viewBox="0 0 36 36" className="h-16 w-16 -rotate-90">
                       <circle
                         cx="18" cy="18" r="14"
-                        fill="none" stroke="#E2E8F0" strokeWidth="3"
+                        fill="none" stroke={chart.grid} strokeWidth="3"
                       />
                       <circle
                         cx="18" cy="18" r="14"

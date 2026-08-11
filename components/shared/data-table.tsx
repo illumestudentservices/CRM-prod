@@ -202,7 +202,7 @@ export function DataTable<TData, TValue>({
                     setGlobalFilter(event.target.value);
                   }
                 }}
-                className="pl-9 h-9 bg-white"
+                className="pl-9 h-9 bg-white dark:bg-slate-900"
               />
             </div>
           )}
@@ -266,7 +266,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -277,7 +277,7 @@ export function DataTable<TData, TValue>({
                     style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                     className={cn(
                       header.column.getCanSort() &&
-                        "cursor-pointer select-none hover:text-slate-900 transition-colors"
+                        "cursor-pointer select-none hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
                     )}
                     onClick={header.column.getToggleSortingHandler()}
                   >
@@ -358,7 +358,7 @@ export function DataTable<TData, TValue>({
             ) : (
               <>
                 Showing{" "}
-                <span className="font-medium text-slate-700">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
                   {table.getFilteredRowModel().rows.length === 0
                     ? 0
                     : table.getState().pagination.pageIndex *
@@ -366,7 +366,7 @@ export function DataTable<TData, TValue>({
                       1}
                 </span>{" "}
                 to{" "}
-                <span className="font-medium text-slate-700">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
                   {Math.min(
                     (table.getState().pagination.pageIndex + 1) *
                       table.getState().pagination.pageSize,
@@ -374,7 +374,7 @@ export function DataTable<TData, TValue>({
                   )}
                 </span>{" "}
                 of{" "}
-                <span className="font-medium text-slate-700">
+                <span className="font-medium text-slate-700 dark:text-slate-300">
                   {table.getFilteredRowModel().rows.length}
                 </span>{" "}
                 results

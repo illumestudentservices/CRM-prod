@@ -102,7 +102,7 @@ export default async function MarketDetailPage({
           variant="outline"
           className={
             RISK_BADGE[market.politicalRiskLevel] ??
-            "bg-slate-100 text-slate-600"
+            "bg-slate-100 dark:bg-slate-800 text-slate-600"
           }
         >
           {RISK_LABEL[market.politicalRiskLevel] ?? market.politicalRiskLevel}

@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 
 interface MonthDataPoint {
   month: string;
@@ -46,18 +47,19 @@ const CustomTooltip = ({
 };
 
 export function LeadsTrendChart({ data }: LeadsTrendChartProps) {
+  const chart = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 12, fill: "#64748B" }}
-          axisLine={{ stroke: "#E2E8F0" }}
+          tick={{ ...chart.tickStyle, fontSize: 12 }}
+          axisLine={{ stroke: chart.axis }}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 12, fill: "#64748B" }}
+          tick={{ ...chart.tickStyle, fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           width={35}
@@ -81,11 +83,11 @@ export function LeadsTrendChart({ data }: LeadsTrendChartProps) {
           type="monotone"
           dataKey="lastYear"
           name="Last Year"
-          stroke="#94A3B8"
+          stroke={chart.axisText}
           strokeWidth={2}
           strokeDasharray="5 4"
-          dot={{ fill: "#94A3B8", r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: "#94A3B8", strokeWidth: 0 }}
+          dot={{ fill: chart.axisText, r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: chart.axisText, strokeWidth: 0 }}
         />
       </LineChart>
     </ResponsiveContainer>

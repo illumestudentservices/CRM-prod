@@ -53,6 +53,7 @@ import {
 } from "recharts";
 import { stageHex } from "@/lib/lead-pipeline";
 import { snapshotName, type SnapshotName } from "@/lib/person-name";
+import { useChartTheme } from "@/hooks/use-chart-theme";
 
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -142,6 +143,7 @@ export function ReportDetailClient({
   canEdit,
   monthName,
 }: ReportDetailClientProps) {
+  const chart = useChartTheme();
   const { toast } = useToast();
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState("");
@@ -296,10 +298,10 @@ export function ReportDetailClient({
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={stageChartData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} width={100} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
+                    <XAxis type="number" tick={chart.tickStyle} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" tick={chart.tickStyle} width={100} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={chart.tooltipContentStyle} />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                       {stageChartData.map((entry, idx) => (
                         <Cell key={idx} fill={entry.fill} />
@@ -318,10 +320,10 @@ export function ReportDetailClient({
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={sourceChartData} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                    <XAxis dataKey="name" tick={{ ...chart.tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={chart.tooltipContentStyle} />
                     <Bar dataKey="Leads" fill="#0EA5E9" radius={[4, 4, 0, 0]} barSize={14} />
                     <Bar dataKey="Enrolled" fill="#22C55E" radius={[4, 4, 0, 0]} barSize={14} />
                   </BarChart>
