@@ -78,7 +78,7 @@ export function ReportsTabs({
                 "flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
                 tab === "qbr"
                   ? "bg-white dark:bg-slate-900 shadow-sm text-slate-900 dark:text-slate-100"
-                  : "text-slate-500 hover:text-slate-800"
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
               )}
             >
               <BarChart3 className="h-4 w-4" />

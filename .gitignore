@@ -98,3 +98,4 @@ set-gender.mjs
 .shot-creds.json
 .shot-manifest.json
 shot-harness.mjs
+shots/

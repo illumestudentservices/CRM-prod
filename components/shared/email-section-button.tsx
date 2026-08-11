@@ -84,7 +84,7 @@ export function EmailSectionButton({
       <Button
         variant="ghost"
         size="icon"
-        className={`h-8 w-8 text-slate-400 hover:text-[#1E3A5F] ${className ?? ""}`}
+        className={`h-8 w-8 text-slate-400 hover:text-[#1E3A5F] dark:hover:text-sky-300 ${className ?? ""}`}
         onClick={handleOpen}
         title="Email this section"
       >
@@ -95,7 +95,7 @@ export function EmailSectionButton({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-[#1E3A5F]" />
+              <Mail className="h-5 w-5 text-[#1E3A5F] dark:text-sky-300" />
               Email Section
             </DialogTitle>
           </DialogHeader>

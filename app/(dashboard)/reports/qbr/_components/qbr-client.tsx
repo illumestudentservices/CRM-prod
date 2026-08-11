@@ -428,7 +428,7 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
-                        <p className="text-xl font-bold text-[#1E3A5F]">
+                        <p className="text-xl font-bold text-[#1E3A5F] dark:text-sky-300">
                           {viewQBR.marketPerformance.totalLeads}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Total Leads</p>
@@ -466,13 +466,13 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                     <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">ROI Analysis</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
-                        <p className="text-xl font-bold text-[#1E3A5F]">
+                        <p className="text-xl font-bold text-[#1E3A5F] dark:text-sky-300">
                           {viewQBR.roiAnalysis.totalActivities}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Activities</p>
                       </div>
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
-                        <p className="text-xl font-bold text-[#1E3A5F]">
+                        <p className="text-xl font-bold text-[#1E3A5F] dark:text-sky-300">
                           ${viewQBR.roiAnalysis.totalCost.toLocaleString()}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Total Cost</p>

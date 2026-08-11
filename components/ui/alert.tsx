@@ -7,7 +7,9 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-slate-50 text-slate-900 border-slate-200 [&>svg]:text-slate-600",
+        // The semantic variants below use tinted brand hexes that clear 4.5:1
+        // on both themes; only this neutral one was light-only.
+        default: "bg-slate-50 text-slate-900 border-slate-200 [&>svg]:text-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:border-slate-700 dark:[&>svg]:text-slate-400",
         destructive:
           "border-[#EF4444]/30 bg-[#EF4444]/5 text-[#EF4444] [&>svg]:text-[#EF4444]",
         success:

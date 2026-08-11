@@ -527,7 +527,7 @@ export function ExecutiveDashboard() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[#1E3A5F]" />
+            <TrendingUp className="h-4 w-4 text-[#1E3A5F] dark:text-sky-300" />
             <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">
               Enrollment Target vs Actual — by Institution
             </CardTitle>
@@ -562,7 +562,7 @@ export function ExecutiveDashboard() {
                     >
                       <td className="py-3 pr-4 font-medium text-slate-800 dark:text-slate-200 hover:text-[#1E3A5F] dark:hover:text-blue-300">{inst.name}</td>
                       <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{inst.target}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-[#1E3A5F]">{inst.actual}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-[#1E3A5F] dark:text-sky-300">{inst.actual}</td>
                       <td className="py-3 pl-4 text-right">
                         <span
                           className={`text-xs font-bold ${

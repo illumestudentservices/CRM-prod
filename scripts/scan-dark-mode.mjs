@@ -37,6 +37,11 @@ const LIGHT_BG = /\b(?:bg-white|bg-slate-(?:50|100|200)|bg-gray-(?:50|100|200)|b
 // (rarer) issue we don't chase here.
 const DARK_TEXT = /\b(?:text-(?:slate|gray|zinc|neutral)-(?:700|800|900)|text-black)\b(?![/\d])/;
 
+// The brand navy is a background colour that reads 11.5:1 on white and 1.55:1
+// on slate-900. As a *label* it therefore needs a dark counterpart, even though
+// the literal-hex check below deliberately exempts it as a fill.
+const BRAND_TEXT = /\btext-\[#1[eE]3[aA]5[fF]\]/;
+
 const LIGHT_BORDER = /\bborder-(?:slate|gray|zinc|neutral)-(?:100|200|300)\b(?![/\d])/;
 
 // Divide/ring/shadow utilities have the same problem and are easy to miss.
@@ -120,6 +125,56 @@ function classAttributes(src) {
   return out;
 }
 
+/**
+ * Class lists that never appear in a `className=` attribute.
+ *
+ * The shadcn primitives declare their colours in a `cva()` variant map, and the
+ * app keeps status/badge palettes in plain lookup objects. Both are ordinary
+ * string literals, so scoping the scan to `className=` skipped them entirely —
+ * which is how the Button's `outline`, `secondary` and `ghost` variants shipped
+ * with no dark counterpart at all. The outline label measured 1.55:1.
+ *
+ * Heuristic: any string literal holding two or more Tailwind-shaped tokens,
+ * at least one of which sets a colour. That over-matches a little (a stray
+ * doc-comment example would qualify), which is the right way to be wrong here.
+ */
+const COLOUR_TOKEN = /\b(?:bg|text|border|divide|ring|from|via|to)-(?:\[#[0-9a-fA-F]{3,8}\]|[a-z]+-\d{2,3}|white|black)/;
+
+function classLikeStrings(src) {
+  const groups = [];
+  const re = /(["'`])((?:[^"'`\\\n]|\\.){8,})\1/g;
+  let m, prevEnd = -1;
+  while ((m = re.exec(src)) !== null) {
+    const value = m[2];
+    const line = src.slice(0, m.index).split("\n").length;
+
+    // The primitives write `cn("… bg-white …", "… dark:bg-slate-900 …")`, so a
+    // literal is only half the element's class list. Anything separated from
+    // the previous literal by nothing but a comma and whitespace belongs to the
+    // same argument list and must be judged together — otherwise every
+    // correctly-paired shadcn component reports as a gap.
+    const gap = prevEnd >= 0 ? src.slice(prevEnd, m.index) : null;
+    const contiguous = gap !== null && /^[\s,]*$/.test(gap);
+    prevEnd = re.lastIndex;
+
+    if (contiguous && groups.length) {
+      groups[groups.length - 1].value += ` ${value}`;
+      continue;
+    }
+    groups.push({ value, line });
+  }
+
+  return groups.filter(({ value }) => {
+    if (!COLOUR_TOKEN.test(value)) return false;
+    // Look like a class list rather than prose.
+    const tokens = value.trim().split(/\s+/);
+    if (tokens.length < 2) return false;
+    if (/[.;?!]/.test(value)) return false;
+    const utility = tokens.filter((t) => /^[a-z[]/.test(t) && /[-:[]/.test(t)).length;
+    return utility / tokens.length >= 0.8;
+  });
+}
+
 /** Hex colours inside inline style props or SVG paint attributes. */
 function literalColours(src) {
   const out = [];
@@ -160,13 +215,27 @@ for (const file of walk(path.join(ROOT, "app")).concat(walk(path.join(ROOT, "com
 
   const lines = src.split("\n");
 
-  for (const { value, line } of classAttributes(src)) {
+  // A `className="…"` literal matches both extractors; key on line+value so it
+  // is only reported once.
+  const seen = new Set();
+  const candidates = [...classAttributes(src), ...classLikeStrings(src)]
+    .filter(({ value, line }) => {
+      const k = `${line} ${value}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+  for (const { value, line } of candidates) {
     if (isSuppressed(lines, line)) continue;
     if (LIGHT_BG.test(value) && !hasDarkVariant(value, "bg")) {
       findings.push({ file: rel, line, type: "SURFACE", detail: value.match(LIGHT_BG)[0] });
     }
     if (DARK_TEXT.test(value) && !hasDarkVariant(value, "text")) {
       findings.push({ file: rel, line, type: "TEXT", detail: value.match(DARK_TEXT)[0] });
+    }
+    if (BRAND_TEXT.test(value) && !hasDarkVariant(value, "text")) {
+      findings.push({ file: rel, line, type: "TEXT", detail: value.match(BRAND_TEXT)[0] });
     }
     if (LIGHT_BORDER.test(value) && !hasDarkVariant(value, "border")) {
       findings.push({ file: rel, line, type: "BORDER", detail: value.match(LIGHT_BORDER)[0] });
