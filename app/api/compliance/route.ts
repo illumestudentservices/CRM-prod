@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { ComplianceType } from "@prisma/client";
+import { ComplianceType as ComplianceTypeEnum } from "@prisma/client";
+import {
+  readJsonBody, handleApiError, assertEnum, assertString, assertDate,
+} from "@/lib/api-validation";
 
 // ─── GET /api/compliance ─────────────────────────────────────────────────
 
@@ -43,11 +47,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(items);
   } catch (error) {
-    console.error("[GET /api/compliance]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[GET /api/compliance]");
   }
 }
 
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     )
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       complianceType,
       title,
@@ -78,12 +78,9 @@ export async function POST(req: NextRequest) {
       institutionId,
     } = body;
 
-    if (!title) {
-      return NextResponse.json(
-        { error: "Title is required" },
-        { status: 400 }
-      );
-    }
+    assertString(title, "title", { max: 300 });
+    assertEnum(complianceType, ComplianceTypeEnum, "complianceType", { required: false });
+    assertDate(dueDate, "dueDate", { required: false });
 
     const item = await db.complianceItem.create({
       data: {
@@ -113,10 +110,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/compliance]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[POST /api/compliance]");
   }
 }

@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { RiskStatus, RiskType } from "@prisma/client";
+import { RiskType as RiskTypeEnum, RiskStatus as RiskStatusEnum } from "@prisma/client";
+import {
+  readJsonBody, handleApiError, assertEnum, assertString, assertNumber,
+} from "@/lib/api-validation";
 
 // ─── GET /api/risks ──────────────────────────────────────────────────────
 
@@ -42,11 +46,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(risks);
   } catch (error) {
-    console.error("[GET /api/risks]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[GET /api/risks]");
   }
 }
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     )
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       type,
       title,
@@ -79,19 +79,13 @@ export async function POST(req: NextRequest) {
       marketId,
     } = body;
 
-    if (!type || !title || !likelihood || !impact) {
-      return NextResponse.json(
-        { error: "Type, title, likelihood, and impact are required" },
-        { status: 400 }
-      );
-    }
-
-    if (likelihood < 1 || likelihood > 5 || impact < 1 || impact > 5) {
-      return NextResponse.json(
-        { error: "Likelihood and impact must be between 1 and 5" },
-        { status: 400 }
-      );
-    }
+    // Validate before Prisma: an unknown RiskType/RiskStatus used to reach the
+    // driver and surface as a 500 rather than a 422.
+    assertEnum(type, RiskTypeEnum, "type");
+    assertEnum(status, RiskStatusEnum, "status", { required: false });
+    assertString(title, "title", { max: 300 });
+    assertNumber(likelihood, "likelihood", { min: 1, max: 5, integer: true });
+    assertNumber(impact, "impact", { min: 1, max: 5, integer: true });
 
     const riskScore = likelihood * impact;
 
@@ -128,10 +122,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(risk, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/risks]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[POST /api/risks]");
   }
 }

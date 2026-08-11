@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { type AccountStatus } from "@prisma/client";
+import { type AccountStatus, AccountStatus as AccountStatusEnum } from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import {
+  readJsonBody, handleApiError, assertEnum, assertString,
+} from "@/lib/api-validation";
 
 // ─── GET /api/institutions ─────────────────────────────────────────────────
 
@@ -45,8 +48,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(institutions);
   } catch (error) {
-    console.error("[GET /api/institutions]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/institutions]");
   }
 }
 
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!await effectiveHasPermission(session.user.role as Role, "institutions", "write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       name,
       legalName,
@@ -74,12 +76,10 @@ export async function POST(req: NextRequest) {
       notes,
     } = body;
 
-    if (!name || !country || !type) {
-      return NextResponse.json(
-        { error: "Name, country and type are required" },
-        { status: 400 }
-      );
-    }
+    assertString(name, "name", { max: 300 });
+    assertString(country, "country", { max: 200 });
+    assertString(type, "type", { max: 100 });
+    assertEnum(accountStatus, AccountStatusEnum, "accountStatus", { required: false });
 
     const institution = await db.institution.create({
       data: {
@@ -112,7 +112,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(institution, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/institutions]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/institutions]");
   }
 }

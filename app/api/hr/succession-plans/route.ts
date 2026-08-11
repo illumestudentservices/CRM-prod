@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/hr/succession-plans ─────────────────────────────────────────────
 
@@ -29,8 +30,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ plans });
   } catch (error) {
-    console.error("[GET /api/hr/succession-plans]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/hr/succession-plans]");
   }
 }
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const { employeeId, backupPersonnel, crossTraining, emergencyCoverage, readinessLevel, notes } = body;
 
     if (!employeeId || !backupPersonnel) {
@@ -90,7 +90,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ plan }, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/hr/succession-plans]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/hr/succession-plans]");
   }
 }

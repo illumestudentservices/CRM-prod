@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { MarketRiskLevel } from "@prisma/client";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/markets ─────────────────────────────────────────────────────
 
@@ -49,11 +50,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(markets);
   } catch (error) {
-    console.error("[GET /api/markets]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[GET /api/markets]");
   }
 }
 
@@ -75,7 +72,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       name,
       code,
@@ -147,10 +144,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(market, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/markets]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[POST /api/markets]");
   }
 }

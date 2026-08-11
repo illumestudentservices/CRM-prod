@@ -64,7 +64,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Attachment downloads set their own, far stricter, headers in
+        // lib/attachment-safety.safeAttachmentHeaders — notably
+        // `Content-Security-Policy: sandbox; default-src 'none'`. The global
+        // policy below is looser (it has to be, to run the app's own scripts)
+        // and was winning the conflict, silently downgrading the sandbox that
+        // stops a malicious upload executing if it is ever opened inline.
+        // Excluding the route keeps the per-response headers authoritative.
+        source: "/((?!api/attachments).*)",
         headers: securityHeaders,
       },
     ];

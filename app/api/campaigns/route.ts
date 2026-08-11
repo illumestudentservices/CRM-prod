@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { CampaignStatus as CampaignStatusEnum } from "@prisma/client";
+import {
+  readJsonBody, assertEnum, assertString, assertDate, assertNumber, handleApiError,
+} from "@/lib/api-validation";
 
 // ─── GET /api/campaigns ────────────────────────────────────────────────────
 
@@ -51,41 +55,36 @@ export async function POST(req: NextRequest) {
 
     if (!(await effectiveHasPermission(session.user.role, "sources", "write"))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
-      name,
-      channel,
-      startDate,
-      endDate,
-      budget,
-      actualSpend,
       notes,
       sourceId,
       // Spec §12 (Recruitment Network) — new required-for-dedup fields.
       type,
-      country,
-      city,
       venue,
-      expectedAttendance,
       eventOrganizer,
       ownerId,
-      status,
       // Force-create escape hatch. Only SUPER_ADMIN may bypass duplicate
       // detection per spec ("Create New Campaign (Admin only)").
       forceCreate,
     } = body;
 
-    if (!name || !channel || !startDate) {
-      return NextResponse.json(
-        { error: "Name, channel and start date are required" },
-        { status: 400 }
-      );
-    }
+    const name = assertString(body.name, "name", { max: 300 })!;
+    const channel = assertString(body.channel, "channel", { max: 200 })!;
+    const startAt = assertDate(body.startDate, "startDate")!;
+    const endDate = assertDate(body.endDate, "endDate", { required: false });
+    const country = assertString(body.country, "country", { required: false, max: 200 });
+    const city = assertString(body.city, "city", { required: false, max: 200 });
+    const budget = assertNumber(body.budget, "budget", { required: false, min: 0 });
+    const actualSpend = assertNumber(body.actualSpend, "actualSpend", { required: false, min: 0 });
+    const expectedAttendance = assertNumber(body.expectedAttendance, "expectedAttendance", {
+      required: false, min: 0, integer: true,
+    });
+    const status = assertEnum(body.status, CampaignStatusEnum, "status", { required: false });
 
     // Spec §2 (Recruitment Network) — pre-create duplicate detection by
     // (name + city + country + start date ± 14 days). Non-admins get 409;
     // SUPER_ADMIN with forceCreate:true proceeds.
-    const startAt = new Date(startDate);
     const dupWindowMs = 14 * 24 * 60 * 60 * 1000;
     const dupWhere: Record<string, unknown> = {
       deletedAt: null,
@@ -136,19 +135,19 @@ export async function POST(req: NextRequest) {
         name,
         channel,
         startDate: startAt,
-        endDate: endDate ? new Date(endDate) : null,
+        endDate: endDate ?? null,
         budget: budget ?? null,
         actualSpend: actualSpend ?? null,
-        notes: notes || null,
-        sourceId: sourceId || null,
+        notes: (notes as string) || null,
+        sourceId: (sourceId as string) || null,
         createdById: session.user.id,
-        type: type || null,
-        country: country || null,
-        city: city || null,
-        venue: venue || null,
+        type: (type as string) || null,
+        country: country ?? null,
+        city: city ?? null,
+        venue: (venue as string) || null,
         expectedAttendance: expectedAttendance ?? null,
-        eventOrganizer: eventOrganizer || null,
-        ownerId: ownerId || null,
+        eventOrganizer: (eventOrganizer as string) || null,
+        ownerId: (ownerId as string) || null,
         // Spec §10 lifecycle default — new campaigns start PLANNED unless
         // the caller explicitly says otherwise.
         status: status || "PLANNED",
@@ -157,7 +156,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/campaigns]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/campaigns]");
   }
 }

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 export async function POST(
   req: NextRequest,
@@ -13,7 +14,7 @@ export async function POST(
   const isHR = session.user.role === "HR_MANAGER" || session.user.role === "SUPER_ADMIN";
   if (!isHR) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
+  const body = await readJsonBody(req);
   const { title, description, target, current, unit, period, dueDate } = body;
 
   if (!title || !target || !period) {

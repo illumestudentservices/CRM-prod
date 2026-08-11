@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
+import { SchoolType as SchoolTypeEnum, RelationshipStatus as RelationshipStatusEnum } from "@prisma/client";
+import {
+  readJsonBody, handleApiError, assertEnum, assertString, assertNumber,
+} from "@/lib/api-validation";
 
 // ─── GET /api/stakeholders/schools ────────────────────────────────────────
 
@@ -48,11 +52,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(schools);
   } catch (error) {
-    console.error("[GET /api/stakeholders/schools]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[GET /api/stakeholders/schools]");
   }
 }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     )
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       name,
       country,
@@ -89,12 +89,11 @@ export async function POST(req: NextRequest) {
       notes,
     } = body;
 
-    if (!name || !country) {
-      return NextResponse.json(
-        { error: "Name and country are required" },
-        { status: 400 }
-      );
-    }
+    assertString(name, "name", { max: 300 });
+    assertString(country, "country", { max: 200 });
+    assertEnum(type, SchoolTypeEnum, "type", { required: false });
+    assertEnum(relationshipStatus, RelationshipStatusEnum, "relationshipStatus", { required: false });
+    assertNumber(studentVolume, "studentVolume", { required: false, min: 0, integer: true });
 
     const school = await db.school.create({
       data: {
@@ -127,10 +126,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(school, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/stakeholders/schools]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[POST /api/stakeholders/schools]");
   }
 }

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/stakeholders/counsellors ────────────────────────────────────
 
@@ -36,11 +37,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(counsellors);
   } catch (error) {
-    console.error("[GET /api/stakeholders/counsellors]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[GET /api/stakeholders/counsellors]");
   }
 }
 
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest) {
     )
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const {
       name,
       email,
@@ -173,10 +170,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(counsellor, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/stakeholders/counsellors]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[POST /api/stakeholders/counsellors]");
   }
 }

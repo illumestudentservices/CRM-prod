@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/events/:id/expenses ─────────────────────────────────────────
 
@@ -32,8 +33,7 @@ export async function GET(
 
     return NextResponse.json({ expenses, total });
   } catch (error) {
-    console.error("[GET /api/events/:id/expenses]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/events/:id/expenses]");
   }
 }
 
@@ -57,7 +57,7 @@ export async function POST(
     });
     if (!event || event.deletedAt) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const { description, amount, category } = body;
 
     if (!description || amount === undefined || amount === null) {
@@ -95,7 +95,6 @@ export async function POST(
 
     return NextResponse.json({ expense, totalCost }, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/events/:id/expenses]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/events/:id/expenses]");
   }
 }

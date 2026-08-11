@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { differenceInDays } from "date-fns";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/institutions/:id/contracts ───────────────────────────────────
 
@@ -43,8 +44,7 @@ export async function GET(
 
     return NextResponse.json(contractsWithDays);
   } catch (error) {
-    console.error("[GET /api/institutions/:id/contracts]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[GET /api/institutions/:id/contracts]");
   }
 }
 
@@ -68,7 +68,7 @@ export async function POST(
     });
     if (!institution || institution.deletedAt) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
-    const body = await req.json();
+    const body = await readJsonBody(req);
     const { title, value, startDate, endDate, status, notes } = body;
 
     if (!title || !startDate || !endDate) {
@@ -108,7 +108,6 @@ export async function POST(
 
     return NextResponse.json(contract, { status: 201 });
   } catch (error) {
-    console.error("[POST /api/institutions/:id/contracts]", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "[POST /api/institutions/:id/contracts]");
   }
 }

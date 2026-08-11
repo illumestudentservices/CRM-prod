@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 function forbidden() {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
