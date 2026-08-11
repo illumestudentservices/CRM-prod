@@ -153,15 +153,51 @@ export async function createAndLogin({ role = "SUPER_ADMIN", withEmployee = fals
   return { user, jar, employee, email, password };
 }
 
+/**
+ * Removes a disposable user and everything that references it.
+ *
+ * The order matters, and so does the breadth: rows created as a *side effect*
+ * of the user's actions don't carry the test tag, so tag-matching alone leaves
+ * them behind and the final `user.delete` then fails on a foreign key. Plan
+ * activation materialising Activity rows is the case that caught this — three
+ * ICR users survived cleanup before `activities` was added here.
+ *
+ * Each step is best-effort; a missing table or an already-deleted row must not
+ * stop the rest of the teardown.
+ */
 export async function destroyUser(ctx) {
   if (!ctx?.user) return;
   const id = ctx.user.id;
+
+  // Rows owned by the user's Employee record.
+  if (ctx.employee) {
+    const eid = ctx.employee.id;
+    await db.task.deleteMany({ where: { createdById: eid } }).catch(() => {});
+    await db.task.deleteMany({ where: { assigneeId: eid } }).catch(() => {});
+    await db.travelRequest.deleteMany({ where: { employeeId: eid } }).catch(() => {});
+    await db.leaveRequest.deleteMany({ where: { employeeId: eid } }).catch(() => {});
+    await db.assetAssignment.deleteMany({ where: { employeeId: eid } }).catch(() => {});
+  }
+
+  // Rows referencing the User directly.
+  await db.activity.deleteMany({ where: { userId: id } }).catch(() => {});
+  await db.leadActivity.deleteMany({ where: { userId: id } }).catch(() => {});
+  await db.engagementLog.deleteMany({ where: { userId: id } }).catch(() => {});
+  await db.notification.deleteMany({ where: { userId: id } }).catch(() => {});
   await db.deletedRecord.deleteMany({ where: { deletedById: id } }).catch(() => {});
-  await db.task.deleteMany({ where: { createdById: ctx.employee?.id } }).catch(() => {});
-  if (ctx.employee) await db.employee.delete({ where: { id: ctx.employee.id } }).catch(() => {});
+  await db.deletedRecord.deleteMany({ where: { restoredById: id } }).catch(() => {});
   await db.auditLog.deleteMany({ where: { userId: id } }).catch(() => {});
   await db.$executeRaw`DELETE FROM attachments WHERE "uploadedById" = ${id}`.catch(() => {});
-  await db.user.delete({ where: { id } }).catch(() => {});
+  await db.$executeRaw`UPDATE leads SET "assignedICRId" = NULL WHERE "assignedICRId" = ${id}`.catch(() => {});
+
+  if (ctx.employee) await db.employee.delete({ where: { id: ctx.employee.id } }).catch(() => {});
+
+  const gone = await db.user.delete({ where: { id } }).then(() => true).catch(() => false);
+  if (!gone) {
+    // Surface it rather than leaking silently — a leftover disposable admin
+    // is exactly the thing that must not accumulate in production.
+    process.stdout.write(`  ⚠ destroyUser: ${ctx.user.email} could not be deleted (FK still referencing)\n`);
+  }
 }
 
 // ── HTTP helper ───────────────────────────────────────────────────────
