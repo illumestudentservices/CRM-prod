@@ -91,22 +91,13 @@ interface ReportDetailClientProps {
     region: { id: string; name: string } | null;
     approvals: Approval[];
   };
-  kpi: {
-    totalLeads: number;
-    enrolled: number;
-    conversionRate: number;
-    contactRate: number;
-    eventsCount: number;
-    totalEventCost: number;
-  } | null;
-  prevKpi: {
-    totalLeads: number;
-    enrolled: number;
-    conversionRate: number;
-    contactRate: number;
-    eventsCount: number;
-    totalEventCost: number;
-  } | null;
+  // kpiSummary is a JSONB column, so the shape is whatever was written at the
+  // time. Reports created before the KPI set was extended hold only
+  // {totalLeads, conversionRate, avgTimeToOffer} — declaring the fields
+  // required made TypeScript vouch for data it had never seen, and
+  // `${kpi.contactRate}%` rendered the string "undefined%" on screen.
+  kpi: Partial<KpiSummary> | null;
+  prevKpi: Partial<KpiSummary> | null;
   leads: Array<SnapshotName & { id: string; nationality: string; interestedProgram: string; studyLevel: string; stage: string }>;
   programs: Array<{ program: string; count: number; levels: Record<string, number> }>;
   sources: Array<{ name: string; leads: number; enrolled: number }>;
@@ -125,9 +116,28 @@ interface ReportDetailClientProps {
   monthName: string;
 }
 
-function trendPercent(current: number, prev: number | undefined): number | undefined {
-  if (prev === undefined || prev === 0) return undefined;
+interface KpiSummary {
+  totalLeads: number;
+  enrolled: number;
+  conversionRate: number;
+  contactRate: number;
+  eventsCount: number;
+  totalEventCost: number;
+}
+
+function trendPercent(current: number | undefined, prev: number | undefined): number | undefined {
+  if (current === undefined || prev === undefined || prev === 0) return undefined;
   return ((current - prev) / prev) * 100;
+}
+
+/** An em dash says "never recorded"; 0 would claim the metric was measured. */
+const showNum = (v: number | undefined) => (typeof v === "number" ? v : "—");
+const showPct = (v: number | undefined) => (typeof v === "number" ? `${v}%` : "—");
+
+/** Point difference between two rates, only when both were actually recorded. */
+function pointDelta(current: number | undefined, prev: number | undefined): number | undefined {
+  if (typeof current !== "number" || typeof prev !== "number") return undefined;
+  return current - prev;
 }
 
 export function ReportDetailClient({
@@ -277,12 +287,12 @@ export function ReportDetailClient({
             />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatCard title="Total Leads" value={kpi.totalLeads} icon={Users} change={trendPercent(kpi.totalLeads, prevKpi?.totalLeads)} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" />
-            <StatCard title="Enrolled" value={kpi.enrolled} icon={GraduationCap} change={trendPercent(kpi.enrolled, prevKpi?.enrolled)} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" />
-            <StatCard title="Conversion Rate" value={`${kpi.conversionRate}%`} icon={Target} change={prevKpi ? kpi.conversionRate - prevKpi.conversionRate : undefined} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" />
-            <StatCard title="Contact Rate" value={`${kpi.contactRate}%`} icon={Phone} change={prevKpi ? kpi.contactRate - prevKpi.contactRate : undefined} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" />
-            <StatCard title="Events" value={kpi.eventsCount} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" />
-            <StatCard title="Event Cost" value={kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString()}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
+            <StatCard title="Total Leads" value={showNum(kpi.totalLeads)} icon={Users} change={trendPercent(kpi.totalLeads, prevKpi?.totalLeads)} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" />
+            <StatCard title="Enrolled" value={showNum(kpi.enrolled)} icon={GraduationCap} change={trendPercent(kpi.enrolled, prevKpi?.enrolled)} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" />
+            <StatCard title="Conversion Rate" value={showPct(kpi.conversionRate)} icon={Target} change={pointDelta(kpi.conversionRate, prevKpi?.conversionRate)} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" />
+            <StatCard title="Contact Rate" value={showPct(kpi.contactRate)} icon={Phone} change={pointDelta(kpi.contactRate, prevKpi?.contactRate)} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" />
+            <StatCard title="Events" value={showNum(kpi.eventsCount)} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" />
+            <StatCard title="Event Cost" value={typeof kpi.totalEventCost !== "number" ? "—" : kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString()}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
           </div>
         </div>
       )}
@@ -301,7 +311,7 @@ export function ReportDetailClient({
                     <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
                     <XAxis type="number" tick={chart.tickStyle} axisLine={false} tickLine={false} />
                     <YAxis type="category" dataKey="name" tick={chart.tickStyle} width={100} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={chart.tooltipContentStyle} />
+                    <Tooltip contentStyle={chart.tooltipContentStyle} cursor={chart.tooltipCursor} />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
                       {stageChartData.map((entry, idx) => (
                         <Cell key={idx} fill={entry.fill} />
@@ -323,7 +333,7 @@ export function ReportDetailClient({
                     <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
                     <XAxis dataKey="name" tick={{ ...chart.tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={chart.tickStyle} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={chart.tooltipContentStyle} />
+                    <Tooltip contentStyle={chart.tooltipContentStyle} cursor={chart.tooltipCursor} />
                     <Bar dataKey="Leads" fill="#0EA5E9" radius={[4, 4, 0, 0]} barSize={14} />
                     <Bar dataKey="Enrolled" fill="#22C55E" radius={[4, 4, 0, 0]} barSize={14} />
                   </BarChart>

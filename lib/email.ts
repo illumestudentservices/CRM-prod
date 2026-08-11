@@ -1,4 +1,5 @@
 import { stageHex, stageLabel } from "@/lib/lead-pipeline";
+import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
 const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS ?? "noreply@illumestudentservices.cloud";
@@ -772,14 +773,7 @@ export async function sendFullReportEmail(opts: {
   institutionName: string;
   period: string;
   regionName: string;
-  kpi: {
-    totalLeads: number;
-    enrolled: number;
-    conversionRate: number;
-    contactRate: number;
-    eventsCount: number;
-    totalEventCost: number;
-  } | null;
+  kpi: PartialKpi;
   engagementSummary?: string;
   successHighlight?: string;
   reportUrl: string;
@@ -790,19 +784,19 @@ export async function sendFullReportEmail(opts: {
         <tr>
           <td style="width:33%;padding:8px;">
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${opts.kpi.totalLeads}</div>
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${kpiNum(opts.kpi, "totalLeads")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Total Leads</div>
             </div>
           </td>
           <td style="width:33%;padding:8px;">
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#22C55E;">${opts.kpi.enrolled}</div>
+              <div style="font-size:28px;font-weight:800;color:#22C55E;">${kpiNum(opts.kpi, "enrolled")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Enrolled</div>
             </div>
           </td>
           <td style="width:33%;padding:8px;">
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#0369A1;">${opts.kpi.conversionRate}%</div>
+              <div style="font-size:28px;font-weight:800;color:#0369A1;">${kpiPct(opts.kpi, "conversionRate")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Conversion</div>
             </div>
           </td>
@@ -810,19 +804,19 @@ export async function sendFullReportEmail(opts: {
         <tr>
           <td style="width:33%;padding:8px;">
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${opts.kpi.contactRate}%</div>
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${kpiPct(opts.kpi, "contactRate")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Contact Rate</div>
             </div>
           </td>
           <td style="width:33%;padding:8px;">
             <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#F59E0B;">${opts.kpi.eventsCount}</div>
+              <div style="font-size:28px;font-weight:800;color:#F59E0B;">${kpiNum(opts.kpi, "eventsCount")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Events</div>
             </div>
           </td>
           <td style="width:33%;padding:8px;">
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">$${opts.kpi.totalEventCost.toLocaleString()}</div>
+              <div style="font-size:28px;font-weight:800;color:#1E3A5F;">${kpiMoney(opts.kpi, "totalEventCost")}</div>
               <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Event Cost</div>
             </div>
           </td>

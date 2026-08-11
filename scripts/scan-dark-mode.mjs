@@ -186,7 +186,9 @@ function literalColours(src) {
     // recharts prop objects: tick={{ fill: "#94a3b8" }}
     // axisLine and tickLine were missing from this list, which is how a
     // near-white axis line survived the first pass on leads-trend-chart.
-    { re: /\b(?:tick|tickLine|axisLine|contentStyle|itemStyle|labelStyle|wrapperStyle|dot|activeDot)=\{\{[^}]*?(#[0-9a-fA-F]{3,8})[^}]*?\}\}/g, kind: "chart style" },
+    // `cursor` was missing from this list, which is how three bar charts kept a
+    // hardcoded near-white hover band (#f8fafc / #f1f5f9) on a dark card.
+    { re: /\b(?:tick|tickLine|axisLine|cursor|contentStyle|itemStyle|labelStyle|wrapperStyle|dot|activeDot)=\{\{[^}]*?(#[0-9a-fA-F]{3,8})[^}]*?\}\}/g, kind: "chart style" },
   ];
   for (const { re, kind } of patterns) {
     let m;

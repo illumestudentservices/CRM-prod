@@ -76,7 +76,10 @@ export default async function ReportViewPage({
   const programs = Array.isArray(report.programBreakdown) ? (report.programBreakdown as Array<{ program: string; count: number; levels: Record<string, number> }>) : [];
   const sources = Array.isArray(report.sourcePerformance) ? (report.sourcePerformance as Array<{ name: string; leads: number; enrolled: number }>) : [];
   const events = Array.isArray(report.eventActivities) ? (report.eventActivities as Array<{ id: string; name: string; type: string; date: string; location: string; cost: number; leadsGenerated: number; roi: number | null }>) : [];
-  const kpi = report.kpiSummary as { totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number } | null;
+  // Partial, not the full record: the column is JSONB and reports predating the
+  // current KPI set hold only a subset. Asserting the full shape here is what
+  // let "undefined%" reach the screen.
+  const kpi = report.kpiSummary as Partial<{ totalLeads: number; enrolled: number; conversionRate: number; contactRate: number; eventsCount: number; totalEventCost: number }> | null;
 
   // Fetch previous month's report for trend comparison
   const prevMonth = report.reportingMonth === 1 ? 12 : report.reportingMonth - 1;

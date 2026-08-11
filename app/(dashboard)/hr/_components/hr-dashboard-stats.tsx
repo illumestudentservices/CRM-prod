@@ -95,8 +95,8 @@ export function HRDashboardStats({
                   tickLine={false}
                 />
                 <Tooltip
+                  cursor={chart.tooltipCursor}
                   contentStyle={chart.tooltipContentStyle}
-                  cursor={{ fill: "#f8fafc" }}
                 />
                 <Bar dataKey="count" fill="#1E3A5F" radius={[4, 4, 0, 0]} name="Employees" />
               </BarChart>
@@ -131,6 +131,7 @@ export function HRDashboardStats({
                 <XAxis dataKey="name" tick={{ ...chart.tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chart.tickStyle} axisLine={false} tickLine={false} />
                 <Tooltip
+                  cursor={chart.tooltipCursor}
                   formatter={(value, name) => [`${value} days`, name] as [string, string]}
                   contentStyle={chart.tooltipContentStyle}
                 />
@@ -220,8 +221,8 @@ export function HRDashboardStats({
                   tickLine={false}
                 />
                 <Tooltip
+                  cursor={chart.tooltipCursor}
                   contentStyle={chart.tooltipContentStyle}
-                  cursor={{ fill: "#f8fafc" }}
                 />
                 <Bar dataKey="count" fill="#0EA5E9" radius={[4, 4, 0, 0]} name="Employees" />
               </BarChart>
