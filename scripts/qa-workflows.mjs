@@ -187,13 +187,21 @@ async function main() {
       const lead = await api(admin.jar, "POST", "/api/leads", {
         firstName: `${TAG}W`, lastName: "Flow",
         email: `${TAG.toLowerCase()}.flow@example.test`, phone: "+15550009999",
-        nationality: "T", countryOfResidence: "T",
-        interestedProgram: "P", studyLevel: "UNDERGRADUATE",
+        nationality: "Testland", countryOfResidence: "Testland",
+        interestedProgram: "BSc Testing", studyLevel: "UNDERGRADUATE",
         intakeYear: 2030, intakeMonth: 9,
         assignedICRId: icr.user.id,
       });
       const leadId = idOf(lead.payload);
       track("lead", leadId);
+
+      // Assert the setup itself, otherwise a failed create silently skips the
+      // whole section and reports 0 pass / 0 fail — which reads as "clean".
+      expect(
+        !!leadId,
+        "stage-gate setup: lead created",
+        `status=${lead.status} payload=${JSON.stringify(lead.payload)?.slice(0, 200)}`
+      );
 
       if (leadId) {
         const readStage = async () =>
