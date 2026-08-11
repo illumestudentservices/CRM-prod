@@ -74,8 +74,10 @@ const nextConfig: NextConfig = {
   // pollute browser caches with permanent redirects.
   async redirects() {
     return [
-      { source: "/stakeholders", destination: "/recruitment-network/partners", permanent: false },
-      { source: "/stakeholders/:path*", destination: "/recruitment-network/:path*", permanent: false },
+      // /stakeholders is a live module again as of the phase-9 rebuild
+      // (schools + counsellors landed here). The legacy redirect to
+      // /recruitment-network/partners was catching the sidebar click and
+      // hiding the new page — removed intentionally.
       { source: "/sources", destination: "/recruitment-network/partners", permanent: false },
       { source: "/sources/:path*", destination: "/recruitment-network/partners/:path*", permanent: false },
       { source: "/markets", destination: "/market-intelligence", permanent: false },
