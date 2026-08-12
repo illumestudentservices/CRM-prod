@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { sendSectionEmail } from "@/lib/email";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 
 const schema = z.object({
   to: z.string().email(),
@@ -16,6 +18,19 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // This endpoint sends caller-supplied HTML to an arbitrary external address.
+    // It previously stopped at the signed-in check, so any role — including
+    // INSTITUTION_CLIENT and EMPLOYEE — could push content out of the org from
+    // an authenticated Illume domain. Gated on the reports.email_external
+    // capability, which already existed for exactly this and requires
+    // reports:export underneath, so it cannot exceed the coarse matrix.
+    if (!(await hasCapability(session.user.role as Role, "reports.email_external"))) {
+      return NextResponse.json(
+        { error: "Your role is not permitted to email content externally" },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();

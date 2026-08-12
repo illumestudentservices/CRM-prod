@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 const MONTH_NAMES = [
   "", "January", "February", "March", "April", "May", "June",
@@ -26,6 +28,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Was signed-in-only, so any role could list every client's QBR while POST
+    // in this same file required HQ roles.
+    const role = session.user.role as Role;
+    if (!(await effectiveHasPermission(role, "reports", "read"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { searchParams } = req.nextUrl;
     const institutionId = searchParams.get("institutionId");
     const year = searchParams.get("year");
@@ -33,6 +42,17 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {};
     if (institutionId) where.institutionId = institutionId;
     if (year) where.year = parseInt(year);
+
+    // reports:read alone is not enough here: INSTITUTION_CLIENT holds it, and a
+    // QBR belongs to one institution. Restrict clients to their own, rather
+    // than letting the permission imply access to every other client's review.
+    if (role === "INSTITUTION_CLIENT") {
+      const allowed = await institutionIdsForUser(session.user.id, role);
+      if (allowed.length === 0) return NextResponse.json([]);
+      where.institutionId = institutionId && allowed.includes(institutionId)
+        ? institutionId
+        : { in: allowed };
+    }
 
     const qbrs = await db.quarterlyBusinessReview.findMany({
       where,
