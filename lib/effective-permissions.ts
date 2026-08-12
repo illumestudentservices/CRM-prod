@@ -91,6 +91,11 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
   whatsapp:            { resource: "whatsapp",            action: "read" },
   settings:            { resource: "settings",            action: "read" },
   activity_log:        "super_admin_only",
+  // Must stay in sync with NAV_PERMISSIONS in lib/permissions.ts. A key absent
+  // here is dropped from getEffectiveNavKeys(), which hides it for every role —
+  // recycle_bin was listed in NAV_PERMISSIONS but missing here, so the sidebar
+  // link never rendered even for SUPER_ADMIN.
+  recycle_bin:         "super_admin_only",
 };
 
 /**
