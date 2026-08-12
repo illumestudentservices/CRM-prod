@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { restoreRecord } from "@/lib/recycle-bin";
+import { restoreRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 
 /**
@@ -27,6 +27,9 @@ export async function POST(
     void logActivity(session.user.id, "RESTORE", "RECYCLE_BIN", id, {}, req);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof RecycleBinNotFound) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     console.error("[POST /api/recycle-bin/[id]/restore]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to restore" },

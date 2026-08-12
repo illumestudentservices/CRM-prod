@@ -27,6 +27,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Signed-in was the only gate, so a partner university account could read the
+    // internal HR policies and knowledge articles. These are staff documents;
+    // INSTITUTION_CLIENT is an external party and has no business reading them.
+    // The sibling attachment GET already enforces knowledge_base:read — this is
+    // the narrower of the two changes available and keeps every staff role's
+    // access exactly as it was.
+    if (session.user.role === "INSTITUTION_CLIENT") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const search        = searchParams.get("search");
     const category      = searchParams.get("category");

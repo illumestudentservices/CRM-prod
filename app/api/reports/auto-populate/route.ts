@@ -25,6 +25,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Composes an ICR's monthly performance figures, and accepts an arbitrary
+    // icrId. INSTITUTION_CLIENT holds reports:read, so the module permission let a
+    // partner university generate any ICR's metrics. Report authoring is internal.
+    if (role === "INSTITUTION_CLIENT") {
+      return NextResponse.json(
+        { error: "Report drafting is not available to institution accounts" },
+        { status: 403 }
+      );
+    }
+
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const parsed = schema.safeParse(body);

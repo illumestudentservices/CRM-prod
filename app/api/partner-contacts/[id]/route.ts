@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { trashRecord } from "@/lib/recycle-bin";
+import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).optional(),
@@ -73,6 +73,10 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     await trashRecord({ entityType: "PartnerContact", entityId: id, userId: session.user.id });
     return NextResponse.json({ ok: true });
   } catch (err) {
+    // No existence check before trashRecord, so an unknown id used to 500.
+    if (err instanceof RecycleBinNotFound) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     console.error("[DELETE /api/partner-contacts/[id]]", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

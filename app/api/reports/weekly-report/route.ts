@@ -36,6 +36,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // The comment below described the intent, but only ICR and REGIONAL_MANAGER
+    // were ever constrained — every other signed-in role fell through both
+    // branches and could read any ICR's weekly activity report by id, EMPLOYEE
+    // and INSTITUTION_CLIENT included. Allow-list the roles that legitimately
+    // read these, then apply the per-role narrowing.
+    const WEEKLY_REPORT_ROLES: Role[] = [
+      "SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR",
+    ];
+    if (!WEEKLY_REPORT_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Access control: ICR can only see their own; RM sees their region; HQ sees all
     if (role === "ICR" && icrId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
