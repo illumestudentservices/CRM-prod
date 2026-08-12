@@ -15,21 +15,45 @@ interface ConversionFunnelProps {
 }
 
 export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFunnelProps) {
-  const stages = STAGE_ORDER.map((key) => ({
+  /**
+   * stageBreakdown is a snapshot: how many leads are sitting at each stage RIGHT
+   * NOW. A lead that reached Enrolled is no longer counted under New Lead, so the
+   * buckets are not nested and dividing one by the previous one is meaningless —
+   * it read "Overall Conversion 111%" (Enrolled 10 / New Lead 9) and
+   * "Application Submitted 117%" on real data.
+   *
+   * A funnel needs cumulative volume: how many leads got *to this stage or
+   * beyond*, which is the suffix sum of the snapshot. That is monotonically
+   * decreasing by construction, so no step can exceed 100%.
+   *
+   * Note this counts only the live pipeline — closed outcomes (Lost, Deferred,
+   * Rejected) are not stages in PIPELINE_STAGES, so a lead that dropped out is
+   * not in any bucket. "Reached New Lead" therefore means "still in play".
+   */
+  const snapshot = STAGE_ORDER.map((key) => stageBreakdown[key] ?? 0);
+  const reached = snapshot.map((_, i) => snapshot.slice(i).reduce((a, b) => a + b, 0));
+
+  const stages = STAGE_ORDER.map((key, i) => ({
     key,
     label: STAGE_LABELS[key] ?? key,
-    count: stageBreakdown[key] ?? 0,
+    /** Cumulative — matches the bar and the percentage beside it. */
+    count: reached[i],
+    /** How many are sitting at exactly this stage, for the tooltip. */
+    atStage: snapshot[i],
   }));
 
-  const maxCount = Math.max(...stages.map((s) => s.count), 1);
+  const maxCount = Math.max(reached[0], 1);
 
   return (
     <div className="space-y-2">
       {stages.map((stage, index) => {
         const prevCount = index > 0 ? stages[index - 1].count : null;
+        // Both sides are cumulative now, so this cannot exceed 100. Clamped
+        // anyway: a percentage over 100 on a funnel is the kind of thing a
+        // partner notices, and a rounding surprise should not put it there.
         const conversionRate =
           prevCount !== null && prevCount > 0
-            ? Math.round((stage.count / prevCount) * 100)
+            ? Math.min(100, Math.round((stage.count / prevCount) * 100))
             : null;
 
         const barWidth = maxCount > 0 ? (stage.count / maxCount) * 100 : 0;
@@ -41,7 +65,12 @@ export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFun
             onClick={() => onStageClick && stage.count > 0 && onStageClick(stage.key)}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-medium text-slate-600 dark:text-slate-300 ${onStageClick && stage.count > 0 ? "group-hover:text-[#0EA5E9] transition-colors" : ""}`}>{stage.label}</span>
+              <span
+                title={`${stage.count} reached ${stage.label} or beyond · ${stage.atStage} currently at this stage`}
+                className={`text-xs font-medium text-slate-600 dark:text-slate-300 ${onStageClick && stage.count > 0 ? "group-hover:text-[#0EA5E9] transition-colors" : ""}`}
+              >
+                {stage.label}
+              </span>
               <div className="flex items-center gap-2">
                 {conversionRate !== null && (
                   <span className="text-xs text-slate-400 dark:text-slate-500">{conversionRate}%</span>
@@ -71,7 +100,7 @@ export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFun
           <span className="text-slate-500 dark:text-slate-400">Overall Conversion</span>
           <span className="font-bold text-[#22C55E]">
             {stages[0].count > 0
-              ? `${Math.round(((stages[stages.length - 1].count) / stages[0].count) * 100)}%`
+              ? `${Math.min(100, Math.round(((stages[stages.length - 1].count) / stages[0].count) * 100))}%`
               : "—"}
           </span>
         </div>
