@@ -59,8 +59,30 @@ export async function GET(req: NextRequest) {
       const employee = await db.employee.findFirst({ where: { userId }, select: { id: true } });
       if (!employee) return NextResponse.json({ data: [] });
       where.assigneeId = employee.id;
-    } else if (assigneeId) {
-      where.assigneeId = assigneeId;
+    } else {
+      // Any scope other than "mine" used to drop the assignee filter entirely, so
+      // every tasks:read holder — EMPLOYEE included — could list all 200 most
+      // recent tasks in the organisation just by asking for ?scope=all.
+      //
+      // Seeing the whole organisation now requires tasks:approve. That is a
+      // matrix action rather than a hardcoded role list, so it can be granted
+      // per role in Settings → Security without a deploy; by default only
+      // SUPER_ADMIN holds it.
+      //
+      // Everyone else gets their own tasks plus the ones they raised for other
+      // people, which is wider than scope=mine (assigned-only) and preserves
+      // visibility of work they delegated.
+      const canSeeAll = await effectiveHasPermission(role as Role, "tasks", "approve");
+      if (canSeeAll) {
+        if (assigneeId) where.assigneeId = assigneeId;
+      } else {
+        const employee = await db.employee.findFirst({ where: { userId }, select: { id: true } });
+        if (!employee) return NextResponse.json({ data: [] });
+        if (assigneeId && assigneeId !== employee.id) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        where.OR = [{ assigneeId: employee.id }, { createdById: employee.id }];
+      }
     }
 
     const tasks = await db.task.findMany({
