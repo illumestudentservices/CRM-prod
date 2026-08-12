@@ -51,6 +51,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // This searches the whole lead table by email, phone, date of birth and
+    // passport number and reports whether a match exists. INSTITUTION_CLIENT
+    // holds leads:read, so the module permission alone let a partner university
+    // probe for any student's presence by identifier — the results are not
+    // tenancy-scoped and cannot usefully be, because the answer itself ("this
+    // passport is already known to Illume") is the disclosure. Duplicate checking
+    // is an internal staff task, so the role is refused outright.
+    if (role === "INSTITUTION_CLIENT") {
+      return NextResponse.json(
+        { error: "Duplicate matching is not available to institution accounts" },
+        { status: 403 }
+      );
+    }
+
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const parsed = schema.safeParse(body);

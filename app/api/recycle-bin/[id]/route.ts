@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { restoreRecord, purgeRecord } from "@/lib/recycle-bin";
+import { restoreRecord, purgeRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
@@ -34,6 +34,9 @@ export async function DELETE(
     void logActivity(session.user.id, "PURGE", "RECYCLE_BIN", id, {}, req);
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof RecycleBinNotFound) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     console.error("[DELETE /api/recycle-bin/[id]]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to purge" },

@@ -219,15 +219,26 @@ export interface TrashOpts {
 }
 
 /**
+ * "The thing you asked me to act on isn't there."
+ *
+ * Distinguishable from a genuine fault so a route can answer 404 instead of 500.
+ * Several delete paths call trashRecord() without checking existence first, and a
+ * bare Error meant a request for a non-existent id surfaced as an Internal Server
+ * Error — measured on five endpoints during the 2026-08-12 permission sweep.
+ */
+export class RecycleBinNotFound extends Error {}
+
+/**
  * Send a row to the recycle bin. Returns the deleted_records row id.
- * Throws if the row doesn't exist or the entity type isn't registered.
+ * Throws RecycleBinNotFound if the row doesn't exist; Error if the entity type
+ * isn't registered (that is a programming fault, not a missing record).
  */
 export async function trashRecord({ entityType, entityId, userId }: TrashOpts): Promise<string> {
   const def = REGISTRY[entityType];
   if (!def) throw new Error(`Recycle bin: unknown entity type "${entityType}"`);
   const d = delegate(entityType);
   const existing = await d.findUnique({ where: { id: entityId } });
-  if (!existing) throw new Error(`${entityType} ${entityId} not found`);
+  if (!existing) throw new RecycleBinNotFound(`${entityType} ${entityId} not found`);
 
   const label = def.label(existing);
   const parentCtx = def.parent ? await def.parent(existing) : null;
@@ -270,7 +281,7 @@ export async function trashRecord({ entityType, entityId, userId }: TrashOpts): 
  */
 export async function restoreRecord(recycleId: string, userId: string): Promise<void> {
   const record = await db.deletedRecord.findUnique({ where: { id: recycleId } });
-  if (!record) throw new Error("Recycle bin entry not found");
+  if (!record) throw new RecycleBinNotFound("Recycle bin entry not found");
   if (record.restoredAt) throw new Error("Already restored");
   if (record.purgedAt) throw new Error("Already permanently deleted");
 
@@ -309,7 +320,7 @@ export async function restoreRecord(recycleId: string, userId: string): Promise<
  */
 export async function purgeRecord(recycleId: string): Promise<void> {
   const record = await db.deletedRecord.findUnique({ where: { id: recycleId } });
-  if (!record) throw new Error("Recycle bin entry not found");
+  if (!record) throw new RecycleBinNotFound("Recycle bin entry not found");
   if (record.purgedAt) return; // idempotent
 
   const def = REGISTRY[record.entityType];
