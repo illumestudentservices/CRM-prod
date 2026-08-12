@@ -12,9 +12,38 @@ import bcrypt from "bcryptjs";
 import { generateSecret, generate as totpGenerate } from "otplib";
 import crypto from "node:crypto";
 
-export const BASE = process.env.BASE_URL ?? "https://illumestudentservices.cloud";
+/**
+ * Target host.
+ *
+ * This used to default to https://illumestudentservices.cloud — production.
+ * Every script here creates disposable users and fixture rows, so a run that
+ * merely forgot to set BASE_URL wrote them straight into the live database.
+ * The default is now localhost, and pointing at production takes a deliberate
+ * ALLOW_PROD_QA opt-in.
+ */
+const PROD_HOST_RE = /illumestudentservices\.(cloud|ca)|187\.124\.112\.151/i;
+
+export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+
+if (PROD_HOST_RE.test(BASE) && process.env.ALLOW_PROD_QA !== "yes-i-mean-it") {
+  throw new Error(
+    `Refusing to run the QA suite against production (${BASE}).\n` +
+    `These scripts create users and fixture data. Point BASE_URL at a dev server,\n` +
+    `or set ALLOW_PROD_QA=yes-i-mean-it if you genuinely intend to write to prod.`
+  );
+}
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = new PrismaClient({ adapter: new PrismaPg(pool) });
+
+// The DB is written directly, so which database is in play matters as much as
+// which host. Print it (host only, never credentials) so a misdirected run is
+// obvious in the log rather than discovered afterwards.
+{
+  let dbHost = "unknown";
+  try { dbHost = new URL(process.env.DATABASE_URL ?? "").host || "unknown"; } catch { /* ignore */ }
+  console.log(`[qa] target=${BASE}  db=${dbHost}`);
+}
 
 export const TAG = "QA" + crypto.randomBytes(3).toString("hex").toUpperCase();
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
