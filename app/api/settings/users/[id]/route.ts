@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { logActivity } from "@/lib/activity-logger";
+import { logActivity, auditOrigin } from "@/lib/activity-logger";
 import { sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { guardUserRemoval, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
 import { trashRecord } from "@/lib/recycle-bin";
@@ -62,6 +62,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         role: target.role,
         recoverableUntil: new Date(now.getTime() + RECOVERY_WINDOW_DAYS * 86_400_000).toISOString(),
       },
+    
+      ...(await auditOrigin()),
     },
   });
 
@@ -137,6 +139,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       entity: "User",
       entityId: id,
       changes: { email: target.email, note: "Restored as inactive; access must be re-enabled explicitly." },
+    
+      ...(await auditOrigin()),
     },
   });
 

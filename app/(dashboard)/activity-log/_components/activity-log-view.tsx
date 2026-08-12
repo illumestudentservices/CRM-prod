@@ -13,6 +13,7 @@ import {
   TrendingUp, ChevronDown, ChevronUp, X, Loader2,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
+import { countryFlag } from "@/lib/country";
 import { ExportButton } from "@/components/shared/export-button";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -113,12 +114,8 @@ function formatLabel(str: string) {
   return str.charAt(0) + str.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
-function countryFlag(code: string): string {
-  if (!code || code.length !== 2) return "";
-  return String.fromCodePoint(
-    ...code.toUpperCase().split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)
-  );
-}
+// countryFlag now comes from lib/country.ts — this file used to carry its own
+// two-letter-only copy, so any non-alpha-2 value silently rendered no flag.
 
 // ─── Component ───────────────────────────────────────────────────────────────
 

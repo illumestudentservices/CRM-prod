@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { OFFLINE_CAPTURE_LIMIT } from "@/lib/offline-capture";
@@ -239,6 +240,8 @@ export async function POST(req: NextRequest) {
         entity: "Lead",
         entityId: results[0]?.leadId ?? "BATCH",
         changes: { submitted: leads.length, created, alreadySynced, failed },
+      
+        ...(await auditOrigin()),
       },
     });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
           keep: { ...keep },
           mergeFrom: { ...mergeFrom },
         },
+      
+        ...(await auditOrigin()),
       },
     });
 
@@ -130,6 +133,8 @@ export async function POST(req: NextRequest) {
           entity: "Lead",
           entityId: keepId,
           changes: { reason, mergedFromId: mergeFromId, collisions: collisions.length },
+        
+          ...(await auditOrigin()),
         },
       });
     });

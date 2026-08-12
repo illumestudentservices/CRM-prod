@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
@@ -173,6 +174,8 @@ export async function POST(
           entity: "Lead",
           entityId: id,
           changes: { from: lead.stage, to: data.outcome, ...data },
+        
+          ...(await auditOrigin()),
         },
       }),
     ]);
@@ -293,6 +296,8 @@ export async function DELETE(
         entity: "Lead",
         entityId: id,
         changes: { from: lead.stage, to: restoreTo },
+      
+        ...(await auditOrigin()),
       },
     }),
   ]);

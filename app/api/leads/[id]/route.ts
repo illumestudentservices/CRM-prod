@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
@@ -262,6 +263,8 @@ export async function PATCH(
         entity: "Lead",
         entityId: id,
         changes: updates,
+      
+        ...(await auditOrigin()),
       },
     });
 
@@ -309,6 +312,8 @@ export async function DELETE(
         entity: "Lead",
         entityId: id,
         changes: { deletedAt: new Date().toISOString() },
+      
+        ...(await auditOrigin()),
       },
     });
 

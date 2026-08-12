@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 import {
@@ -158,6 +159,8 @@ export async function PATCH(req: NextRequest) {
       entity: "LEAVE_BALANCE",
       entityId: balance.id,
       changes: { leaveType, year, adjustmentDays, reason },
+    
+      ...(await auditOrigin()),
     },
   });
 

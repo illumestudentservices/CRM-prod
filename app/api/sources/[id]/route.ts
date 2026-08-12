@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 
@@ -109,6 +110,8 @@ export async function PATCH(
         entityId: updated.id,
         userId: session.user.id,
         changes: { before: existing, after: body },
+      
+        ...(await auditOrigin()),
       },
     });
 
@@ -146,6 +149,8 @@ export async function DELETE(
         entityId: id,
         userId: session.user.id,
         changes: { before: existing },
+      
+        ...(await auditOrigin()),
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { ALL_ROLES, type Role } from "@/lib/permissions";
 import {
   granularMatrixForRole, isDefault,
@@ -149,6 +150,8 @@ export async function PUT(req: NextRequest) {
       entity: "GranularPermission",
       entityId: "bulk",
       changes: { count: changes.length, changes },
+    
+      ...(await auditOrigin()),
     },
   }).catch(() => {});
 

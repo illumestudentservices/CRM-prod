@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { type SourceType, SourceType as SourceTypeEnum } from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -114,6 +115,8 @@ export async function POST(req: NextRequest) {
         entityId: source.id,
         userId: session.user.id,
         changes: body,
+      
+        ...(await auditOrigin()),
       },
     });
 

@@ -32,6 +32,28 @@ async function requestMeta(req?: NextRequest) {
 }
 
 /**
+ * Origin metadata for a `db.auditLog.create()` written directly rather than via
+ * logActivity().
+ *
+ * 33 route files write audit rows straight to Prisma and only 3 of them set
+ * ipAddress, so most audited actions were stored with no origin: on production 28
+ * of 84 rows had a null IP, and they were the business actions (CREATE Lead,
+ * LEAD_CLOSED) while LOGIN and 2FA_VERIFIED — which do go through this module —
+ * had one. Spread this into the `data` block:
+ *
+ *     data: { action: "CREATE", ..., ...(await auditOrigin()) }
+ *
+ * Preferred over extending the Prisma client: `$extends` changes the client's type
+ * and breaks every `$transaction` callback that expects a plain client.
+ */
+export async function auditOrigin(): Promise<{
+  ipAddress: string | null;
+  userAgent: string | null;
+}> {
+  return requestMeta();
+}
+
+/**
  * Fire-and-forget audit logger. Never throws — failures are logged to stderr only.
  */
 export async function logActivity(
