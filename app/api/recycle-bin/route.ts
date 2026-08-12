@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { REGISTRY } from "@/lib/recycle-bin";
+import { REGISTRY, RETENTION_DAYS } from "@/lib/recycle-bin";
 
 /**
  * GET /api/recycle-bin
@@ -47,5 +47,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     data: items,
     counts: Object.fromEntries(counts.map((c) => [c.entityType, c._count._all])),
+    // `data` is capped at 500 above, so a caller that only wants a total must
+    // sum `counts` (an uncapped groupBy) instead of using data.length.
+    retentionDays: RETENTION_DAYS,
   });
 }
