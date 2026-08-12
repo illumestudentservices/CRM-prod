@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity-logger";
 import { NextRequest, NextResponse } from "next/server";
 import { PERMISSION_MATRIX, ALL_ROLES, ALL_RESOURCES, ALL_ACTIONS } from "@/lib/permissions";
 
@@ -97,6 +98,14 @@ export async function PUT(req: NextRequest) {
     console.error("[permissions PUT]", err);
     return NextResponse.json({ error: "Failed to save permissions" }, { status: 500 });
   }
+
+  // Changing who can do what is the most security-relevant mutation in the app
+  // and was not audited at all. Records the actual overrides, not just "settings
+  // changed", so a grant can be traced to a person, a time and an IP.
+  void logActivity(session.user.id, "PERMISSIONS_CHANGED", "Settings", "permission-matrix", {
+    upserted: toUpsert.map((o) => `${o.role}:${o.resource}:${o.action}=${o.granted}`),
+    restoredToDefault: toDelete.map((d) => `${d.role}:${d.resource}:${d.action}`),
+  }, req);
 
   return NextResponse.json({ ok: true, saved: toUpsert.length, restored: toDelete.length });
 }

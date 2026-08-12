@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity-logger";
 import { safeSend, wrapEmail } from "@/lib/email";
 import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
@@ -263,6 +264,12 @@ export async function POST(req: NextRequest) {
       html: emailHtml,
       attachments: [{ name: fileName, content: pdfBase64 }],
     });
+
+    // Sends a report PDF outside the organisation. Worth a record of who sent
+    // what to which address, given this is an egress path.
+    void logActivity(session.user.id, "REPORT_EMAILED_EXTERNAL", "MonthlyReport", report.id, {
+      to: parsed.data.to,
+    }, req);
 
     return NextResponse.json({ success: true });
   } catch (error) {
