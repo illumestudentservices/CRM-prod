@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { sendReportSubmittedEmail, sendReportStatusEmail } from "@/lib/email";
 // ReportStatus is used as a string union locally
@@ -186,6 +187,14 @@ export async function PATCH(
         reportUrl,
       });
     }
+
+    // Approval is what releases a report to a partner, and returning one sends it
+    // back to the ICR. Neither was recorded anywhere.
+    void logActivity(userId, `REPORT_${action}`, "MonthlyReport", id, {
+      from: report.status,
+      to: updatedReport.status,
+      ...(comment ? { comment } : {}),
+    }, req);
 
     return NextResponse.json(updatedReport);
   } catch (error) {
