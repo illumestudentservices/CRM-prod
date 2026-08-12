@@ -67,15 +67,20 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
 
-  if (employeeId) {
-    where.employeeId = employeeId;
-  } else if (!isHR) {
-    // Non-HR can only see their own
+  // "Non-HR can only see their own" was in an `else if`, so an explicit
+  // ?employeeId= bypassed it and exposed anyone's leave history — including
+  // medical and compassionate reasons — to any signed-in user.
+  if (isHR) {
+    if (employeeId) where.employeeId = employeeId;
+  } else {
     const employee = await db.employee.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
     });
     if (!employee) return NextResponse.json({ requests: [] });
+    if (employeeId && employeeId !== employee.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     where.employeeId = employee.id;
   }
 

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import type { Role } from "@/lib/permissions";
+import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 
 const noteSchema = z.object({
   content: z.string().min(1, "Note content is required").max(5000),
@@ -25,13 +27,26 @@ export async function GET(
     }
 
     const { id } = await params;
+    const { role, id: userId, regionId } = session.user;
 
     const lead = await db.lead.findUnique({
       where: { id },
-      select: { id: true, deletedAt: true },
+      select: {
+        id: true, deletedAt: true,
+        regionId: true, assignedICRId: true, institutionId: true,
+      },
     });
 
     if (!lead || lead.deletedAt) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    // This was the only /api/leads/[id]/* sub-route with no ownership check, so
+    // leads:read alone exposed any student's notes by id — an ICR could read
+    // another ICR's students and one INSTITUTION_CLIENT could read another's.
+    // Notes are free text and routinely carry the most sensitive detail on a
+    // student, so the module permission is not a sufficient gate on its own.
+    if (!canAccessLead(lead, userId, regionId, role as Role, await institutionIdsForUser(userId, role as Role))) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
@@ -81,13 +96,23 @@ export async function POST(
     }
 
     const { id } = await params;
+    const { role, id: userId, regionId } = session.user;
 
     const lead = await db.lead.findUnique({
       where: { id },
-      select: { id: true, deletedAt: true },
+      select: {
+        id: true, deletedAt: true,
+        regionId: true, assignedICRId: true, institutionId: true,
+      },
     });
 
     if (!lead || lead.deletedAt) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    // Same ownership rule as the read path: without it, leads:write let any
+    // holder append a note to any student's record.
+    if (!canAccessLead(lead, userId, regionId, role as Role, await institutionIdsForUser(userId, role as Role))) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 

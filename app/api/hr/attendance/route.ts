@@ -32,14 +32,21 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
 
-  if (employeeId) {
-    where.employeeId = employeeId;
-  } else if (!isHR) {
+  // The self-scoping below used to sit in an `else if`, so supplying an explicit
+  // ?employeeId= skipped it entirely and any signed-in user could read another
+  // employee's attendance history. Non-HR is now pinned to their own record
+  // regardless of what the query string asks for.
+  if (isHR) {
+    if (employeeId) where.employeeId = employeeId;
+  } else {
     const employee = await db.employee.findUnique({
       where: { userId: session.user.id },
       select: { id: true },
     });
     if (!employee) return NextResponse.json({ records: [] });
+    if (employeeId && employeeId !== employee.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     where.employeeId = employee.id;
   }
 
