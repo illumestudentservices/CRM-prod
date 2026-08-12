@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -23,6 +24,15 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // The full asset register, including who holds each device, used to be
+  // readable by anyone signed in — while POST/PATCH/DELETE in this module
+  // required HR. Gated on erp_hr:read rather than erp:read, because EMPLOYEE
+  // holds erp:read for its own attendance and leave and must not see the
+  // organisation-wide inventory.
+  if (!(await effectiveHasPermission(session.user.role as Role, "erp_hr", "read"))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);

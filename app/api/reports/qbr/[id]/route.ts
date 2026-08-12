@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 const updateQBRSchema = z.object({
   executiveSummary: z.string().optional(),
@@ -24,6 +26,13 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Was signed-in-only: any role could read any client's QBR by id, while
+    // PATCH and DELETE in this same file each required a different role list.
+    const role = session.user.role as Role;
+    if (!(await effectiveHasPermission(role, "reports", "read"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id } = await params;
 
     const qbr = await db.quarterlyBusinessReview.findUnique({
@@ -35,6 +44,16 @@ export async function GET(
 
     if (!qbr) {
       return NextResponse.json({ error: "QBR not found" }, { status: 404 });
+    }
+
+    // INSTITUTION_CLIENT holds reports:read, so the permission alone would let
+    // one client read another's review. 404 rather than 403 so an id cannot be
+    // probed for existence.
+    if (role === "INSTITUTION_CLIENT") {
+      const allowed = await institutionIdsForUser(session.user.id, role);
+      if (!allowed.includes(qbr.institutionId)) {
+        return NextResponse.json({ error: "QBR not found" }, { status: 404 });
+      }
     }
 
     return NextResponse.json(qbr);
