@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { trashRecord } from "@/lib/recycle-bin";
+import { accessibleInterest } from "@/lib/lead-access";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -32,11 +33,19 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "leads", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+
+    // leads:read is a module grant, not a row grant. Without this an ICR could
+    // read another ICR's students, and one INSTITUTION_CLIENT another's, by
+    // walking interest ids — the include below returns the entire Lead row.
+    if (!(await accessibleInterest(id, userId, regionId, role as Role))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const interest = await db.institutionInterest.findUnique({
       where: { id },
       include: {
@@ -60,11 +69,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+
+    // Same row gate as the read path: without it the module permission let any
+    // holder edit any student's interest.
+    if (!(await accessibleInterest(id, userId, regionId, role as Role))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
@@ -100,12 +115,16 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "leads", "delete"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
-    const existing = await db.institutionInterest.findUnique({ where: { id }, select: { leadId: true } });
+
+    // Row gate before the delete: leads:delete alone let a holder remove any
+    // student's interest. accessibleInterest also returns the leadId needed for
+    // syncLeadFromInterests, so this replaces the lookup that followed.
+    const existing = await accessibleInterest(id, userId, regionId, role as Role);
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     await trashRecord({ entityType: "InstitutionInterest", entityId: id, userId: session.user.id });
     await syncLeadFromInterests(existing.leadId);

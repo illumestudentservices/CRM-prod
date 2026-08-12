@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
+import { accessibleInterest } from "@/lib/lead-access";
 import type { LeadStage } from "@prisma/client";
 
 const closeSchema = z.discriminatedUnion("outcome", [
@@ -30,11 +31,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role, id: userId } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+
+    // Same row gate as the interest read path: without it leads:write let any
+    // holder close any student's interest.
+    if (!(await accessibleInterest(id, userId, regionId, role as Role))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
