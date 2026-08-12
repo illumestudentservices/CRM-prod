@@ -10,11 +10,30 @@ import {
   canReviewAccountRequest,
   REQUESTABLE_ROLES,
   ACCOUNT_REQUEST_INBOX,
+  requestFullName,
 } from "@/lib/account-requests";
 
+/**
+ * The joiner has no work mailbox yet — creating it is the point of the request —
+ * so this must be a personal address for IT to send the new credentials to.
+ * Rejecting the company domains turns that from a label into a rule; the form
+ * used to placehold "jane@illumestudentservices.ca", which is exactly the wrong
+ * answer.
+ */
+const COMPANY_EMAIL_DOMAINS = ["illumestudentservices.ca", "illumestudentservices.cloud"];
+
 const createSchema = z.object({
-  fullName: z.string().min(2, "Full name is required").max(120),
-  email: z.string().email("A valid work email is required"),
+  firstName: z.string().min(1, "First name is required").max(80),
+  // Optional: plenty of people have no middle name, and requiring one invites junk.
+  middleName: z.string().max(80).optional().nullable(),
+  lastName: z.string().min(1, "Last name is required").max(80),
+  personalEmail: z
+    .string()
+    .email("A valid personal email address is required")
+    .refine(
+      (v) => !COMPANY_EMAIL_DOMAINS.some((d) => v.trim().toLowerCase().endsWith(`@${d}`)),
+      "Use the joiner's personal email address — their Illume mailbox does not exist yet, and this is where their credentials will be sent."
+    ),
   jobTitle: z.string().min(2, "Job title is required").max(120),
   requestedRole: z.enum(REQUESTABLE_ROLES as unknown as [Role, ...Role[]]),
   employmentType: z.enum(["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN"]).default("FULL_TIME"),
@@ -89,33 +108,38 @@ export async function POST(req: NextRequest) {
     );
   }
   const data = parsed.data;
-  const email = data.email.trim().toLowerCase();
+  const personalEmail = data.personalEmail.trim().toLowerCase();
 
-  // An account may already exist, which usually means the manager does not know
-  // the person is already onboarded. Say so rather than queueing a duplicate.
+  // This used to look the address up in `users` to catch someone already
+  // onboarded. That check is now near-useless — a personal address will not match
+  // a work login — but it is retained because it still catches the case that
+  // matters: a contractor whose personal address WAS used as their login. The
+  // message no longer claims an account "exists for that email" in general terms.
   const existing = await db.user.findUnique({
-    where: { email },
+    where: { email: personalEmail },
     select: { id: true, isActive: true, deletedAt: true },
   });
   if (existing && !existing.deletedAt) {
     return NextResponse.json(
       {
         error: existing.isActive
-          ? "An active account already exists for that email address."
-          : "An account already exists for that email address but is disabled. Ask IT to re-enable it rather than raising a new request.",
+          ? "An active account already signs in with that address. This person appears to be onboarded already."
+          : "An account already signs in with that address but is disabled. Ask IT to re-enable it rather than raising a new request.",
       },
       { status: 409 }
     );
   }
 
+  // The real duplicate guard now: the same person queued twice. Matched on the
+  // personal address, which is stable across however the name was typed.
   const openDuplicate = await db.accountRequest.findFirst({
-    where: { email, status: "PENDING" },
+    where: { personalEmail, status: "PENDING" },
     select: { id: true, requestedBy: { select: { name: true } } },
   });
   if (openDuplicate) {
     return NextResponse.json(
       {
-        error: `There is already a pending request for that email address, raised by ${openDuplicate.requestedBy?.name ?? "another manager"}.`,
+        error: `There is already a pending request for that person, raised by ${openDuplicate.requestedBy?.name ?? "another manager"}.`,
       },
       { status: 409 }
     );
@@ -123,8 +147,10 @@ export async function POST(req: NextRequest) {
 
   const request = await db.accountRequest.create({
     data: {
-      fullName: data.fullName.trim(),
-      email,
+      firstName: data.firstName.trim(),
+      middleName: data.middleName?.trim() || null,
+      lastName: data.lastName.trim(),
+      personalEmail,
       jobTitle: data.jobTitle.trim(),
       requestedRole: data.requestedRole,
       employmentType: data.employmentType,
@@ -154,7 +180,7 @@ export async function POST(req: NextRequest) {
       data: reviewers.map((r) => ({
         userId: r.id,
         title: "New account request",
-        message: `${request.requestedBy?.name ?? "A manager"} requested an account for ${request.fullName} (${request.jobTitle}).`,
+        message: `${request.requestedBy?.name ?? "A manager"} requested an account for ${requestFullName(request)} (${request.jobTitle}).`,
         type: "ACCOUNT_REQUEST",
         link: "/hr?tab=account-requests",
       })),
@@ -165,8 +191,8 @@ export async function POST(req: NextRequest) {
   // stored and visible in the queue.
   void sendAccountRequestEmail({
     to: ACCOUNT_REQUEST_INBOX,
-    fullName: request.fullName,
-    email: request.email,
+    fullName: requestFullName(request),
+    email: request.personalEmail,
     jobTitle: request.jobTitle,
     requestedRole: request.requestedRole,
     employmentType: request.employmentType,
@@ -181,7 +207,7 @@ export async function POST(req: NextRequest) {
   });
 
   void logActivity(userId, "CREATE", "AccountRequest", request.id, {
-    email: request.email,
+    personalEmail: request.personalEmail,
     requestedRole: request.requestedRole,
   });
 

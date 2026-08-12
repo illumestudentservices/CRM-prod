@@ -2375,8 +2375,21 @@ model AccountRequest {
 
   // Who is being onboarded. Not a relation — the person has no account yet,
   // which is the entire point of the request.
-  fullName       String
-  email          String
+  //
+  // Split rather than one free-text name: IT creates the login from this, and a
+  // single field left the surname ambiguous for names like
+  // "Nur Aisyah Binti Zulkifli". middleName is nullable because many people have
+  // none. Note this model keeps its OWN name fields — lib/person-name.ts's
+  // PersonName is firstName/lastName only, and widening that shared vocabulary
+  // to carry a middle name would touch every Lead and User reader.
+  firstName      String
+  middleName     String?
+  lastName       String
+  /// The joiner's PERSONAL address, deliberately not their work one: the work
+  /// mailbox does not exist yet — creating it is the point of the request — so
+  /// this is where IT sends the new credentials. Named personalEmail rather than
+  /// email so it cannot later be mistaken for the work address.
+  personalEmail  String
   jobTitle       String
   requestedRole  Role
   employmentType EmploymentType @default(FULL_TIME)

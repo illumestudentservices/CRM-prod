@@ -27,10 +27,14 @@ async function main() {
   console.log("✅ Regions created");
 
   // ─── DEPARTMENTS ───────────────────────────────────────────────────────
-  const deptHQ = await db.department.upsert({ where: { name: "Headquarters" }, update: {}, create: { name: "Headquarters", description: "Global HQ team" } });
-  const deptSales = await db.department.upsert({ where: { name: "Student Recruitment" }, update: {}, create: { name: "Student Recruitment", description: "ICRs and regional managers", parentId: deptHQ.id } });
-  const deptOps = await db.department.upsert({ where: { name: "Operations" }, update: {}, create: { name: "Operations", description: "Operations and HR", parentId: deptHQ.id } });
-  const deptMarketing = await db.department.upsert({ where: { name: "Marketing" }, update: {}, create: { name: "Marketing", description: "Campaigns and digital marketing", parentId: deptHQ.id } });
+  // Exactly the four the business uses, flat — no hierarchy. "Headquarters" and
+  // "Operations" were removed in prisma/manual/025; keep this list in step with
+  // DEPARTMENTS in lib/account-requests.ts or a seeded dev database will offer
+  // departments production does not have.
+  const deptLeadership = await db.department.upsert({ where: { name: "Leadership" }, update: {}, create: { name: "Leadership", description: "Executive leadership team" } });
+  const deptSales = await db.department.upsert({ where: { name: "Student Recruitment" }, update: {}, create: { name: "Student Recruitment", description: "ICRs and regional managers" } });
+  const deptFinance = await db.department.upsert({ where: { name: "Finance" }, update: {}, create: { name: "Finance", description: "Finance and accounts" } });
+  const deptMarketing = await db.department.upsert({ where: { name: "Marketing" }, update: {}, create: { name: "Marketing", description: "Campaigns and digital marketing" } });
   console.log("✅ Departments created");
 
   // ─── USERS ─────────────────────────────────────────────────────────────
@@ -91,11 +95,11 @@ async function main() {
   // ─── EMPLOYEES ─────────────────────────────────────────────────────────
   const empAdmin = await db.employee.upsert({
     where: { userId: adminUser.id }, update: {},
-    create: { employeeId: "ILL-001", userId: adminUser.id, jobTitle: "System Administrator", departmentId: deptHQ.id, employmentType: EmploymentType.FULL_TIME, startDate: new Date("2020-01-15") },
+    create: { employeeId: "ILL-001", userId: adminUser.id, jobTitle: "System Administrator", departmentId: deptLeadership.id, employmentType: EmploymentType.FULL_TIME, startDate: new Date("2020-01-15") },
   });
   const empHQ = await db.employee.upsert({
     where: { userId: hqUser.id }, update: {},
-    create: { employeeId: "ILL-002", userId: hqUser.id, jobTitle: "CEO", departmentId: deptHQ.id, employmentType: EmploymentType.FULL_TIME, startDate: new Date("2019-06-01") },
+    create: { employeeId: "ILL-002", userId: hqUser.id, jobTitle: "CEO", departmentId: deptLeadership.id, employmentType: EmploymentType.FULL_TIME, startDate: new Date("2019-06-01") },
   });
   const empManager = await db.employee.upsert({
     where: { userId: managerUser.id }, update: {},
@@ -111,7 +115,7 @@ async function main() {
   });
   const empHR = await db.employee.upsert({
     where: { userId: hrUser.id }, update: {},
-    create: { employeeId: "ILL-006", userId: hrUser.id, jobTitle: "HR Manager", departmentId: deptOps.id, employmentType: EmploymentType.FULL_TIME, managerId: empHQ.id, startDate: new Date("2020-03-01") },
+    create: { employeeId: "ILL-006", userId: hrUser.id, jobTitle: "HR Manager", departmentId: deptFinance.id, employmentType: EmploymentType.FULL_TIME, managerId: empHQ.id, startDate: new Date("2020-03-01") },
   });
   const empEmp1 = await db.employee.upsert({
     where: { userId: emp1User.id }, update: {},
