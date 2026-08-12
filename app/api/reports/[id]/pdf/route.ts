@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { institutionIdsForUser } from "@/lib/lead-access";
 import { snapshotName, type SnapshotName } from "@/lib/person-name";
 import {
   WEEKLY_ACTIVITY_DEFS,
@@ -63,6 +64,20 @@ export async function GET(
     }
     if (!isExec && role !== "ICR" && role !== "REGIONAL_MANAGER" && role !== "INSTITUTION_CLIENT") {
       return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // MonthlyReport carries a required institutionId, so the client tenancy check
+    // is a direct id match — no walk through the ICR or the region. This is the
+    // only monthly-report reader that admits INSTITUTION_CLIENT at all
+    // (GET /api/reports/[id] denies the role outright), and it did so with no
+    // institution check, so one partner client could render another's entire
+    // report: student names, nationalities, programmes, stages and notes.
+    // 404 rather than 403 so a report id cannot be probed for existence.
+    if (role === "INSTITUTION_CLIENT") {
+      const allowed = await institutionIdsForUser(userId, role as Role);
+      if (!allowed.includes(report.institutionId)) {
+        return new NextResponse("Report not found", { status: 404 });
+      }
     }
 
     const period = `${MONTH_NAMES[report.reportingMonth]} ${report.reportingYear}`;

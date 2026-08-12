@@ -216,6 +216,11 @@ export async function destroyUser(ctx) {
   await db.deletedRecord.deleteMany({ where: { deletedById: id } }).catch(() => {});
   await db.deletedRecord.deleteMany({ where: { restoredById: id } }).catch(() => {});
   await db.auditLog.deleteMany({ where: { userId: id } }).catch(() => {});
+  // InstitutionUser was missing here, so any test that assigned an
+  // INSTITUTION_CLIENT to an institution left the user undeletable behind that
+  // FK — it only surfaced as the warning below, after the rows had leaked.
+  await db.institutionUser.deleteMany({ where: { userId: id } }).catch(() => {});
+  await db.passwordHistory.deleteMany({ where: { userId: id } }).catch(() => {});
   await db.$executeRaw`DELETE FROM attachments WHERE "uploadedById" = ${id}`.catch(() => {});
   await db.$executeRaw`UPDATE leads SET "assignedICRId" = NULL WHERE "assignedICRId" = ${id}`.catch(() => {});
 
