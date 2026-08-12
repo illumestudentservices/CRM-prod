@@ -4,6 +4,27 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 
+/**
+ * Parses a range boundary, treating a date-only value as the whole of that day.
+ *
+ * `new Date("2026-08-12")` is midnight UTC, so `lte` against it excluded
+ * everything recorded during 12 August — every lead added today was missing from
+ * the KPIs, the monthly chart and top markets, while the stage breakdown (which
+ * has no date filter) still counted it, making the screen look self-contradictory.
+ * Both dashboards send a bare `YYYY-MM-DD`.
+ *
+ * app/api/activity-log/route.ts already did this correctly; analytics did not.
+ * An unparseable value falls back rather than passing `Invalid Date` to Prisma.
+ */
+function parseBoundary(param: string | null, fallback: Date, endOfDay: boolean): Date {
+  if (!param) return fallback;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(param)
+    ? `${param}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`
+    : param;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? fallback : d;
+}
+
 function buildScopeFilter(role: Role, userId: string, regionId: string | null) {
   switch (role) {
     case "ICR":
@@ -43,8 +64,8 @@ export async function GET(req: NextRequest) {
     const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
     const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
 
-    const startDate = startDateParam ? new Date(startDateParam) : ytdStart;
-    const endDate = endDateParam ? new Date(endDateParam) : now;
+    const startDate = parseBoundary(startDateParam, ytdStart, false);
+    const endDate = parseBoundary(endDateParam, now, true);
 
     const baseScope = buildScopeFilter(role, userId, userRegionId);
 
