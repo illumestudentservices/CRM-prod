@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PasswordResetSection } from "./password-reset-section";
 import { MfaStatusCard } from "./mfa-status-card";
+import { RecycleBinCard } from "./recycle-bin-card";
 import { GranularPermissionsPanel } from "./granular-permissions-panel";
 
 // ─── Meta ─────────────────────────────────────────────────────────────────────
@@ -508,6 +509,11 @@ export function SecurityTab() {
 
       {/* ── Two-Factor Authentication ── */}
       <MfaStatusCard />
+
+      {/* ── Recycle Bin ──
+          Lives at /recycle-bin in the sidebar, but its breadcrumb claims
+          Settings → Recycle Bin and this is where people look for it. */}
+      <RecycleBinCard />
 
       {/* ── Password Reset ── */}
       <div className="border rounded-xl p-5">
