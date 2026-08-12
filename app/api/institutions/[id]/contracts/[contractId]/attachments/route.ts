@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
+import { institutionIdsForUser } from "@/lib/lead-access";
+import type { Role } from "@/lib/permissions";
 
 
 type Params = { params: Promise<{ id: string; contractId: string }> };
@@ -14,7 +16,23 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!(await effectiveHasPermission(session.user.role, "institutions", "read")))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { contractId } = await params;
+  const { id, contractId } = await params;
+
+  // The listing was keyed on contractId alone, so any contract's attachment
+  // index was readable through any institution id in the path — the same gap the
+  // POST below already closes for writes.
+  const contract = await db.contract.findFirst({
+    where: { id: contractId, institutionId: id },
+    select: { id: true },
+  });
+  if (!contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+
+  if (session.user.role === "INSTITUTION_CLIENT") {
+    const allowed = await institutionIdsForUser(session.user.id, session.user.role as Role);
+    if (!allowed.includes(id)) {
+      return NextResponse.json({ error: "Contract not found" }, { status: 404 });
+    }
+  }
 
   const attachments = await db.contractAttachment.findMany({
     where: { contractId },
