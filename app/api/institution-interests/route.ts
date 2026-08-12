@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -30,14 +31,36 @@ const listSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
-function scope(role: Role, userId: string, regionId: string | null) {
+/**
+ * Row scope for the interest list.
+ *
+ * The `default:` branch used to return `{}`, which is unscoped — so every role
+ * holding leads:read that is not ICR or REGIONAL_MANAGER listed every interest in
+ * the system, student name, email, phone and country included. That also made the
+ * ids trivially enumerable for the /[id] routes. It now mirrors canAccessLead:
+ * the roles that see everything are named explicitly, INSTITUTION_CLIENT is
+ * limited to its own institutions, and anything else is fail-closed.
+ */
+async function scope(role: Role, userId: string, regionId: string | null) {
   switch (role) {
+    case "SUPER_ADMIN":
+    case "HQ_EXECUTIVE":
+    case "HQ_ANALYTICS":
+      return {};
     case "ICR":
       return { OR: [{ assignedICRId: userId }, { lead: { assignedICRId: userId } }] };
     case "REGIONAL_MANAGER":
       return regionId ? { lead: { regionId } } : {};
+    case "INSTITUTION_CLIENT": {
+      const allowed = await institutionIdsForUser(userId, role);
+      // No assignments means no interests, not all of them.
+      return { institutionId: { in: allowed } };
+    }
     default:
-      return {};
+      // Fail closed. A role that reaches here holds leads:read but has no
+      // defined row scope, and canAccessLead denies it every individual lead —
+      // so listing every interest would be inconsistent with that.
+      return { id: "__no_access__" };
   }
 }
 
@@ -58,7 +81,7 @@ export async function GET(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
-      ...scope(role as Role, userId, regionId),
+      ...(await scope(role as Role, userId, regionId)),
       ...(leadId && { leadId }),
       ...(institutionId && { institutionId }),
       ...(stage && { stage }),
