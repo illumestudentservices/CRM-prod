@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertTriangle, GripVertical, Clock } from "lucide-react";
 import { cn, getInitials, getMonthName } from "@/lib/utils";
+import { countryFlag } from "@/lib/country";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   daysSince,
@@ -36,45 +37,13 @@ const STUDY_LEVEL_COLORS: Record<string, string> = {
   FOUNDATION: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
 };
 
-// Very small nationality → flag emoji lookup (common ones)
+// Nationality → flag. Was a local map of ~30 demonyms with a globe fallback, so
+// eight of the values actually in the data fell through to 🌍 — including
+// "Saudi Arabian" and "UAE National", which the map held as "Saudi" and
+// "Emirati", plus Turkish, Iranian, Japanese, Omani, Senegalese and Korean.
+// lib/country.ts resolves demonyms, country names and ISO codes in one place.
 function getFlagEmoji(nationality: string): string {
-  const map: Record<string, string> = {
-    Nigerian: "🇳🇬",
-    Ghanaian: "🇬🇭",
-    Kenyan: "🇰🇪",
-    South_African: "🇿🇦",
-    Egyptian: "🇪🇬",
-    Moroccan: "🇲🇦",
-    Tanzanian: "🇹🇿",
-    Ugandan: "🇺🇬",
-    Ethiopian: "🇪🇹",
-    Zimbabwean: "🇿🇼",
-    Zambian: "🇿🇲",
-    Indian: "🇮🇳",
-    Pakistani: "🇵🇰",
-    Bangladeshi: "🇧🇩",
-    Chinese: "🇨🇳",
-    Malaysian: "🇲🇾",
-    Indonesian: "🇮🇩",
-    Vietnamese: "🇻🇳",
-    Filipino: "🇵🇭",
-    Thai: "🇹🇭",
-    Brazilian: "🇧🇷",
-    Colombian: "🇨🇴",
-    Mexican: "🇲🇽",
-    American: "🇺🇸",
-    British: "🇬🇧",
-    Canadian: "🇨🇦",
-    Australian: "🇦🇺",
-    German: "🇩🇪",
-    French: "🇫🇷",
-    Spanish: "🇪🇸",
-    Saudi: "🇸🇦",
-    Emirati: "🇦🇪",
-    Qatari: "🇶🇦",
-    Kuwaiti: "🇰🇼",
-  };
-  return map[nationality] ?? "🌍";
+  return countryFlag(nationality) || "🌍";
 }
 
 interface LeadCardProps {

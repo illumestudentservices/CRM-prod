@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS, CLOSED_STAGES } from "@/lib/lead-pipeline";
@@ -264,6 +265,7 @@ export async function PATCH(
             bypassedBlockers: gate.blockers.map((b) => b.message),
           }),
         },
+        ...(await auditOrigin()),
       },
     });
 

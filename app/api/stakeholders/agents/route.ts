@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import type { AgentTier } from "@prisma/client";
@@ -210,6 +211,8 @@ export async function POST(req: NextRequest) {
         entityId: agentProfile.id,
         userId: session.user.id,
         changes: body,
+      
+        ...(await auditOrigin()),
       },
     });
 

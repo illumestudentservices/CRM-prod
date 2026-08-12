@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { RiskStatus, RiskType } from "@prisma/client";
@@ -128,6 +129,8 @@ export async function PATCH(
         entityId: id,
         userId: session.user.id,
         changes: body,
+      
+        ...(await auditOrigin()),
       },
     });
 
@@ -175,6 +178,8 @@ export async function DELETE(
         entity: "RiskRegister",
         entityId: id,
         userId: session.user.id,
+      
+        ...(await auditOrigin()),
       },
     });
 

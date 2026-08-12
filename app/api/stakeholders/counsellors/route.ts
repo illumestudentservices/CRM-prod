@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
@@ -165,6 +166,8 @@ export async function POST(req: NextRequest) {
         entityId: counsellor.id,
         userId: session.user.id,
         changes: { ...body, mirroredContactId, mirroredSourceId: sourceId },
+      
+        ...(await auditOrigin()),
       },
     });
 

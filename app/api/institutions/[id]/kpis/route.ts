@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import {
   type KPICategory, type KPIPeriod,
@@ -121,6 +122,8 @@ export async function POST(
         entityId: kpi.id,
         userId: session.user.id,
         changes: { after: body },
+      
+        ...(await auditOrigin()),
       },
     });
 

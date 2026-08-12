@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
@@ -366,6 +367,8 @@ export async function POST(req: NextRequest) {
         entity: "Lead",
         entityId: lead.id,
         changes: { stage: "NEW_LEAD", email: data.email },
+      
+        ...(await auditOrigin()),
       },
     });
 
