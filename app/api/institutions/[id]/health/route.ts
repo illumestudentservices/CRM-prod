@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { hasCapability } from "@/lib/granular-permissions";
 
 /**
  * Spec §11 (Clients) — Account Health.
@@ -73,6 +74,17 @@ export async function PATCH(
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!(await effectiveHasPermission(session.user.role as Role, "institutions", "write"))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // The account health rating drives escalation and client reporting, so it is not just
+  // another editable field. The institutions.set_health capability existed for
+  // exactly this and had never been wired to a route, leaving the rating writable
+  // by every institutions:write holder. hasCapability still requires
+  // institutions:write underneath, so this can only narrow, never widen.
+  if (!(await hasCapability(session.user.role as Role, "institutions.set_health"))) {
+    return NextResponse.json(
+      { error: "Your role is not permitted to change account health" },
+      { status: 403 }
+    );
   }
   const userId = session.user.id;
   const { id: institutionId } = await params;

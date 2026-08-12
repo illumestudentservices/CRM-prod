@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { z } from "zod";
 import { guardUserRemoval, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 
 const patchSchema = z.object({
   id: z.string(),
@@ -89,6 +91,20 @@ export async function PATCH(req: NextRequest) {
     }
 
     const { id, ...data } = parsed.data;
+
+    // Role assignment is gated separately from the rest of this handler. The
+    // users.change_role capability existed for it and had never been wired to a
+    // route, so the registry advertised a control that did nothing. Checked only
+    // when a role is actually being set, so toggling isActive is unaffected. Same
+    // people by default — the capability requires users:write, which only
+    // SUPER_ADMIN holds — but now revocable in Settings → Security, which matters
+    // for the one operation that can grant privilege.
+    if (data.role && !(await hasCapability(session.user.role as Role, "users.change_role"))) {
+      return NextResponse.json(
+        { error: "Your role is not permitted to change user roles" },
+        { status: 403 }
+      );
+    }
 
     // Prevent demoting the last SUPER_ADMIN
     if (data.role && data.role !== "SUPER_ADMIN") {
