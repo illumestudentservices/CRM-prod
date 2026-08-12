@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { logActivity } from "@/lib/activity-logger";
 import { sendAccountRequestDecisionEmail } from "@/lib/email";
-import { canReviewAccountRequest } from "@/lib/account-requests";
+import { canReviewAccountRequest, requestFullName } from "@/lib/account-requests";
 import { trashRecord } from "@/lib/recycle-bin";
 
 const patchSchema = z
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     void sendAccountRequestDecisionEmail({
       to: request.requestedBy.email,
       requesterName: request.requestedBy.name ?? "there",
-      candidateName: request.fullName,
+      candidateName: requestFullName(request),
       approved: action === "APPROVE",
       notes: reviewNotes?.trim() || undefined,
       requestUrl: `${process.env.NEXTAUTH_URL ?? ""}/hr?tab=account-requests`,
@@ -110,8 +110,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         title: action === "APPROVE" ? "Account request approved" : "Account request declined",
         message:
           action === "APPROVE"
-            ? `Your request for ${request.fullName} was approved. IT will create the account.`
-            : `Your request for ${request.fullName} was declined. ${reviewNotes?.trim() ?? ""}`.trim(),
+            ? `Your request for ${requestFullName(request)} was approved. IT will create the account.`
+            : `Your request for ${requestFullName(request)} was declined. ${reviewNotes?.trim() ?? ""}`.trim(),
         type: "ACCOUNT_REQUEST",
         link: "/hr?tab=account-requests",
       },
@@ -119,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   void logActivity(userId, action === "APPROVE" ? "APPROVE" : "REJECT", "AccountRequest", id, {
-    email: request.email,
+    personalEmail: request.personalEmail,
     requestedRole: request.requestedRole,
     ...(reviewNotes ? { reviewNotes } : {}),
   });

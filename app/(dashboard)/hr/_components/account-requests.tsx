@@ -37,13 +37,23 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   STATUS_LABELS,
   roleLabel,
+  requestFullName,
 } from "@/lib/account-requests";
+
+/**
+ * Mirrors COMPANY_EMAIL_DOMAINS in the POST route. Duplicated rather than shared
+ * because the route file is server-only; the server check is the authority and
+ * this exists so the requester is told before they submit.
+ */
+const COMPANY_DOMAINS = ["illumestudentservices.ca", "illumestudentservices.cloud"];
 
 interface AccountRequest {
   id: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
-  fullName: string;
-  email: string;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  personalEmail: string;
   jobTitle: string;
   requestedRole: string;
   employmentType: string;
@@ -68,8 +78,10 @@ const STATUS_VARIANT: Record<string, "warning" | "success" | "destructive"> = {
 };
 
 const EMPTY = {
-  fullName: "",
-  email: "",
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  personalEmail: "",
   jobTitle: "",
   requestedRole: "EMPLOYEE",
   employmentType: "FULL_TIME",
@@ -121,8 +133,10 @@ export function AccountRequests() {
   }, [load]);
 
   const valid =
-    form.fullName.trim().length >= 2 &&
-    /\S+@\S+\.\S+/.test(form.email) &&
+    form.firstName.trim().length >= 1 &&
+    form.lastName.trim().length >= 1 &&
+    /\S+@\S+\.\S+/.test(form.personalEmail) &&
+    !COMPANY_DOMAINS.some((d) => form.personalEmail.trim().toLowerCase().endsWith("@" + d)) &&
     form.jobTitle.trim().length >= 2 &&
     !!form.startDate &&
     form.justification.trim().length >= 10;
@@ -212,7 +226,7 @@ export function AccountRequests() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.fullName}</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{requestFullName(r)}</p>
             <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABELS[r.status]}</Badge>
             {r.status === "APPROVED" && !r.fulfilledAt && (
               <Badge variant="secondary">Account not created yet</Badge>
@@ -274,7 +288,7 @@ export function AccountRequests() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs">
-        <Field label="Work email" value={r.email} />
+        <Field label="Personal email" value={r.personalEmail} />
         <Field label="Start date" value={formatDate(r.startDate)} />
         <Field label="Region" value={r.region?.name ?? "—"} />
         <Field label="Department" value={r.department?.name ?? "—"} />
@@ -380,24 +394,59 @@ export function AccountRequests() {
           </div>
 
           <div className="space-y-4 py-1">
-            <div className="grid grid-cols-2 gap-3">
+            {/* Name is captured in three parts rather than one free-text field:
+                IT creates the login from this, and "Full name" left the surname
+                ambiguous for names with several words. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label>Full name *</Label>
+                <Label>First name *</Label>
                 <Input
-                  value={form.fullName}
-                  onChange={(e) => set("fullName", e.target.value)}
-                  placeholder="Jane Smith"
+                  value={form.firstName}
+                  onChange={(e) => set("firstName", e.target.value)}
+                  placeholder="Jane"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Work email *</Label>
+                <Label>
+                  Middle name{" "}
+                  <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
                 <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
-                  placeholder="jane@illumestudentservices.ca"
+                  value={form.middleName}
+                  onChange={(e) => set("middleName", e.target.value)}
+                  placeholder="—"
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label>Last name *</Label>
+                <Input
+                  value={form.lastName}
+                  onChange={(e) => set("lastName", e.target.value)}
+                  placeholder="Smith"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Personal email *</Label>
+              <Input
+                type="email"
+                value={form.personalEmail}
+                onChange={(e) => set("personalEmail", e.target.value)}
+                placeholder="jane.smith@gmail.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                Their own address, not an Illume one — the work mailbox does not
+                exist yet, and this is where IT sends the new credentials.
+              </p>
+              {form.personalEmail.trim() !== "" &&
+                COMPANY_DOMAINS.some((d) =>
+                  form.personalEmail.trim().toLowerCase().endsWith("@" + d)
+                ) && (
+                  <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                    That is an Illume address. Enter the joiner&apos;s personal email instead.
+                  </p>
+                )}
             </div>
 
             <div className="space-y-1.5">

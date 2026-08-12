@@ -82,3 +82,34 @@ export const STATUS_LABELS: Record<string, string> = {
 export function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role.replace(/_/g, " ");
 }
+
+/**
+ * The four departments the business actually uses. Kept here so the list has one
+ * definition, and asserted by prisma/manual/025 so the departments table cannot
+ * drift from it — there is no UI for adding departments, so the table is config.
+ */
+export const DEPARTMENTS = [
+  "Finance",
+  "Marketing",
+  "Student Recruitment",
+  "Leadership",
+] as const;
+
+/**
+ * Full name for display, from the split fields.
+ *
+ * AccountRequest carries its own firstName/middleName/lastName rather than using
+ * lib/person-name.ts, whose PersonName is firstName/lastName only — widening that
+ * shared type to carry a middle name would touch every Lead and User reader. So
+ * this model needs its own formatter.
+ */
+export function requestFullName(p: {
+  firstName?: string | null;
+  middleName?: string | null;
+  lastName?: string | null;
+}): string {
+  return [p.firstName, p.middleName, p.lastName]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
