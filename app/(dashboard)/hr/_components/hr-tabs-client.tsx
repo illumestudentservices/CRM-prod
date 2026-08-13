@@ -16,12 +16,19 @@ import { LeaveBalances } from "./leave-balances";
 import { PerformanceReviews } from "./performance-reviews";
 import { SuccessionPlanning } from "./succession-planning";
 import { AccountRequests } from "./account-requests";
+import { OffboardingRequests } from "./offboarding-requests";
 
 interface HRTabsClientProps {
   isHR: boolean;
   isSuperAdmin: boolean;
   /** Regional and HR managers raise requests; Super Admins review them. */
   canSeeAccountRequests: boolean;
+  /**
+   * Same roles as account requests, but a separate prop rather than reusing that
+   * flag — the two gates are independent by design, so widening one later must
+   * not silently widen the other.
+   */
+  canSeeOffboarding: boolean;
   userId: string;
   totalEmployees: number;
   onLeaveToday: number;
@@ -33,6 +40,7 @@ export function HRTabsClient({
   isHR,
   isSuperAdmin,
   canSeeAccountRequests,
+  canSeeOffboarding,
   userId,
   totalEmployees,
   onLeaveToday,
@@ -41,8 +49,9 @@ export function HRTabsClient({
 }: HRTabsClientProps) {
   const [activeTab, setActiveTab] = React.useState("employees");
 
-  // Notification emails link to /hr?tab=account-requests, so honour that rather
-  // than dropping the reviewer on the Employees tab and making them hunt.
+  // Notification emails link to /hr?tab=account-requests and /hr?tab=offboarding,
+  // so honour that rather than dropping the reviewer on the Employees tab and
+  // making them hunt.
   React.useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get("tab");
     if (tab) setActiveTab(tab);
@@ -91,6 +100,11 @@ export function HRTabsClient({
           {canSeeAccountRequests && (
             <TabsTrigger value="account-requests">Account Requests</TabsTrigger>
           )}
+          {/* Sits beside Account Requests: joiners and leavers are the same job,
+              and pairing them is what stops a departure being forgotten. */}
+          {canSeeOffboarding && (
+            <TabsTrigger value="offboarding">Offboarding</TabsTrigger>
+          )}
           {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
         </TabsList>
         <TabsContent value="employees" className="mt-4">
@@ -131,6 +145,11 @@ export function HRTabsClient({
         {canSeeAccountRequests && (
           <TabsContent value="account-requests" className="mt-4">
             <AccountRequests />
+          </TabsContent>
+        )}
+        {canSeeOffboarding && (
+          <TabsContent value="offboarding" className="mt-4">
+            <OffboardingRequests />
           </TabsContent>
         )}
       </Tabs>

@@ -912,6 +912,8 @@ model User {
   auditLogs         AuditLog[]
   accountRequests   AccountRequest[]  @relation("AccountRequestRequester")
   reviewedRequests  AccountRequest[]  @relation("AccountRequestReviewer")
+  offboardingRequests        OffboardingRequest[] @relation("OffboardingRequestRequester")
+  reviewedOffboardingRequests OffboardingRequest[] @relation("OffboardingRequestReviewer")
   institutionAccess InstitutionUser[]
   whatsappMessages  WhatsAppMessage[]
 
@@ -2122,6 +2124,7 @@ model Employee {
   createdTasks       Task[]              @relation("TaskCreator")
   documents          EmployeeDocument[]
   onboardingItems    OnboardingItem[]
+  offboardingRequests OffboardingRequest[]
 
   @@map("employees")
 }
@@ -2430,6 +2433,82 @@ enum AccountRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// A departure, raised by a manager and reviewed by IT.
+///
+/// The mirror image of AccountRequest, and deliberately shaped the same way:
+/// approving does NOT revoke anything. The business chose to keep revocation a
+/// manual act, so `completedAt` records that IT has actually disabled the login —
+/// without it an approved departure looks finished while the leaver can still
+/// sign in.
+model OffboardingRequest {
+  id     String                   @id @default(uuid())
+  status OffboardingRequestStatus @default(PENDING)
+
+  /// Who is leaving. A real relation, unlike AccountRequest's loose name fields —
+  /// there the person has no record yet, whereas here they do, so pointing at it
+  /// means the queue cannot drift from the staff record and a picked employee is
+  /// guaranteed to exist. Cascade is a formality: employees are soft-deleted via
+  /// the user row, never removed.
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  reason OffboardingReason
+
+  /// Their last day actually working, which is not necessarily when access should
+  /// stop — garden leave ends access earlier, a handover can need it slightly
+  /// longer. IT decides that; this is the business fact to decide it from.
+  lastWorkingDay DateTime
+
+  /// A personal address for final payslips, references and tax documents. The
+  /// same reasoning as AccountRequest.personalEmail, inverted: their work mailbox
+  /// is about to stop existing, so anything sent there after the fact is lost.
+  forwardingEmail String?
+
+  /// Why they are leaving, in prose. Required — a reviewer disabling someone's
+  /// access should never have to guess at the circumstances, and the difference
+  /// between a resignation and a termination changes what IT does.
+  notes String @db.Text
+
+  requestedById String
+  requestedBy   User   @relation("OffboardingRequestRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  reviewedById String?
+  reviewedBy   User?     @relation("OffboardingRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  /// Mandatory on rejection, so the requester learns something actionable.
+  reviewNotes  String?   @db.Text
+
+  /// Set once IT has actually revoked access. See the model comment.
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requestedById])
+  /// Backs the "already a pending departure for this person" guard.
+  @@index([employeeId])
+  @@map("offboarding_requests")
+}
+
+enum OffboardingRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Why someone is leaving. Drives nothing automatically — it exists so IT can
+/// tell a resignation from a dismissal, which changes the urgency of cutting
+/// access, and so HR can report on attrition later.
+enum OffboardingReason {
+  RESIGNATION
+  END_OF_CONTRACT
+  TERMINATION
+  RETIREMENT
+  REDUNDANCY
+  OTHER
 }
 
 // ─── CROSS-CUTTING MODELS ─────────────────────────────────────────────────
