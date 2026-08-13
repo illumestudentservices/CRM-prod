@@ -3226,6 +3226,11 @@ model QuarterlyRecruitmentPlan {
   status         RecruitmentPlanStatus @default(DRAFT)
 
   // ─── Approval routing (spec §3) ────────────────────────────────────────
+  /// These three record WHO performed each routing step. They are stamped by
+  /// the transition route from the acting user, not assigned up front.
+  /// All three sat permanently null until 2026-08-13: the `*ReviewedAt`
+  /// timestamps were being written while these stayed empty, so a plan showed
+  /// that a review had happened but never by whom.
   regionalManagerId     String?
   regionalManager       User?     @relation("PlanRegionalManager", fields: [regionalManagerId], references: [id])
   regionalReviewedAt    DateTime?
@@ -3236,8 +3241,12 @@ model QuarterlyRecruitmentPlan {
   accountReviewedAt     DateTime?
   accountReviewNotes    String?   @db.Text
 
-  /// VP Global Sales role is mapped to HQ_EXECUTIVE for now (decision #5).
-  /// The reviewer here is whichever HQ_EXECUTIVE the workflow assigns.
+  /// The VP_GLOBAL_SALES — or HQ_EXECUTIVE — who cleared Internal Final Review.
+  /// This was previously documented as "VP Global Sales is mapped to
+  /// HQ_EXECUTIVE for now (decision #5)". That interim mapping is retired:
+  /// VP_GLOBAL_SALES now exists as a real role and holds the step, with
+  /// HQ_EXECUTIVE kept alongside it because spec §3 says the VP is *included in*
+  /// this review rather than its sole owner.
   vpReviewerId          String?
   vpReviewer            User?     @relation("PlanVpReviewer", fields: [vpReviewerId], references: [id])
   internalFinalReviewedAt DateTime?
