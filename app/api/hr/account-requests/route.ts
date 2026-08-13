@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
   void sendAccountRequestEmail({
     to: ACCOUNT_REQUEST_INBOX,
     fullName: requestFullName(request),
-    email: request.personalEmail,
+    personalEmail: request.personalEmail,
     jobTitle: request.jobTitle,
     requestedRole: request.requestedRole,
     employmentType: request.employmentType,

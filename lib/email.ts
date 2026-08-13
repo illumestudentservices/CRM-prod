@@ -870,7 +870,16 @@ export async function sendFullReportEmail(opts: {
 export async function sendAccountRequestEmail(opts: {
   to: string | string[];
   fullName: string;
-  email: string;
+  /**
+   * The joiner's PERSONAL address.
+   *
+   * Named personalEmail rather than `email` deliberately: while it was just
+   * `email`, the template rendered it under a "Work email" heading long after
+   * migration 025 renamed the column, so IT was shown a Gmail address labelled as
+   * the work one. Offboarding is the mirror — there the address IS the work
+   * mailbox, because it still exists and is about to be closed.
+   */
+  personalEmail: string;
   jobTitle: string;
   requestedRole: string;
   employmentType: string;
@@ -892,10 +901,15 @@ export async function sendAccountRequestEmail(opts: {
       <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
         <strong>${opts.requestedByName}</strong> has requested a portal account for a new joiner.
         Nothing has been created — review the details below and set the account up if you approve.
+        Send the new credentials to the <strong>personal</strong> address below: their Illume
+        mailbox does not exist yet, because creating it is the point of this request.
       </p>
       ${infoTable([
         ["Full name", opts.fullName],
-        ["Work email", opts.email],
+        // Kept short: infoRow's label cell is `white-space:nowrap`, so a long
+        // label widens the column and squeezes the value on a phone. The
+        // "credentials go here" guidance lives in the prose above instead.
+        ["Personal email", opts.personalEmail],
         ["Job title", opts.jobTitle],
         ["Requested role", label(opts.requestedRole)],
         ["Employment type", label(opts.employmentType)],
