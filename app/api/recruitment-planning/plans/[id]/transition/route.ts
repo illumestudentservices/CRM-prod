@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role } = session.user;
+    const { role, id: userId } = session.user;
     // Advancing a plan is either authoring (ICR submitting) or reviewing
     // (a manager moving it along), so accept `write` OR `approve`.
     //
@@ -57,6 +57,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const patch: any = { status: parsed.data.toStatus };
     const transition = PLAN_TRANSITIONS[parsed.data.toStatus as RecruitmentPlanStatus];
     if (transition.timestampField) patch[transition.timestampField] = new Date();
+    // Record who reviewed, not just when. These columns existed and were never
+    // written, so `accountReviewedAt` could be set with `accountManagerId` still
+    // null — a budget approval trail that says a review happened but not by
+    // whom. Re-stamped on each pass so that after a RETURNED round-trip the
+    // reviewer shown is the one who actually cleared it.
+    if (transition.reviewerField) patch[transition.reviewerField] = userId;
     if (parsed.data.notes) {
       if (parsed.data.toStatus === "REGIONAL_MANAGER_REVIEW" || parsed.data.toStatus === "RETURNED") patch.regionalReviewNotes = parsed.data.notes;
       else if (parsed.data.toStatus === "ACCOUNT_MANAGER_REVIEW") patch.accountReviewNotes = parsed.data.notes;

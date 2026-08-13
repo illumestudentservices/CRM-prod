@@ -17,6 +17,14 @@ type Transition = {
     | "activatedAt"
     | "completedAt"
     | "closedAt";
+  /**
+   * Which column records WHO performed this step.
+   *
+   * The timestamps above were being written while these stayed permanently
+   * null, so a plan could show that it had been through Account Manager Review
+   * without recording who reviewed it — useless for a budget approval trail.
+   */
+  reviewerField?: "regionalManagerId" | "accountManagerId" | "vpReviewerId";
 };
 
 export const PLAN_TRANSITIONS: Record<RecruitmentPlanStatus, Transition> = {
@@ -26,33 +34,76 @@ export const PLAN_TRANSITIONS: Record<RecruitmentPlanStatus, Transition> = {
     from: ["SUBMITTED", "RETURNED"],
     allowedRoles: ["REGIONAL_MANAGER", "SUPER_ADMIN"],
     timestampField: "regionalReviewedAt",
+    reviewerField: "regionalManagerId",
   },
+  /**
+   * Spec §3: "Account Manager: client alignment and budget review".
+   *
+   * This step used to permit HQ_EXECUTIVE and NOT ACCOUNT_MANAGER, so the step
+   * named after the role could not be performed by it. The role's own
+   * definition in the Role enum says it "approves plans before client
+   * submission" — it was created for this and never wired in.
+   *
+   * HQ_EXECUTIVE is deliberately NOT here. It holds every step below, so
+   * leaving it here let one HQ Executive take a plan from Account Manager
+   * Review all the way to APPROVED alone — a quarterly budget signed off
+   * end-to-end by a single person. Requiring an ACCOUNT_MANAGER here and a
+   * VP/HQ below means two people are always involved.
+   */
   ACCOUNT_MANAGER_REVIEW: {
     from: ["REGIONAL_MANAGER_REVIEW"],
-    allowedRoles: ["HQ_EXECUTIVE", "SUPER_ADMIN"],
+    allowedRoles: ["ACCOUNT_MANAGER", "SUPER_ADMIN"],
     timestampField: "accountReviewedAt",
+    reviewerField: "accountManagerId",
   },
+  /**
+   * Spec §3: "VP Global Sales: notified and included in internal final
+   * review". HQ_EXECUTIVE stays alongside the VP precisely because the spec
+   * says *included in* rather than *sole approver* — this is the internal
+   * senior review, not a single-owner gate.
+   */
   INTERNAL_FINAL_REVIEW: {
     from: ["ACCOUNT_MANAGER_REVIEW"],
-    allowedRoles: ["HQ_EXECUTIVE", "SUPER_ADMIN"],
+    allowedRoles: ["VP_GLOBAL_SALES", "HQ_EXECUTIVE", "SUPER_ADMIN"],
     timestampField: "internalFinalReviewedAt",
+    reviewerField: "vpReviewerId",
   },
   CLIENT_REVIEW: {
     from: ["INTERNAL_FINAL_REVIEW"],
-    allowedRoles: ["HQ_EXECUTIVE", "SUPER_ADMIN"],
+    allowedRoles: ["VP_GLOBAL_SALES", "HQ_EXECUTIVE", "SUPER_ADMIN"],
     timestampField: "clientReviewedAt",
   },
   APPROVED: {
     from: ["INTERNAL_FINAL_REVIEW", "CLIENT_REVIEW"],
-    allowedRoles: ["HQ_EXECUTIVE", "SUPER_ADMIN"],
+    allowedRoles: ["VP_GLOBAL_SALES", "HQ_EXECUTIVE", "SUPER_ADMIN"],
     timestampField: "approvedAt",
   },
-  ACTIVE: { from: ["APPROVED"], allowedRoles: ["SUPER_ADMIN", "HQ_EXECUTIVE"], timestampField: "activatedAt" },
-  COMPLETED: { from: ["ACTIVE"], allowedRoles: ["SUPER_ADMIN", "REGIONAL_MANAGER", "HQ_EXECUTIVE"], timestampField: "completedAt" },
+  ACTIVE: {
+    from: ["APPROVED"],
+    allowedRoles: ["VP_GLOBAL_SALES", "HQ_EXECUTIVE", "SUPER_ADMIN"],
+    timestampField: "activatedAt",
+  },
+  COMPLETED: {
+    from: ["ACTIVE"],
+    allowedRoles: ["REGIONAL_MANAGER", "VP_GLOBAL_SALES", "HQ_EXECUTIVE", "SUPER_ADMIN"],
+    timestampField: "completedAt",
+  },
   CLOSED: { from: ["COMPLETED"], allowedRoles: ["SUPER_ADMIN"], timestampField: "closedAt" },
+  /**
+   * Every role that can advance a plan must also be able to send it back.
+   * ACCOUNT_MANAGER and VP_GLOBAL_SALES are listed here for that reason: a
+   * reviewer who can only push forward is not a reviewer, and omitting them
+   * would have turned this fix into a one-way ratchet.
+   */
   RETURNED: {
     from: ["REGIONAL_MANAGER_REVIEW", "ACCOUNT_MANAGER_REVIEW", "INTERNAL_FINAL_REVIEW", "CLIENT_REVIEW"],
-    allowedRoles: ["REGIONAL_MANAGER", "HQ_EXECUTIVE", "SUPER_ADMIN"],
+    allowedRoles: [
+      "REGIONAL_MANAGER",
+      "ACCOUNT_MANAGER",
+      "VP_GLOBAL_SALES",
+      "HQ_EXECUTIVE",
+      "SUPER_ADMIN",
+    ],
   },
 };
 
