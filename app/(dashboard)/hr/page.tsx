@@ -6,6 +6,10 @@ import { HRDashboardStats } from "./_components/hr-dashboard-stats";
 import { HRTabsClient } from "./_components/hr-tabs-client";
 import { ACTIVE_EMPLOYEE, OWNED_BY_LIVE_EMPLOYEE } from "@/lib/hr-scope";
 import { canRequestAccount, canReviewAccountRequest } from "@/lib/account-requests";
+import {
+  canRequestOffboarding,
+  canReviewOffboardingRequest,
+} from "@/lib/offboarding-requests";
 
 export default async function HRPage() {
   const session = await auth();
@@ -14,6 +18,7 @@ export default async function HRPage() {
   const { role, id: userId } = session.user;
   const isHR = role === "HR_MANAGER" || role === "SUPER_ADMIN";
   const canSeeAccountRequests = canRequestAccount(role) || canReviewAccountRequest(role);
+  const canSeeOffboarding = canRequestOffboarding(role) || canReviewOffboardingRequest(role);
 
   // For employee self-service: redirect to their profile
   if (role === "EMPLOYEE") {
@@ -73,6 +78,7 @@ export default async function HRPage() {
         isHR={isHR}
         isSuperAdmin={role === "SUPER_ADMIN"}
         canSeeAccountRequests={canSeeAccountRequests}
+        canSeeOffboarding={canSeeOffboarding}
         userId={userId}
         totalEmployees={totalEmployees}
         onLeaveToday={onLeaveToday}

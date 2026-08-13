@@ -122,10 +122,31 @@ export const REGISTRY: Record<string, EntityDef> = {
   },
   Announcement: { delegate: "announcement", softDelete: false, label: (r) => r.title },
   Holiday: { delegate: "holiday", softDelete: false, label: (r) => r.name },
+  // `personalEmail`, not `email` — the column was renamed in migration 025 and
+  // this label was left behind, so every entry rendered a bare "Request ·  ROLE".
+  // Same class of bug as the ITAsset note above.
   AccountRequest: {
     delegate: "accountRequest",
     softDelete: false,
-    label: (r) => `${r?.email ?? "Request"} · ${r?.requestedRole ?? ""}`.trim(),
+    label: (r) => `${r?.personalEmail ?? "Request"} · ${r?.requestedRole ?? ""}`.trim(),
+  },
+  OffboardingRequest: {
+    delegate: "offboardingRequest",
+    softDelete: false,
+    // The employee is a relation, so the snapshotted row carries only its id —
+    // hence the reason and last day, which are on the row itself and are what
+    // actually identify a withdrawn departure in the bin.
+    //
+    // Parsed through Date rather than sliced as a string: the snapshot round-trips
+    // through JSON, so lastWorkingDay arrives as a Date here and as an ISO string
+    // after a restore. `String(date).slice(0,10)` gave "Thu Aug 27" — a label with
+    // no year, which is useless for telling two departures apart.
+    label: (r) => {
+      const d = r?.lastWorkingDay ? new Date(r.lastWorkingDay as string) : null;
+      const day = d && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : null;
+      const reason = String(r?.reason ?? "unknown reason").replace(/_/g, " ").toLowerCase();
+      return `Offboarding · ${reason}${day ? ` · last day ${day}` : ""}`;
+    },
   },
   ContractAttachment: {
     delegate: "contractAttachment",

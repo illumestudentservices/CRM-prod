@@ -946,6 +946,95 @@ export async function sendAccountRequestDecisionEmail(opts: {
   });
 }
 
+// ─── Offboarding request — notify IT ──────────────────────────────────────────
+
+export async function sendOffboardingRequestEmail(opts: {
+  to: string | string[];
+  employeeName: string;
+  employeeCode: string;
+  workEmail: string;
+  jobTitle: string;
+  role: string;
+  department: string | null;
+  region: string | null;
+  reason: string;
+  lastWorkingDay: string;
+  forwardingEmail: string | null;
+  notes: string;
+  revocationSteps: readonly string[];
+  requestedByName: string;
+  requestedByEmail: string;
+  reviewUrl: string;
+}) {
+  const label = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  await safeSend({
+    to: opts.to,
+    subject: `Offboarding Request: ${opts.employeeName} — last day ${opts.lastWorkingDay}`,
+    html: wrapEmail("Offboarding Request", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">Offboarding Request</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        <strong>${opts.requestedByName}</strong> has raised a departure for a member of staff.
+        No access has been changed — review the details below, then revoke it yourself if you approve.
+      </p>
+      ${infoTable([
+        ["Employee", `${opts.employeeName} (${opts.employeeCode})`],
+        ["Work email", opts.workEmail],
+        ["Job title", opts.jobTitle],
+        ["Portal role", label(opts.role)],
+        ...(opts.department ? [["Department", opts.department] as [string, string]] : []),
+        ...(opts.region ? [["Region", opts.region] as [string, string]] : []),
+        ["Reason", label(opts.reason)],
+        ["Last working day", opts.lastWorkingDay],
+        ...(opts.forwardingEmail ? [["Forwarding email", opts.forwardingEmail] as [string, string]] : []),
+        ["Requested by", `${opts.requestedByName} (${opts.requestedByEmail})`],
+        ["Status", badge("Pending Review", "#f59e0b")],
+      ])}
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Context</strong></p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${opts.notes}</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Still to do by hand after approving</strong></p>
+      <ul style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 16px;padding-left:20px;">
+        ${opts.revocationSteps.map((s) => `<li>${s}</li>`).join("")}
+      </ul>
+      ${ctaButton("Review Request", opts.reviewUrl)}
+    `),
+  });
+}
+
+// ─── Offboarding decision — notify the requesting manager ─────────────────────
+
+export async function sendOffboardingRequestDecisionEmail(opts: {
+  to: string;
+  requesterName: string;
+  employeeName: string;
+  lastWorkingDay: string;
+  approved: boolean;
+  notes?: string;
+  requestUrl: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `Offboarding Request ${opts.approved ? "Approved" : "Declined"}: ${opts.employeeName}`,
+    html: wrapEmail(`Offboarding Request ${opts.approved ? "Approved" : "Declined"}`, `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">
+        Offboarding Request ${opts.approved ? "Approved" : "Declined"}
+      </h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Hi ${opts.requesterName}, the departure you raised for <strong>${opts.employeeName}</strong>
+        ${opts.approved
+          ? "has been approved. IT will revoke their access and close the employee record."
+          : "has been declined, so their access is unchanged."}
+      </p>
+      ${infoTable([
+        ["Employee", opts.employeeName],
+        ["Last working day", opts.lastWorkingDay],
+        ["Decision", opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444")],
+        ...(opts.notes ? [["Notes", opts.notes] as [string, string]] : []),
+      ])}
+      ${ctaButton("View Request", opts.requestUrl)}
+    `),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {
