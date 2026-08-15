@@ -1136,6 +1136,24 @@ model Lead {
   /// Stored at close rather than recomputed, so the reopen date is inspectable.
   deferredReopenAt    DateTime?
 
+  /// Spec §15 (migration 027) — student withdrew from the process. Distinct
+  /// from LOST: there was no competitive loss, the student pulled out.
+  withdrawnReason     String?         @db.Text
+  withdrawnNotes      String?         @db.Text
+  withdrawnDate       DateTime?
+
+  /// Spec §15 (migration 027) — visa refused. Deliberately NOT folded into
+  /// `lostReason = VISA`, which means "lost, and visa difficulty was why".
+  /// A refusal is a decision on a specific application and can be reapplied
+  /// for, so it needs its own date and reason to answer "what is our visa
+  /// refusal rate" separately from "who did we lose".
+  visaRefusalDate     DateTime?
+  visaRefusalReason   String?         @db.Text
+  /// Three-valued: NULL = not asked, false = not reapplying, true = reapplying.
+  /// Same rationale as `marketingConsent` — defaulting to false would record an
+  /// answer nobody gave.
+  visaReapplying      Boolean?
+
   regionId      String?
   region        Region?      @relation(fields: [regionId], references: [id])
   assignedICRId String?

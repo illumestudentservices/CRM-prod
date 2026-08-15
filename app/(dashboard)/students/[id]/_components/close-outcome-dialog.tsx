@@ -76,6 +76,12 @@ export function CloseOutcomeDialog({ leadId, outcome, open, onClose, onDone }: P
   const [institutionId, setInstitutionId] = React.useState("");
   const [reason, setReason] = React.useState("");
 
+  // Withdrawn / Visa refused (spec §15)
+  const [outcomeDate, setOutcomeDate] = React.useState(new Date().toISOString().slice(0, 10));
+  // "" = not answered. Radix reserves "" as the cleared value and throws if it
+  // is used as an item value, so the options are "yes"/"no"/"unknown".
+  const [reapplying, setReapplying] = React.useState("unknown");
+
   React.useEffect(() => {
     if (outcome !== "APPLICATION_REJECTED") return;
     fetch("/api/institutions")
@@ -87,38 +93,70 @@ export function CloseOutcomeDialog({ leadId, outcome, open, onClose, onDone }: P
       .catch(() => {});
   }, [outcome]);
 
-  const valid =
-    outcome === "LOST"
-      ? !!lostReason && !!lostDate && notes.trim().length > 0
-      : outcome === "DEFERRED"
-        ? !!intakeYear && !!intakeMonth && reason.trim().length > 0 && !!followUpDate
-        : !!institutionId && reason.trim().length > 0 && notes.trim().length > 0;
+  /**
+   * Per-outcome validity.
+   *
+   * A lookup rather than the nested ternary this used to be. That chain ended
+   * in the APPLICATION_REJECTED rules as its `else`, so the two spec §15
+   * outcomes added below would have been validated against "institution and
+   * notes required" — fields their forms do not even render, leaving Confirm
+   * permanently disabled with nothing on screen explaining why.
+   */
+  const validByOutcome: Partial<Record<LeadStage, boolean>> = {
+    LOST: !!lostReason && !!lostDate && notes.trim().length > 0,
+    DEFERRED: !!intakeYear && !!intakeMonth && reason.trim().length > 0 && !!followUpDate,
+    APPLICATION_REJECTED: !!institutionId && reason.trim().length > 0 && notes.trim().length > 0,
+    WITHDRAWN: reason.trim().length > 0 && !!outcomeDate,
+    VISA_REFUSED: reason.trim().length > 0 && !!outcomeDate,
+  };
+  const valid = validByOutcome[outcome] ?? false;
 
   async function submit() {
     setSaving(true);
     try {
-      const payload =
-        outcome === "LOST"
-          ? {
-              outcome,
-              lostReason,
-              lostDate: new Date(lostDate).toISOString(),
-              notes: notes.trim(),
-            }
-          : outcome === "DEFERRED"
-            ? {
-                outcome,
-                deferredIntakeYear: Number(intakeYear),
-                deferredIntakeMonth: Number(intakeMonth),
-                reason: reason.trim(),
-                followUpDate: new Date(followUpDate).toISOString(),
-              }
-            : {
-                outcome,
-                institutionId,
-                reason: reason.trim(),
-                notes: notes.trim(),
-              };
+      // Same reasoning as validByOutcome above: an explicit branch per outcome,
+      // so a new one cannot inherit the rejection payload by falling through.
+      let payload: Record<string, unknown>;
+      if (outcome === "LOST") {
+        payload = {
+          outcome,
+          lostReason,
+          lostDate: new Date(lostDate).toISOString(),
+          notes: notes.trim(),
+        };
+      } else if (outcome === "DEFERRED") {
+        payload = {
+          outcome,
+          deferredIntakeYear: Number(intakeYear),
+          deferredIntakeMonth: Number(intakeMonth),
+          reason: reason.trim(),
+          followUpDate: new Date(followUpDate).toISOString(),
+        };
+      } else if (outcome === "WITHDRAWN") {
+        payload = {
+          outcome,
+          reason: reason.trim(),
+          withdrawnDate: new Date(outcomeDate).toISOString(),
+          ...(notes.trim() ? { notes: notes.trim() } : {}),
+        };
+      } else if (outcome === "VISA_REFUSED") {
+        payload = {
+          outcome,
+          refusalDate: new Date(outcomeDate).toISOString(),
+          refusalReason: reason.trim(),
+          // Omitted entirely when unknown, so the column stays NULL rather than
+          // recording "not reapplying" for a question nobody answered.
+          ...(reapplying === "unknown" ? {} : { reapplying: reapplying === "yes" }),
+          ...(notes.trim() ? { notes: notes.trim() } : {}),
+        };
+      } else {
+        payload = {
+          outcome,
+          institutionId,
+          reason: reason.trim(),
+          notes: notes.trim(),
+        };
+      }
 
       const res = await fetch(`/api/leads/${leadId}/close`, {
         method: "POST",
@@ -227,6 +265,87 @@ export function CloseOutcomeDialog({ leadId, outcome, open, onClose, onDone }: P
                 <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-sky-800 dark:text-sky-200">
                   This student will reopen automatically ahead of the intake you choose.
+                </p>
+              </div>
+            </>
+          )}
+
+          {outcome === "WITHDRAWN" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Why did they withdraw?</Label>
+                <Textarea
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Decided to stay and work locally for a year"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Date they withdrew</Label>
+                <Input
+                  type="date"
+                  value={outcomeDate}
+                  onChange={(e) => setOutcomeDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-sky-800 dark:text-sky-200">
+                  Use this rather than Lost when the student pulled out themselves. Lost is
+                  for cases we might have influenced, and mixing the two distorts the
+                  lost-reason reporting.
+                </p>
+              </div>
+            </>
+          )}
+
+          {outcome === "VISA_REFUSED" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Refusal reason</Label>
+                <Textarea
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Insufficient evidence of funds"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date of refusal</Label>
+                  <Input
+                    type="date"
+                    value={outcomeDate}
+                    onChange={(e) => setOutcomeDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Reapplying?</Label>
+                  <Select value={reapplying} onValueChange={setReapplying}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unknown">Not known yet</SelectItem>
+                      <SelectItem value="yes">Yes, reapplying</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Notes</Label>
+                <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-sky-800 dark:text-sky-200">
+                  Recorded separately from Lost so the visa refusal rate can be reported on
+                  its own. Leave &ldquo;Reapplying&rdquo; as not known if it has not been
+                  discussed yet.
                 </p>
               </div>
             </>

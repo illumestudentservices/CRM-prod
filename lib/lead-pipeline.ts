@@ -28,17 +28,54 @@ export const PIPELINE_STAGES = [
   "ENROLLED",
 ] as const satisfies readonly LeadStage[];
 
-/** Outcomes reachable from any stage. Not part of the funnel. */
+/**
+ * Outcomes reachable from any stage. Not part of the funnel.
+ *
+ * WITHDRAWN and VISA_REFUSED were missing here until migration 027, even though
+ * both had been in the LeadStage enum, in lead-gate's STAGE_CONFIG and in every
+ * exhaustive `Record<LeadStage, ...>` map below since the spec §15 work. The
+ * consequence was not cosmetic: `ALL_STAGES` is built from this list and is what
+ * the stage route validates against, so neither stage could be set by ANY code
+ * path, and `isClosedStage("WITHDRAWN")` returned false.
+ *
+ * `satisfies readonly LeadStage[]` checks that every member IS a LeadStage. It
+ * does NOT check that every LeadStage is a member — only the `Record<LeadStage,
+ * ...>` maps below have that property, which is why they stayed correct while
+ * this drifted. If you add a closed outcome to the enum, add it here too; the
+ * compiler will not remind you.
+ */
 export const CLOSED_STAGES = [
   "LOST",
   "DEFERRED",
   "APPLICATION_REJECTED",
+  "WITHDRAWN",
+  "VISA_REFUSED",
 ] as const satisfies readonly LeadStage[];
 
-export const ALL_STAGES: readonly LeadStage[] = [
+export const ALL_STAGES = [
   ...PIPELINE_STAGES,
   ...CLOSED_STAGES,
-];
+] as const satisfies readonly LeadStage[];
+
+/**
+ * Compile-time proof that the two lists above cover the whole LeadStage enum.
+ *
+ * This is the check that was missing. `satisfies readonly LeadStage[]` only
+ * proves every listed value is a real stage — it says nothing about stages that
+ * were never listed, which is how WITHDRAWN and VISA_REFUSED sat unreachable
+ * through several releases while looking fully implemented.
+ *
+ * Add a stage to the enum without putting it in PIPELINE_STAGES or
+ * CLOSED_STAGES and this line fails the build, naming the one you missed.
+ * `[T] extends [never]` rather than `T extends never` so the check does not
+ * distribute over the union and vacuously pass.
+ */
+type UncoveredStage = Exclude<LeadStage, (typeof ALL_STAGES)[number]>;
+const _stageCoverage: [UncoveredStage] extends [never]
+  ? true
+  : { ERROR: "LeadStage missing from PIPELINE_STAGES or CLOSED_STAGES"; missing: UncoveredStage } =
+  true;
+void _stageCoverage;
 
 /**
  * Stages counted as a won conversion. Every conversion-rate calculation must
