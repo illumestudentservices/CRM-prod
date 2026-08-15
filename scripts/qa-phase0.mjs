@@ -157,6 +157,65 @@ async function main() {
       "an explicit clear still works (not over-corrected)",
       `${afterClear.legalName} / ${JSON.stringify(afterClear.serviceScope)}`);
   }
+
+  // ── 3. Planning roles must be able to reach the planning screen ─────────
+  startSection("Named approval roles can reach the planning screen");
+  {
+    const { PERMISSION_MATRIX, NAV_PERMISSIONS, ALL_ROLES } = await import("../lib/permissions.ts");
+
+    // The drift class, checked directly: proxy.ts uses NAV_PERMISSIONS as the
+    // live route gate, so any role holding a module's `read` in the matrix and
+    // missing from its nav list is silently locked out of a module it is
+    // entitled to. This is what shut the Account Manager out of the approval
+    // chain PR #62 routed to them.
+    // Asserted only for roles NAMED in the approval chain. For those the intent
+    // is unambiguous — the workflow routes a step to them, so the door must be
+    // open. Fixed 2026-08-15.
+    const NAMED_APPROVERS = ["ACCOUNT_MANAGER", "VP_GLOBAL_SALES", "REGIONAL_MANAGER", "HQ_EXECUTIVE"];
+    const barredApprovers = NAMED_APPROVERS.filter(
+      (r) => !(NAV_PERMISSIONS.recruitment_planning ?? []).includes(r)
+    );
+    expect(barredApprovers.length === 0,
+      "every role named in the approval chain can reach the planning route",
+      barredApprovers.join(", ") || "none");
+
+    // The remaining discrepancies are reported, NOT asserted. Each is a role
+    // holding recruitment_planning:read in the matrix while proxy.ts bars it
+    // from the route. Which side is wrong is a business decision — the matrix
+    // may over-grant, or the nav may under-grant — and quietly opening the
+    // route would hand three more roles the company's quarterly plans on the
+    // strength of a guess. Left visible so it gets decided rather than lost.
+    const others = ALL_ROLES.filter(
+      (role) =>
+        !NAMED_APPROVERS.includes(role) &&
+        (PERMISSION_MATRIX[role]?.recruitment_planning ?? []).includes("read") &&
+        !(NAV_PERMISSIONS.recruitment_planning ?? []).includes(role)
+    );
+    if (others.length) {
+      ok(`OPEN QUESTION — hold recruitment_planning:read but are barred from the route: ${others.join(", ")}`);
+    } else {
+      ok("no unresolved matrix/nav discrepancies remain");
+    }
+
+    // And over real HTTP, which is what the user experiences.
+    for (const role of ["ACCOUNT_MANAGER", "VP_GLOBAL_SALES", "REGIONAL_MANAGER"]) {
+      const ctx = await createAndLogin({ role });
+      created.push(ctx);
+      const r = await api(ctx.jar, "GET", "/recruitment-planning");
+      const loc = r.headers?.get ? r.headers.get("location") : null;
+      expect(r.status === 200,
+        `${role} reaches /recruitment-planning`,
+        `status ${r.status}${loc ? ` → ${loc}` : ""}`);
+    }
+
+    // The gate must still bite for a role with no entitlement.
+    const emp = await createAndLogin({ role: "EMPLOYEE" });
+    created.push(emp);
+    const blocked = await api(emp.jar, "GET", "/recruitment-planning");
+    expect(blocked.status === 307,
+      "EMPLOYEE (no planning permission) is still redirected away",
+      `status ${blocked.status}`);
+  }
 }
 
 async function teardown() {
