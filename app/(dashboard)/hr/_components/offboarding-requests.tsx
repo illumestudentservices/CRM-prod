@@ -12,6 +12,9 @@ import {
   Info,
   AlertTriangle,
   ShieldOff,
+  ArrowRightLeft,
+  Users,
+  ShieldAlert,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +84,31 @@ interface OffboardingRequest {
   reviewedBy: { id: string; name: string | null } | null;
 }
 
+/** Mirrors WorkloadSummary in lib/workload-reassignment.ts. */
+interface WorkloadSummary {
+  total: number;
+  isClear: boolean;
+  taskCountUnavailable: boolean;
+  buckets: { key: string; label: string; scopeNote: string; count: number }[];
+}
+
+interface ReassignTarget {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  region: string | null;
+  currentLiveLeads: number;
+}
+
+/** "34 students, 7 open tasks" — only the buckets that actually have something. */
+function describeWorkload(w: WorkloadSummary): string {
+  const parts = w.buckets.filter((b) => b.count > 0).map((b) => `${b.count} ${b.label}`);
+  if (parts.length === 0) return "nothing outstanding";
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
 const STATUS_VARIANT: Record<string, "warning" | "success" | "destructive"> = {
   PENDING: "warning",
   APPROVED: "success",
@@ -116,6 +144,22 @@ export function OffboardingRequests() {
   const [rejectReason, setRejectReason] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
 
+  // ── Reassignment ─────────────────────────────────────────────────────────
+  // Keyed by request id, and only populated for approved-but-not-revoked rows —
+  // the API computes it for exactly that set, because it is the only state where
+  // the number changes what the operator is allowed to do.
+  const [workloads, setWorkloads] = React.useState<Record<string, WorkloadSummary>>({});
+  const [canReassign, setCanReassign] = React.useState(false);
+
+  const [reassigning, setReassigning] = React.useState<OffboardingRequest | null>(null);
+  // null vs [] carries the same distinction as `candidates` above.
+  const [targets, setTargets] = React.useState<ReassignTarget[] | null>(null);
+  const [targetNotice, setTargetNotice] = React.useState<string | null>(null);
+  const [reassignTo, setReassignTo] = React.useState("");
+
+  const [overriding, setOverriding] = React.useState<OffboardingRequest | null>(null);
+  const [overrideReason, setOverrideReason] = React.useState("");
+
   const set = (k: keyof typeof EMPTY, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const load = React.useCallback(async () => {
@@ -123,10 +167,63 @@ export function OffboardingRequests() {
     if (!res.ok) return;
     const data = await res.json();
     setRequests(data.requests ?? []);
+    setWorkloads(data.workloads ?? {});
     setCanReview(!!data.canReview);
     setCanRequest(!!data.canRequest);
+    setCanReassign(!!data.canReassign);
     setSteps(data.revocationSteps ?? []);
   }, []);
+
+  /** Reloaded each time the dialog opens so a colleague who left in the meantime
+   *  is not still offered as a recipient. */
+  const loadTargets = React.useCallback(
+    async (excludeUserId: string) => {
+      setTargets(null);
+      setTargetNotice(null);
+      const res = await fetch(
+        `/api/hr/reassignment/targets?excludeUserId=${encodeURIComponent(excludeUserId)}`
+      );
+      if (!res.ok) {
+        toast({ title: "Could not load colleagues", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setTargets(data.targets ?? []);
+      setTargetNotice(data.reason ?? null);
+    },
+    [toast]
+  );
+
+  async function doReassign() {
+    if (!reassigning || !reassignTo) return;
+    setBusy(reassigning.id);
+    try {
+      const res = await fetch("/api/hr/reassignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromUserId: reassigning.employee.user.id,
+          toUserId: reassignTo,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: data.error ?? "Could not reassign", variant: "destructive" });
+        return;
+      }
+      toast({
+        title: `${data.total} record${data.total === 1 ? "" : "s"} moved to ${data.to?.name ?? "them"}`,
+        description: data.skipped?.length
+          ? data.skipped.map((s: { reason: string }) => s.reason).join(" ")
+          : "Their access can now be revoked.",
+      });
+      setReassigning(null);
+      setReassignTo("");
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   // Candidates are reloaded whenever the form opens, not once on mount: someone
   // queued in another tab should not still be offerable here.
@@ -189,27 +286,52 @@ export function OffboardingRequests() {
   async function decide(
     r: OffboardingRequest,
     action: "APPROVE" | "REJECT" | "MARK_COMPLETE",
-    notes?: string
+    notes?: string,
+    override?: { reason: string }
   ) {
     setBusy(r.id);
     try {
       const res = await fetch(`/api/hr/offboarding-requests/${r.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...(notes ? { reviewNotes: notes } : {}) }),
+        body: JSON.stringify({
+          action,
+          ...(notes ? { reviewNotes: notes } : {}),
+          ...(override ? { override: true, overrideReason: override.reason } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // The server refuses to revoke access while live work is still owned.
+        // Refresh from its numbers rather than the stale ones on screen — the
+        // block is authoritative there, and the counts may have moved.
+        if (data.blocked === "UNREASSIGNED_WORKLOAD" && data.workload) {
+          setWorkloads((w) => ({ ...w, [r.id]: data.workload }));
+          toast({
+            title: "Reassign their workload first",
+            description: `They still own ${describeWorkload(data.workload)}.`,
+            variant: "destructive",
+          });
+          return;
+        }
         toast({ title: data.error ?? "Could not update request", variant: "destructive" });
         return;
       }
+      setOverriding(null);
+      setOverrideReason("");
       toast({
         title:
           action === "APPROVE"
             ? "Approved — their access is still live until you revoke it"
             : action === "REJECT"
               ? "Departure declined"
-              : "Marked as complete",
+              : override
+                ? "Access revoked with unassigned work left behind"
+                : "Marked as complete",
+        description: override
+          ? "The override and its reason are on the audit trail. Reassign the records when you can."
+          : undefined,
+        variant: override ? "destructive" : undefined,
       });
       setRejecting(null);
       setRejectReason("");
@@ -252,6 +374,10 @@ export function OffboardingRequests() {
     const stillLive = r.status === "APPROVED" && !r.completedAt;
     const isOverdue = stillLive && days < 0;
     const name = r.employee.user.name?.trim() || r.employee.user.email;
+
+    // Only present for approved-and-not-revoked rows; undefined everywhere else.
+    const workload = workloads[r.id];
+    const blocked = stillLive && !!workload && !workload.isClear;
 
     return (
       <div
@@ -300,16 +426,51 @@ export function OffboardingRequests() {
                 </Button>
               </>
             )}
+            {canReassign && blocked && (
+              <Button
+                size="sm"
+                className="h-8 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white gap-1.5"
+                disabled={busy === r.id}
+                onClick={() => {
+                  setReassigning(r);
+                  setReassignTo("");
+                  loadTargets(r.employee.user.id);
+                }}
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                Reassign workload
+              </Button>
+            )}
             {canReview && stillLive && (
               <Button
                 size="sm"
                 variant="outline"
                 className="h-8 gap-1.5"
-                disabled={busy === r.id}
+                // Hard block: the button stays visible but inert while they
+                // still own live work, so the reason is discoverable rather
+                // than the action just silently failing on click.
+                disabled={busy === r.id || blocked}
+                title={
+                  blocked
+                    ? `Blocked — ${name} still owns ${describeWorkload(workload)}.`
+                    : undefined
+                }
                 onClick={() => decide(r, "MARK_COMPLETE")}
               >
                 <ShieldOff className="h-3.5 w-3.5" />
                 Mark access revoked
+              </Button>
+            )}
+            {canReview && blocked && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 gap-1.5"
+                disabled={busy === r.id}
+                onClick={() => { setOverriding(r); setOverrideReason(""); }}
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                Override
               </Button>
             )}
             {!canReview && r.status === "PENDING" && (
@@ -354,6 +515,31 @@ export function OffboardingRequests() {
                 : " Their portal login is already inactive — mark this revoked to close it off."}
             </p>
           </div>
+        )}
+
+        {blocked && (
+          <div className="flex gap-2 rounded-md bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/30 p-2.5">
+            <Users className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs text-amber-900 dark:text-amber-200">
+                <strong>Still owns {describeWorkload(workload)}.</strong> Access cannot be
+                marked revoked until this is handed over, so nothing is left pointing at a
+                dead account.
+              </p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300/80 mt-1">
+                Enrolled students, closed journeys and finished tasks stay with them —
+                only live work moves.
+                {workload.taskCountUnavailable && " They have no employee record, so they hold no tasks."}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {stillLive && workload?.isClear && (
+          <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            No live work outstanding — safe to revoke access.
+          </p>
         )}
 
         <div>
@@ -624,6 +810,165 @@ export function OffboardingRequests() {
             >
               {busy === rejecting?.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Decline departure
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reassign workload ────────────────────────────────────────── */}
+      <Dialog open={!!reassigning} onOpenChange={(o) => !o && setReassigning(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reassign workload</DialogTitle>
+          </DialogHeader>
+
+          {reassigning && (
+            <div className="space-y-4 py-1">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Move everything{" "}
+                <strong>
+                  {reassigning.employee.user.name?.trim() || reassigning.employee.user.email}
+                </strong>{" "}
+                is still working on to a colleague. This does not change their access.
+              </p>
+
+              {/* Itemised rather than a single total: an operator handing over 34
+                  students and 7 tasks should see both before confirming. */}
+              {workloads[reassigning.id] && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800">
+                  {workloads[reassigning.id].buckets
+                    .filter((b) => b.count > 0)
+                    .map((b) => (
+                      <div key={b.key} className="flex items-baseline justify-between gap-3 p-2.5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-200 capitalize">
+                            {b.label}
+                          </p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">{b.scopeNote}</p>
+                        </div>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 shrink-0">
+                          {b.count}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label>Hand over to *</Label>
+                {targetNotice ? (
+                  <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                    {targetNotice}
+                  </p>
+                ) : (
+                  <Select
+                    value={reassignTo}
+                    onValueChange={setReassignTo}
+                    disabled={targets === null || targets.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={targets === null ? "Loading colleagues…" : "Select a colleague"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(targets ?? []).map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} · {t.role.replace(/_/g, " ").toLowerCase()} ·{" "}
+                          {t.currentLiveLeads} live
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {!targetNotice && targets !== null && targets.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Nobody available — only active ICRs and regional managers can hold a
+                    caseload.
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  The number beside each name is how many live students they already carry.
+                </p>
+              </div>
+
+              <div className="flex gap-2 rounded-lg bg-sky-50 border border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/30 p-2.5">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-300 shrink-0 mt-0.5" />
+                <p className="text-xs text-sky-800 dark:text-sky-300">
+                  Enrolled students, closed journeys, finished tasks and completed events stay
+                  with {reassigning.employee.user.firstName?.trim() || "them"} — moving those
+                  would transfer credit for work they did.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassigning(null)}>Cancel</Button>
+            <Button
+              disabled={!reassignTo || busy === reassigning?.id}
+              onClick={doReassign}
+              className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white gap-1.5"
+            >
+              {busy === reassigning?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="h-4 w-4" />
+              )}
+              Reassign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Override the block, with a mandatory reason ───────────────── */}
+      <Dialog open={!!overriding} onOpenChange={(o) => !o && setOverriding(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Revoke access anyway</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="flex gap-2 rounded-lg bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/30 p-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-800 dark:text-red-300">
+                {overriding && workloads[overriding.id] && (
+                  <>
+                    <strong>{describeWorkload(workloads[overriding.id])}</strong> will be left
+                    owned by an account nobody can sign into.{" "}
+                  </>
+                )}
+                Students will not appear on anyone&apos;s list until you reassign them.
+              </p>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Use this when access has to be cut now — a dismissal, or a security concern.
+              Your reason is recorded on the audit trail with your name and IP.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Why can this not wait? *</Label>
+              <Textarea
+                rows={3}
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="e.g. Dismissed for cause this morning; access must be cut today. Caseload will be reassigned by Friday."
+              />
+              <p className="text-xs text-slate-400 dark:text-slate-500">At least 10 characters.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverriding(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={overrideReason.trim().length < 10 || busy === overriding?.id}
+              onClick={() =>
+                overriding &&
+                decide(overriding, "MARK_COMPLETE", undefined, {
+                  reason: overrideReason.trim(),
+                })
+              }
+            >
+              {busy === overriding?.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Revoke and leave work unassigned
             </Button>
           </DialogFooter>
         </DialogContent>

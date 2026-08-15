@@ -8,6 +8,7 @@ import { GranularPermissionsPanel } from "./granular-permissions-panel";
 import { PasswordResetSection } from "./password-reset-section";
 import { MfaStatusCard } from "./mfa-status-card";
 import { RecycleBinCard } from "./recycle-bin-card";
+import { WorkloadReassignmentCard } from "./workload-reassignment-card";
 
 /**
  * Settings → Security.
@@ -56,6 +57,12 @@ export function SecurityTab() {
           Lives at /recycle-bin in the sidebar, but its breadcrumb claims
           Settings → Recycle Bin and this is where people look for it. */}
       <RecycleBinCard />
+
+      {/* ── Workload Reassignment ──
+          Lives on the HR → Offboarding tab, where a departure can pre-select
+          the leaver. Mirrored here because that is where people look, and
+          because the blocked count is a security number. */}
+      <WorkloadReassignmentCard />
 
       {/* ── Password Reset ── */}
       <div className="border rounded-xl p-5">

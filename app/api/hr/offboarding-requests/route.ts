@@ -15,6 +15,9 @@ import {
   OFFBOARDING_REQUEST_INBOX,
   REVOCATION_STEPS,
 } from "@/lib/offboarding-requests";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
+import { summariseWorkload } from "@/lib/workload-reassignment";
 
 /** Shared between the queue and the created-row response. */
 const REQUEST_INCLUDE = {
@@ -94,10 +97,28 @@ export async function GET(req: NextRequest) {
     take: 200,
   });
 
+  // How much live work each leaver still owns, so the queue can show the block
+  // on "Mark access revoked" rather than only discovering it on click.
+  //
+  // Computed ONLY for approved-but-not-yet-revoked rows: that is the single
+  // state where the answer changes what the operator can do. Doing it for the
+  // whole queue would be seven counting queries per row for pending and
+  // long-closed departures that cannot act on the number anyway.
+  const needsWorkload = requests.filter((r) => r.status === "APPROVED" && !r.completedAt);
+  const workloads = Object.fromEntries(
+    await Promise.all(
+      needsWorkload.map(
+        async (r) => [r.id, await summariseWorkload(r.employee.user.id)] as const
+      )
+    )
+  );
+
   return NextResponse.json({
     requests,
+    workloads,
     canReview: canReviewOffboardingRequest(role),
     canRequest: canRequestOffboarding(role),
+    canReassign: await hasCapability(role as Role, "leads.bulk_reassign"),
     revocationSteps: REVOCATION_STEPS,
   });
 }

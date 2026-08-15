@@ -7,11 +7,18 @@ import { sendOffboardingRequestDecisionEmail } from "@/lib/email";
 import { displayNameOr } from "@/lib/person-name";
 import { canReviewOffboardingRequest } from "@/lib/offboarding-requests";
 import { trashRecord } from "@/lib/recycle-bin";
+import { summariseWorkload } from "@/lib/workload-reassignment";
 
 const patchSchema = z
   .object({
     action: z.enum(["APPROVE", "REJECT", "MARK_COMPLETE"]),
     reviewNotes: z.string().max(2000).optional(),
+    /**
+     * Proceed with marking access revoked even though the leaver still owns
+     * live records. See the MARK_COMPLETE branch for why this exists.
+     */
+    override: z.boolean().optional(),
+    overrideReason: z.string().max(2000).optional(),
   })
   .superRefine((d, ctx) => {
     // A rejection with no explanation tells the manager nothing, and here it
@@ -22,6 +29,16 @@ const patchSchema = z
         path: ["reviewNotes"],
         code: z.ZodIssueCode.custom,
         message: "A reason is required when declining a departure.",
+      });
+    }
+    // Knowingly orphaning a caseload has to be justified in writing. The point
+    // is the record, so a blank or one-word reason is refused.
+    if (d.override && (!d.overrideReason || d.overrideReason.trim().length < 10)) {
+      ctx.addIssue({
+        path: ["overrideReason"],
+        code: z.ZodIssueCode.custom,
+        message:
+          "Explain why access must be revoked before the workload is reassigned (at least 10 characters).",
       });
     }
   });
@@ -51,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       { status: 422 }
     );
   }
-  const { action, reviewNotes } = parsed.data;
+  const { action, reviewNotes, override, overrideReason } = parsed.data;
 
   const request = await db.offboardingRequest.findUnique({
     where: { id },
@@ -60,6 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       employee: {
         select: {
           employeeId: true,
+          userId: true,
           user: { select: { firstName: true, lastName: true, email: true } },
         },
       },
@@ -82,15 +100,61 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (request.completedAt) {
       return NextResponse.json({ request });
     }
+
+    // ── The orphaned-caseload block ──────────────────────────────────────
+    //
+    // Access cannot be revoked while the leaver still owns live students,
+    // tasks or field work: that is precisely the hole this whole feature was
+    // built to close. The departure queue used to be able to complete with a
+    // full caseload pointing at an account nobody could sign into, and nothing
+    // anywhere surfaced it.
+    //
+    // The override is deliberate-friction plus an audit record, NOT a
+    // privilege boundary — REVIEWER_ROLES is already ["SUPER_ADMIN"], so
+    // everyone who can reach this branch can also override it. What it buys is
+    // that orphaning a caseload becomes an explicit, reasoned, attributable act
+    // instead of a silent side effect of clicking the obvious button. That
+    // matters more than a role gate here, because the case it exists for is a
+    // termination where cutting access today is the correct call.
+    const workload = await summariseWorkload(request.employee.userId);
+    if (!workload.isClear && !override) {
+      return NextResponse.json(
+        {
+          error:
+            "This person still owns live work. Reassign it first, or override with a reason.",
+          blocked: "UNREASSIGNED_WORKLOAD",
+          workload,
+        },
+        { status: 409 }
+      );
+    }
+
+    const now = new Date();
     const updated = await db.offboardingRequest.update({
       where: { id },
-      data: { completedAt: new Date() },
+      data: { completedAt: now },
     });
+
+    if (!workload.isClear) {
+      // Logged as its own action, not folded into the UPDATE row, so the
+      // override is greppable in the audit trail rather than buried in a
+      // changes blob alongside ordinary completions.
+      void logActivity(userId, "OFFBOARDING_REVOKE_OVERRIDE", "OffboardingRequest", id, {
+        employeeId: request.employee.employeeId,
+        leaverUserId: request.employee.userId,
+        reason: overrideReason?.trim(),
+        orphanedTotal: workload.total,
+        orphaned: Object.fromEntries(workload.buckets.map((b) => [b.key, b.count])),
+      });
+    }
+
     void logActivity(userId, "UPDATE", "OffboardingRequest", id, {
       action,
       employeeId: request.employee.employeeId,
+      workloadClear: workload.isClear,
+      ...(workload.isClear ? {} : { overrode: true, orphanedTotal: workload.total }),
     });
-    return NextResponse.json({ request: updated });
+    return NextResponse.json({ request: updated, workload });
   }
 
   // Compare-and-swap on PENDING: two reviewers acting at once would otherwise
