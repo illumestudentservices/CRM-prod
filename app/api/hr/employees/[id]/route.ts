@@ -29,6 +29,15 @@ const patchEmployeeSchema = z.object({
   // and audited below, because it silently moves someone's balance.
   startDate: z.string().transform((v) => new Date(v)).optional(),
   endDate: z.string().transform((v) => new Date(v)).optional().nullable(),
+  // ─── Timesheet configuration (spec §Timesheets, migration 028) ───────────
+  // HR-only, like the rest of the employee record. Switching `timesheetRequired`
+  // on is what causes periods, reminders and overdue chases to start for this
+  // person, so it is a deliberate act rather than a default.
+  timesheetRequired: z.boolean().optional(),
+  timesheetFrequency: z.enum(["WEEKLY", "BIWEEKLY", "MONTHLY"]).optional().nullable(),
+  standardWorkingHours: z.number().positive().max(80).optional().nullable(),
+  timesheetApproverId: z.string().min(1).optional().nullable(),
+  costCentre: z.string().max(120).optional().nullable(),
   // User account fields (SUPER_ADMIN only)
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
@@ -160,7 +169,17 @@ export async function PATCH(
   const superAdminUserFields = ["firstName", "lastName", "email", "role", "regionId"];
   // HR-only, like the other employment-record fields: gender decides parental
   // leave eligibility, so it is not something an employee sets on themselves.
-  const hrEmployeeFields = ["jobTitle", "departmentId", "employmentType", "managerId", "isActive", "startDate", "endDate", "gender"];
+  // NOTE: the loop below applies ONLY fields named in one of these three lists.
+  // A field added to the zod schema and forgotten here validates cleanly and is
+  // then silently discarded — the request returns 200 having changed nothing.
+  // Add to both, or the change is a no-op.
+  const hrEmployeeFields = [
+    "jobTitle", "departmentId", "employmentType", "managerId", "isActive",
+    "startDate", "endDate", "gender",
+    // Timesheet configuration (migration 028).
+    "timesheetRequired", "timesheetFrequency", "standardWorkingHours",
+    "timesheetApproverId", "costCentre",
+  ];
   const selfFields = ["phone", "emergencyContact", "emergencyPhone", "address", "photoUrl"];
 
   const employeeUpdate: Record<string, unknown> = {};
