@@ -53,10 +53,45 @@ const rejectedSchema = z.object({
   notes: z.string().min(1, "Notes are required").max(2000),
 });
 
+/**
+ * Spec §15 — the student pulled out of the process themselves.
+ *
+ * Distinct from LOST, which implies a competitive loss with a reason we could
+ * in principle have influenced. A withdrawal has no lostReason to group on, so
+ * recording it as LOST would quietly inflate every "why do we lose students"
+ * breakdown with cases nobody lost.
+ */
+const withdrawnSchema = z.object({
+  outcome: z.literal("WITHDRAWN"),
+  reason: z.string().min(1, "A reason is required").max(2000),
+  withdrawnDate: z.string().datetime(),
+  notes: z.string().max(2000).optional(),
+});
+
+/**
+ * Spec §15 — visa refused.
+ *
+ * Its own outcome rather than `lostReason: "VISA"`, which means "we lost them,
+ * and visa difficulty was the cause". A refusal is a decision on one specific
+ * application and can be reapplied for; conflating the two makes the visa
+ * refusal rate unanswerable.
+ */
+const visaRefusedSchema = z.object({
+  outcome: z.literal("VISA_REFUSED"),
+  refusalDate: z.string().datetime(),
+  refusalReason: z.string().min(1, "The refusal reason is required").max(2000),
+  // Optional and three-valued: at the moment a refusal is recorded, whether
+  // they will reapply is often genuinely not yet known.
+  reapplying: z.boolean().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
 const closeSchema = z.discriminatedUnion("outcome", [
   lostSchema,
   deferredSchema,
   rejectedSchema,
+  withdrawnSchema,
+  visaRefusedSchema,
 ]);
 
 export async function POST(
@@ -126,11 +161,29 @@ export async function POST(
 
     let description: string;
 
+    // A switch with an exhaustiveness guard, not an if/else chain ending in a
+    // bare `else`. The chain used to treat "not LOST and not DEFERRED" as
+    // APPLICATION_REJECTED, so adding an outcome to the union above would have
+    // silently written rejection fields for a withdrawal.
     if (data.outcome === "LOST") {
       update.lostReason = data.lostReason;
       update.lostDate = new Date(data.lostDate);
       update.lostNotes = data.notes;
       description = `Marked Lost (${data.lostReason.replace(/_/g, " ").toLowerCase()}) from ${STAGE_LABELS[lead.stage]}. ${data.notes}`;
+    } else if (data.outcome === "WITHDRAWN") {
+      update.withdrawnReason = data.reason;
+      update.withdrawnNotes = data.notes ?? null;
+      update.withdrawnDate = new Date(data.withdrawnDate);
+      description = `Withdrew from ${STAGE_LABELS[lead.stage]}. ${data.reason}`;
+    } else if (data.outcome === "VISA_REFUSED") {
+      update.visaRefusalDate = new Date(data.refusalDate);
+      update.visaRefusalReason = data.refusalReason;
+      // Left NULL when not supplied — "we have not asked yet" is a real state
+      // and must not be recorded as "not reapplying".
+      if (data.reapplying !== undefined) update.visaReapplying = data.reapplying;
+      description =
+        `Visa refused at ${STAGE_LABELS[lead.stage]}. ${data.refusalReason}` +
+        (data.reapplying === true ? " Reapplying." : data.reapplying === false ? " Not reapplying." : "");
     } else if (data.outcome === "DEFERRED") {
       const intakeStart = new Date(Date.UTC(data.deferredIntakeYear, data.deferredIntakeMonth - 1, 1));
       update.deferredIntakeYear = data.deferredIntakeYear;
@@ -143,9 +196,16 @@ export async function POST(
         intakeStart.getTime() - DEFERRED_REOPEN_LEAD_DAYS * 86_400_000
       );
       description = `Deferred to ${data.deferredIntakeMonth}/${data.deferredIntakeYear} from ${STAGE_LABELS[lead.stage]}. ${data.reason}`;
-    } else {
+    } else if (data.outcome === "APPLICATION_REJECTED") {
       update.institutionId = data.institutionId;
       description = `Application rejected from ${STAGE_LABELS[lead.stage]}. ${data.reason}`;
+    } else {
+      // Unreachable while the union and these branches agree. If a member is
+      // added to closeSchema without a branch here, `data` stops narrowing to
+      // never and this fails the build rather than silently closing the lead
+      // with no outcome fields written.
+      const unhandled: never = data;
+      throw new Error(`Unhandled close outcome: ${JSON.stringify(unhandled)}`);
     }
 
     const [, cancelled] = await db.$transaction([

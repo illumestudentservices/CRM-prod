@@ -69,6 +69,10 @@ const CLOSED_STYLES: Record<string, string> = {
   DEFERRED: "border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-500/30 dark:text-orange-300 dark:hover:bg-orange-500/10",
   APPLICATION_REJECTED: "border-red-200 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10",
   LOST: "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60",
+  // Spec §15. Colours follow STAGE_HEX in lead-pipeline.ts: zinc for withdrawn
+  // (a neutral, non-competitive exit), rose for visa refused (a hard refusal).
+  WITHDRAWN: "border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-500/30 dark:text-zinc-300 dark:hover:bg-zinc-500/10",
+  VISA_REFUSED: "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10",
 };
 
 export function StageSelector({
