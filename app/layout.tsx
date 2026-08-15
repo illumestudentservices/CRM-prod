@@ -25,7 +25,16 @@ const fraunces = Fraunces({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["400", "600"],
-  style: ["normal", "italic"],
+  // Italic removed 2026-08-15. Google stopped serving the axis combination
+  // next/font derives for Fraunces italic, so the build-time fetch 404s and
+  // EVERY page then returns 500. It stayed hidden only because .next held a
+  // cached copy — any clean build, which is exactly what scripts/deploy.sh
+  // does in its shadow directory, would have hit it.
+  //
+  // Nothing is lost: --font-display appears in six places and none of them
+  // apply italic. It also halves the download for a face used only on the
+  // sign-in screens.
+  style: ["normal"],
   display: "swap",
   preload: false,
 });

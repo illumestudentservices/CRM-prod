@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { generateFollowUpTasks } from "@/lib/auto-tasks";
 import { propagateActivityCompletion } from "@/lib/activity-propagation";
+import type { ActivityType } from "@prisma/client";
+import { ACTIVITY_TYPES } from "@/lib/activity-types";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -24,7 +26,7 @@ const attendeeSchema = z.object({
 });
 
 const createActivitySchema = z.object({
-  type: z.enum(["SCHOOL_VISIT", "AGENT_MEETING", "STUDENT_EVENT", "FAIR", "PARTNER_MEETING"]),
+  type: z.enum(ACTIVITY_TYPES as unknown as [ActivityType, ...ActivityType[]]),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().optional().nullable(),
   date: z.string().min(1, "Date is required"),
@@ -61,7 +63,7 @@ const createActivitySchema = z.object({
 });
 
 const listQuerySchema = z.object({
-  type: z.enum(["SCHOOL_VISIT", "AGENT_MEETING", "STUDENT_EVENT", "FAIR", "PARTNER_MEETING"]).optional(),
+  type: z.enum(ACTIVITY_TYPES as unknown as [ActivityType, ...ActivityType[]]).optional(),
   search: z.string().optional(),
 });
 
