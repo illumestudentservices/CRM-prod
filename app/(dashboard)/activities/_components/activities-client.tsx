@@ -26,6 +26,8 @@ import {
 import { ExportButton } from "@/components/shared/export-button";
 import type { ActivityType } from "@prisma/client";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { useToast } from "@/hooks/use-toast";
+import { ACTIVITY_TYPE_OPTIONS } from "@/lib/activity-types";
 
 // ─── Type configuration ──────────────────────────────────────────────────────
 
@@ -52,22 +54,10 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.El
   FAIR: { label: "Fair (legacy)", color: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", icon: Flag },
 };
 
-const ACTIVITY_TYPES = [
-  { value: "SCHOOL_VISIT", label: "School Visit" },
-  { value: "SCHOOL_PRESENTATION", label: "School Presentation" },
-  { value: "AGENT_MEETING", label: "Agent Meeting" },
-  { value: "AGENT_TRAINING", label: "Agent Training" },
-  { value: "CLIENT_MEETING", label: "Client Meeting" },
-  { value: "PARTNER_MEETING", label: "Partner Meeting" },
-  { value: "MARKET_RESEARCH", label: "Market Research" },
-  { value: "STUDENT_FOLLOW_UP_SESSION", label: "Student Follow-up Session" },
-  { value: "EVENT_PREPARATION", label: "Event Preparation" },
-  { value: "EVENT_FOLLOW_UP", label: "Event Follow-up" },
-  { value: "REPORT_SUBMISSION", label: "Report Submission" },
-  { value: "DELEGATION_SUPPORT", label: "Delegation Support" },
-  { value: "INTERNAL_REVIEW", label: "Internal Review" },
-  { value: "OTHER", label: "Other" },
-] as const;
+// Imported from lib/activity-types rather than re-typed here. This list and
+// the API's validation drifted apart, and eleven of the fourteen types could
+// not be saved at all.
+const ACTIVITY_TYPES = ACTIVITY_TYPE_OPTIONS;
 
 const STATUS_BADGE: Record<string, string> = {
   PLANNED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
@@ -135,6 +125,7 @@ export function ActivitiesClient({
   lookups: Lookups;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachmentsActivity, setAttachmentsActivity] = useState<ActivityItem | null>(null);
@@ -273,7 +264,17 @@ export function ActivitiesClient({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error("Failed to create activity:", err);
+        // Previously this only wrote to the console, so a rejected activity
+        // looked to the user exactly like a saved one: the spinner stopped and
+        // nothing else happened. Anything the server refuses must be said out
+        // loud, or the work is silently lost.
+        toast({
+          title: err?.error ?? "Could not save this activity",
+          description: err?.details
+            ? Object.values(err.details.fieldErrors ?? {}).flat().join(" ") || undefined
+            : undefined,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -282,6 +283,7 @@ export function ActivitiesClient({
       router.refresh();
     } catch (err) {
       console.error("Failed to create activity:", err);
+      toast({ title: "Could not save this activity", variant: "destructive" });
     } finally {
       setSaving(false);
     }

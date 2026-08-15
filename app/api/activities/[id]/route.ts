@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import type { ActivityType } from "@prisma/client";
+import { ACTIVITY_TYPES } from "@/lib/activity-types";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -15,7 +17,7 @@ const actionItemSchema = z.object({
 });
 
 const updateActivitySchema = z.object({
-  type: z.enum(["SCHOOL_VISIT", "AGENT_MEETING", "STUDENT_EVENT", "FAIR", "PARTNER_MEETING"]).optional(),
+  type: z.enum(ACTIVITY_TYPES as unknown as [ActivityType, ...ActivityType[]]).optional(),
   title: z.string().min(2).optional(),
   description: z.string().optional().nullable(),
   date: z.string().optional(),

@@ -427,7 +427,19 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   recycle_bin:  ["SUPER_ADMIN"],
   // ─── Redesign nav (Phases 2–7) ───────────────────────────────────────────
   recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
-  recruitment_planning: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR"],
+  // ACCOUNT_MANAGER and VP_GLOBAL_SALES added 2026-08-15. Both hold
+  // `recruitment_planning: ["read","approve","export"]` in PERMISSION_MATRIX and
+  // both are NAMED STEPS in the plan approval chain — PR #62 routed
+  // ACCOUNT_MANAGER_REVIEW to the Account Manager and INTERNAL_FINAL_REVIEW to
+  // the VP. They were missing here, and proxy.ts uses THIS list as the live
+  // route gate, so both were redirected to /dashboard on arrival: the approval
+  // chain was unreachable through the UI for the two roles it exists for. The
+  // transition API accepted them the whole time; only the door was shut.
+  // Measured before the fix: ACCOUNT_MANAGER → 307 /dashboard.
+  recruitment_planning: [
+    "SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR",
+    "ACCOUNT_MANAGER", "VP_GLOBAL_SALES",
+  ],
   market_intelligence:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
 };
