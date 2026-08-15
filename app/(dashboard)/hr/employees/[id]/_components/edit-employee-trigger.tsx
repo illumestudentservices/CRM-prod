@@ -28,6 +28,13 @@ interface EditEmployeeTriggerProps {
     email: string;
     role: string;
     regionId: string | null;
+    // Timesheet configuration (migration 028). Optional so callers that do not
+    // manage timesheets need not supply them.
+    timesheetRequired?: boolean;
+    timesheetFrequency?: string | null;
+    standardWorkingHours?: number | null;
+    timesheetApproverId?: string | null;
+    costCentre?: string | null;
   };
   departments: Department[];
   managers: ManagerOption[];

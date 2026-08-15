@@ -37,6 +37,12 @@ interface EditEmployeeFormProps {
     email: string;
     role: string;
     regionId: string | null;
+    // Timesheet configuration (migration 028)
+    timesheetRequired?: boolean;
+    timesheetFrequency?: string | null;
+    standardWorkingHours?: number | null;
+    timesheetApproverId?: string | null;
+    costCentre?: string | null;
   };
   departments: Department[];
   managers: ManagerOption[];
@@ -74,6 +80,14 @@ export function EditEmployeeForm({
     isActive: initial.isActive,
     departmentId: initial.departmentId ?? "none",
     managerId: initial.managerId ?? "none",
+    timesheetRequired: initial.timesheetRequired ?? false,
+    // "none" is the sentinel for an unset Select — Radix reserves "" and throws
+    // if it is used as an item value.
+    timesheetFrequency: initial.timesheetFrequency ?? "none",
+    standardWorkingHours:
+      initial.standardWorkingHours != null ? String(initial.standardWorkingHours) : "",
+    timesheetApproverId: initial.timesheetApproverId ?? "none",
+    costCentre: initial.costCentre ?? "",
     // Self fields
     phone: initial.phone ?? "",
     emergencyContact: initial.emergencyContact ?? "",
@@ -99,6 +113,19 @@ export function EditEmployeeForm({
       payload.isActive = form.isActive;
       payload.departmentId = form.departmentId === "none" ? null : form.departmentId;
       payload.managerId = form.managerId === "none" ? null : form.managerId;
+
+      // Timesheet configuration. Switching `timesheetRequired` on is what causes
+      // periods, reminders and overdue chases to start for this person, so it is
+      // an explicit act rather than a default.
+      payload.timesheetRequired = form.timesheetRequired;
+      payload.timesheetFrequency =
+        form.timesheetFrequency === "none" ? null : form.timesheetFrequency;
+      payload.standardWorkingHours = form.standardWorkingHours.trim()
+        ? Number(form.standardWorkingHours)
+        : null;
+      payload.timesheetApproverId =
+        form.timesheetApproverId === "none" ? null : form.timesheetApproverId;
+      payload.costCentre = form.costCentre.trim() || null;
     }
     if (isSuperAdmin) {
       // Sent only when filled. Both parts are required on the server, so an
@@ -258,6 +285,92 @@ export function EditEmployeeForm({
               <div className="flex items-center gap-3">
                 <Switch checked={form.isActive} onCheckedChange={(v) => set("isActive", v)} id="isActive" />
                 <Label htmlFor="isActive">Active</Label>
+              </div>
+
+              {/* ── Timesheets ──────────────────────────────────────────
+                  Off by default and only shown to HR. Turning it on is what
+                  starts issuing periods and chasing this person, so the rest
+                  of the settings stay hidden until it is. */}
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={form.timesheetRequired}
+                    onCheckedChange={(v) => set("timesheetRequired", v)}
+                    id="timesheetRequired"
+                  />
+                  <div>
+                    <Label htmlFor="timesheetRequired">Timesheet Required</Label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Off for everyone by default. Turn on for staff whose role requires
+                      time reporting — periods, reminders and overdue chases begin as soon
+                      as you do.
+                    </p>
+                  </div>
+                </div>
+
+                {form.timesheetRequired && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Frequency</Label>
+                        <Select
+                          value={form.timesheetFrequency}
+                          onValueChange={(v) => set("timesheetFrequency", v)}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Not set</SelectItem>
+                            <SelectItem value="WEEKLY">Weekly</SelectItem>
+                            <SelectItem value="BIWEEKLY">Bi-weekly</SelectItem>
+                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {form.timesheetFrequency === "none" && (
+                          <p className="text-xs text-amber-600">
+                            Without a frequency no timesheet can be issued.
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Standard weekly hours</Label>
+                        <Input
+                          type="number" min="1" max="80" step="0.5"
+                          placeholder="40"
+                          value={form.standardWorkingHours}
+                          onChange={(e) => set("standardWorkingHours", e.target.value)}
+                        />
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                          Expected hours per period are worked out from this.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Timesheet approver</Label>
+                        <Select
+                          value={form.timesheetApproverId}
+                          onValueChange={(v) => set("timesheetApproverId", v)}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Falls back to manager" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Use their manager</SelectItem>
+                            {managers.filter((m) => m.id !== employeeId).map((m) => (
+                              <SelectItem key={m.id} value={m.id}>{m.user.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Cost centre</Label>
+                        <Input
+                          value={form.costCentre}
+                          onChange={(e) => set("costCentre", e.target.value)}
+                          placeholder="e.g. Finance"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
