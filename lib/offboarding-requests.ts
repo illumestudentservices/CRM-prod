@@ -128,7 +128,10 @@ export const REVOCATION_STEPS = [
   "Disable the portal login (Settings → Users → set inactive)",
   "Reset or remove Microsoft 365 / email access",
   "Collect company assets and mark them returned in the Assets tab",
-  "Reassign their leads, tasks and reports to a colleague",
+  // Their live students, tasks and field work are now handed over in-app via
+  // "Reassign workload", which is also what unblocks "Mark access revoked" —
+  // so this is no longer something to remember, only something to do.
+  "Reassign their live workload — the queue will not let you revoke access until you have",
   "Reassign anyone who reported to them to a new manager",
   "Set the employee's end date and mark the record inactive",
 ] as const;
