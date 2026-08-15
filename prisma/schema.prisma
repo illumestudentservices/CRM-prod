@@ -1681,6 +1681,9 @@ model Institution {
   issues                    ClientIssue[]
   interventions             AccountIntervention[]
 
+  // Timesheets — time booked against this client (migration 028)
+  timesheetEntries          TimesheetEntry[] @relation("TimesheetEntryClient")
+
   @@map("institutions")
 }
 
@@ -2077,6 +2080,7 @@ model Department {
 
   employees       Employee[]
   accountRequests AccountRequest[]
+  timesheetEntries TimesheetEntry[] @relation("TimesheetEntryDepartment")
 
   @@map("departments")
 }
@@ -2110,10 +2114,40 @@ model Employee {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  // ─── Timesheet configuration (spec §Timesheets, migration 028) ──────────
+  /// Whether this employee has to submit timesheets at all. Defaults to false
+  /// deliberately: the spec asks for time recording from designated staff
+  /// (initially Finance) and states plainly that ICRs must NOT be required to
+  /// submit unless this is switched on for them individually. Defaulting to
+  /// true would generate periods, reminders and overdue chases company-wide.
+  timesheetRequired    Boolean             @default(false)
+  timesheetFrequency   TimesheetFrequency?
+  /// Contracted hours for one WEEK. Periods scale this by their own length, so
+  /// a monthly period needs no second number kept in step with this one.
+  standardWorkingHours Float?
+  /// Who reviews this person's timesheets. Its own field rather than reusing
+  /// `managerId`, because the spec lists it separately — finance time is often
+  /// approved by a finance lead rather than the line manager. Falls back to the
+  /// manager when unset; see resolveApprover in lib/timesheets.ts.
+  timesheetApproverId  String?
+  timesheetApprover    Employee?           @relation("EmployeeTimesheetApprover", fields: [timesheetApproverId], references: [id])
+  timesheetApprovees   Employee[]          @relation("EmployeeTimesheetApprover")
+  /// Cost centre for finance reporting. Kept alongside `departmentId` rather
+  /// than derived from it: the spec reports on department AND cost centre, and
+  /// the two are not always the same split.
+  costCentre           String?
+
   leaveBalances      LeaveBalance[]
   successionPlans    SuccessionPlan[]    @relation("SuccessionEmployee")
   leaveRequests      LeaveRequest[]
+  /// DEPRECATED by migration 028 — superseded by TimesheetEntry.
+  /// Worklog had no create/update path anywhere in the app and zero rows: it
+  /// was a read-only tab with no way to put data in it. Timesheets own employee
+  /// time recording now. Kept only so the existing employee tab still compiles;
+  /// do not add writers.
   worklogs           Worklog[]
+  timesheets         Timesheet[]         @relation("TimesheetEmployee")
+  timesheetApprovals Timesheet[]         @relation("TimesheetApprover")
   travelRequests     TravelRequest[]
   performanceReviews PerformanceReview[]
   kpiTargets         KPITarget[]
@@ -2127,6 +2161,156 @@ model Employee {
   offboardingRequests OffboardingRequest[]
 
   @@map("employees")
+}
+
+// ─── TIMESHEETS (spec §Timesheets, migration 028) ──────────────────────────
+//
+// Structured time recording for designated staff, initially Finance. Owned by
+// the HR & ERP module.
+//
+// The spec's Core Rule is load-bearing: Timesheets and Field Operations are
+// SEPARATE. Field Operations (model Activity) records operational delivery and
+// outcomes — what was achieved on a visit. Timesheets record working time for
+// employees whose roles require time reporting. Do not merge them, and do not
+// derive one from the other; an ICR's field activity is not a timesheet entry.
+
+enum TimesheetFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+/// Spec workflow: Draft → Submitted → Manager Review → Approved, with a
+/// Manager Review → Amendments Required → resubmission loop.
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  MANAGER_REVIEW
+  AMENDMENTS_REQUIRED
+  APPROVED
+}
+
+/// What the time was spent on. An enum rather than free text so the spec's
+/// "report by Work Category" is answerable — a free-text category cannot be
+/// grouped, which is the same reason LeadLostReason is an enum.
+enum WorkCategory {
+  CLIENT_WORK
+  INTERNAL_PROJECT
+  ADMINISTRATION
+  FINANCE_OPERATIONS
+  MEETINGS
+  TRAINING
+  RECRUITMENT_SUPPORT
+  OTHER
+}
+
+model Timesheet {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation("TimesheetEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  /// Copied from the employee at generation time, not read live. A change to
+  /// someone's frequency must not silently restate the periods already issued
+  /// to them under the old one.
+  frequency   TimesheetFrequency
+  periodStart DateTime           @db.Date
+  periodEnd   DateTime           @db.Date
+
+  /// All four are SYSTEM-CALCULATED and must never be user-entered — the
+  /// CRM-wide rule against manually keyed totals. expectedHours is derived from
+  /// the employee's standard week scaled to the period; loggedHours is the sum
+  /// of entries; approvedLeaveHours comes from approved LeaveRequests
+  /// overlapping the period; variance = totalAccounted - expected.
+  expectedHours       Float @default(0)
+  loggedHours         Float @default(0)
+  approvedLeaveHours  Float @default(0)
+  totalAccountedHours Float @default(0)
+  variance            Float @default(0)
+
+  status      TimesheetStatus @default(DRAFT)
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  approverId  String?
+  approver    Employee?       @relation("TimesheetApprover", fields: [approverId], references: [id])
+  /// Mandatory when returning a timesheet for amendment — an employee told to
+  /// change something must be told what.
+  reviewNotes String?         @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries TimesheetEntry[]
+  events  TimesheetEvent[]
+
+  /// One timesheet per employee per period. Also the idempotency key for the
+  /// period generator, so a cron that runs twice cannot issue duplicates.
+  @@unique([employeeId, periodStart])
+  @@index([status, periodEnd])
+  @@index([employeeId, periodStart])
+  @@map("timesheets")
+}
+
+model TimesheetEntry {
+  id          String    @id @default(uuid())
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  date         DateTime     @db.Date
+  workCategory WorkCategory
+  description  String       @db.Text
+  hours        Float
+  notes        String?      @db.Text
+
+  /// Optional client the time was spent on. A real relation, not a typed name:
+  /// the spec requires every entity reference to use a CRM lookup rather than a
+  /// manually entered identifier.
+  institutionId String?
+  institution   Institution? @relation("TimesheetEntryClient", fields: [institutionId], references: [id])
+  /// Cost centre / department the time is booked against.
+  departmentId  String?
+  department    Department?  @relation("TimesheetEntryDepartment", fields: [departmentId], references: [id])
+
+  /// Optional link to any other CRM record the work relates to. Reuses
+  /// TaskParentType so the polymorphic vocabulary stays single-sourced instead
+  /// of a second near-identical enum drifting away from it.
+  parentType TaskParentType?
+  parentId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([timesheetId])
+  @@index([date])
+  @@index([workCategory])
+  @@index([institutionId])
+  @@map("timesheet_entries")
+}
+
+/// Spec: "Maintain complete version and approval history."
+///
+/// Append-only. Every status transition and every edit to a submitted sheet
+/// lands here, so a disputed timesheet can be reconstructed. Distinct from
+/// AuditLog: this is user-visible history shown on the timesheet itself, and it
+/// keeps the figures as they stood at each transition.
+model TimesheetEvent {
+  id          String    @id @default(uuid())
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  action     String
+  fromStatus TimesheetStatus?
+  toStatus   TimesheetStatus?
+  /// The acting user, nullable so history outlives a deleted account — the same
+  /// reasoning as AuditLog.userId.
+  actorId    String?
+  notes      String?          @db.Text
+  /// Hour figures as they stood at this transition.
+  snapshot   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([timesheetId, createdAt])
+  @@map("timesheet_events")
 }
 
 /// Records only what has been *consumed*. Entitlement itself is derived from the

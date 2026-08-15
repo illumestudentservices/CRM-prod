@@ -17,6 +17,7 @@ import { PerformanceReviews } from "./performance-reviews";
 import { SuccessionPlanning } from "./succession-planning";
 import { AccountRequests } from "./account-requests";
 import { OffboardingRequests } from "./offboarding-requests";
+import { TimesheetsPanel } from "./timesheets-panel";
 
 interface HRTabsClientProps {
   isHR: boolean;
@@ -105,6 +106,7 @@ export function HRTabsClient({
           {canSeeOffboarding && (
             <TabsTrigger value="offboarding">Offboarding</TabsTrigger>
           )}
+          <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
           {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
         </TabsList>
         <TabsContent value="employees" className="mt-4">
@@ -136,6 +138,13 @@ export function HRTabsClient({
         </TabsContent>
         <TabsContent value="succession-planning" className="mt-4">
           <SuccessionPlanning isHR={isHR} />
+        </TabsContent>
+        {/* Visible to everyone: the panel itself shows only the sheets you own
+            or approve, and staff who are not required to submit simply see an
+            empty state explaining why. Gating the tab by role would hide it
+            from the very people who have to fill it in. */}
+        <TabsContent value="timesheets" className="mt-4">
+          <TimesheetsPanel />
         </TabsContent>
         {isHR && (
           <TabsContent value="leave-balances" className="mt-4">
