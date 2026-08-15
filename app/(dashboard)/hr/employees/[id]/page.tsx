@@ -110,6 +110,15 @@ export default async function EmployeeDetailPage({
                   email: employee.user.email,
                   role: employee.user.role,
                   regionId: employee.user.regionId ?? null,
+                  // Timesheet configuration (migration 028). Passed through so
+                  // the form opens showing the current settings — without these
+                  // the toggle would read as "off" for someone already enabled,
+                  // and saving would quietly switch them off.
+                  timesheetRequired: employee.timesheetRequired,
+                  timesheetFrequency: employee.timesheetFrequency,
+                  standardWorkingHours: employee.standardWorkingHours,
+                  timesheetApproverId: employee.timesheetApproverId,
+                  costCentre: employee.costCentre,
                 }}
                 departments={departments}
                 managers={managers}
