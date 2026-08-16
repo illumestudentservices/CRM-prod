@@ -8,6 +8,8 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 import { LeadStage } from "@prisma/client";
 import { redactFields } from "@/lib/granular-permissions";
+import { institutionIdsForUser } from "@/lib/lead-access";
+import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -98,22 +100,49 @@ const listLeadsQuerySchema = z.object({
 
 // ─── Role-based scope helper ──────────────────────────────────────────────────
 
-function buildScopeFilter(
+/**
+ * Row scope for the lead list.
+ *
+ * This MUST agree with canAccessLead() in lib/lead-access.ts, which gates every
+ * individual lead. It did not. The INSTITUTION_CLIENT branch returned {} with
+ * the comment "handled at route level", but the route only checks whether the
+ * caller holds leads:read — never which rows — so a client of the business
+ * listed every student of every other client, program and destination
+ * institution included. canAccessLead had already been fixed for the same bug
+ * on the single-record path; the list was left behind.
+ *
+ * The `default:` branch was unscoped for the same reason. ACCOUNT_MANAGER,
+ * ADMISSIONS_SUPPORT and VP_GLOBAL_SALES all hold leads:read and all land here,
+ * so all three listed the entire table — while canAccessLead returns false for
+ * them, meaning they could not open a single row of what they were shown. It
+ * now fails closed, matching both canAccessLead and the identical decision in
+ * app/api/institution-interests/route.ts.
+ */
+async function buildScopeFilter(
   role: Role,
   userId: string,
   regionId: string | null
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   switch (role) {
+    case "SUPER_ADMIN":
+    case "HQ_EXECUTIVE":
+    case "HQ_ANALYTICS":
+      return {};
     case "ICR":
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER":
       return regionId ? { regionId } : {};
-    case "INSTITUTION_CLIENT":
-      // Institution clients can only read — handled at route level
-      return {};
+    case "INSTITUTION_CLIENT": {
+      const allowed = await institutionIdsForUser(userId, role);
+      // No assignment means no students, not all of them. `in: []` matches
+      // nothing, which is the intended reading of "this client has no
+      // institutions yet".
+      return { institutionId: { in: allowed } };
+    }
     default:
-      // SUPER_ADMIN, HQ_EXECUTIVE, HQ_ANALYTICS: see all
-      return {};
+      // Fail closed: a role holding leads:read but with no defined row scope
+      // sees nothing, rather than everything.
+      return { id: "__no_access__" };
   }
 }
 
@@ -147,7 +176,7 @@ export async function GET(req: NextRequest) {
     const { stage, institutionId, assignedICRId, regionId: filterRegionId, sourceId, country, nationality, search, page, limit, sortBy, sortOrder } =
       queryResult.data;
 
-    const scopeFilter = buildScopeFilter(role, userId, regionId);
+    const scopeFilter = await buildScopeFilter(role as Role, userId, regionId);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
@@ -240,6 +269,19 @@ export async function POST(req: NextRequest) {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    // A NUL byte in any string reaches Postgres intact — Zod's .string() allows
+    // it — and comes back as a 500 rather than a validation error. This route
+    // reads req.json() directly, so it does not get the check that
+    // readJsonBody() applies.
+    try {
+      assertNoNulBytes(body);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        return NextResponse.json({ error: e.message }, { status: e.status });
+      }
+      throw e;
     }
 
     const parsed = createLeadSchema.safeParse(body);

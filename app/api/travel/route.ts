@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
 
 // ─── GET /api/travel ──────────────────────────────────────────────────────────
+
+/**
+ * Who may see everyone's trips.
+ *
+ * Deliberately the same two roles that hold travel:"approve" in
+ * PERMISSION_MATRIX — reviewing a request is the reason to read someone else's.
+ * Mirrors HR_ROLES in app/api/hr/leave/route.ts, which solves the same problem
+ * for the same reason.
+ */
+const TRAVEL_ADMIN_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -22,7 +33,32 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
-  if (employeeId) where.employeeId = employeeId;
+
+  // The permission check above only asks whether the caller may read travel at
+  // all — every role except INSTITUTION_CLIENT holds travel:read, including
+  // EMPLOYEE. `where` was then built from query parameters alone, so any signed
+  // in member of staff listed every colleague's trips, and ?employeeId= handed
+  // back a named individual's: destination, purpose and cost.
+  //
+  // GET /api/hr/leave already narrows non-HR callers to their own employee
+  // record; travel never got the same treatment.
+  const isTravelAdmin = TRAVEL_ADMIN_ROLES.includes(session.user.role as Role);
+
+  if (isTravelAdmin) {
+    if (employeeId) where.employeeId = employeeId;
+  } else {
+    const employee = await db.employee.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    // A user with no employee record owns no trips. Returning an empty list is
+    // the honest answer; falling through would return all of them.
+    if (!employee) return NextResponse.json({ travelRequests: [] });
+    if (employeeId && employeeId !== employee.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    where.employeeId = employee.id;
+  }
 
   const travelRequests = await db.travelRequest.findMany({
     where,
