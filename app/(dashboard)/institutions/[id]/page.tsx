@@ -9,6 +9,9 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { InstitutionForm } from "../_components/institution-form";
 import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
+import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { hasCapability } from "@/lib/granular-permissions";
 
 const STATUS_CONFIG: Record<AccountStatus, { label: string; className: string }> = {
   PROSPECT: { label: "Prospect", className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
@@ -99,6 +102,15 @@ export default async function InstitutionDetailPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  // Resolved server-side and passed down, so the client never decides its own
+  // permissions. `institutions.set_health` is checked separately from write:
+  // the capability layer is subtractive, so holding write does not imply it.
+  const role = session.user.role as Role;
+  const [canWrite, canSetHealth] = await Promise.all([
+    effectiveHasPermission(role, "institutions", "write"),
+    hasCapability(role, "institutions.set_health"),
+  ]);
 
   const { id } = await params;
 
@@ -209,6 +221,8 @@ export default async function InstitutionDetailPage({
       {/* Tabs */}
       <InstitutionTabsClient
         institutionId={institution.id}
+        canWrite={canWrite}
+        canSetHealth={canSetHealth}
         counts={{ ...institution._count }}
         enrolledCount={enrolledCount}
         enrollmentTargets={institution.enrollmentTargets}

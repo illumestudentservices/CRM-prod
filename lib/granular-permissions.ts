@@ -95,7 +95,14 @@ export const CAPABILITIES: CapabilityDef[] = [
     key: "institutions.set_health", resource: "institutions", requires: "write",
     label: "Set account health",
     description: "Change the red/amber/green account health rating.",
-    defaultRoles: ADMIN_HQ_RM,
+    // ACCOUNT_MANAGER added 2026-08-15. Spec §11 (Clients) is explicit: "The
+    // status should initially be selected by the Account Manager." Wiring this
+    // capability originally set it to ADMIN_HQ_RM, which excluded the one role
+    // the specification names for the job — so the person answerable for an
+    // account could not record that it was at risk. They already hold
+    // `institutions: read/write/export`, so this grants no new module access;
+    // it only stops withholding the operation from them.
+    defaultRoles: [...ADMIN_HQ_RM, "ACCOUNT_MANAGER"],
   },
   // ── Reports ──
   {
