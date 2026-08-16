@@ -55,7 +55,52 @@ export async function readJsonBody(req: NextRequest): Promise<JsonBody> {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new ApiError("Request body must be a JSON object", 400);
   }
+  assertNoNulBytes(parsed);
   return parsed as JsonBody;
+}
+
+/**
+ * Reject NUL (U+0000) anywhere in a request body.
+ *
+ * PostgreSQL cannot store NUL in a text column and raises
+ * "unsupported Unicode escape sequence". Nothing upstream strips it: Zod's
+ * `.string()` accepts it, so it travels intact from JSON to Prisma and surfaces
+ * as a 500 — a client error logged as a server fault, with a stack trace.
+ *
+ * Only NUL is rejected. Emoji, U+FFFD, combining marks, lone surrogates and
+ * bidi overrides were all confirmed to round-trip fine and are legitimate in
+ * names, so a broader "strip control characters" rule would corrupt real data
+ * to fix a problem only this one character causes.
+ *
+ * Recurses through nested objects and arrays because the offending string is
+ * rarely at the top level.
+ */
+/**
+ * U+0000, built from its code point rather than written as a literal or an
+ * escape. A literal would make this source file binary; an escape invites the
+ * next person editing it to "tidy" it into one.
+ */
+const NUL = String.fromCharCode(0);
+
+export function assertNoNulBytes(value: unknown, path = "body"): void {
+  if (typeof value === "string") {
+    if (value.includes(NUL)) {
+      throw new ApiError(
+        `${path} contains a NUL character, which cannot be stored.`,
+        422
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((v, i) => assertNoNulBytes(v, `${path}[${i}]`));
+    return;
+  }
+  if (value !== null && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) {
+      assertNoNulBytes(v, path === "body" ? k : `${path}.${k}`);
+    }
+  }
 }
 
 /**
