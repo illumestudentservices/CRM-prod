@@ -26,7 +26,12 @@ async function getActivities() {
 // activity form loads its options here, server-side, so the client renders a
 // real dropdown instead of asking users to type a UUID they don't have.
 async function getLookups() {
-  const [institutions, schools, sources] = await Promise.all([
+  // Spec §1 names six linkable entities — Client, Recruitment Partner, School,
+  // Campaign, Market and Student. Only the first three were loaded, so the form
+  // could not offer the rest and most activity types had no link available at
+  // all. Events are included too: the model carries eventId and the
+  // Event Preparation / Event Follow-up types are meaningless without it.
+  const [institutions, schools, sources, markets, campaigns, leads, events] = await Promise.all([
     db.institution.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true, country: true },
@@ -51,8 +56,45 @@ async function getLookups() {
       select: { id: true, name: true, country: true, type: true },
       orderBy: { name: "asc" },
     }),
+    db.market.findMany({
+      select: { id: true, name: true, countryCode: true },
+      orderBy: { name: "asc" },
+    }),
+    db.campaign.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 300,
+    }),
+    // Capped and newest-first: a full student list would be unusable in a
+    // dropdown, and field work is normally logged against a student who has
+    // been touched recently.
+    db.lead.findMany({
+      where: { deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: { updatedAt: "desc" },
+      take: 300,
+    }),
+    db.event.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, country: true },
+      orderBy: { date: "desc" },
+      take: 300,
+    }),
   ]);
-  return { institutions, schools, sources };
+  return {
+    institutions,
+    schools,
+    sources,
+    markets: markets.map((m) => ({ id: m.id, name: m.name, country: m.countryCode ?? null })),
+    campaigns: campaigns.map((c) => ({ id: c.id, name: c.name, country: null })),
+    students: leads.map((l) => ({
+      id: l.id,
+      name: `${l.firstName} ${l.lastName}`.trim() || l.email || "Unnamed student",
+      country: null,
+    })),
+    events: events.map((e) => ({ id: e.id, name: e.name, country: e.country ?? null })),
+  };
 }
 
 async function getActivityStats() {

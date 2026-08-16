@@ -98,6 +98,11 @@ interface Lookups {
   institutions: LookupOption[];
   schools: LookupOption[];
   sources: LookupOption[];
+  // Spec §1 lists six linkable entities; only three were ever loaded.
+  markets: LookupOption[];
+  campaigns: LookupOption[];
+  students: LookupOption[];
+  events: LookupOption[];
 }
 
 interface Stats {
@@ -147,6 +152,14 @@ export function ActivitiesClient({
   const [counsellorsEngaged, setCounsellorsEngaged] = useState("");
   const [outcomes, setOutcomes] = useState("");
   const [sourceId, setSourceId] = useState("");
+  const [marketId, setMarketId] = useState("");
+  const [campaignId, setCampaignId] = useState("");
+  const [leadId, setLeadId] = useState("");
+  const [eventId, setEventId] = useState("");
+
+  // The API refuses an activity linked to nothing (spec §1). Mirrored here so
+  // the user is told while filling the form rather than on submit.
+  const hasAnyLink = !!(institutionId || schoolId || sourceId || marketId || campaignId || leadId || eventId);
   const [topics, setTopics] = useState("");
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [leadsGenerated, setLeadsGenerated] = useState("");
@@ -169,6 +182,10 @@ export function ActivitiesClient({
     setCounsellorsEngaged("");
     setOutcomes("");
     setSourceId("");
+    setMarketId("");
+    setCampaignId("");
+    setLeadId("");
+    setEventId("");
     setTopics("");
     setActionItems([]);
     setLeadsGenerated("");
@@ -220,6 +237,13 @@ export function ActivitiesClient({
       description: finalDescription || null,
       institutionId: institutionId || null,
       location: location || null,
+      // Sent for every type. The school and partner links below are gated on
+      // the activity type, which left most types with no link available at all
+      // — and the API now requires at least one.
+      marketId: marketId || null,
+      campaignId: campaignId || null,
+      leadId: leadId || null,
+      eventId: eventId || null,
     };
 
     // Type-specific payload
@@ -475,6 +499,61 @@ export function ActivitiesClient({
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  {/* ── Related records ───────────────────────────────────
+                      Spec §1: "Every Field Operation must relate to one or
+                      more CRM entities" and "No activity should exist in
+                      isolation." Shown for EVERY activity type — the school
+                      and partner pickers further down are gated on the type,
+                      which left most types with nothing to link to. */}
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        Related records
+                      </p>
+                      <p className={
+                        "text-xs mt-0.5 " +
+                        (hasAnyLink
+                          ? "text-slate-400 dark:text-slate-500"
+                          : "text-amber-600 dark:text-amber-400 font-medium")
+                      }>
+                        {hasAnyLink
+                          ? "This activity is linked and can be reported against."
+                          : "Link at least one record — an unlinked activity appears in no report."}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {([
+                        ["Market", marketId, setMarketId, lookups.markets],
+                        ["Campaign", campaignId, setCampaignId, lookups.campaigns],
+                        ["Student", leadId, setLeadId, lookups.students],
+                        ["Event", eventId, setEventId, lookups.events],
+                      ] as const).map(([label, value, setter, options]) => (
+                        <div key={label} className="space-y-1.5">
+                          <Label className="text-slate-700 dark:text-slate-300">{label}</Label>
+                          <Select
+                            value={value || "__none"}
+                            onValueChange={(v) => setter(v === "__none" ? "" : v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Select ${label.toLowerCase()}…`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">— None —</SelectItem>
+                              {options.map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.name}
+                                  {o.country && (
+                                    <span className="text-muted-foreground"> · {o.country}</span>
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
                     </div>
                   </div>
 

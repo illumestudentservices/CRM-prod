@@ -40,7 +40,10 @@ async function getStats() {
 // Spec §6 (Field Operations) — Lookup Before Create. Load the option lists
 // server-side so the client renders real dropdowns.
 async function getLookups() {
-  const [institutions, schools, sources] = await Promise.all([
+  // Kept in step with app/(dashboard)/activities/page.tsx — both render
+  // ActivitiesClient, so both must supply all six linkable entities or the form
+  // offers different options depending on which route you came in through.
+  const [institutions, schools, sources, markets, campaigns, leads, events] = await Promise.all([
     db.institution.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true, country: true },
@@ -62,8 +65,42 @@ async function getLookups() {
       select: { id: true, name: true, country: true, type: true },
       orderBy: { name: "asc" },
     }),
+    db.market.findMany({
+      select: { id: true, name: true, countryCode: true },
+      orderBy: { name: "asc" },
+    }),
+    db.campaign.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+      take: 300,
+    }),
+    db.lead.findMany({
+      where: { deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: { updatedAt: "desc" },
+      take: 300,
+    }),
+    db.event.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, country: true },
+      orderBy: { date: "desc" },
+      take: 300,
+    }),
   ]);
-  return { institutions, schools, sources };
+  return {
+    institutions,
+    schools,
+    sources,
+    markets: markets.map((m) => ({ id: m.id, name: m.name, country: m.countryCode ?? null })),
+    campaigns: campaigns.map((c) => ({ id: c.id, name: c.name, country: null })),
+    students: leads.map((l) => ({
+      id: l.id,
+      name: `${l.firstName} ${l.lastName}`.trim() || l.email || "Unnamed student",
+      country: null,
+    })),
+    events: events.map((e) => ({ id: e.id, name: e.name, country: e.country ?? null })),
+  };
 }
 
 export default async function FieldOperationsPage() {
