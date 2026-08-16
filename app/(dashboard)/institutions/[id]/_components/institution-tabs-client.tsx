@@ -16,6 +16,8 @@ import { GovernanceTab } from "./governance-tab";
 import { TeamTab } from "./team-tab";
 import { KpiManager } from "./kpi-manager";
 import { PipelinePanel } from "./pipeline-panel";
+import { AccountHealthCard } from "./account-health-card";
+import { ClientIssuesPanel } from "./client-issues-panel";
 import type { LeadStage } from "@prisma/client";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -74,6 +76,10 @@ interface TeamMember {
 
 interface InstitutionTabsClientProps {
   institutionId: string;
+  /** institutions:write — may raise and update issues. */
+  canWrite: boolean;
+  /** institutions.set_health — may change the red/amber/green rating. */
+  canSetHealth: boolean;
   counts: { leads: number; contacts: number; contracts: number; engagementLogs: number; activities: number };
   enrolledCount: number;
   enrollmentTargets: EnrollmentTarget[];
@@ -125,6 +131,8 @@ interface InstitutionTabsClientProps {
 
 export function InstitutionTabsClient({
   institutionId,
+  canWrite,
+  canSetHealth,
   counts,
   enrolledCount,
   enrollmentTargets,
@@ -147,18 +155,28 @@ export function InstitutionTabsClient({
         <TabsTrigger value="contacts">Contacts ({counts.contacts})</TabsTrigger>
         <TabsTrigger value="contracts">Contracts ({counts.contracts})</TabsTrigger>
         <TabsTrigger value="engagement">Engagement ({counts.engagementLogs})</TabsTrigger>
+        <TabsTrigger value="issues">Issues</TabsTrigger>
         <TabsTrigger value="kpis">KPIs</TabsTrigger>
         <TabsTrigger value="documents">Documents</TabsTrigger>
       </TabsList>
 
       {/* Governance Dashboard */}
-      <TabsContent value="governance" className="mt-4">
+      <TabsContent value="governance" className="mt-4 space-y-6">
+        {/* The rating and its interventions were modelled and had no way to be
+            set. Placed above the dashboard because it is the one thing on this
+            tab a person acts on rather than reads. */}
+        <AccountHealthCard institutionId={institutionId} canSetHealth={canSetHealth} />
         <GovernanceTab
           stats={governanceData.stats}
           accountHealth={governanceData.accountHealth ?? null}
           kpis={governanceData.kpis}
           recentActivities={governanceData.recentActivities}
         />
+      </TabsContent>
+
+      {/* Client issues */}
+      <TabsContent value="issues" className="mt-4">
+        <ClientIssuesPanel institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
 
       {/* Overview */}
