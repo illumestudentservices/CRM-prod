@@ -81,6 +81,15 @@ async function getInstitutions() {
               },
             },
           },
+          // Spec §12 — open issues belong on the card. The page previously
+          // showed a single organisation-wide issue total at the top, which
+          // tells an account manager nothing about WHICH client is in trouble.
+          // Resolved and closed are excluded: they need no attention.
+          issues: {
+            where: {
+              status: { in: ["OPEN", "IN_PROGRESS", "AWAITING_CLIENT", "AWAITING_INTERNAL_ACTION"] },
+            },
+          },
           // Only ACTIVE contracts count for the header pill; expired/superseded
           // rows stay in the model but shouldn't inflate the summary.
           contracts: {
@@ -159,6 +168,7 @@ export default async function InstitutionsPage() {
                 leadsCount:     i._count.leads,
                 contractsCount: i._count.contracts,
                 usersCount:     i._count.users,
+                openIssues:     i._count.issues,
               }))}
               columns={INSTITUTION_EXPORT_COLUMNS}
               filename="institutions"
@@ -182,6 +192,11 @@ export default async function InstitutionsPage() {
           leadsCount: i._count.leads,
           contractsCount: i._count.contracts,
           usersCount: i._count.users,
+          // Spec §12 — surfaced on the list so a client needing attention is
+          // visible without opening it.
+          openIssuesCount: i._count.issues,
+          accountHealth: i.accountHealth,
+          renewalDate: i.renewalDate ? i.renewalDate.toISOString() : null,
           regionId: i.region?.id ?? null,
           regionName: i.region?.name ?? null,
           accountManagerId: i.accountManagerId ?? null,
