@@ -294,6 +294,21 @@ export function KanbanBoard({ initialLeads }: KanbanBoardProps) {
 
   return (
     <DndContext
+      // A STABLE id, not dnd-kit's generated one.
+      //
+      // dnd-kit derives the ids for its accessibility attributes — the
+      // aria-describedby target and the screen-reader announcement region —
+      // from an internal counter when none is supplied. That counter starts
+      // fresh on the server and again in the browser, so the two renders
+      // disagree and React reports "a tree hydrated but some attributes of the
+      // server rendered HTML didn't match". It is intermittent because it
+      // depends on render ordering, which is why /students failed roughly half
+      // the page-sweep runs and looked like flakiness rather than a defect.
+      //
+      // A fixed id makes both renders emit the same attributes. There is
+      // exactly one DndContext in the app, so a constant is safe; a second
+      // board would need its own distinct id.
+      id="students-kanban"
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
