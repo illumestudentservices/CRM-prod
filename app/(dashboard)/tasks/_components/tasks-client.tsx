@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -121,6 +121,39 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
+/**
+ * Mirrors the API's zod enums exactly. Duplicated because the route file is
+ * server-only; if these drift, the form offers a value the API rejects — the
+ * bug that made eleven of fourteen activity types and most event types
+ * unsaveable. Any change to one must be made to the other.
+ */
+const TASK_CATEGORIES = [
+  { value: "PERSONAL", label: "Personal" },
+  { value: "INTERNAL", label: "Internal" },
+  { value: "STUDENT_FOLLOW_UP", label: "Student follow-up" },
+  { value: "CLIENT_FOLLOW_UP", label: "Client follow-up" },
+  { value: "RECRUITMENT_PARTNER", label: "Recruitment partner" },
+  { value: "SCHOOL_ENGAGEMENT", label: "School engagement" },
+  { value: "EVENT_PREPARATION", label: "Event preparation" },
+  { value: "EVENT_FOLLOW_UP", label: "Event follow-up" },
+  { value: "MARKETING", label: "Marketing" },
+  { value: "ADMINISTRATION", label: "Administration" },
+  { value: "REPORTING", label: "Reporting" },
+  { value: "COMPLIANCE", label: "Compliance" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+/** Only the parent types /api/tasks/parent-options can list. */
+const TASK_PARENT_TYPES = [
+  { value: "STUDENT", label: "Student" },
+  { value: "INSTITUTION", label: "Client" },
+  { value: "RECRUITMENT_EVENT", label: "Event" },
+  { value: "RECRUITMENT_PARTNER", label: "Recruitment partner" },
+  { value: "MARKET", label: "Market" },
+  { value: "FIELD_OPERATION", label: "Field operation" },
+  { value: "CLIENT_ISSUE", label: "Client issue" },
+] as const;
+
 export function TasksClient({
   tasks,
   employees,
@@ -145,12 +178,46 @@ export function TasksClient({
   const [assigneeId, setAssigneeId] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
+  // Spec §1: every task except PERSONAL/INTERNAL must be linked to a parent
+  // record, and the API enforces it. The form had none of these fields, so it
+  // sent no category (defaulting to OTHER, which requires a parent) and no
+  // parent — meaning EVERY task created here was rejected 422.
+  const [category, setCategory] = useState("PERSONAL");
+  const [parentType, setParentType] = useState("none");
+  const [parentId, setParentId] = useState("none");
+  const [parentOptions, setParentOptions] = useState<{ id: string; name: string; hint?: string | null }[] | null>(null);
+  const [reminderDate, setReminderDate] = useState("");
+  const [estimatedMinutes, setEstimatedMinutes] = useState("");
+
+  // Mirrors lib/task-workflow.ts requiresParent(). Kept in step deliberately:
+  // if these disagree the form either blocks a valid task or lets through one
+  // the API will reject.
+  const needsParent = category !== "PERSONAL" && category !== "INTERNAL";
+  const parentChosen = parentType !== "none" && parentId !== "none";
+
+  // Loaded when a parent TYPE is picked, not on mount — the lists are large and
+  // irrelevant until a type narrows them.
+  useEffect(() => {
+    if (parentType === "none") { setParentOptions(null); return; }
+    setParentOptions(null);
+    setParentId("none");
+    fetch(`/api/tasks/parent-options?type=${encodeURIComponent(parentType)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setParentOptions(d?.data ?? []))
+      .catch(() => setParentOptions([]));
+  }, [parentType]);
 
   function resetForm() {
     setTitle("");
     setDescription("");
     setAssigneeId("");
     setPriority("MEDIUM");
+    setCategory("PERSONAL");
+    setParentType("none");
+    setParentId("none");
+    setParentOptions(null);
+    setReminderDate("");
+    setEstimatedMinutes("");
     setDueDate("");
   }
 
@@ -188,6 +255,12 @@ export function TasksClient({
           assigneeId: assigneeId || null,
           priority,
           dueDate: dueDate || undefined,
+          category,
+          ...(parentType !== "none" && parentId !== "none"
+            ? { parentType, parentId }
+            : {}),
+          reminderDate: reminderDate ? new Date(reminderDate).toISOString() : undefined,
+          estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : undefined,
         }),
       });
 
@@ -392,6 +465,107 @@ export function TasksClient({
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Optional description"
                       rows={3}
+                    />
+                  </div>
+
+                  {/* ── Category and parent link ─────────────────────────
+                      Spec §1: a task that is not personal or internal must be
+                      attached to a record. Neither field existed on this form,
+                      so it sent no category (defaulting to OTHER, which
+                      requires a parent) and no parent — every task created here
+                      was rejected with a message naming fields that were not on
+                      screen. */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="task-category">Category</Label>
+                      <Select value={category} onValueChange={setCategory}>
+                        <SelectTrigger id="task-category">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TASK_CATEGORIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="task-est">Estimated minutes</Label>
+                      <Input
+                        id="task-est" type="number" min="1" step="5"
+                        value={estimatedMinutes}
+                        onChange={(e) => setEstimatedMinutes(e.target.value)}
+                        placeholder="e.g. 30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                        Related record {needsParent && <span className="text-red-500">*</span>}
+                      </p>
+                      <p className={
+                        "text-xs mt-0.5 " +
+                        (!needsParent || parentChosen
+                          ? "text-slate-400 dark:text-slate-500"
+                          : "text-amber-600 dark:text-amber-400 font-medium")
+                      }>
+                        {!needsParent
+                          ? "Personal and internal tasks do not need a linked record."
+                          : parentChosen
+                            ? "Linked."
+                            : "This category needs a record — choose what the task is about."}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="task-parent-type">Type</Label>
+                        <Select value={parentType} onValueChange={setParentType}>
+                          <SelectTrigger id="task-parent-type">
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {TASK_PARENT_TYPES.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="task-parent-id">Record</Label>
+                        <Select
+                          value={parentId}
+                          onValueChange={setParentId}
+                          disabled={parentType === "none" || parentOptions === null}
+                        >
+                          <SelectTrigger id="task-parent-id">
+                            <SelectValue placeholder={
+                              parentType === "none" ? "Choose a type first"
+                                : parentOptions === null ? "Loading…" : "Select a record"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {(parentOptions ?? []).map((o) => (
+                              <SelectItem key={o.id} value={o.id}>
+                                {o.name}
+                                {o.hint && <span className="text-muted-foreground"> · {o.hint}</span>}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="task-reminder">Reminder date</Label>
+                    <Input
+                      id="task-reminder" type="date"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
