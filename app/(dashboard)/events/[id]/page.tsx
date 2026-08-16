@@ -18,6 +18,9 @@ import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { EventForm } from "../_components/event-form";
 import { ROICard } from "./_components/roi-card";
 import { ExpenseForm } from "./_components/expense-form";
+import { ParticipationPanel } from "./_components/participation-panel";
+import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { type EventStatus } from "@prisma/client";
 import Link from "next/link";
@@ -96,6 +99,12 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
+  // Resolved server-side and passed down, so the panel never decides its own
+  // permissions. Participation writes are gated on recruitment_network:write,
+  // matching /api/event-participations.
+  const canWriteParticipation = session?.user
+    ? await effectiveHasPermission(session.user.role as Role, "recruitment_network", "write")
+    : false;
   if (!session?.user) redirect("/login");
 
   const { id } = await params;
@@ -302,6 +311,19 @@ export default async function EventDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {/* Participation — spec §7. EventParticipation carries the assigned
+              consultant, attendance, outcome notes and cost per institution and
+              had no interface at all, so none of it could be recorded. Placed
+              above Cost Breakdown because participation cost feeds it. */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Participating Institutions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ParticipationPanel eventId={event.id} canWrite={canWriteParticipation} />
+            </CardContent>
+          </Card>
 
           {/* Cost Breakdown — spec §10 grouped by category with planned-vs-actual variance */}
           <Card>

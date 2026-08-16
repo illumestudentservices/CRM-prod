@@ -110,16 +110,37 @@ export async function PATCH(
     // PATCH. The flat table will be dropped in a future migration once no
     // reader references it (grep confirms none as of this change).
     //
-    // Reconciliation is delete-then-insert: PATCH's contract is "the list I
-    // provide is the complete new list", and preserving un-referenced rows
-    // would silently retain an institution the caller thinks they removed.
-    // Existing per-institution ICR/status/notes are lost if you remove an
-    // institution from the list — matching the previous PATCH semantics.
+    // Reconciled by DIFFERENCE, not delete-then-insert.
+    //
+    // PATCH's contract is "the list I provide is the complete new list", which
+    // is right for MEMBERSHIP — an institution dropped from the list must go.
+    // But the previous implementation deleted every participation row and
+    // recreated them, so an institution that STAYED in the list also lost its
+    // assigned consultant, status, attendance, outcome notes and recorded cost.
+    // Editing an event's institution list — renaming the event, say, and
+    // resubmitting the same institutions — silently destroyed all of it.
+    //
+    // Only rows for institutions actually removed are deleted; rows that remain
+    // are left untouched; genuinely new institutions are added.
     if (Array.isArray(institutionIds)) {
-      await db.eventParticipation.deleteMany({ where: { eventId: id } });
-      if (institutionIds.length > 0) {
+      const wanted = [...new Set(institutionIds.filter((x): x is string => typeof x === "string"))];
+      const existing = await db.eventParticipation.findMany({
+        where: { eventId: id },
+        select: { institutionId: true },
+      });
+      const have = new Set(existing.map((e) => e.institutionId));
+
+      const removed = [...have].filter((iid) => !wanted.includes(iid));
+      if (removed.length > 0) {
+        await db.eventParticipation.deleteMany({
+          where: { eventId: id, institutionId: { in: removed } },
+        });
+      }
+
+      const added = wanted.filter((iid) => !have.has(iid));
+      if (added.length > 0) {
         await db.eventParticipation.createMany({
-          data: institutionIds.map((iid: string) => ({
+          data: added.map((iid) => ({
             eventId: id,
             institutionId: iid,
             status: "CONFIRMED" as const,
