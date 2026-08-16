@@ -25,24 +25,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  EVENT_TYPES,
+  EVENT_STATUSES,
+  EVENT_TYPE_OPTIONS,
+  EVENT_STATUS_OPTIONS,
+} from "@/lib/event-options";
 
 // ─── Schema ────────────────────────────────────────────────────────────────
 
 const eventSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum([
-    "EDUCATION_FAIR",
-    "CAMPUS_VISIT",
-    "WEBINAR",
-    "AGENT_TRAINING",
-    "SCHOOL_PRESENTATION",
-    "EXHIBITION",
-  ]),
+  // Derived from lib/event-options rather than re-typed. This list offered six
+  // of fourteen types, and one of the six (AGENT_TRAINING) was the legacy value
+  // migration 019 retired.
+  type: z.enum(EVENT_TYPES as unknown as [string, ...string[]]),
   date: z.string().min(1, "Date is required"),
   city: z.string().min(1, "City is required"),
   country: z.string().min(1, "Country is required"),
-  status: z.enum(["PLANNED", "CONFIRMED", "COMPLETED", "CANCELLED"]).optional(),
-  budget: z.coerce.number().positive().optional(),
+  // In Progress and Closed were missing, so an event could not be closed at all.
+  status: z.enum(EVENT_STATUSES as unknown as [string, ...string[]]).optional(),
+  // An empty number input submits "", which z.coerce.number() turns into 0,
+  // which then fails .positive(). `.optional()` never rescues it because the
+  // value is PRESENT, just empty. Budget is not a required field, so leaving it
+  // blank silently blocked the whole form — and budget has no error rendering,
+  // so nothing on screen explained why Create did nothing.
+  budget: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.coerce.number().positive().optional()
+  ),
   regionId: z.string().optional(),
   assignedICRId: z.string().optional(),
   institutionIds: z.array(z.string()).optional(),
@@ -215,12 +226,9 @@ export function EventForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="EDUCATION_FAIR">Education Fair</SelectItem>
-                  <SelectItem value="CAMPUS_VISIT">Campus Visit</SelectItem>
-                  <SelectItem value="WEBINAR">Webinar</SelectItem>
-                  <SelectItem value="AGENT_TRAINING">Agent Training</SelectItem>
-                  <SelectItem value="SCHOOL_PRESENTATION">School Presentation</SelectItem>
-                  <SelectItem value="EXHIBITION">Exhibition</SelectItem>
+                  {EVENT_TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {errors.type && <p className="text-xs text-red-500">{errors.type.message}</p>}
@@ -236,10 +244,9 @@ export function EventForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PLANNED">Planned</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  {EVENT_STATUS_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -284,6 +291,8 @@ export function EventForm({
               {...register("budget")}
               placeholder="0.00"
             />
+            {/* Rendered now: a validation failure here used to be invisible. */}
+            {errors.budget && <p className="text-xs text-red-500">{errors.budget.message}</p>}
           </div>
 
           {/* Region + Assigned ICR */}
