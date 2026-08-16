@@ -59,7 +59,37 @@ const createActivitySchema = z.object({
     (v) => (!v || v === "none" ? undefined : v),
     z.string().min(1).optional()
   ),
+  // Campaign and Student were missing entirely, though the columns exist. Spec
+  // §1 lists six linkable entities — Client, Recruitment Partner, School,
+  // Campaign, Market and Student — and the route accepted only four, so field
+  // work done for a campaign or about a specific student could not say so.
+  campaignId: z.preprocess(
+    (v) => (!v || v === "none" ? undefined : v),
+    z.string().min(1).optional()
+  ),
+  leadId: z.preprocess(
+    (v) => (!v || v === "none" ? undefined : v),
+    z.string().min(1).optional()
+  ),
+  eventId: z.preprocess(
+    (v) => (!v || v === "none" ? undefined : v),
+    z.string().min(1).optional()
+  ),
   attendees: z.array(attendeeSchema).optional().nullable(),
+}).superRefine((d, ctx) => {
+  // Spec §1: "Every Field Operation must relate to one or more CRM entities."
+  // and "No activity should exist in isolation." Every link was optional, so an
+  // activity could be saved attached to nothing — a record of work that cannot
+  // be reported against any client, partner, market or student, and therefore
+  // cannot appear in any delivery report.
+  if (!d.institutionId && !d.marketId && !d.schoolId && !d.sourceId && !d.campaignId && !d.leadId && !d.eventId) {
+    ctx.addIssue({
+      path: ["institutionId"],
+      code: z.ZodIssueCode.custom,
+      message:
+        "Link this activity to at least one record — a client, partner, school, campaign, market, event or student.",
+    });
+  }
 });
 
 const listQuerySchema = z.object({
@@ -155,7 +185,7 @@ export async function POST(req: NextRequest) {
     const parsed = createActivitySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.flatten() },
+        { error: parsed.error.issues[0]?.message ?? "Validation failed", details: parsed.error.flatten() },
         { status: 422 }
       );
     }
@@ -181,6 +211,25 @@ export async function POST(req: NextRequest) {
       : isPlanned
       ? ("PLANNED" as const)
       : ("IN_PROGRESS" as const);
+
+    // Every link is verified to exist rather than trusted. A stale or
+    // hand-crafted id would otherwise reach Prisma and surface as a 500 with a
+    // foreign-key message, instead of a 422 naming the field the user chose.
+    const linkChecks: Array<[string, string | undefined, () => Promise<unknown>]> = [
+      ["client", data.institutionId, () => db.institution.findFirst({ where: { id: data.institutionId, deletedAt: null }, select: { id: true } })],
+      ["market", data.marketId, () => db.market.findUnique({ where: { id: data.marketId }, select: { id: true } })],
+      ["school", data.schoolId, () => db.school.findFirst({ where: { id: data.schoolId, deletedAt: null }, select: { id: true } })],
+      ["recruitment partner", data.sourceId, () => db.recruitmentPartner.findUnique({ where: { id: data.sourceId }, select: { id: true } })],
+      ["campaign", data.campaignId, () => db.campaign.findUnique({ where: { id: data.campaignId }, select: { id: true } })],
+      ["student", data.leadId, () => db.lead.findFirst({ where: { id: data.leadId, deletedAt: null }, select: { id: true } })],
+      ["event", data.eventId, () => db.event.findFirst({ where: { id: data.eventId, deletedAt: null }, select: { id: true } })],
+    ];
+    for (const [label, value, check] of linkChecks) {
+      if (!value) continue;
+      if (!(await check())) {
+        return NextResponse.json({ error: `That ${label} was not found.` }, { status: 422 });
+      }
+    }
 
     const activity = await db.activity.create({
       data: {
@@ -213,6 +262,9 @@ export async function POST(req: NextRequest) {
         marketId: data.marketId ?? null,
         schoolId: data.schoolId ?? null,
         sourceId: data.sourceId ?? null,
+        campaignId: data.campaignId ?? null,
+        leadId: data.leadId ?? null,
+        eventId: data.eventId ?? null,
         ...(data.attendees && data.attendees.length > 0
           ? {
               attendees: {
