@@ -3,6 +3,7 @@
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { AddPlannedTravel, AddPlannedActivity } from "./planning-entry-forms";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Plan = any;
@@ -133,7 +134,10 @@ export function PlanDetailClient({
               </ul>
             </div>
             <div>
-              <h3 className="font-medium mb-2">Planned Field Activities</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium">Planned Field Activities</h3>
+                <AddPlannedActivity planId={plan.id} status={plan.status} />
+              </div>
               {plan.plannedFieldActivities.length === 0 && <p className="text-sm text-muted-foreground">None yet.</p>}
               <ul className="text-sm space-y-1">
                 {plan.plannedFieldActivities.map((f: {id: string; activityType: string; plannedCount: number; actualCount: number}) => (
@@ -608,7 +612,10 @@ function BudgetTab({ plan, canEdit }: { plan: Plan; canEdit: boolean }) {
 function TravelTab({ plan }: { plan: Plan }) {
   return (
     <div>
-      <h3 className="font-medium mb-2">Planned Travel</h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-medium">Planned Travel</h3>
+        <AddPlannedTravel planId={plan.id} status={plan.status} />
+      </div>
       {plan.plannedTravel.length === 0 && <p className="text-sm text-muted-foreground">No planned travel yet.</p>}
       <ul className="text-sm space-y-2">
         {plan.plannedTravel.map((pt: {id: string; destination: string; country: string; plannedStart: string; plannedEnd: string; purpose: string; estimatedCost: number | null; estimatedCurrency: string | null; activatedAt: string | null}) => (
