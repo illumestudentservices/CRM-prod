@@ -27,6 +27,9 @@ export interface InstitutionRow {
   leadsCount: number;
   contractsCount: number;
   usersCount: number;
+  openIssuesCount?: number;
+  accountHealth?: string | null;
+  renewalDate?: string | null;
   regionId: string | null;
   regionName: string | null;
   /// Spec §1 (Clients) — Account Manager column supports the AM filter.
