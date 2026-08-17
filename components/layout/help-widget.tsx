@@ -27,11 +27,19 @@ interface Match {
   can: string[];
 }
 
+interface StatAnswer {
+  title: string;
+  lines: Array<{ label: string; value: string }>;
+  route: string;
+  routeLabel: string;
+}
+
 interface Answer {
-  kind: "found" | "restricted" | "not_found";
+  kind: "found" | "restricted" | "not_found" | "stats";
   message: string;
   matches: Match[];
   askRoles?: string[];
+  stats?: StatAnswer;
 }
 
 /** Starting points, so an empty box is never a dead end. */
@@ -136,7 +144,7 @@ export function HelpWidget() {
         aria-label="Help — find a feature"
         aria-expanded={open}
         className={cn(
-          "fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full",
+          "fixed bottom-4 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full sm:bottom-5 sm:right-5 sm:h-11 sm:w-11",
           "bg-[#1E3A5F] text-white shadow-lg transition-transform hover:scale-105",
           "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E3A5F]"
         )}
@@ -177,7 +185,7 @@ export function HelpWidget() {
             {loading && <span className="text-xs text-slate-400">…</span>}
           </div>
 
-          <div className="max-h-80 overflow-y-auto p-3">
+          <div className="flex-1 overflow-y-auto p-3 sm:max-h-80">
             {failed && (
               <p className="text-sm text-red-600 dark:text-red-400">
                 Could not reach the help service. Try again in a moment.
@@ -216,6 +224,35 @@ export function HelpWidget() {
                 >
                   {answer.message}
                 </p>
+
+                {answer.stats && (
+                  <div className="rounded-md border border-slate-100 p-2 dark:border-slate-800">
+                    <dl className="space-y-0.5">
+                      {answer.stats.lines.map((l) => (
+                        <div key={l.label} className="flex items-baseline justify-between gap-3 text-sm">
+                          {/* Indented sub-lines arrive with leading spaces, which
+                              HTML collapses — the padding class restores the
+                              hierarchy the label intends. */}
+                          <dt className={cn(
+                            "text-slate-600 dark:text-slate-300",
+                            l.label.startsWith("  ") && "pl-3 text-xs text-slate-500"
+                          )}>
+                            {l.label.trim()}
+                          </dt>
+                          <dd className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
+                            {l.value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <button
+                      onClick={() => go(answer.stats!.route)}
+                      className="mt-2 text-xs text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200"
+                    >
+                      Open {answer.stats.routeLabel}
+                    </button>
+                  </div>
+                )}
 
                 {answer.matches.length > 0 && (
                   <ul className="space-y-1">
