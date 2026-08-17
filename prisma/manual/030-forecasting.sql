@@ -37,13 +37,22 @@
 BEGIN;
 
 -- CreateEnum
-CREATE TYPE "ForecastSegmentKey" AS ENUM ('DIRECT_UG', 'DIRECT_PG', 'INDIRECT_UG', 'INDIRECT_PG');
+-- Postgres has no CREATE TYPE IF NOT EXISTS, so each enum is guarded. Without
+-- this the whole migration aborts on a second run — harmless in itself, since
+-- the transaction rolls back, but it turns a re-run into a failed deploy.
+DO $$ BEGIN
+  CREATE TYPE "ForecastSegmentKey" AS ENUM ('DIRECT_UG', 'DIRECT_PG', 'INDIRECT_UG', 'INDIRECT_PG');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "ForecastStatus" AS ENUM ('DRAFT', 'SUBMITTED_TO_RM', 'RETURNED_TO_ICR', 'RM_REVIEWED', 'REGIONAL_SUBMITTED', 'RETURNED_TO_RM', 'ACCEPTED', 'ARCHIVED');
+DO $$ BEGIN
+  CREATE TYPE "ForecastStatus" AS ENUM ('DRAFT', 'SUBMITTED_TO_RM', 'RETURNED_TO_ICR', 'RM_REVIEWED', 'REGIONAL_SUBMITTED', 'RETURNED_TO_RM', 'ACCEPTED', 'ARCHIVED');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- CreateEnum
-CREATE TYPE "PipelineMaturity" AS ENUM ('EARLY_STAGE', 'PIPELINE_DEPENDENT', 'MODERATE_MATURITY', 'HIGH_MATURITY');
+DO $$ BEGIN
+  CREATE TYPE "PipelineMaturity" AS ENUM ('EARLY_STAGE', 'PIPELINE_DEPENDENT', 'MODERATE_MATURITY', 'HIGH_MATURITY');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- DropIndex
 
@@ -54,7 +63,7 @@ CREATE TYPE "PipelineMaturity" AS ENUM ('EARLY_STAGE', 'PIPELINE_DEPENDENT', 'MO
 -- AlterTable
 
 -- CreateTable
-CREATE TABLE "forecasts" (
+CREATE TABLE IF NOT EXISTS "forecasts" (
     "id" TEXT NOT NULL,
     "periodYear" INTEGER NOT NULL,
     "periodMonth" INTEGER NOT NULL,
@@ -87,7 +96,7 @@ CREATE TABLE "forecasts" (
 );
 
 -- CreateTable
-CREATE TABLE "forecast_segments" (
+CREATE TABLE IF NOT EXISTS "forecast_segments" (
     "id" TEXT NOT NULL,
     "forecastId" TEXT NOT NULL,
     "segment" "ForecastSegmentKey" NOT NULL,
@@ -103,7 +112,7 @@ CREATE TABLE "forecast_segments" (
 );
 
 -- CreateTable
-CREATE TABLE "forecast_events" (
+CREATE TABLE IF NOT EXISTS "forecast_events" (
     "id" TEXT NOT NULL,
     "forecastId" TEXT NOT NULL,
     "fromStatus" "ForecastStatus",
@@ -116,49 +125,67 @@ CREATE TABLE "forecast_events" (
 );
 
 -- CreateIndex
-CREATE INDEX "forecasts_status_idx" ON "forecasts"("status");
+CREATE INDEX IF NOT EXISTS "forecasts_status_idx" ON "forecasts"("status");
 
 -- CreateIndex
-CREATE INDEX "forecasts_icrId_status_idx" ON "forecasts"("icrId", "status");
+CREATE INDEX IF NOT EXISTS "forecasts_icrId_status_idx" ON "forecasts"("icrId", "status");
 
 -- CreateIndex
-CREATE INDEX "forecasts_regionalManagerId_status_idx" ON "forecasts"("regionalManagerId", "status");
+CREATE INDEX IF NOT EXISTS "forecasts_regionalManagerId_status_idx" ON "forecasts"("regionalManagerId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forecasts_periodYear_periodMonth_institutionId_icrId_intake_key" ON "forecasts"("periodYear", "periodMonth", "institutionId", "icrId", "intakeYear", "intakeMonth");
+CREATE UNIQUE INDEX IF NOT EXISTS "forecasts_periodYear_periodMonth_institutionId_icrId_intake_key" ON "forecasts"("periodYear", "periodMonth", "institutionId", "icrId", "intakeYear", "intakeMonth");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forecast_segments_forecastId_segment_key" ON "forecast_segments"("forecastId", "segment");
+CREATE UNIQUE INDEX IF NOT EXISTS "forecast_segments_forecastId_segment_key" ON "forecast_segments"("forecastId", "segment");
 
 -- CreateIndex
-CREATE INDEX "forecast_events_forecastId_createdAt_idx" ON "forecast_events"("forecastId", "createdAt");
+CREATE INDEX IF NOT EXISTS "forecast_events_forecastId_createdAt_idx" ON "forecast_events"("forecastId", "createdAt");
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "institutions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_institutionId_fkey" FOREIGN KEY ("institutionId") REFERENCES "institutions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_marketId_fkey" FOREIGN KEY ("marketId") REFERENCES "markets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_marketId_fkey" FOREIGN KEY ("marketId") REFERENCES "markets"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_icrId_fkey" FOREIGN KEY ("icrId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_icrId_fkey" FOREIGN KEY ("icrId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_regionalManagerId_fkey" FOREIGN KEY ("regionalManagerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_regionalManagerId_fkey" FOREIGN KEY ("regionalManagerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_vpReviewerId_fkey" FOREIGN KEY ("vpReviewerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_vpReviewerId_fkey" FOREIGN KEY ("vpReviewerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecasts" ADD CONSTRAINT "forecasts_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecast_segments" ADD CONSTRAINT "forecast_segments_forecastId_fkey" FOREIGN KEY ("forecastId") REFERENCES "forecasts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecast_segments" ADD CONSTRAINT "forecast_segments_forecastId_fkey" FOREIGN KEY ("forecastId") REFERENCES "forecasts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecast_events" ADD CONSTRAINT "forecast_events_forecastId_fkey" FOREIGN KEY ("forecastId") REFERENCES "forecasts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecast_events" ADD CONSTRAINT "forecast_events_forecastId_fkey" FOREIGN KEY ("forecastId") REFERENCES "forecasts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- AddForeignKey
-ALTER TABLE "forecast_events" ADD CONSTRAINT "forecast_events_actedById_fkey" FOREIGN KEY ("actedById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "forecast_events" ADD CONSTRAINT "forecast_events_actedById_fkey" FOREIGN KEY ("actedById") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- ── Post-conditions ────────────────────────────────────────────────────────
