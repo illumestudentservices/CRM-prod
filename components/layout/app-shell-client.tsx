@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
 import { NAV_PERMISSIONS } from "@/lib/permissions";
 import type { Role } from "@/lib/permissions";
+import { HelpWidget } from "@/components/layout/help-widget";
 import { Topbar, type Breadcrumb } from "@/components/layout/topbar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -396,6 +397,10 @@ export function AppShellClient({
       >
         <div className="p-4 sm:p-6">{children}</div>
       </main>
+
+      {/* Sits outside <main> so it stays put when the page scrolls, and is
+          rendered once for the whole shell rather than per screen. */}
+      <HelpWidget />
     </div>
   );
 }
