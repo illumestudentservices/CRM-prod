@@ -277,20 +277,29 @@ export function HelpWidget() {
                   </ul>
                 )}
 
-                {/* Escalation. Deliberately a mailto rather than an endpoint
-                    that fires on its own: a human decides to send it, so this
-                    cannot become a way to flood IT with every typo. */}
+                {/* Escalation is automatic now — the server emails the owner
+                    on a miss, deduped and capped. Saying so matters: without
+                    it the user assumes nothing happened and either gives up or
+                    chases someone. The mailto stays for the case where they
+                    have context worth adding. */}
                 {answer.kind !== "found" && (
-                  <a
-                    href={`mailto:it@illumestudentservices.ca?subject=${encodeURIComponent(
-                      "Illume Cloud — cannot find a feature"
-                    )}&body=${encodeURIComponent(
-                      `I was looking for: ${query}\n\nWhat I was trying to do:\n`
-                    )}`}
-                    className="inline-block text-xs text-slate-500 underline hover:text-slate-800 dark:hover:text-slate-200"
-                  >
-                    Ask IT about this
-                  </a>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    This has been reported automatically.{" "}
+                    <a
+                      href={`mailto:${"support"}@illumestudentservices.cloud?subject=${encodeURIComponent(
+                        "Illume Cloud — cannot find a feature"
+                      )}&body=${encodeURIComponent(
+                        `I was looking for: ${query}
+
+What I was trying to do:
+`
+                      )}`}
+                      className="underline hover:text-slate-800 dark:hover:text-slate-200"
+                    >
+                      Add more detail
+                    </a>{" "}
+                    if it helps.
+                  </p>
                 )}
               </div>
             )}
