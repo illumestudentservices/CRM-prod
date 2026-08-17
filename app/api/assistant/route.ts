@@ -51,7 +51,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await answer(parsed.data.query, session.user.role as Role);
+    const result = await answer(
+      parsed.data.query,
+      session.user.role as Role,
+      session.user.id
+    );
 
     // What people search for and do not find is the signal that tells you which
     // aliases to add — it is the whole maintenance loop for a catalogue-driven

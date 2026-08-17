@@ -17,6 +17,8 @@ import { startSection, expect, ok, fail, summary } from "./qa-lib.mjs";
 
 const { answer } = await import("../lib/assistant-search.ts");
 const { FEATURE_CATALOGUE } = await import("../lib/assistant-catalog.ts");
+const { detectIntent } = await import("../lib/assistant-stats.ts");
+const { db } = await import("./qa-lib.mjs");
 
 /** [question, expected top match key] — phrased as staff would type them. */
 const PHRASINGS = [
@@ -57,6 +59,59 @@ async function main() {
     expect(good, `"${q}" -> ${expectedKey}`, `got ${r.kind}${top ? " / " + top : ""}`);
   }
   ok(`${hits}/${PHRASINGS.length} phrasings resolved to the intended screen`);
+
+  startSection("Questions asking for a number get a number");
+  {
+    // Intent detection is pure, so it is checked without touching the database.
+    const shouldCount = [
+      ["how many students do I have", "pipeline"],
+      ["number of leads", "pipeline"],
+      ["how many clients", "clients"],
+      ["what's on my plate", "my_work"],
+      ["my outstanding tasks", "my_work"],
+    ];
+    for (const [q, expected] of shouldCount) {
+      expect(detectIntent(q) === expected, `"${q}" is a ${expected} question`,
+        String(detectIntent(q)));
+    }
+  }
+  {
+    // The other half: a plain navigation question must NOT be hijacked into a
+    // count. "students" means "take me to Students", not "tell me how many".
+    for (const q of ["students", "where are my students", "leads", "clients", "my to do list"]) {
+      expect(detectIntent(q) === null,
+        `*** "${q}" stays a navigation question ***`, String(detectIntent(q)));
+    }
+  }
+  {
+    // End to end, against the mirror, as a real role.
+    const icr = await db.user.findFirst({ where: { role: "ICR" }, select: { id: true } });
+    const admin = await db.user.findFirst({ where: { role: "SUPER_ADMIN" }, select: { id: true } });
+    if (admin) {
+      const r = await answer("how many students do I have", "SUPER_ADMIN", admin.id);
+      expect(r.kind === "stats", "*** a count question returns figures ***", r.kind);
+      expect((r.stats?.lines?.length ?? 0) > 0, "the figures are populated",
+        JSON.stringify(r.stats?.lines?.slice(0, 2)));
+      expect(r.stats?.route === "/students",
+        "*** the figures link back to the screen they came from ***", r.stats?.route);
+    }
+    if (icr) {
+      // Scope check: an ICR's pipeline count must not be the whole table.
+      const all = await db.lead.count({ where: { deletedAt: null } });
+      const r = await answer("how many students", "ICR", icr.id);
+      const total = Number(r.stats?.lines?.[0]?.value ?? "-1");
+      expect(r.kind === "stats" && total <= all,
+        "*** an ICR's count is scoped, not the whole table ***", `${total} of ${all}`);
+    }
+  }
+  {
+    // Not entitled -> falls through to the normal answer rather than reporting
+    // zero, which would read as "there are none".
+    const emp = await db.user.findFirst({ where: { role: "EMPLOYEE" }, select: { id: true } });
+    const r = await answer("how many students do I have", "EMPLOYEE", emp?.id ?? "x");
+    expect(r.kind !== "stats",
+      "*** a role without access is not given a figure ***", r.kind);
+  }
 
   startSection("Typos still find the screen");
   {

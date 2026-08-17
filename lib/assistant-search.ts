@@ -1,6 +1,7 @@
 import { PERMISSION_MATRIX, type Role, type Resource } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { FEATURE_CATALOGUE, type CatalogueEntry } from "@/lib/assistant-catalog";
+import { detectIntent, runStat, type StatAnswer } from "@/lib/assistant-stats";
 
 /**
  * Deterministic answers for the in-app help widget.
@@ -18,7 +19,7 @@ import { FEATURE_CATALOGUE, type CatalogueEntry } from "@/lib/assistant-catalog"
  * result.
  */
 
-export type AnswerKind = "found" | "restricted" | "not_found";
+export type AnswerKind = "found" | "restricted" | "not_found" | "stats";
 
 export interface Answer {
   kind: AnswerKind;
@@ -32,6 +33,8 @@ export interface Answer {
   }>;
   /** For "restricted": who to ask. Empty when nothing is disclosed. */
   askRoles?: string[];
+  /** For "stats": real figures, scoped to the caller. */
+  stats?: StatAnswer;
 }
 
 /**
@@ -217,7 +220,32 @@ function describeCan(can: string[]): string {
  * can reach matches do we consider restricted features, so a user is never told
  * "you can't access X" when the thing they meant was sitting in front of them.
  */
-export async function answer(query: string, role: Role): Promise<Answer> {
+export async function answer(
+  query: string,
+  role: Role,
+  userId?: string
+): Promise<Answer> {
+  // A question asking for a NUMBER is answered with the number. Checked first
+  // because "how many students do I have" would otherwise resolve to the
+  // Students screen — correct, but not what was asked. Requires a userId, so
+  // callers that cannot supply one simply get the catalogue behaviour.
+  if (userId) {
+    const intent = detectIntent(query);
+    if (intent) {
+      const stats = await runStat(intent, role, userId);
+      if (stats) {
+        return {
+          kind: "stats",
+          message: `${stats.title}. The same figures are on ${stats.routeLabel}.`,
+          matches: [],
+          stats,
+        };
+      }
+      // Not entitled to those figures — fall through to the normal answer,
+      // which will say the module is out of reach rather than report zero.
+    }
+  }
+
   const tokens = tokenise(query);
   const phrase = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 

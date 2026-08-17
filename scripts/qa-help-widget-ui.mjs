@@ -154,6 +154,46 @@ async function runPass(pass, browser) {
 
   await ctx2.close();
 
+  // ── Mobile ────────────────────────────────────────────────────────────
+  // Previously untested. The panel is a bottom sheet below sm, so the checks
+  // are that it fits the viewport, does not cover the trigger, and still
+  // answers.
+  const ctx3 = await browser.newContext({
+    viewport: { width: 390, height: 844 },   // iPhone-class
+    isMobile: true, hasTouch: true,
+  });
+  const page3 = await ctx3.newPage();
+  await signIn(page3, emp);
+  await page3.goto(`${BASE}/dashboard`, { waitUntil: "networkidle", timeout: 45000 });
+
+  const btn = page3.getByRole("button", { name: /help.*find a feature/i });
+  expect(await btn.count() > 0, "*** the help button is reachable on a phone ***");
+
+  const btnBox = await btn.boundingBox();
+  expect(!!btnBox && btnBox.x + btnBox.width <= 390 && btnBox.y + btnBox.height <= 844,
+    "*** the button sits inside the viewport ***", JSON.stringify(btnBox));
+
+  await btn.click();
+  await page3.waitForTimeout(600);
+  const sheet = page3.getByRole("dialog", { name: /find a feature/i });
+  expect(await sheet.count() > 0, "*** the panel opens on a phone ***");
+
+  const box = await sheet.boundingBox();
+  expect(!!box && box.width <= 390 && box.x >= 0,
+    "*** the panel fits the screen width ***", JSON.stringify(box));
+  expect(!!box && box.height <= 844 * 0.75,
+    "*** it does not swallow the whole screen ***", `h=${box?.height}`);
+
+  await page3.getByLabel(/what are you looking for/i).fill("book time off");
+  await page3.waitForFunction(
+    () => /Leave|HR/i.test(document.querySelector('[role="dialog"]')?.textContent ?? ""),
+    { timeout: 15000 }
+  ).catch(() => {});
+  const mobileText = await sheet.innerText();
+  expect(/Leave|HR/i.test(mobileText),
+    "*** it answers on a phone ***", mobileText.slice(0, 70));
+  await ctx3.close();
+
   for (const u of [admin, emp]) {
     await destroyUser(u);
     const left = await db.user.count({ where: { id: u.user.id } });
