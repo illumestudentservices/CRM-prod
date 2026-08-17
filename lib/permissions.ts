@@ -26,6 +26,7 @@ type Resource =
   | "recruitment_network"
   | "recruitment_planning"
   | "icr_transition"
+  | "forecasting"
   | "market_intelligence"
   | "field_operations";
 
@@ -69,6 +70,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "write", "delete", "approve", "export"],
     recruitment_planning: ["read", "write", "delete", "approve", "export"],
     icr_transition: ["read", "write", "delete", "approve", "export"],
+    forecasting: ["read", "write", "delete", "approve", "export"],
     market_intelligence: ["read", "write", "delete", "approve", "export"],
     field_operations: ["read", "write", "delete", "approve", "export"],
   },
@@ -97,6 +99,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "export"],
     recruitment_planning: ["read", "approve", "export"],
     icr_transition: ["read"],
+    forecasting: ["read", "export"],
     market_intelligence: ["read", "export"],
     field_operations: ["read", "export"],
   },
@@ -125,6 +128,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "export"],
     recruitment_planning: ["read", "export"],
     icr_transition: [],
+    forecasting: ["read", "export"],
     market_intelligence: ["read", "export"],
     field_operations: ["read", "export"],
   },
@@ -153,6 +157,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "write", "export"],
     recruitment_planning: ["read", "write", "approve", "export"],
     icr_transition: ["read", "write", "approve", "export"],
+    forecasting: ["read", "write", "approve", "export"],
     market_intelligence: ["read", "write", "approve", "export"],
     field_operations: ["read", "write", "export"],
   },
@@ -181,6 +186,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "write"],
     recruitment_planning: ["read", "write"],
     icr_transition: ["read", "write"],
+    forecasting: ["read", "write"],
     market_intelligence: ["read", "write"],
     field_operations: ["read", "write"],
   },
@@ -209,6 +215,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: [],
     recruitment_planning: [],
     icr_transition: [],
+    forecasting: [],
     market_intelligence: [],
     field_operations: [],
   },
@@ -237,6 +244,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: [],
     recruitment_planning: ["read", "write"],
     icr_transition: [],
+    forecasting: [],
     market_intelligence: [],
     field_operations: [],
   },
@@ -265,6 +273,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: [],
     recruitment_planning: [],
     icr_transition: [],
+    forecasting: [],
     market_intelligence: [],
     field_operations: [],
   },
@@ -297,6 +306,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read"],
     recruitment_planning: ["read", "approve", "export"],
     icr_transition: ["read", "export"],
+    forecasting: [],
     market_intelligence: ["read", "export"],
     field_operations: ["read", "export"],
   },
@@ -328,6 +338,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read"],
     recruitment_planning: ["read"],
     icr_transition: [],
+    forecasting: [],
     market_intelligence: ["read"],
     field_operations: ["read", "write"],
   },
@@ -358,6 +369,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     recruitment_network: ["read", "export"],
     recruitment_planning: ["read", "approve", "export"],
     icr_transition: ["read", "export"],
+    forecasting: ["read", "approve", "export"],
     market_intelligence: ["read", "export"],
     field_operations: ["read", "export"],
   },
@@ -398,6 +410,8 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   // Spec 32: RM creates and accepts, ICR completes, Client Relations Director
   // (ACCOUNT_MANAGER) and VP Global Sales read final reports.
   icr_transition: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR", "ACCOUNT_MANAGER", "VP_GLOBAL_SALES"],
+  // Spec 36: ICR forecasts, RM reviews, VP accepts, senior management reads.
+  forecasting: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "VP_GLOBAL_SALES"],
   institutions: [
     "SUPER_ADMIN",
     "HQ_EXECUTIVE",

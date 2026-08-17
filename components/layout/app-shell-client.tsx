@@ -26,7 +26,7 @@ import {
   ShieldAlert,
   BookOpen,
   MessageCircle,
-  Trash2, UserRoundX } from "lucide-react";
+  Trash2, UserRoundX, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
 import { NAV_PERMISSIONS } from "@/lib/permissions";
@@ -67,6 +67,7 @@ const NAV_ITEMS: NavItem[] = [
   // resolve (Field Ops links use them and there are drill-ins from other
   // modules); this just removes the sidebar entry.
   { key: "recruitment_planning", label: "Recruitment Planning", href: "/recruitment-planning", icon: Plane },
+  { key: "forecasting", label: "Forecasting", href: "/forecasting", icon: TrendingUp },
   { key: "icr_transition", label: "ICR Transition", href: "/icr-transition", icon: UserRoundX },
   { key: "analytics", label: "Analytics", href: "/analytics", icon: BarChart3 },
   { key: "reports", label: "Reports", href: "/reports", icon: FileText },

@@ -87,6 +87,7 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
   recruitment_network:  { resource: "recruitment_network",  action: "read" },
   recruitment_planning: { resource: "recruitment_planning", action: "read" },
   icr_transition:       { resource: "icr_transition",       action: "read" },
+  forecasting:          { resource: "forecasting",          action: "read" },
   market_intelligence:  { resource: "market_intelligence",  action: "read" },
   field_operations:     { resource: "field_operations",     action: "read" },
   tasks:               { resource: "tasks",               action: "read" },
