@@ -8,6 +8,7 @@ import {
   TRANSITION_STATUSES, canMove, canEditContent, canReview,
   canSubmit, canFinalise, isLocked, type FinalisationFacts,
 } from "@/lib/icr-transition";
+import { notifyStatusChange } from "@/lib/transition-notifications";
 
 /**
  * Move a Transition Report through its workflow (spec §5, §26, §27, §33).
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       select: {
         id: true, status: true, outgoingIcrId: true, regionalManagerId: true,
         institutionId: true, declarationConfirmedAt: true,
+        incomingIcrId: true, clientRelationsDirectorId: true, vpGlobalSalesId: true,
+        institution: { select: { name: true } },
+        outgoingIcr: { select: { name: true, email: true } },
         sections: { select: { section: true, narrative: true, completedAt: true } },
       },
     });
@@ -212,6 +216,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       });
       return r;
     });
+
+    // Spec 28. Deliberately after the transaction and deliberately not awaited
+    // into the response path's failure modes: a notification that cannot be
+    // written must not undo an accepted handover.
+    await notifyStatusChange(to, {
+      reportId: id,
+      institutionName: report.institution.name,
+      outgoingIcrName: report.outgoingIcr.name ?? report.outgoingIcr.email,
+      recipients: {
+        outgoingIcrId: report.outgoingIcrId,
+        incomingIcrId: report.incomingIcrId,
+        regionalManagerId: report.regionalManagerId,
+        clientRelationsDirectorId: report.clientRelationsDirectorId,
+        vpGlobalSalesId: report.vpGlobalSalesId,
+      },
+    }, comments);
 
     return NextResponse.json({ data: updated });
   } catch (err) {

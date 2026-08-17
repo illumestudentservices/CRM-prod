@@ -63,6 +63,22 @@ export default async function TransitionReportPage({
 
   if (!seesEverything && !isParticipant && !readsFinalOnly) notFound();
 
+  // Candidates for bulk reassignment (spec 16). Resolved server-side so the
+  // dialog needs no extra endpoint and cannot list people the caller could not
+  // otherwise see. The outgoing ICR is excluded — reassigning to them is the
+  // no-op the API rejects.
+  const owners = (
+    await db.user.findMany({
+      where: {
+        deletedAt: null, isActive: true,
+        role: { in: ["ICR", "REGIONAL_MANAGER", "ACCOUNT_MANAGER"] },
+        id: { not: report.outgoingIcrId },
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    })
+  ).map((u) => ({ id: u.id, label: u.name ?? u.email }));
+
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
 
@@ -89,7 +105,7 @@ export default async function TransitionReportPage({
         </div>
       </header>
 
-      <ReportEditor reportId={report.id} />
+      <ReportEditor reportId={report.id} owners={owners} />
     </div>
   );
 }

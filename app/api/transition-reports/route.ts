@@ -7,6 +7,7 @@ import type { TransitionStatus } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { TRANSITION_SECTIONS, TYPES_WITH_FINAL_WORKING_DAY } from "@/lib/icr-transition";
+import { notifyStatusChange } from "@/lib/transition-notifications";
 
 /**
  * ICR Transition & Handover reports.
@@ -258,6 +259,24 @@ export async function POST(req: NextRequest) {
         },
       },
       select: { id: true, status: true, reportDueDate: true },
+    });
+
+    // Spec 28: the outgoing ICR is told a report has been assigned to them.
+    // Without this the assignment is invisible until they happen to look.
+    const inst = await db.institution.findUnique({
+      where: { id: d.institutionId }, select: { name: true },
+    });
+    await notifyStatusChange("ASSIGNED", {
+      reportId: report.id,
+      institutionName: inst?.name ?? "a client institution",
+      outgoingIcrName: "",
+      recipients: {
+        outgoingIcrId: d.outgoingIcrId,
+        incomingIcrId: d.incomingIcrId || null,
+        regionalManagerId: d.regionalManagerId,
+        clientRelationsDirectorId: d.clientRelationsDirectorId || null,
+        vpGlobalSalesId: d.vpGlobalSalesId || null,
+      },
     });
 
     return NextResponse.json({ data: report }, { status: 201 });
