@@ -898,6 +898,13 @@ model User {
   regionalReviewedPlans QuarterlyRecruitmentPlan[] @relation("PlanRegionalManager")
   accountReviewedPlans  QuarterlyRecruitmentPlan[] @relation("PlanAccountManager")
   vpReviewedPlans       QuarterlyRecruitmentPlan[] @relation("PlanVpReviewer")
+  transitionsOutgoing   TransitionReport[]       @relation("TransitionOutgoingICR")
+  transitionsIncoming   TransitionReport[]       @relation("TransitionIncomingICR")
+  transitionsManaged    TransitionReport[]       @relation("TransitionRegionalManager")
+  transitionsClientRel  TransitionReport[]       @relation("TransitionClientRelations")
+  transitionsVpSales    TransitionReport[]       @relation("TransitionVpGlobalSales")
+  transitionsCreated    TransitionReport[]       @relation("TransitionCreatedBy")
+  transitionEvents      TransitionWorkflowEvent[]
   requestedVariations VariationRequest[]       @relation("VariationRequester")
   approvedVariations  VariationRequest[]       @relation("VariationApprover")
   eventParticipations EventParticipation[]     @relation("EventParticipationICR")
@@ -1033,6 +1040,7 @@ model Region {
   weeklyActivities WeeklyActivity[]
   holidays         Holiday[]
   accountRequests  AccountRequest[]
+  transitionReports TransitionReport[]
 
   @@map("regions")
 }
@@ -1701,6 +1709,7 @@ model Institution {
 
   // Timesheets — time booked against this client (migration 028)
   timesheetEntries          TimesheetEntry[] @relation("TimesheetEntryClient")
+  transitionReports         TransitionReport[]
 
   @@map("institutions")
 }
@@ -2971,6 +2980,7 @@ model Market {
   knowledgeBases    KnowledgeBase[]
   updateSuggestions MarketUpdateSuggestion[]
   recruitmentPlans  QuarterlyRecruitmentPlan[]
+  transitionReports TransitionReportMarket[]
 
   @@index([priority])
   @@index([potential])
@@ -3863,4 +3873,202 @@ model GranularPermission {
   @@unique([role, scope, resource, target, access])
   @@index([role, scope])
   @@map("granular_permissions")
+}
+
+// ─── ICR Transition & Handover ───────────────────────────────────────────────
+//
+// A structured handover produced when an ICR stops covering an assignment.
+//
+// The governing rule from the spec is that this "must not become another
+// database containing copies of information already in the CRM". So these
+// models store three things and nothing else: the assignment being handed over,
+// the outgoing ICR's commentary, and — only once the report is Final — a frozen
+// snapshot of what the linked records looked like at that moment. Students,
+// agents, tasks, plans and forecasts stay owned by their own modules and are
+// read live until finalisation.
+
+/// Why the assignment is ending. Spec §6.
+enum TransitionType {
+  LEAVING_ILLUME
+  INSTITUTION_REASSIGNMENT
+  MARKET_REASSIGNMENT
+  INTERNAL_ROLE_CHANGE
+  TEMPORARY_COVERAGE
+  EXTENDED_LEAVE
+  OTHER
+}
+
+/// Spec §5. Declared in workflow order: RESUBMITTED re-enters review after
+/// AMENDMENTS_REQUIRED, so the sequence is not strictly linear.
+enum TransitionStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED_TO_RM
+  AMENDMENTS_REQUIRED
+  RESUBMITTED
+  ACCEPTED_BY_RM
+  FINAL
+  ARCHIVED
+}
+
+/// The fifteen report sections, spec §8–§23, in the order they are presented.
+enum TransitionSectionKey {
+  EXECUTIVE_HANDOVER_SUMMARY
+  MARKET_OVERVIEW
+  RECRUITMENT_EVENTS_ACTIVITIES
+  PRIORITY_AGENT_HANDOVER
+  NEW_HIGH_POTENTIAL_AGENTS
+  SCHOOL_INSTITUTION_RELATIONSHIPS
+  OTHER_KEY_RELATIONSHIPS
+  ACTIVE_STUDENT_PIPELINE
+  OUTSTANDING_TASKS_COMMITMENTS
+  RECRUITMENT_PLAN_TRAVEL_BUDGET
+  CURRENT_FORECAST
+  CLIENT_OPERATIONAL_KNOWLEDGE
+  OUTSTANDING_ISSUES_RISKS
+  KEY_DOCUMENTS_RESOURCES
+  FINAL_STRATEGIC_RECOMMENDATIONS
+}
+
+model TransitionReport {
+  id String @id @default(uuid())
+
+  /// Scope. Spec §7 is explicit that a report belongs to an ASSIGNMENT, not to
+  /// a person: an ICR covering Institution A and B who stops covering only A
+  /// must produce a report containing A's pipeline and nothing of B's. The
+  /// institution is therefore required, and every section query is filtered by
+  /// it rather than by outgoingIcrId alone.
+  outgoingIcrId String
+  outgoingIcr   User   @relation("TransitionOutgoingICR", fields: [outgoingIcrId], references: [id])
+
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  regionId String?
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  markets TransitionReportMarket[]
+
+  /// Incoming ICR is optional: a departure is often assigned before a
+  /// replacement is known, and the spec lists it as "where known".
+  incomingIcrId String?
+  incomingIcr   User?   @relation("TransitionIncomingICR", fields: [incomingIcrId], references: [id])
+
+  regionalManagerId String
+  regionalManager   User   @relation("TransitionRegionalManager", fields: [regionalManagerId], references: [id])
+
+  clientRelationsDirectorId String?
+  clientRelationsDirector   User?   @relation("TransitionClientRelations", fields: [clientRelationsDirectorId], references: [id])
+
+  vpGlobalSalesId String?
+  vpGlobalSales   User?   @relation("TransitionVpGlobalSales", fields: [vpGlobalSalesId], references: [id])
+
+  transitionType          TransitionType
+  effectiveTransitionDate DateTime
+  /// Only meaningful for LEAVING_ILLUME and similar; nullable by design.
+  finalWorkingDay         DateTime?
+  reportDueDate           DateTime
+
+  status TransitionStatus @default(ASSIGNED)
+
+  /// Spec §24. The report cannot be submitted until the outgoing ICR confirms
+  /// the declaration, so this is recorded rather than inferred from status.
+  declarationConfirmedAt DateTime?
+  declarationById        String?
+
+  submittedAt DateTime?
+  acceptedAt  DateTime?
+  finalisedAt DateTime?
+  archivedAt  DateTime?
+
+  /// Spec §37. Written once, when the report becomes Final. Until then it is
+  /// null and every figure is read live. A student at Offer Received on the
+  /// handover date must still read Offer Received here after they enrol.
+  snapshot   Json?
+  snapshotAt DateTime?
+
+  createdById String
+  createdBy   User   @relation("TransitionCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections TransitionReportSection[]
+  events   TransitionWorkflowEvent[]
+
+  /// One live report per ICR per institution. A second handover for the same
+  /// assignment means the first is Archived, not duplicated.
+  @@index([outgoingIcrId, institutionId])
+  @@index([status])
+  @@index([regionalManagerId])
+  @@index([reportDueDate])
+  @@map("transition_reports")
+}
+
+/// Markets covered by the assignment. A join table rather than a String[] so a
+/// deleted market cannot leave an unresolvable id behind in the report scope.
+model TransitionReportMarket {
+  reportId String
+  report   TransitionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  marketId String
+  market   Market           @relation(fields: [marketId], references: [id])
+
+  @@id([reportId, marketId])
+  @@index([marketId])
+  @@map("transition_report_markets")
+}
+
+/// One row per section per report.
+///
+/// A single table keyed by an enum rather than fifteen tables: the sections
+/// differ in what they ASK, not in what they store — CRM context is read live
+/// from the owning module, and what the ICR adds is narrative plus a handful of
+/// structured answers. Fifteen near-identical tables would make "is every
+/// required section complete?" a fifteen-way join.
+model TransitionReportSection {
+  id       String           @id @default(uuid())
+  reportId String
+  report   TransitionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  section TransitionSectionKey
+
+  /// The outgoing ICR's commentary for this section.
+  narrative String? @db.Text
+
+  /// Structured answers that vary by section (priority lists, ratings,
+  /// per-agent commentary). Json because the shape is section-specific and
+  /// validated in application code against the section key.
+  data Json?
+
+  /// Set when the ICR marks the section done. Submission validation (spec §33)
+  /// checks this rather than inspecting narrative length.
+  completedAt   DateTime?
+  completedById String?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([reportId, section])
+  @@map("transition_report_sections")
+}
+
+/// Spec §5: "Full workflow history must be retained." Append-only; rows are
+/// never updated, so the trail cannot be rewritten by a later transition.
+model TransitionWorkflowEvent {
+  id       String           @id @default(uuid())
+  reportId String
+  report   TransitionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  fromStatus TransitionStatus?
+  toStatus   TransitionStatus
+
+  actedById String
+  actedBy   User   @relation(fields: [actedById], references: [id])
+
+  /// Required when returning a report for amendments, so the ICR is told why.
+  comments String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId, createdAt])
+  @@map("transition_workflow_events")
 }
