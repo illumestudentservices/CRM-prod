@@ -216,8 +216,71 @@ async function runPass(pass) {
     "*** the refusal names the unowned student interest ***",
     JSON.stringify(blocked.payload?.reasons ?? "").slice(0, 90));
 
-  // Hand the student over, then it should close.
-  await db.institutionInterest.update({ where: { id: interest.id }, data: { assignedICRId: rm.user.id } });
+  // ── Bulk reassignment (spec 16) ───────────────────────────────────────
+  // Capture everything the spec says must survive, so "ownership only" is
+  // measured rather than asserted.
+  const before = await db.institutionInterest.findUnique({
+    where: { id: interest.id },
+    select: { stage: true, intakeYear: true, intakeMonth: true, studyLevel: true,
+              leadId: true, institutionId: true, stageEnteredAt: true },
+  });
+  const leadBefore = await db.lead.findUnique({
+    where: { id: lead.id }, select: { stage: true, firstName: true, createdById: true },
+  });
+  const leadCountBefore = await db.lead.count();
+
+  const listed = await api(rm.jar, "GET", `/api/transition-reports/${reportId}/reassign`);
+  expect(listed.status === 200 && listed.payload?.data?.interests?.length === 1,
+    "*** reassign lists the students still with the outgoing ICR ***",
+    `status=${listed.status} n=${listed.payload?.data?.interests?.length}`);
+
+  const icrTry = await api(icr.jar, "POST", `/api/transition-reports/${reportId}/reassign`, {
+    toUserId: rm.user.id,
+  });
+  expect(icrTry.status === 403,
+    "*** the outgoing ICR cannot reassign their own pipeline ***", `status=${icrTry.status}`);
+
+  const toSelf = await api(rm.jar, "POST", `/api/transition-reports/${reportId}/reassign`, {
+    toUserId: icr.user.id,
+  });
+  expect(toSelf.status === 422,
+    "*** reassigning back to the outgoing ICR is refused ***", `status=${toSelf.status}`);
+
+  const moved = await api(rm.jar, "POST", `/api/transition-reports/${reportId}/reassign`, {
+    toUserId: rm.user.id,
+  });
+  expect(moved.status === 200 && moved.payload?.data?.reassigned === 1,
+    "*** bulk reassign moves the student ***",
+    `status=${moved.status} n=${moved.payload?.data?.reassigned}`);
+  expect(moved.payload?.data?.remaining === 0, "nothing left with the outgoing ICR",
+    String(moved.payload?.data?.remaining));
+
+  const after2 = await db.institutionInterest.findUnique({
+    where: { id: interest.id },
+    select: { assignedICRId: true, stage: true, intakeYear: true, intakeMonth: true,
+              studyLevel: true, leadId: true, institutionId: true, stageEnteredAt: true },
+  });
+  expect(after2?.assignedICRId === rm.user.id, "ownership moved", String(after2?.assignedICRId));
+  expect(after2?.stage === before?.stage, "*** stage preserved ***",
+    `${before?.stage} -> ${after2?.stage}`);
+  expect(after2?.leadId === before?.leadId && after2?.institutionId === before?.institutionId,
+    "*** student and institution links preserved ***");
+  expect(after2?.stageEnteredAt?.getTime() === before?.stageEnteredAt?.getTime(),
+    "*** stage history not reset ***");
+
+  const leadAfter = await db.lead.findUnique({
+    where: { id: lead.id }, select: { stage: true, firstName: true, createdById: true },
+  });
+  expect(leadAfter?.stage === leadBefore?.stage && leadAfter?.createdById === leadBefore?.createdById,
+    "*** student record and attribution untouched ***");
+  expect(await db.lead.count() === leadCountBefore,
+    "*** no new student record was created ***",
+    `${leadCountBefore} -> ${await db.lead.count()}`);
+
+  const notif = await db.notification.count({
+    where: { userId: icr.user.id, type: { startsWith: "TRANSITION_" } },
+  });
+  expect(notif > 0, "*** the ICR was notified about their report ***", `${notif}`);
 
   const finalised = await api(rm.jar, "POST", `/api/transition-reports/${reportId}/status`, { to: "FINAL" });
   expect(finalised.status === 200, "*** the report finalises once nothing is unowned ***", `status=${finalised.status}`);
@@ -243,6 +306,51 @@ async function runPass(pass) {
   });
   expect(lockedEdit.status === 403, "*** a Final report's sections cannot be edited ***",
     `status=${lockedEdit.status}`);
+
+  // ── Printable output (spec 31) ────────────────────────────────────────
+  const pdfRes = await fetch(`${BASE}/api/transition-reports/${reportId}/pdf`, {
+    headers: { Cookie: rm.jar.header() },
+  });
+  const pdfHtml = await pdfRes.text();
+  expect(pdfRes.status === 200, "the printable report renders", `status=${pdfRes.status}`);
+  expect(/ICR Transition &amp; Handover Report/.test(pdfHtml),
+    "*** the export has the report title ***");
+  expect(/Assignment Details/.test(pdfHtml), "assignment details included");
+  expect(/ICR Declaration/.test(pdfHtml) && /Regional Manager Acceptance/.test(pdfHtml),
+    "*** declaration and RM acceptance appear ***");
+
+  // All fifteen section headings must be present (spec 31 lists them).
+  const headings = [
+    "Executive Handover Summary", "Market Overview", "Recruitment Events",
+    "Active / Priority Agent Handover", "New / High-Potential Agents",
+    "School / Institution Relationships", "Other Key Relationships",
+    "Active Student Pipeline", "Outstanding Tasks", "Recruitment Plan, Travel",
+    "Current Forecast", "Client / Institution Operational Knowledge",
+    "Outstanding Issues", "Key Documents", "Final Strategic Recommendations",
+  ];
+  const missing = headings.filter((h) => !pdfHtml.includes(h.replace(/&/g, "&amp;")));
+  expect(missing.length === 0, "*** all 15 sections appear in the export ***", missing.join(", "));
+
+  expect(/as they stood at handover/.test(pdfHtml),
+    "*** a final export states the figures are from the handover date ***");
+
+  // The export must not be a way around the row scope.
+  const outsider = await createAndLogin({ role: "ICR" });
+  allCreated.push(outsider);
+  const sneak = await fetch(`${BASE}/api/transition-reports/${reportId}/pdf`, {
+    headers: { Cookie: outsider.jar.header() },
+  });
+  expect(sneak.status === 404,
+    "*** an unrelated ICR cannot print someone else's handover ***", `status=${sneak.status}`);
+  await destroyUser(outsider);
+  {
+    const gone = await db.user.count({ where: { id: outsider.user.id } });
+    expect(gone === 0, "outsider account deleted", `${gone} remaining`);
+    if (gone === 0) {
+      const i = allCreated.indexOf(outsider);
+      if (i >= 0) allCreated.splice(i, 1);
+    }
+  }
 
   const events = await db.transitionWorkflowEvent.count({ where: { reportId } });
   expect(events >= 7, "*** the full workflow history is retained ***", `${events} events`);

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AmendmentsDialog, ReassignDialog } from "./rm-actions";
 
 /**
  * The Transition Report body: fifteen sections, each showing the live CRM
@@ -52,7 +53,12 @@ interface Payload {
   events: Array<{ id: string; toStatus: string; comments: string | null; createdAt: string; actedBy: { name: string | null } }>;
 }
 
-export function ReportEditor({ reportId }: { reportId: string }) {
+export function ReportEditor({
+  reportId, owners = [],
+}: {
+  reportId: string;
+  owners?: Array<{ id: string; label: string }>;
+}) {
   const router = useRouter();
   const [data, setData] = React.useState<Payload | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -61,6 +67,8 @@ export function ReportEditor({ reportId }: { reportId: string }) {
   const [reasons, setReasons] = React.useState<string[]>([]);
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = React.useState<string | null>(null);
+  const [amendOpen, setAmendOpen] = React.useState(false);
+  const [reassignOpen, setReassignOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     try {
@@ -150,7 +158,15 @@ export function ReportEditor({ reportId }: { reportId: string }) {
               <span>{c.openRisks} open risk(s)</span>
             </>
           )}
-          <span className="ml-auto rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs">
+          <a
+            href={`/api/transition-reports/${reportId}/pdf`}
+            target="_blank"
+            rel="noopener"
+            className="ml-auto rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            Print / Save as PDF
+          </a>
+          <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs">
             {data.context.source === "snapshot"
               ? `Frozen at handover${data.context.capturedAt ? ` · ${new Date(data.context.capturedAt).toLocaleDateString()}` : ""}`
               : "Live CRM data"}
@@ -263,17 +279,18 @@ export function ReportEditor({ reportId }: { reportId: string }) {
             )}
             {canReview && (data.status === "SUBMITTED_TO_RM" || data.status === "RESUBMITTED") && (
               <>
-                <Button variant="outline" disabled={busy}
-                  onClick={() => {
-                    const why = window.prompt("What needs to change?");
-                    if (why?.trim()) void post("/status", { to: "AMENDMENTS_REQUIRED", comments: why });
-                  }}>
+                <Button variant="outline" disabled={busy} onClick={() => setAmendOpen(true)}>
                   Return for amendments
                 </Button>
                 <Button disabled={busy} onClick={() => void post("/status", { to: "ACCEPTED_BY_RM" })}>
                   Accept
                 </Button>
               </>
+            )}
+            {canReview && (c?.stillOwnedByOutgoing ?? 0) > 0 && (
+              <Button variant="outline" disabled={busy} onClick={() => setReassignOpen(true)}>
+                Reassign {c?.stillOwnedByOutgoing} student(s)
+              </Button>
             )}
             {canReview && data.status === "ACCEPTED_BY_RM" && (
               <Button disabled={busy} onClick={() => void post("/status", { to: "FINAL" })}>
@@ -283,6 +300,23 @@ export function ReportEditor({ reportId }: { reportId: string }) {
           </div>
         </div>
       )}
+
+      <AmendmentsDialog
+        open={amendOpen}
+        onOpenChange={setAmendOpen}
+        busy={busy}
+        onConfirm={(comments) => {
+          setAmendOpen(false);
+          void post("/status", { to: "AMENDMENTS_REQUIRED", comments });
+        }}
+      />
+      <ReassignDialog
+        open={reassignOpen}
+        onOpenChange={setReassignOpen}
+        reportId={reportId}
+        owners={owners}
+        onDone={() => { void load(); router.refresh(); }}
+      />
 
       {/* Spec §5: full workflow history retained. */}
       <details className="rounded-lg border border-slate-200 dark:border-slate-700 p-4">
