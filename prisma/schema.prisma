@@ -905,6 +905,11 @@ model User {
   transitionsVpSales    TransitionReport[]       @relation("TransitionVpGlobalSales")
   transitionsCreated    TransitionReport[]       @relation("TransitionCreatedBy")
   transitionEvents      TransitionWorkflowEvent[]
+  forecastsOwned        Forecast[]               @relation("ForecastICR")
+  forecastsManaged      Forecast[]               @relation("ForecastRM")
+  forecastsVpReviewed   Forecast[]               @relation("ForecastVP")
+  forecastsCreated      Forecast[]               @relation("ForecastCreatedBy")
+  forecastEvents        ForecastEvent[]
   requestedVariations VariationRequest[]       @relation("VariationRequester")
   approvedVariations  VariationRequest[]       @relation("VariationApprover")
   eventParticipations EventParticipation[]     @relation("EventParticipationICR")
@@ -1710,6 +1715,7 @@ model Institution {
   // Timesheets — time booked against this client (migration 028)
   timesheetEntries          TimesheetEntry[] @relation("TimesheetEntryClient")
   transitionReports         TransitionReport[]
+  forecasts                 Forecast[]
 
   @@map("institutions")
 }
@@ -2981,6 +2987,7 @@ model Market {
   updateSuggestions MarketUpdateSuggestion[]
   recruitmentPlans  QuarterlyRecruitmentPlan[]
   transitionReports TransitionReportMarket[]
+  forecasts         Forecast[]
 
   @@index([priority])
   @@index([potential])
@@ -4071,4 +4078,172 @@ model TransitionWorkflowEvent {
 
   @@index([reportId, createdAt])
   @@map("transition_workflow_events")
+}
+
+// ─── Forecasting ─────────────────────────────────────────────────────────────
+//
+// Replaces the RM Master Aggregation spreadsheet. The spec's governing idea is
+// a division of labour: "CRM provides the facts. ICR provides the forecast
+// judgement. RM provides regional oversight." So the pipeline figures are NOT
+// stored here — spec §5 says they are "system-generated and should not be
+// manually editable from Forecasting" — they are computed live from the leads
+// and interests that own them. What persists is judgement: the ICR's numbers,
+// the RM's numbers, and why.
+
+/// Spec §3. Every forecast is broken into these four segments; the total is
+/// derived, never entered.
+enum ForecastSegmentKey {
+  DIRECT_UG
+  DIRECT_PG
+  INDIRECT_UG
+  INDIRECT_PG
+}
+
+/// Spec §11–§18, in workflow order.
+enum ForecastStatus {
+  DRAFT
+  SUBMITTED_TO_RM
+  RETURNED_TO_ICR
+  RM_REVIEWED
+  REGIONAL_SUBMITTED
+  RETURNED_TO_RM
+  ACCEPTED
+  ARCHIVED
+}
+
+/// Spec §10. System-assessed, distinct from the ICR's confidence score: one is
+/// where the pipeline actually sits, the other is what the ICR believes.
+enum PipelineMaturity {
+  EARLY_STAGE
+  PIPELINE_DEPENDENT
+  MODERATE_MATURITY
+  HIGH_MATURITY
+}
+
+model Forecast {
+  id String @id @default(uuid())
+
+  /// Spec §3: "Forecast Period + Institution + Market + ICR + Intake" is the
+  /// minimum identity of a forecast, so all five are part of the unique key.
+  periodYear  Int
+  periodMonth Int
+
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  marketId String?
+  market   Market? @relation(fields: [marketId], references: [id])
+
+  icrId String
+  icr   User   @relation("ForecastICR", fields: [icrId], references: [id])
+
+  /// The intake being forecast, which is not the period the forecast is made in.
+  intakeYear  Int
+  intakeMonth Int
+
+  status ForecastStatus @default(DRAFT)
+
+  /// Spec §10. 1–5, the ICR's own confidence. Nullable until they enter it;
+  /// submission requires it.
+  confidenceScore Int?
+
+  /// Spec §10. Written when the forecast is submitted, so the maturity recorded
+  /// is the one that applied at the time rather than whatever the pipeline
+  /// looks like when someone opens it months later.
+  pipelineMaturity PipelineMaturity?
+
+  /// Spec §9. Required to submit — a number with no reasoning cannot be
+  /// reviewed, only accepted or rejected on faith.
+  rationale       String? @db.Text
+  keyRisks        String? @db.Text
+  keyOpportunities String? @db.Text
+
+  regionalManagerId String?
+  regionalManager   User?   @relation("ForecastRM", fields: [regionalManagerId], references: [id])
+  /// Spec §13: when the RM adjusts, they must say why. The ICR's number stays.
+  rmComment         String? @db.Text
+
+  vpReviewerId String?
+  vpReviewer   User?   @relation("ForecastVP", fields: [vpReviewerId], references: [id])
+  vpComment    String? @db.Text
+
+  submittedAt DateTime?
+  rmReviewedAt DateTime?
+  regionalSubmittedAt DateTime?
+  acceptedAt  DateTime?
+
+  /// Spec §30/§31. Written once the intake is known, so accuracy can be
+  /// measured against what was actually accepted rather than recomputed from a
+  /// pipeline that has moved on.
+  actualEnrolments Int?
+  actualsRecordedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation("ForecastCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  segments ForecastSegment[]
+  events   ForecastEvent[]
+
+  /// One forecast per ICR per institution per intake per period. Two would make
+  /// "what did we forecast in March" unanswerable.
+  @@unique([periodYear, periodMonth, institutionId, icrId, intakeYear, intakeMonth])
+  @@index([status])
+  @@index([icrId, status])
+  @@index([regionalManagerId, status])
+  @@map("forecasts")
+}
+
+/// Spec §6 and §13. One row per segment, holding BOTH judgements.
+///
+/// The ICR and RM columns are separate rather than one mutated set because §13
+/// is explicit: "RM adjustments must create separate RM forecast values rather
+/// than overwriting the ICR submission… The historical record should therefore
+/// show both professional judgements." Overwriting would destroy the only data
+/// that makes forecast-accuracy analysis per person possible.
+model ForecastSegment {
+  id         String   @id @default(uuid())
+  forecastId String
+  forecast   Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+
+  segment ForecastSegmentKey
+
+  /// The ICR's submitted judgement (spec §6).
+  icrApplications Int @default(0)
+  icrDeposits     Int @default(0)
+  icrEnrolments   Int @default(0)
+
+  /// The RM's adjustment, null when they agree. Null is meaningful here: it
+  /// says "not adjusted", which is different from "adjusted to the same value".
+  rmApplications Int?
+  rmDeposits     Int?
+  rmEnrolments   Int?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([forecastId, segment])
+  @@map("forecast_segments")
+}
+
+/// Spec §35. Append-only workflow trail; rows are never updated, so a later
+/// cycle cannot rewrite an earlier one.
+model ForecastEvent {
+  id         String   @id @default(uuid())
+  forecastId String
+  forecast   Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+
+  fromStatus ForecastStatus?
+  toStatus   ForecastStatus
+
+  actedById String
+  actedBy   User   @relation(fields: [actedById], references: [id])
+
+  comments String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([forecastId, createdAt])
+  @@map("forecast_events")
 }
