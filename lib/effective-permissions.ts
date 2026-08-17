@@ -1,18 +1,22 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { PERMISSION_MATRIX } from "@/lib/permissions";
+import { PERMISSION_MATRIX, ALL_RESOURCES, ALL_ACTIONS } from "@/lib/permissions";
 import type { Role, Resource, Action } from "@/lib/permissions";
 
-const ALL_RESOURCES: Resource[] = [
-  "leads", "sources", "institutions", "events", "reports", "analytics",
-  "executive_dashboard",
-  "erp", "erp_hr", "users", "settings", "announcements", "knowledge_base",
-  "whatsapp", "markets", "stakeholders", "activities", "travel", "risk_compliance",
-  "knowledge", "tasks",
-  // Redesign resources (Phases 2-7)
-  "recruitment_network", "recruitment_planning", "market_intelligence", "field_operations",
-];
-const ALL_ACTIONS: Action[] = ["read", "write", "delete", "approve", "export"];
+// ALL_RESOURCES and ALL_ACTIONS are imported here, not redeclared.
+//
+// This file used to keep its own hardcoded copy of the resource list, and
+// getEffectivePermissions() builds its result by iterating that list. Any
+// resource missing from the copy was therefore never given an entry, and
+// effectiveHasPermission() returned false for every action on it — so a
+// resource could be granted to a role in PERMISSION_MATRIX and still be denied
+// at every route, with nothing in either file to indicate why.
+//
+// That is precisely what happened when icr_transition was added: the matrix
+// said REGIONAL_MANAGER holds write, and the API answered 403.
+//
+// The exported ALL_RESOURCES is derived from PERMISSION_MATRIX.SUPER_ADMIN, so
+// it cannot fall behind the matrix the way a second hand-maintained list can.
 
 /**
  * Loads the effective permission matrix for a role, merging DB overrides on top
@@ -82,6 +86,7 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
   activities_field:    { resource: "activities",           action: "read" },
   recruitment_network:  { resource: "recruitment_network",  action: "read" },
   recruitment_planning: { resource: "recruitment_planning", action: "read" },
+  icr_transition:       { resource: "icr_transition",       action: "read" },
   market_intelligence:  { resource: "market_intelligence",  action: "read" },
   field_operations:     { resource: "field_operations",     action: "read" },
   tasks:               { resource: "tasks",               action: "read" },

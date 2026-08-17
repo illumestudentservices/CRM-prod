@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, Search, ChevronRight, User, Settings, LogOut, Menu } from "lucide-react";
+import { Search, ChevronRight, User, Settings, LogOut, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 export interface Breadcrumb {
   label: string;
@@ -139,18 +140,10 @@ export function Topbar({
         {/* Theme toggle — light / system / dark segmented control */}
         <ThemeToggle className="hidden sm:inline-flex" />
 
-        {/* Notification Bell */}
-        <button
-          className="relative flex items-center justify-center h-9 w-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#EF4444] text-[9px] font-bold text-white leading-none">
-              {notificationCount > 99 ? "99+" : notificationCount}
-            </span>
-          )}
-        </button>
+        {/* Notification Bell — opens the panel. This was previously a bare
+            <button> with no onClick: it drew the unread badge and then did
+            nothing when clicked, on every page in the app. */}
+        <NotificationBell initialCount={notificationCount} />
 
         {/* User Avatar Dropdown */}
         <DropdownMenu>
