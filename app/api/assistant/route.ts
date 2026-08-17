@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import type { Role } from "@/lib/permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { answer } from "@/lib/assistant-search";
+import { reportUnanswered } from "@/lib/assistant-escalation";
 
 /**
  * In-app help: "where is X", "can I use X", "why can't I see X".
@@ -74,6 +75,16 @@ export async function POST(req: NextRequest) {
           at: new Date().toISOString(),
         })
       );
+
+      // Email the owner. Deliberately not awaited into the response path: the
+      // person who asked should get their answer whether or not the mail goes
+      // out, and reportUnanswered swallows its own failures.
+      void reportUnanswered({
+        query: parsed.data.query,
+        role: session.user.role as Role,
+        kind: result.kind,
+        userEmail: session.user.email,
+      });
     }
 
     return NextResponse.json({ data: result });
