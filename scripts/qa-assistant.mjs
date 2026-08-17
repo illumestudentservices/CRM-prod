@@ -113,6 +113,19 @@ async function main() {
       "*** a role without access is not given a figure ***", r.kind);
   }
 
+  startSection("A figures answer is a success, not a miss");
+  {
+    // The route escalates anything that is not an answer. "stats" IS an answer,
+    // and treating it as a miss emailed IT about questions the widget handled.
+    const admin = await db.user.findFirst({ where: { role: "SUPER_ADMIN" }, select: { id: true } });
+    if (admin) {
+      const r = await answer("how many students do I have", "SUPER_ADMIN", admin.id);
+      expect(r.kind === "stats", "a count question answers with figures", r.kind);
+      expect(["found", "stats"].includes(r.kind),
+        "*** and counts as answered, so it is not escalated ***", r.kind);
+    }
+  }
+
   startSection("Typos still find the screen");
   {
     const typos = [
