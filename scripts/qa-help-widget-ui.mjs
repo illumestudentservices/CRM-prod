@@ -120,8 +120,12 @@ async function runPass(pass, browser) {
   const missText = await page.getByRole("dialog").innerText();
   expect(/could not find/i.test(missText),
     "*** an unmatched question says so ***", missText.slice(0, 70));
-  expect(/Ask IT about this/i.test(missText),
-    "*** a miss offers to send it to IT ***");
+  // The copy changed when escalation became automatic: the user is told it has
+  // been reported rather than asked to report it themselves.
+  expect(/reported automatically/i.test(missText),
+    "*** a miss tells the user it has been reported ***", missText.slice(0, 90));
+  expect(/Add more detail/i.test(missText),
+    "*** and still offers to add context ***");
 
   const real = errs.filter((e) => !/hydrat/i.test(e));
   expect(real.length === 0, "no uncaught errors from the widget", real.slice(0, 2).join(" | "));
