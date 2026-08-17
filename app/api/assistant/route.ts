@@ -65,7 +65,12 @@ export async function POST(req: NextRequest) {
     // week would bury the records it exists to preserve.
     //
     // Grep with: pm2 logs illume-crm | grep HELP_MISS
-    if (result.kind !== "found") {
+    // "stats" is a SUCCESS — the question was answered with figures. Treating
+    // anything that is not "found" as a failure logged every count question as a
+    // miss and would have emailed IT about questions the widget answered
+    // perfectly well.
+    const answered = result.kind === "found" || result.kind === "stats";
+    if (!answered) {
       console.info(
         "[HELP_MISS]",
         JSON.stringify({
