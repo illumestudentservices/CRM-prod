@@ -112,6 +112,10 @@ interface ReportDetailClientProps {
     weeklyActivities: string;
   };
   canEdit: boolean;
+  /** reports.email_external — whether this role may send report content
+   *  outside the organisation. Controls are hidden when false rather than
+   *  shown and then refused with a 403 after the user has typed a recipient. */
+  canEmailExternally: boolean;
   userRole: string;
   monthName: string;
 }
@@ -166,6 +170,7 @@ export function ReportDetailClient({
   weeklyByType,
   sectionHtmls,
   canEdit,
+  canEmailExternally,
   monthName,
 }: ReportDetailClientProps) {
   const chart = useChartTheme();
@@ -276,13 +281,15 @@ export function ReportDetailClient({
                 </a>
               </Button>
             )}
-            <Button
-              size="sm"
-              className="bg-white/15 hover:bg-white/25 text-white border-0"
-              onClick={() => setEmailOpen(true)}
-            >
-              <Mail className="h-4 w-4 mr-1.5" /> Email Report
-            </Button>
+            {canEmailExternally && (
+              <Button
+                size="sm"
+                className="bg-white/15 hover:bg-white/25 text-white border-0"
+                onClick={() => setEmailOpen(true)}
+              >
+                <Mail className="h-4 w-4 mr-1.5" /> Email Report
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -295,11 +302,13 @@ export function ReportDetailClient({
               <TrendingUp className="h-5 w-5 text-[#0EA5E9]" />
               Key Performance Indicators
             </h2>
-            <EmailSectionButton
-              sectionTitle="KPI Summary"
-              sectionHtml={sectionHtmls.kpi}
-              defaultSubject={`KPI Summary — ${report.institution.name} — ${period}`}
-            />
+            {canEmailExternally && (
+              <EmailSectionButton
+                sectionTitle="KPI Summary"
+                sectionHtml={sectionHtmls.kpi}
+                defaultSubject={`KPI Summary — ${report.institution.name} — ${period}`}
+              />
+            )}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard title="Total Leads" value={showNum(kpi.totalLeads)} icon={Users} change={trendPercent(kpi.totalLeads, prevKpi?.totalLeads)} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" />
@@ -368,11 +377,13 @@ export function ReportDetailClient({
               Leads Collected
               <span className="text-xs font-normal text-slate-400 dark:text-slate-500">({leads.length})</span>
             </CardTitle>
-            <EmailSectionButton
-              sectionTitle={`Leads Collected (${leads.length})`}
-              sectionHtml={sectionHtmls.leads}
-              defaultSubject={`Leads — ${report.institution.name} — ${period}`}
-            />
+            {canEmailExternally && (
+              <EmailSectionButton
+                sectionTitle={`Leads Collected (${leads.length})`}
+                sectionHtml={sectionHtmls.leads}
+                defaultSubject={`Leads — ${report.institution.name} — ${period}`}
+              />
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -425,7 +436,7 @@ export function ReportDetailClient({
               <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-[#0EA5E9]" /> Program Breakdown
               </CardTitle>
-              <EmailSectionButton sectionTitle="Program Breakdown" sectionHtml={sectionHtmls.programs} defaultSubject={`Programs — ${report.institution.name} — ${period}`} />
+              {canEmailExternally && <EmailSectionButton sectionTitle="Program Breakdown" sectionHtml={sectionHtmls.programs} defaultSubject={`Programs — ${report.institution.name} — ${period}`} />}
             </div>
           </CardHeader>
           <CardContent>
@@ -467,7 +478,7 @@ export function ReportDetailClient({
               <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Globe className="h-4 w-4 text-[#0EA5E9]" /> Source Performance
               </CardTitle>
-              <EmailSectionButton sectionTitle="Source Performance" sectionHtml={sectionHtmls.sources} defaultSubject={`Sources — ${report.institution.name} — ${period}`} />
+              {canEmailExternally && <EmailSectionButton sectionTitle="Source Performance" sectionHtml={sectionHtmls.sources} defaultSubject={`Sources — ${report.institution.name} — ${period}`} />}
             </div>
           </CardHeader>
           <CardContent>
@@ -513,7 +524,7 @@ export function ReportDetailClient({
               <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-[#0EA5E9]" /> Event Activities & ROI
               </CardTitle>
-              <EmailSectionButton sectionTitle="Event Activities & ROI" sectionHtml={sectionHtmls.events} defaultSubject={`Events — ${report.institution.name} — ${period}`} />
+              {canEmailExternally && <EmailSectionButton sectionTitle="Event Activities & ROI" sectionHtml={sectionHtmls.events} defaultSubject={`Events — ${report.institution.name} — ${period}`} />}
             </div>
           </CardHeader>
           <CardContent>
@@ -553,7 +564,7 @@ export function ReportDetailClient({
               <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <CalendarRange className="h-4 w-4 text-[#0EA5E9]" /> Weekly Activities Summary
               </CardTitle>
-              <EmailSectionButton sectionTitle="Weekly Activities Summary" sectionHtml={sectionHtmls.weeklyActivities} defaultSubject={`Weekly Activities — ${report.institution.name} — ${period}`} />
+              {canEmailExternally && <EmailSectionButton sectionTitle="Weekly Activities Summary" sectionHtml={sectionHtmls.weeklyActivities} defaultSubject={`Weekly Activities — ${report.institution.name} — ${period}`} />}
             </div>
           </CardHeader>
           <CardContent>
@@ -605,11 +616,13 @@ export function ReportDetailClient({
               <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <section.icon className="h-4 w-4 text-[#0EA5E9]" /> {section.label}
               </CardTitle>
-              <EmailSectionButton
-                sectionTitle={section.label}
-                sectionHtml={emailSectionHtml(section.value!)}
-                defaultSubject={`${section.label} — ${report.institution.name} — ${period}`}
-              />
+              {canEmailExternally && (
+                <EmailSectionButton
+                  sectionTitle={section.label}
+                  sectionHtml={emailSectionHtml(section.value!)}
+                  defaultSubject={`${section.label} — ${report.institution.name} — ${period}`}
+                />
+              )}
             </div>
           </CardHeader>
           <CardContent>

@@ -273,62 +273,15 @@ export async function sendWelcomeEmail(opts: {
   });
 }
 
-// ─── 2. PASSWORD RESET EMAIL ───────────────────────────────────────────────────
-
-export async function sendPasswordResetEmail(opts: {
-  to: string;
-  name: string;
-  password: string;
-  resetBy: string;
-  loginUrl: string;
-}) {
-  const firstName = opts.name.split(" ")[0];
-
-  await safeSend({
-    to: opts.to,
-    subject: `Your Illume password has been reset`,
-    html: wrapEmail("Password Reset", `
-      <!-- Alert banner -->
-      <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
-        <div style="font-size:20px;margin-bottom:6px;">🔐</div>
-        <div style="font-size:15px;font-weight:700;color:#92400e;margin-bottom:2px;">Your password has been reset</div>
-        <div style="font-size:13px;color:#78350f;">This action was performed by an administrator: <strong>${opts.resetBy}</strong></div>
-      </div>
-
-      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        Hi ${firstName}, your login credentials for the Illume platform have been updated. Use the new password below to sign in.
-      </p>
-
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:28px;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:16px;">Updated Credentials</div>
-        <table cellpadding="0" cellspacing="0" width="100%">
-          <tr>
-            <td style="padding:6px 0;font-size:13px;color:#64748b;width:120px;">Email</td>
-            <td style="padding:6px 0;font-size:13px;font-weight:600;color:#0369A1;">${opts.to}</td>
-          </tr>
-          <tr>
-            <td style="padding:10px 0 6px;font-size:13px;color:#64748b;vertical-align:top;">New Password</td>
-            <td style="padding:10px 0 6px;">
-              <code style="background:#1E3A5F;color:#7DD3FC;font-size:14px;font-weight:700;padding:6px 14px;border-radius:7px;letter-spacing:0.5px;font-family:monospace;">${opts.password}</code>
-            </td>
-          </tr>
-        </table>
-        <div style="margin-top:16px;padding:10px 14px;background:#fef9ec;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
-          ⚠️ &nbsp;Change this password immediately after signing in. If you did not request this reset, contact your administrator.
-        </div>
-      </div>
-
-      <div style="text-align:center;padding:20px 0 8px;border-top:1px solid #f1f5f9;">
-        <a href="${opts.loginUrl}" style="display:inline-block;background:linear-gradient(135deg,#1E3A5F,#0369A1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:13px 36px;border-radius:10px;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(30,58,95,0.3);">
-          Sign In Now &rarr;
-        </a>
-        <p style="margin:14px 0 0;font-size:12px;color:#94a3b8;">
-          If you didn't expect this reset, contact your HR manager immediately.
-        </p>
-      </div>
-    `),
-  });
-}
+// ─── 2. PASSWORD RESET ────────────────────────────────────────────────────────
+//
+// sendPasswordResetEmail was removed 2026-08-18. It put the new password in the
+// body of the email in plaintext, which leaves a working credential sitting in
+// a mailbox and in every relay that handled it, with no expiry and no way to
+// revoke it. Nothing called it — both admin resets and self-service go through
+// sendMagicLinkEmail, which sends a single-use, expiring link and lets the user
+// choose their own password. Left as a note so it does not get reintroduced by
+// someone looking for "the password reset email".
 
 // ─── 3. SECURITY ALERT ────────────────────────────────────────────────────────
 
