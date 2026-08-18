@@ -67,9 +67,17 @@ if (cmd === "create") {
     for (const model of [
       "session", "account", "passwordHistory", "auditLog",
       "notification", "loginAttempt", "userSession", "securityEvent",
+      "icrReportApproval",
     ]) {
       if (!db[model]?.deleteMany) continue;
       await db[model].deleteMany({ where: { userId: id } }).catch(() => {});
+    }
+    // Rows that reference the user by a name other than `userId`, and so are
+    // invisible to the loop above. icr_monthly_reports.icrId is ON DELETE
+    // RESTRICT, so a report left behind blocks the whole teardown.
+    for (const [model, field] of [["icrMonthlyReport", "icrId"]]) {
+      if (!db[model]?.deleteMany) continue;
+      await db[model].deleteMany({ where: { [field]: id } }).catch(() => {});
     }
     await db.user.delete({ where: { id } });
     const left = await db.user.count({ where: { id } });
