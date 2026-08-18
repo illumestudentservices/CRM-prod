@@ -281,14 +281,25 @@ try {
     `totalDays ${vac?.totalDays}`);
   expect((vac?.totalDays ?? 0) > 0, "and it is not zero");
 
+  // The stored totalDays column stays 0 deliberately — entitlement is derived,
+  // not allocated, so there is nothing to seed at hire or roll over in January.
+  // The invariant is not "the column is right", it is "nobody treats the column
+  // as an entitlement". That is asserted on the screens themselves in
+  // qa-leave-balance-display.mjs; here we check the derived answer is sane.
   const stored = await db.leaveBalance.findFirst({
     where: { employeeId: staff.employee.id, leaveType: "VACATION_PAID" },
     select: { totalDays: true, usedDays: true, pendingDays: true },
   });
-  const storedRemaining = (stored?.totalDays ?? 0) - (stored?.usedDays ?? 0) - (stored?.pendingDays ?? 0);
-  expect(storedRemaining >= 0,
-    "*** stored totalDays - used - pending is not negative ***",
-    `stored totalDays=${stored?.totalDays} used=${stored?.usedDays} pending=${stored?.pendingDays} → ${storedRemaining} days "left"`);
+  expect(stored?.totalDays === 0,
+    "the stored totalDays column is still 0 — entitlement is derived, not allocated",
+    `stored ${stored?.totalDays}`);
+  expect((vac?.availableDays ?? -1) >= 0,
+    "*** the derived figure a person is shown is never negative ***",
+    `availableDays ${vac?.availableDays}`);
+  expect(
+    Math.abs((vac?.availableDays ?? 0) - Math.max(0, (vac?.totalDays ?? 0) - (vac?.usedDays ?? 0) - (vac?.pendingDays ?? 0))) < 0.01,
+    "*** and it equals entitlement less used less pending ***",
+    `available ${vac?.availableDays} vs ${vac?.totalDays} - ${vac?.usedDays} - ${vac?.pendingDays}`);
 } catch (e) {
   fail("run completed", String(e?.message ?? e).slice(0, 300));
 } finally {

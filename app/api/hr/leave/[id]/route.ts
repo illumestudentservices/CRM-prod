@@ -81,7 +81,12 @@ export async function PATCH(
     );
   }
 
-  const year = leaveRequest.startDate.getFullYear();
+  // UTC, because that is what POST /api/hr/leave used when it created the row.
+  // getFullYear() reads the server's local calendar: for leave starting 1
+  // January, a server behind UTC resolves the previous year, the balance lookup
+  // below misses, and the approval fails with a 500 on a request that is
+  // perfectly valid. The VPS runs UTC so the two agreed by luck, not design.
+  const year = leaveRequest.startDate.getUTCFullYear();
 
   await db.$transaction(async (tx) => {
     // Update leave request status

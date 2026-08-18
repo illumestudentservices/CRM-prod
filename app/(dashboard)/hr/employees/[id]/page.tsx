@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
+import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -167,7 +168,7 @@ export default async function EmployeeDetailPage({
           managerName: employee.manager?.user.name ?? null,
           directReports: employee.directReports,
         }}
-        leaveBalances={employee.leaveBalances}
+        leaveBalances={deriveLeaveBalances(employee.startDate, employee.leaveBalances)}
         isOwnProfile={isOwnProfile}
         worklogs={employee.worklogs}
         kpiTargets={employee.kpiTargets}

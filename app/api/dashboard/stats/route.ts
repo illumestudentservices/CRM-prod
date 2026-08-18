@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deriveLeaveBalances } from "@/lib/leave-policy";
 import type { Role } from "@/lib/permissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -166,7 +167,8 @@ function buildScopeWhere(
 async function getERPStats(userId: string, now: Date) {
   const employee = await db.employee.findUnique({
     where: { userId },
-    select: { id: true },
+    // startDate drives the entitlement calculation.
+    select: { id: true, startDate: true },
   });
 
   if (!employee) {
@@ -198,7 +200,7 @@ async function getERPStats(userId: string, now: Date) {
       }),
       db.leaveBalance.findMany({
         where: { employeeId: employee.id, year: currentYear },
-        select: { leaveType: true, totalDays: true, usedDays: true, pendingDays: true },
+        select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
       }),
     ]);
 
@@ -208,7 +210,8 @@ async function getERPStats(userId: string, now: Date) {
         openTasks,
         pendingLeaves,
         travelRequests,
-        leaveBalances,
+        // Derived, never the stored totalDays column — see lib/leave-policy.
+        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
         currentMonth,
         currentYear,
       },
