@@ -917,8 +917,10 @@ model User {
   leadActivities    LeadActivity[]
   assignedEvents    Event[]
   monthlyReports    MonthlyReport[]   @relation("ICRReports")
+  icrMonthlyReports IcrMonthlyReport[] @relation("ICRMonthlyReports")
   weeklyActivities  WeeklyActivity[]  @relation("ICRWeeklyActivities")
   reportApprovals   ReportApproval[]
+  icrReportApprovals IcrReportApproval[]
   engagementLogs    EngagementLog[]
   notifications     Notification[]
   auditLogs         AuditLog[]
@@ -1042,6 +1044,7 @@ model Region {
   events           Event[]
   institutions     Institution[]
   monthlyReports   MonthlyReport[]
+  icrMonthlyReports IcrMonthlyReport[]
   weeklyActivities WeeklyActivity[]
   holidays         Holiday[]
   accountRequests  AccountRequest[]
@@ -2069,6 +2072,119 @@ model ReportApproval {
   createdAt DateTime       @default(now())
 
   @@map("report_approvals")
+}
+
+/// The ICR Monthly Report — the CRM equivalent of the "Illume - ICR - Monthly
+/// Report Template (Master)" Word template the reps fill in by hand today.
+///
+/// Deliberately keyed on the REP, not the institution. `MonthlyReport` above is
+/// one row per ICR *per institution*, which means a rep covering four schools
+/// files four reports and nobody ever sees their month as a whole. This is one
+/// row per rep per month; the institution appears as a breakdown inside the
+/// report (`institutionBreakdown`) instead of as part of the identity. Both
+/// models stay live — this one does not replace the institution report, and
+/// neither reads the other's rows.
+///
+/// The Json columns are FROZEN SNAPSHOTS of what the CRM knew when the report
+/// was generated, not live views. A report that silently re-computed itself
+/// would mean the figures a manager approved in September are not the figures
+/// anyone reads in November. `refreshedAt` records the last deliberate recompute,
+/// which is only permitted while the report is still DRAFT or RETURNED — once
+/// it is with a manager the numbers stop moving.
+///
+/// Free-text columns are the sections of the template the CRM cannot know:
+/// judgement, narrative and asks. They map 1:1 onto the template's numbering,
+/// which is why the column comments carry the section numbers.
+model IcrMonthlyReport {
+  id             String       @id @default(uuid())
+  icrId          String
+  icr            User         @relation("ICRMonthlyReports", fields: [icrId], references: [id])
+  regionId       String?
+  region         Region?      @relation(fields: [regionId], references: [id])
+  reportingMonth Int
+  reportingYear  Int
+  status         ReportStatus @default(DRAFT)
+
+  /// Template header — free text because an intake label ("Sep 2026 / Jan 2027")
+  /// is a recruitment cycle, and the CRM has no single field that names one.
+  intakesCovered String?
+
+  // ── Auto-filled from the CRM (snapshots) ────────────────────────────────
+  /// §1.1 — one row per metric: { key, label, target, thisMonth, previousMonth, trend }.
+  performance          Json?
+  /// §1.2 — { activeLeads, applicationsInProgress, offersPending, depositsPending }.
+  pipelineSnapshot     Json?
+  /// Rollup per institution the rep worked this month. Not in the paper
+  /// template — it is what the paper template loses by being institution-scoped.
+  institutionBreakdown Json?
+  /// §1.3 — applications the CRM believes are stuck, each with an editable
+  /// `issue` and `requiredAction` the rep can overwrite.
+  priorityApplications Json?
+  /// §2.1 — { agentMeetings, newAgentsIdentified, trainingsDelivered, accountPlanning }.
+  agentEngagement      Json?
+  /// §2.2 — per partner: { id, name, leads, applications, deposits, note }.
+  topAgents            Json?
+  /// §2.3 — partners the CRM flags as at risk, with an editable action plan.
+  atRiskAgents         Json?
+  /// §3.1 — per event: { id, name, date, cost, leadsGenerated, costPerLead, quality }.
+  eventActivities      Json?
+
+  // ── Written by the rep ──────────────────────────────────────────────────
+  /// §1.4
+  keyHighlights        String? @db.Text
+  /// §1.5
+  keyChallenges        String? @db.Text
+  /// §2.4
+  channelDevelopment   String? @db.Text
+  /// §3.2
+  businessDevelopment  String? @db.Text
+  /// §4.1
+  demandTrends         String? @db.Text
+  /// §4.2
+  competitiveActivity  String? @db.Text
+  /// §4.3
+  marketConditions     String? @db.Text
+  /// §5 — three separate columns rather than one blob, because the template
+  /// asks for exactly three and a manager should be able to read them apart.
+  priorityOne          String? @db.Text
+  priorityTwo          String? @db.Text
+  priorityThree        String? @db.Text
+  /// §6
+  supportRequested     String? @db.Text
+
+  generatedAt     DateTime  @default(now())
+  refreshedAt     DateTime?
+  submittedAt     DateTime?
+  finalApprovedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  approvals IcrReportApproval[]
+
+  @@unique([icrId, reportingMonth, reportingYear])
+  @@index([status])
+  @@index([regionId, status])
+  @@map("icr_monthly_reports")
+}
+
+/// Append-only trail for the ICR report. Separate from `ReportApproval` because
+/// that table's FK points at `monthly_reports`; sharing it would mean a nullable
+/// parent on every row and no way for the database to enforce that a decision
+/// belongs to exactly one report.
+model IcrReportApproval {
+  id        String           @id @default(uuid())
+  reportId  String
+  report    IcrMonthlyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  action    ApprovalAction
+  comment   String?          @db.Text
+  createdAt DateTime         @default(now())
+
+  @@index([reportId, createdAt])
+  @@map("icr_report_approvals")
 }
 
 // ForecastEntry model removed 2026-08-09 (Phase 7). Orphaned since the
@@ -3739,6 +3855,9 @@ enum AttachmentParentType {
   RECRUITMENT_PLAN
   VARIATION_REQUEST
   MONTHLY_REPORT
+  /// §7 of the ICR report template — event / school-visit / partner-meeting
+  /// snapshots attached to the rep's monthly report.
+  ICR_MONTHLY_REPORT
   ENGAGEMENT_LOG
   LEAD_NOTE
   LEAD

@@ -117,7 +117,14 @@ export class Jar {
  * Creates a throwaway user with MFA properly enrolled and returns
  * { user, jar, employee }. Caller must call destroyUser() when done.
  */
-export async function createAndLogin({ role = "SUPER_ADMIN", withEmployee = false } = {}) {
+/**
+ * `extra` is merged into the User row before the login happens, which is the
+ * only moment it can be. Fields like `regionId` are baked into the session JWT
+ * at sign-in, so setting one afterwards leaves the user in a region their own
+ * session does not know about, and every region-scoped check then behaves as
+ * if the field had never been set.
+ */
+export async function createAndLogin({ role = "SUPER_ADMIN", withEmployee = false, extra = {} } = {}) {
   const email = `${TAG.toLowerCase()}-${role.toLowerCase()}-${Date.now()}@illume.local`;
   const password = crypto.randomBytes(24).toString("base64url");
   const secret = generateSecret();
@@ -133,6 +140,7 @@ export async function createAndLogin({ role = "SUPER_ADMIN", withEmployee = fals
       twoFactorEnabled: true,
       twoFactorSecret: secret,
       passwordChangedAt: new Date(),
+      ...extra,
     },
   });
 

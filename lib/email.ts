@@ -556,6 +556,71 @@ export async function sendReportStatusEmail(opts: {
   });
 }
 
+// ─── 5b. ICR MONTHLY REPORT (rep-wise) ────────────────────────────────────────
+//
+// Separate from the two senders above because those name an institution in the
+// subject and the body, and the ICR monthly report does not have one — it is
+// the rep's whole month across every school they cover. Reusing them would mean
+// emailing a manager about an institution called "All institutions".
+
+export async function sendIcrReportSubmittedEmail(opts: {
+  to: string;
+  rmName: string;
+  icrName: string;
+  period: string;
+  institutionCount: number;
+  reportUrl: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `ICR Monthly Report Submitted — ${opts.icrName} / ${opts.period}`,
+    html: wrapEmail("ICR Monthly Report Submitted", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">Monthly Report Ready for Review</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.rmName}, ${opts.icrName} has submitted their monthly report and it is awaiting your review.</p>
+      ${infoTable([
+        ["ICR", opts.icrName],
+        ["Period", opts.period],
+        ["Institutions covered", String(opts.institutionCount)],
+        ["Status", badge("Pending Review", "#f59e0b")],
+      ])}
+      ${ctaButton("Review Report", opts.reportUrl)}
+    `),
+  });
+}
+
+export async function sendIcrReportStatusEmail(opts: {
+  to: string;
+  icrName: string;
+  period: string;
+  action: "APPROVED" | "RETURNED";
+  comment?: string;
+  reportUrl: string;
+}) {
+  const approved = opts.action === "APPROVED";
+  const title = approved ? "Monthly Report Approved" : "Monthly Report Needs Revision";
+  const body = approved
+    ? `Your monthly report for <strong>${opts.period}</strong> has been approved by your Regional Manager.`
+    : `Your monthly report for <strong>${opts.period}</strong> has been returned and needs revision before you resubmit it.`;
+
+  await safeSend({
+    to: opts.to,
+    subject: approved
+      ? `Monthly Report Approved — ${opts.period}`
+      : `Monthly Report Returned — ${opts.period}`,
+    html: wrapEmail(title, `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">${title}</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.icrName},</p>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">${body}</p>
+      ${infoTable([
+        ["Period", opts.period],
+        ["Status", approved ? badge("Approved", "#22c55e") : badge("Returned", "#ef4444")],
+        ...(opts.comment ? [["Manager's comment", opts.comment] as [string, string]] : []),
+      ])}
+      ${ctaButton("View Report", opts.reportUrl)}
+    `),
+  });
+}
+
 // ─── 6. LEAVE DECISION ────────────────────────────────────────────────────────
 
 export async function sendLeaveDecisionEmail(opts: {

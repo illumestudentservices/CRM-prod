@@ -99,3 +99,6 @@ set-gender.mjs
 .shot-manifest.json
 shot-harness.mjs
 shots/
+
+# Scratch output from QA runs (screenshots, dumps). Never source.
+tmp/

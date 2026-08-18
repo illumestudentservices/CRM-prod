@@ -131,6 +131,14 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     exists: async (id) =>
       (await db.monthlyReport.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
   },
+  ICR_MONTHLY_REPORT: {
+    // §7 of the ICR report template — "Snapshots": up to five photos from
+    // events, school visits or partner meetings during the period.
+    label: "ICR Monthly Report",
+    resource: "reports",
+    exists: async (id) =>
+      (await db.icrMonthlyReport.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
+  },
   ENGAGEMENT_LOG: {
     label: "Engagement Log entry",
     resource: "institutions",
