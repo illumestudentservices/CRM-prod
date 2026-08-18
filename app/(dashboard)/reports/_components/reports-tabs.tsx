@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, CalendarRange, BarChart3 } from "lucide-react";
+import { Plus, FileText, CalendarRange, BarChart3, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ReportQueueClient } from "./report-queue-client";
@@ -71,6 +71,17 @@ export function ReportsTabs({
             <CalendarRange className="h-4 w-4" />
             Weekly Activities
           </button>
+          {/* Rep-wise report. A link rather than a tab: it is its own module
+              with its own list and its own approval chain, and rendering it
+              inside this switcher would put two different "monthly report"
+              queues behind controls that look interchangeable. */}
+          <Link
+            href="/reports/icr-monthly"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+          >
+            <UserRound className="h-4 w-4" />
+            ICR Monthly
+          </Link>
           {showQBRTab && (
             <Link
               href="/reports/qbr"

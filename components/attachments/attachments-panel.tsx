@@ -47,6 +47,7 @@ export type AttachmentParentType =
   | "RECRUITMENT_PLAN"
   | "VARIATION_REQUEST"
   | "MONTHLY_REPORT"
+  | "ICR_MONTHLY_REPORT"
   | "ENGAGEMENT_LOG"
   | "LEAD_NOTE"
   | "LEAD"
