@@ -23,6 +23,8 @@ import {
 interface LeaveBalance {
   leaveType: string;
   totalDays: number;
+  /** Derived by lib/leave-policy — already net of used and pending. */
+  availableDays: number;
   usedDays: number;
   pendingDays: number;
 }
@@ -64,17 +66,35 @@ export function LeaveSection({
 
   useEffect(() => { loadRequests(); }, [employeeId]);
 
-  function calcDays(): number {
+  /**
+   * A preview of what will be charged, counted the way the server counts it:
+   * weekdays only, in UTC. This used to return calendar days — weekends
+   * included — under the label "working day(s)", so a Monday-to-Monday request
+   * previewed 8 and was charged 6.
+   *
+   * Public holidays are also deducted, but only the server knows which ones
+   * apply to this employee's region, so the label says so rather than showing a
+   * number that can still come out lower.
+   */
+  function calcWeekdays(): number {
     if (!form.startDate || !form.endDate) return 0;
-    const diff = new Date(form.endDate).getTime() - new Date(form.startDate).getTime();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1);
+    const cur = new Date(`${form.startDate}T00:00:00Z`);
+    const last = new Date(`${form.endDate}T00:00:00Z`);
+    if (Number.isNaN(cur.getTime()) || Number.isNaN(last.getTime()) || last < cur) return 0;
+    let count = 0;
+    while (cur <= last) {
+      const day = cur.getUTCDay();
+      if (day !== 0 && day !== 6) count++;
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return count;
   }
 
   async function submitLeave() {
     const res = await fetch("/api/hr/leave", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, employeeId, days: calcDays() }),
+      body: JSON.stringify({ ...form, employeeId }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -91,8 +111,13 @@ export function LeaveSection({
       {/* Balances */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {initialBalances.map((b) => {
-          const remaining = b.totalDays - b.usedDays - b.pendingDays;
-          const usedPct = b.totalDays > 0 ? (b.usedDays / b.totalDays) * 100 : 0;
+          // availableDays comes from the policy, already net of used and pending
+          // and floored at zero. Subtracting here from a stored total is what
+          // produced "-5d left" for someone with days remaining.
+          const remaining = b.availableDays;
+          const usedPct = b.totalDays > 0
+            ? Math.min(100, ((b.usedDays + b.pendingDays) / b.totalDays) * 100)
+            : 0;
           return (
             <Card key={b.leaveType}>
               <CardHeader className="pb-2 pt-4 px-4">
@@ -102,7 +127,9 @@ export function LeaveSection({
                 <Progress value={usedPct} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{b.usedDays}d used</span>
-                  <span className="font-semibold text-foreground">{remaining}d left</span>
+                  <span className="font-semibold text-foreground">
+                    {remaining}d left of {b.totalDays}d
+                  </span>
                 </div>
                 {b.pendingDays > 0 && (
                   <p className="text-xs text-amber-600">{b.pendingDays}d pending</p>
@@ -164,8 +191,10 @@ export function LeaveSection({
                 <Input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
               </div>
             </div>
-            {calcDays() > 0 && (
-              <p className="text-sm text-muted-foreground">{calcDays()} working day(s)</p>
+            {calcWeekdays() > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {calcWeekdays()} working day(s), less any public holiday in your region
+              </p>
             )}
             <div className="space-y-2">
               <Label>Reason</Label>

@@ -18,9 +18,12 @@ interface DirectReport {
 
 interface LeaveBalance {
   leaveType: string;
+  /** Derived entitlement from lib/leave-policy, not the stored column — that
+   *  one is always 0, and subtracting from it showed negative days remaining. */
   totalDays: number;
   usedDays: number;
   pendingDays: number;
+  availableDays: number;
 }
 
 interface Worklog {

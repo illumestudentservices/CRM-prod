@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { HRDashboardStats } from "./_components/hr-dashboard-stats";
@@ -47,11 +48,34 @@ export default async function HRPage() {
     include: { _count: { select: { employees: { where: ACTIVE_EMPLOYEE } } } },
   });
 
-  const leaveUtilization = await db.leaveBalance.groupBy({
-    by: ["leaveType"],
-    where: OWNED_BY_LIVE_EMPLOYEE,
-    _sum: { usedDays: true, totalDays: true },
+  // Utilisation is used-against-entitlement, and entitlement is derived per
+  // employee from their joining date. A groupBy over the stored totalDays column
+  // summed a column that is always 0, so the chart read "n days used of 0".
+  const leaveEmployees = await db.employee.findMany({
+    where: ACTIVE_EMPLOYEE,
+    select: {
+      startDate: true,
+      leaveBalances: {
+        where: { year: new Date().getUTCFullYear() },
+        select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
+      },
+    },
   });
+
+  const utilisation = new Map<string, { used: number; total: number }>();
+  for (const emp of leaveEmployees) {
+    for (const b of deriveLeaveBalances(emp.startDate, emp.leaveBalances)) {
+      const acc = utilisation.get(b.leaveType) ?? { used: 0, total: 0 };
+      acc.used += b.usedDays;
+      acc.total += b.totalDays;
+      utilisation.set(b.leaveType, acc);
+    }
+  }
+  const leaveUtilization = [...utilisation.entries()].map(([type, v]) => ({
+    type,
+    used: Number(v.used.toFixed(2)),
+    total: Number(v.total.toFixed(2)),
+  }));
 
   const trainingCompletion = await db.trainingRecord.count({
     where: { completedAt: { not: null }, ...OWNED_BY_LIVE_EMPLOYEE },
@@ -69,7 +93,7 @@ export default async function HRPage() {
 
       <HRDashboardStats
         deptHeadcount={deptHeadcount.map((d) => ({ name: d.name, count: d._count.employees }))}
-        leaveUtilization={leaveUtilization.map((l) => ({ type: l.leaveType, used: l._sum.usedDays ?? 0, total: l._sum.totalDays ?? 0 }))}
+        leaveUtilization={leaveUtilization}
         trainingCompletion={trainingTotal > 0 ? Math.round((trainingCompletion / trainingTotal) * 100) : 0}
         perfScoreDistribution={perfScores.map((p) => ({ score: p.score ?? 0 }))}
       />

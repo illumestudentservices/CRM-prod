@@ -407,3 +407,74 @@ export function computeEntitlement(
     ),
   };
 }
+
+// ─── Derived balances for display ────────────────────────────────────────────
+
+/**
+ * What a screen should show for one employee, per leave type.
+ *
+ * `leave_balances.totalDays` is NOT an entitlement and must never be rendered as
+ * one. The apply route writes that column as 0 and nothing ever computes it —
+ * entitlement is derived from the joining date and the policy. Screens that read
+ * the column and subtracted were telling an employee with nine days remaining
+ * that they had "-5d left of 0d": the figure the system enforced and the figure
+ * the employee read were two different numbers, and only one of them was
+ * calculated.
+ *
+ * Every display now goes through here, so "how many days do I have left" has one
+ * answer and it is the same one the apply route enforces.
+ */
+export interface DerivedLeaveBalance {
+  leaveType: LeaveTypeKey;
+  label: string;
+  /** The derived entitlement. Named totalDays because that is what the UI reads. */
+  totalDays: number;
+  usedDays: number;
+  pendingDays: number;
+  adjustmentDays: number;
+  /** Entitlement less used less pending, floored at zero. */
+  availableDays: number;
+  inWaitingPeriod: boolean;
+  eligibleFrom: Date;
+  policySummary: string;
+}
+
+/** A stored consumption row, loosely typed so callers can hand over Prisma rows. */
+export interface StoredLeaveConsumption {
+  leaveType: string;
+  usedDays: number;
+  pendingDays: number;
+  adjustmentDays?: number;
+}
+
+export function deriveLeaveBalances(
+  joiningDate: Date,
+  rows: StoredLeaveConsumption[],
+  asOf: Date = new Date()
+): DerivedLeaveBalance[] {
+  return LEAVE_TYPES.map((leaveType) => {
+    const row = rows.find((r) => r.leaveType === leaveType);
+    const e = computeEntitlement(
+      leaveType,
+      joiningDate,
+      {
+        usedDays: row?.usedDays ?? 0,
+        pendingDays: row?.pendingDays ?? 0,
+        adjustmentDays: row?.adjustmentDays ?? 0,
+      },
+      asOf
+    );
+    return {
+      leaveType,
+      label: e.policy.label,
+      totalDays: e.entitlementDays,
+      usedDays: e.usedDays,
+      pendingDays: e.pendingDays,
+      adjustmentDays: row?.adjustmentDays ?? 0,
+      availableDays: e.availableDays,
+      inWaitingPeriod: e.inWaitingPeriod,
+      eligibleFrom: e.eligibleFrom,
+      policySummary: e.policy.summary,
+    };
+  });
+}

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -304,7 +305,9 @@ async function getICRDashboardData(userId: string) {
 async function getERPDashboardData(userId: string, regionId?: string | null) {
   const employee = await db.employee.findUnique({
     where: { userId },
-    select: { id: true, jobTitle: true, department: { select: { name: true } } },
+    // startDate is load-bearing, not decoration: leave entitlement is derived
+    // from the joining date, never read from a stored total.
+    select: { id: true, startDate: true, jobTitle: true, department: { select: { name: true } } },
   });
 
   if (!employee) {
@@ -328,7 +331,7 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
       }),
       db.leaveBalance.findMany({
         where: { employeeId: employee.id, year: currentYear },
-        select: { leaveType: true, totalDays: true, usedDays: true, pendingDays: true },
+        select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
       }),
       db.leaveRequest.findMany({
         where: { employeeId: employee.id },
@@ -358,7 +361,7 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
   return {
     employee: { jobTitle: employee.jobTitle, department: employee.department?.name },
     stats: { openTasks, pendingLeaves, travelRequests },
-    leaveBalances,
+    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
     leaveRequests,
     holidays,
     assets,
@@ -374,7 +377,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
 
   const employee = await db.employee.findUnique({
     where: { userId },
-    select: { id: true },
+    select: { id: true, startDate: true },
   });
 
   const holidayWhere = {
@@ -395,7 +398,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
   const [leaveBalances, leaveRequests, holidays, assets] = await Promise.all([
     db.leaveBalance.findMany({
       where: { employeeId: employee.id, year: currentYear },
-      select: { leaveType: true, totalDays: true, usedDays: true, pendingDays: true },
+      select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
     }),
     db.leaveRequest.findMany({
       where: { employeeId: employee.id },
@@ -419,7 +422,10 @@ async function getPersonalData(userId: string, regionId?: string | null) {
     }),
   ]);
 
-  return { leaveBalances, leaveRequests, holidays, assets };
+  return {
+    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances) : [],
+    leaveRequests, holidays, assets,
+  };
 }
 
 // ─── Shared UI: Recent Leads card ─────────────────────────────────────────────
@@ -562,7 +568,14 @@ const leaveStatusColors: Record<string, string> = {
 function LeaveBalancesCard({
   balances,
 }: {
-  balances: { leaveType: string; totalDays: number; usedDays: number; pendingDays: number }[];
+  balances: {
+    leaveType: string;
+    /** Derived entitlement from lib/leave-policy, not the stored column. */
+    totalDays: number;
+    usedDays: number;
+    pendingDays: number;
+    availableDays: number;
+  }[];
 }) {
   return (
     <Card>
@@ -577,8 +590,8 @@ function LeaveBalancesCard({
           <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">No leave balance data</p>
         ) : (
           balances.map((lb) => {
-            const remaining = lb.totalDays - lb.usedDays - lb.pendingDays;
-            const usedPct = lb.totalDays > 0 ? Math.round(((lb.usedDays + lb.pendingDays) / lb.totalDays) * 100) : 0;
+            const remaining = lb.availableDays;
+            const usedPct = lb.totalDays > 0 ? Math.min(100, Math.round(((lb.usedDays + lb.pendingDays) / lb.totalDays) * 100)) : 0;
             return (
               <div key={lb.leaveType} className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -1167,8 +1180,8 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
 
   const annualLeave = leaveBalances.find((lb) => lb.leaveType === "VACATION_PAID");
   const sickLeave = leaveBalances.find((lb) => lb.leaveType === "SICK");
-  const annualRemaining = annualLeave ? annualLeave.totalDays - annualLeave.usedDays : 0;
-  const sickRemaining = sickLeave ? sickLeave.totalDays - sickLeave.usedDays : 0;
+  const annualRemaining = annualLeave?.availableDays ?? 0;
+  const sickRemaining = sickLeave?.availableDays ?? 0;
 
   return (
     <div className="space-y-6">
