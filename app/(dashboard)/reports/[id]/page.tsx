@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { hasCapability } from "@/lib/granular-permissions";
 import {
   WEEKLY_ACTIVITY_DEFS,
   WEEKLY_ACTIVITY_TYPES,
@@ -70,6 +71,12 @@ export default async function ReportViewPage({
   const canEdit =
     role === "ICR" &&
     report.icrId === userId;
+
+  // Sending report content to an outside address is a separate decision from
+  // being able to read it — see the capability check in /api/email/send-report.
+  // Computed here so the controls are simply absent for a role that cannot use
+  // them, rather than present and then refused.
+  const canEmailExternally = await hasCapability(role, "reports.email_external");
 
   // Parse JSON data
   const leads = Array.isArray(report.leadsData) ? (report.leadsData as unknown as Array<SnapshotName & { id: string; email: string; stage: string; studyLevel: string; interestedProgram: string; nationality: string; createdAt: string }>) : [];
@@ -172,6 +179,7 @@ export default async function ReportViewPage({
         weeklyByType={weeklyByType}
         sectionHtmls={sectionHtmls}
         canEdit={canEdit}
+        canEmailExternally={canEmailExternally}
         userRole={role}
         monthName={monthName}
       />

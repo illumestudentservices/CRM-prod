@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { safeSend, wrapEmail } from "@/lib/email";
 import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
+import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
 import { snapshotName, type SnapshotName } from "@/lib/person-name";
 import {
@@ -176,6 +177,19 @@ export async function POST(req: NextRequest) {
     if (role === "ICR" && report.icrId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (role === "REGIONAL_MANAGER" && report.regionId !== regionId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!isExec && role !== "ICR" && role !== "REGIONAL_MANAGER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    // Being allowed to READ this report is not the same as being allowed to send
+    // it out of the building. The payload here is the whole report plus a PDF —
+    // every lead's name, nationality, programme and stage — to an arbitrary
+    // address. `send-section` has required reports.email_external since it was
+    // hardened; it moves strictly less data than this route does, and the
+    // coarser action must not be the less guarded one.
+    if (!(await hasCapability(role, "reports.email_external"))) {
+      return NextResponse.json(
+        { error: "Your role is not permitted to email reports externally" },
+        { status: 403 }
+      );
+    }
 
     const period = `${MONTH_NAMES[report.reportingMonth]} ${report.reportingYear}`;
     const icrName = report.icr.name ?? report.icr.email;
