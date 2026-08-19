@@ -60,7 +60,15 @@ const NAV_AWAY = /\b(sign out|log ?out|logout)\b/i;
  * not part of the product and is absent from the production build, so counting
  * it as an app control would report a permanent phantom failure.
  */
-const DEV_ARTIFACT = /next\.js dev tools|dev tools|turbopack/i;
+const DEV_ARTIFACT =
+  /next\.js dev tools|dev tools|turbopack|copy error info|copy stack/i;
+/**
+ * Theme controls are radio-style: the first click changes the theme, and
+ * every later click on the already-selected option correctly does nothing.
+ * Across repeated passes that reads as an unstable control, which is an
+ * artefact of sweeping the same page five times rather than a defect.
+ */
+const THEME_CONTROL = /^(light mode|dark mode|match system|system)$/i;
 const SEL = 'button:visible, [role="button"]:visible, [role="tab"]:visible, [role="radio"]:visible';
 
 /** pass -> { "route|label": outcome } */
@@ -136,6 +144,7 @@ async function sweepRoute(page, route, pass, outcomes) {
     const key = `${route}|${label}`;
 
     if (DEV_ARTIFACT.test(label)) { continue; }  // not part of the product
+    if (THEME_CONTROL.test(label)) { outcomes[key] = "SKIPPED_THEME"; continue; }
     if (DESTRUCTIVE.test(label)) { outcomes[key] = "SKIPPED_DELETE"; continue; }
     if (NAV_AWAY.test(label))    { outcomes[key] = "SKIPPED_LOGOUT"; continue; }
     if (disabled)                { outcomes[key] = "DISABLED"; continue; }
@@ -167,6 +176,44 @@ async function sweepRoute(page, route, pass, outcomes) {
     } finally {
       page.off("request", onReq);
       page.off("pageerror", onErr);
+    }
+
+    /**
+     * A control that is ALREADY in its selected state does nothing when
+     * clicked, and that is correct. Sweeping a page five times means most
+     * toggles are already active by the time they are reached, so "nothing
+     * happened" is the expected result rather than a defect — measured
+     * directly, seven of the eight controls this reported as inert were the
+     * active half of a pair (Kanban when the board was already showing, the
+     * consent buttons, and a Refresh that re-reads the on-device queue and
+     * makes no request by design).
+     *
+     * So before believing it: click a sibling control in the same container to
+     * move the selection away, then click the target again. A control that
+     * still does nothing from the inactive state is genuinely inert.
+     */
+    if (outcome === "DEAD") {
+      try {
+        const sibling = page.locator(SEL).nth(i === 0 ? 1 : i - 1);
+        if (await sibling.count()) {
+          await sibling.click({ timeout: 3000, noWaitAfter: true }).catch(() => {});
+          await page.waitForTimeout(350);
+          const retryBefore = await readState(page, i);
+          await page.locator(SEL).nth(i).click({ timeout: 4000, noWaitAfter: true });
+          await page.waitForTimeout(700);
+          const retryAfter = await readState(page, i);
+          const moved =
+            retryAfter.url !== retryBefore.url ||
+            retryAfter.html !== retryBefore.html ||
+            retryAfter.checked !== retryBefore.checked ||
+            retryAfter.selected !== retryBefore.selected ||
+            retryAfter.dstate !== retryBefore.dstate ||
+            retryAfter.expanded !== retryBefore.expanded ||
+            retryAfter.overlays > retryBefore.overlays ||
+            Math.abs(retryAfter.len - retryBefore.len) > 200;
+          if (moved) outcome = "WORKS_FROM_INACTIVE";
+        }
+      } catch { /* leave it as DEAD — it could not even be clicked twice */ }
     }
 
     outcomes[key] = outcome;
@@ -292,7 +339,13 @@ async function main() {
   const region = await db.region.findFirst({ orderBy: { name: "asc" } });
   if (!region) throw new Error("no regions on the target database");
 
-  const rm = await createAndLogin({ role: "REGIONAL_MANAGER", extra: { regionId: region.id } });
+  // withEmployee, because a real Regional Manager has an employee record.
+  // Without one, POST /api/hr/timesheets answers 403 "you have no employee
+  // record, so there is no timesheet to open" — which is correct behaviour
+  // being reported as a broken connection.
+  const rm = await createAndLogin({
+    role: "REGIONAL_MANAGER", withEmployee: true, extra: { regionId: region.id },
+  });
   const row = await db.user.findUnique({
     where: { id: rm.user.id }, select: { twoFactorSecret: true },
   });

@@ -52,6 +52,28 @@ interface QBR {
   institution: { id: string; name: string; country: string };
 }
 
+/**
+ * ROI figures come out of a JSON column. The `ROIAnalysis` interface describes
+ * the shape the generator writes today, but nothing validates a stored blob on
+ * the way back in, so an older or partially-generated QBR can arrive missing a
+ * field the type swears is a number. `totalCost.toLocaleString()` then throws
+ * and takes the whole dialog down — measured on /reports/qbr as "Cannot read
+ * properties of undefined (reading 'toLocaleString')".
+ *
+ * A missing figure renders as an em dash, NOT as 0. "$0" is a claim that the
+ * quarter cost nothing, which is a different and worse statement than "we do
+ * not have this number".
+ */
+function money(v: unknown): string {
+  return typeof v === "number" && Number.isFinite(v) ? `$${v.toLocaleString()}` : "—";
+}
+function fixed2(v: unknown): string {
+  return typeof v === "number" && Number.isFinite(v) ? `$${v.toFixed(2)}` : "—";
+}
+function count(v: unknown): string {
+  return typeof v === "number" && Number.isFinite(v) ? String(v) : "—";
+}
+
 interface MarketPerformance {
   totalLeads: number;
   leadsByMarket: Record<string, number>;
@@ -467,25 +489,25 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#1E3A5F] dark:text-sky-300">
-                          {viewQBR.roiAnalysis.totalActivities}
+                          {count(viewQBR.roiAnalysis.totalActivities)}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Activities</p>
                       </div>
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#1E3A5F] dark:text-sky-300">
-                          ${viewQBR.roiAnalysis.totalCost.toLocaleString()}
+                          {money(viewQBR.roiAnalysis.totalCost)}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Total Cost</p>
                       </div>
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#0EA5E9]">
-                          ${viewQBR.roiAnalysis.costPerLead.toFixed(2)}
+                          {fixed2(viewQBR.roiAnalysis.costPerLead)}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Cost / Lead</p>
                       </div>
                       <div className="text-center rounded-lg bg-slate-50 dark:bg-slate-900/40 py-3">
                         <p className="text-xl font-bold text-[#22C55E]">
-                          {viewQBR.roiAnalysis.enrolled}
+                          {count(viewQBR.roiAnalysis.enrolled)}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Enrolled</p>
                       </div>
@@ -519,13 +541,13 @@ export function QBRClient({ canGenerate, institutions }: QBRClientProps) {
                                   {ab.type.replace(/_/g, " ")}
                                 </td>
                                 <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
-                                  {ab.count}
+                                  {count(ab.count)}
                                 </td>
                                 <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
-                                  ${ab.cost.toLocaleString()}
+                                  {money(ab.cost)}
                                 </td>
                                 <td className="py-2 px-3 text-right text-slate-600 dark:text-slate-400">
-                                  {ab.leads}
+                                  {count(ab.leads)}
                                 </td>
                               </tr>
                             ))}
