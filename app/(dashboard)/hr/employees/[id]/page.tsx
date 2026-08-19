@@ -32,7 +32,6 @@ export default async function EmployeeDetailPage({
       leaveBalances: { where: { year: new Date().getFullYear() } },
       trainingRecords: { orderBy: { createdAt: "desc" }, take: 10 },
       documents: { orderBy: { uploadedAt: "desc" } },
-      kpiTargets: { orderBy: { createdAt: "desc" } },
       assetAssignments: {
         where: { returnedAt: null },
         include: { asset: true },
@@ -181,7 +180,6 @@ export default async function EmployeeDetailPage({
         leaveBalances={deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender)}
         isOwnProfile={isOwnProfile}
         worklogs={employee.worklogs}
-        kpiTargets={employee.kpiTargets}
         isHR={isHR}
         trainingRecords={employee.trainingRecords}
         assetAssignments={employee.assetAssignments}

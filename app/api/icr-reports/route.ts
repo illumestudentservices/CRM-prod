@@ -164,6 +164,10 @@ export async function POST(req: NextRequest) {
         topAgents: asJson(sections.topAgents),
         atRiskAgents: asJson(sections.atRiskAgents),
         eventActivities: asJson(sections.eventActivities),
+        // §8 — rolled up from the Weekly Activity Planner. Frozen with the
+        // rest of the snapshot: the figures a manager approves in September
+        // must still be the figures anyone reads in November.
+        monthlyKpi: asJson(sections.monthlyKpi),
       },
       select: { id: true },
     });

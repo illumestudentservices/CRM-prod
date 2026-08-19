@@ -78,6 +78,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         topAgents: asJson(merged.topAgents),
         atRiskAgents: asJson(merged.atRiskAgents),
         eventActivities: asJson(merged.eventActivities),
+        // Wholly computed — the planner is the rep's input, so there is no
+        // edit on the report itself for mergeRepEdits to preserve.
+        monthlyKpi: asJson(merged.monthlyKpi),
         refreshedAt: new Date(),
       },
     });

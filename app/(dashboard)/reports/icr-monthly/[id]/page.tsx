@@ -112,6 +112,10 @@ export default async function IcrReportPage({ params }: { params: Promise<{ id: 
           topAgents: fromJson<AutoFilledSections["topAgents"]>(report.topAgents) ?? [],
           atRiskAgents: fromJson<AutoFilledSections["atRiskAgents"]>(report.atRiskAgents) ?? [],
           eventActivities: fromJson<AutoFilledSections["eventActivities"]>(report.eventActivities) ?? [],
+          // §8. Empty for reports generated before this column existed; the
+          // section renders a "refresh to populate" note rather than a table of
+          // zeros, which would read as the rep having done none of it.
+          monthlyKpi: fromJson<AutoFilledSections["monthlyKpi"]>(report.monthlyKpi) ?? [],
         }}
         approvals={report.approvals.map((a) => ({
           id: a.id,
