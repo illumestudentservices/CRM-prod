@@ -99,12 +99,12 @@ export async function PATCH(
       // Roles are hardcoded rather than read through effectiveHasPermission,
       // which is DB-overridable — a permissions tweak in settings should not be
       // able to hand out the power to bypass pipeline rules.
-      if (!override || !canOverrideGate(role as string)) {
+      if (!override || !(await canOverrideGate(role as string))) {
         return NextResponse.json(
           {
             error: `Cannot move to ${STAGE_LABELS[newStage]} yet.`,
             blockers: gate.blockers,
-            canOverride: canOverrideGate(role as string),
+            canOverride: await canOverrideGate(role as string),
           },
           { status: 422 }
         );
@@ -339,7 +339,7 @@ export async function GET(
   return NextResponse.json({
     stage: lead.stage,
     stageEnteredAt: lead.stageEnteredAt,
-    canOverride: canOverrideGate(role as string),
+    canOverride: await canOverrideGate(role as string),
     gates,
   });
 }
