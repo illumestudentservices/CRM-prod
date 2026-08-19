@@ -106,6 +106,16 @@ export default async function EmployeeDetailPage({
                   isActive: employee.isActive,
                   departmentId: employee.departmentId,
                   managerId: employee.managerId,
+                  // Gender was missing here, and its absence did not merely hide
+                  // the value — it deleted it. The form falls back to the "none"
+                  // sentinel when `initial.gender` is undefined, and on save it
+                  // sends `gender: null` for "none". So opening this dialog and
+                  // changing anything at all silently wiped a gender that had
+                  // been set correctly at onboarding, and the field read as blank
+                  // every time it was reopened. Exactly the failure the timesheet
+                  // note below describes, on the field that decides maternity and
+                  // paternity eligibility.
+                  gender: employee.gender,
                   firstName: employee.user.firstName,
                   lastName: employee.user.lastName,
                   email: employee.user.email,
@@ -168,7 +178,7 @@ export default async function EmployeeDetailPage({
           managerName: employee.manager?.user.name ?? null,
           directReports: employee.directReports,
         }}
-        leaveBalances={deriveLeaveBalances(employee.startDate, employee.leaveBalances)}
+        leaveBalances={deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender)}
         isOwnProfile={isOwnProfile}
         worklogs={employee.worklogs}
         kpiTargets={employee.kpiTargets}

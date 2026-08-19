@@ -169,8 +169,9 @@ function buildScopeWhere(
 async function getERPStats(userId: string, now: Date) {
   const employee = await db.employee.findUnique({
     where: { userId },
-    // startDate drives the entitlement calculation.
-    select: { id: true, startDate: true },
+    // startDate drives the entitlement calculation; gender decides which
+    // parental types are offered at all.
+    select: { id: true, startDate: true, gender: true },
   });
 
   if (!employee) {
@@ -213,7 +214,7 @@ async function getERPStats(userId: string, now: Date) {
         pendingLeaves,
         travelRequests,
         // Derived, never the stored totalDays column — see lib/leave-policy.
-        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
+        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
         currentMonth,
         currentYear,
       },

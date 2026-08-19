@@ -309,7 +309,9 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
     where: { userId },
     // startDate is load-bearing, not decoration: leave entitlement is derived
     // from the joining date, never read from a stored total.
-    select: { id: true, startDate: true, jobTitle: true, department: { select: { name: true } } },
+    // gender is load-bearing too: it decides which parental leave types this
+    // employee is entitled to see. See lib/leave-policy.ts.
+    select: { id: true, startDate: true, gender: true, jobTitle: true, department: { select: { name: true } } },
   });
 
   if (!employee) {
@@ -363,7 +365,7 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
   return {
     employee: { jobTitle: employee.jobTitle, department: employee.department?.name },
     stats: { openTasks, pendingLeaves, travelRequests },
-    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
+    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
     leaveRequests,
     holidays,
     assets,
@@ -379,7 +381,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
 
   const employee = await db.employee.findUnique({
     where: { userId },
-    select: { id: true, startDate: true },
+    select: { id: true, startDate: true, gender: true },
   });
 
   const holidayWhere = {
@@ -425,7 +427,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
   ]);
 
   return {
-    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances) : [],
+    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender) : [],
     leaveRequests, holidays, assets,
   };
 }

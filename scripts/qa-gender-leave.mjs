@@ -71,15 +71,26 @@ async function main() {
   // ── 3. Display: which leave types is she offered? ───────────────────────
   startSection("Leave types offered match the gender");
   {
-    const derived = deriveLeaveBalances(new Date("2022-01-01T00:00:00Z"), []);
-    const offered = derived.map((d) => d.leaveType);
-    ok(`deriveLeaveBalances returns: ${offered.join(", ")}`);
+    const joined = new Date("2022-01-01T00:00:00Z");
+    const female = deriveLeaveBalances(joined, [], "FEMALE").map((d) => d.leaveType);
+    const male = deriveLeaveBalances(joined, [], "MALE").map((d) => d.leaveType);
+    const unset = deriveLeaveBalances(joined, [], null).map((d) => d.leaveType);
+    ok(`FEMALE: ${female.join(", ")}`);
+    ok(`MALE:   ${male.join(", ")}`);
+    ok(`unset:  ${unset.join(", ")}`);
 
-    expect(!offered.includes("PATERNITY"),
-      "*** a FEMALE employee is not offered Paternity ***",
-      offered.includes("PATERNITY")
-        ? "deriveLeaveBalances takes no gender argument, so every screen shows all four types"
-        : "");
+    // Asserted in both directions, so the filter cannot pass by dropping
+    // everything — which an over-eager fix would do and a one-sided test would
+    // not catch.
+    expect(female.includes("MATERNITY") && !female.includes("PATERNITY"),
+      "*** FEMALE gets Maternity and not Paternity ***", female.join(", "));
+    expect(male.includes("PATERNITY") && !male.includes("MATERNITY"),
+      "*** MALE gets Paternity and not Maternity ***", male.join(", "));
+    expect(!unset.includes("MATERNITY") && !unset.includes("PATERNITY"),
+      "an unrecorded gender gets neither, matching checkGenderEligibility",
+      unset.join(", "));
+    expect(["VACATION_PAID", "SICK"].every((t) => unset.includes(t)),
+      "vacation and sick are unaffected by gender", unset.join(", "));
 
     // The policy and the apply route already disagree with the panel.
     const p = checkGenderEligibility("PATERNITY", "FEMALE");
@@ -95,12 +106,24 @@ async function main() {
     if (res.status !== 200) {
       ok(`balances endpoint returned ${res.status}, not comparable`);
     } else {
-      const body = JSON.stringify(res.payload);
-      const hasMat = /MATERNITY/.test(body), hasPat = /PATERNITY/.test(body);
-      ok(`endpoint mentions maternity=${hasMat} paternity=${hasPat}`);
+      // Only `balances` — NOT the whole body. The response also carries a
+      // `policies` catalogue holding all four policy definitions, which is
+      // correct (the UI renders the rules from it) but names every leave type.
+      // Grepping the raw body matched that and reported a failure the product
+      // did not have.
+      const rows = (res.payload?.balances ?? []).filter((b) => b.employeeId);
+      const types = [...new Set(rows.map((b) => b.leaveType))];
+      ok(`balances rows carry: ${types.join(", ") || "(none)"}`);
+
+      const hasMat = types.includes("MATERNITY");
+      const hasPat = types.includes("PATERNITY");
       expect(!(hasMat && hasPat),
-        "*** the panel does not offer both parental types at once ***",
+        "*** the balances do not offer both parental types to one person ***",
         hasMat && hasPat ? "both returned regardless of gender" : "");
+      // This fixture employee was set to FEMALE in section 1.
+      expect(hasMat && !hasPat,
+        "*** and offer Maternity, the one this employee is entitled to ***",
+        types.join(", "));
     }
   }
 

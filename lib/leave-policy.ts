@@ -447,12 +447,32 @@ export interface StoredLeaveConsumption {
   adjustmentDays?: number;
 }
 
+/**
+ * The balances to show this employee.
+ *
+ * `gender` is required, and positioned before `asOf` so that adding it breaks
+ * every existing call rather than letting any of them silently keep the old
+ * behaviour. It used to map over all four LEAVE_TYPES unconditionally, so every
+ * screen built on this — the profile, the dashboard widget, the HR tab and
+ * /api/hr/leave/balances — offered Maternity AND Paternity to the same person.
+ *
+ * The policy table was never wrong about this and leaveTypesForGender() was
+ * already sitting a couple of hundred lines above, unused. POST /api/hr/leave
+ * calls checkGenderEligibility and refuses the mismatched type, so the employee
+ * was being shown a choice the server would then reject. That is worse than
+ * hiding it: it reads as the system losing their request rather than as a rule.
+ *
+ * A null gender yields neither parental type, matching checkGenderEligibility —
+ * the business decision is that an unrecorded gender blocks both until HR fills
+ * it in, not that it grants both.
+ */
 export function deriveLeaveBalances(
   joiningDate: Date,
   rows: StoredLeaveConsumption[],
+  gender: Gender | null | undefined,
   asOf: Date = new Date()
 ): DerivedLeaveBalance[] {
-  return LEAVE_TYPES.map((leaveType) => {
+  return leaveTypesForGender(gender).map((leaveType) => {
     const row = rows.find((r) => r.leaveType === leaveType);
     const e = computeEntitlement(
       leaveType,
