@@ -11,6 +11,7 @@ import {
   BarChart3,
   X,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -65,7 +66,7 @@ interface QBR {
  * not have this number".
  */
 function money(v: unknown): string {
-  return typeof v === "number" && Number.isFinite(v) ? `$${v.toLocaleString()}` : "—";
+  return typeof v === "number" && Number.isFinite(v) ? formatCurrency(v) : "—";
 }
 function fixed2(v: unknown): string {
   return typeof v === "number" && Number.isFinite(v) ? `$${v.toFixed(2)}` : "—";
