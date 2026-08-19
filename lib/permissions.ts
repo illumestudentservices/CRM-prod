@@ -389,6 +389,13 @@ export function canAccess(role: Role, resource: Resource): boolean {
 }
 
 export const NAV_PERMISSIONS: Record<string, Role[]> = {
+  // Every role, deliberately. /dashboard is where proxy.ts sends anyone it
+  // turns away from a module, so a role missing from this list is a role that
+  // would be redirected to a page it is not allowed to open — an infinite
+  // redirect — the moment /dashboard gains a PATH_TO_MODULE entry. It has none
+  // today, which is the only reason ACCOUNT_MANAGER, ADMISSIONS_SUPPORT and
+  // VP_GLOBAL_SALES were not already trapped there. A landing page is not a
+  // privilege; what each role can see on it is decided inside the page.
   dashboard: [
     "SUPER_ADMIN",
     "HQ_EXECUTIVE",
@@ -398,6 +405,9 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "INSTITUTION_CLIENT",
     "HR_MANAGER",
     "EMPLOYEE",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
   students: [
     "SUPER_ADMIN",
