@@ -252,7 +252,7 @@ export default async function LeadDetailPage({
                 currentStage={lead.stage}
                 stageEnteredAt={lead.stageEnteredAt.toISOString()}
                 gates={gates}
-                canOverride={canOverrideGate(session.user.role)}
+                canOverride={await canOverrideGate(session.user.role)}
               />
             </CardContent>
           </Card>

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { inRegion } from "@/lib/region-scope";
 import { logActivity } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { sendReportSubmittedEmail, sendReportStatusEmail } from "@/lib/email";
+import { hasCapability } from "@/lib/granular-permissions";
 // ReportStatus is used as a string union locally
 type ReportStatus = "DRAFT" | "PENDING_REVIEW" | "REGIONAL_APPROVED" | "HQ_REVIEW" | "FINAL_APPROVED" | "RETURNED";
 
@@ -83,13 +85,24 @@ export async function PATCH(
       }
     } else if (action === "APPROVE") {
       // Regional Manager (or Super Admin) gives the single, final approval.
-      if (role !== "REGIONAL_MANAGER" && role !== "SUPER_ADMIN") {
-        return NextResponse.json({ error: "Only Regional Managers can approve reports" }, { status: 403 });
+      // reports.approve_final was declared in the capability registry and read
+      // by nothing, so the Security screen offered a switch that changed
+      // nothing. Its default is the pair this replaces, so nobody gains or
+      // loses the approval today — it is now simply withdrawable.
+      if (!(await hasCapability(role as Role, "reports.approve_final"))) {
+        return NextResponse.json(
+          { error: "Your role is not permitted to give final report approval" },
+          { status: 403 }
+        );
       }
       if (report.status !== "PENDING_REVIEW") {
         return NextResponse.json({ error: "Report must be awaiting approval" }, { status: 400 });
       }
-      if (role === "REGIONAL_MANAGER" && regionId !== report.regionId) {
+      // inRegion(), not `!==`. Both columns are nullable and `null !== null` is
+      // false, so a manager with no region matched a report with no region and
+      // could approve it. A manager with no region belongs to no region — see
+      // lib/region-scope.ts.
+      if (role === "REGIONAL_MANAGER" && !inRegion(report, regionId)) {
         return NextResponse.json({ error: "You can only approve reports in your region" }, { status: 403 });
       }
       // Single-step approval is final now that HQ is out of the chain.
@@ -107,7 +120,11 @@ export async function PATCH(
       if (report.status !== "PENDING_REVIEW") {
         return NextResponse.json({ error: "Only reports awaiting approval can be returned" }, { status: 400 });
       }
-      if (role === "REGIONAL_MANAGER" && regionId !== report.regionId) {
+      // inRegion(), not `!==`. Both columns are nullable and `null !== null` is
+      // false, so a manager with no region matched a report with no region and
+      // could approve it. A manager with no region belongs to no region — see
+      // lib/region-scope.ts.
+      if (role === "REGIONAL_MANAGER" && !inRegion(report, regionId)) {
         return NextResponse.json({ error: "You can only return reports in your region" }, { status: 403 });
       }
       if (!comment) {

@@ -4,6 +4,8 @@ import type {
   LeadActivityKind,
 } from "@prisma/client";
 import { PIPELINE_STAGES, CLOSED_STAGES, STAGE_LABELS, stageIndex } from "./lead-pipeline";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 
 /**
  * The stage gate.
@@ -279,11 +281,24 @@ export const ENGAGEMENT_LABELS: Record<LeadEngagementType, string> = {
   OTHER: "Other",
 };
 
-/** Roles permitted to force a transition past its blockers. */
+/**
+ * Roles permitted to force a transition past its blockers, BY DEFAULT.
+ *
+ * Kept only as the registry default for `leads.override_stage_gate` — see
+ * lib/granular-permissions.ts. It is no longer the gate itself: this list was
+ * the real check while the Security screen showed an "Override pipeline stage
+ * gates" toggle that read nothing, so switching that toggle off left the role
+ * overriding exactly as before. An administrator was being shown a control that
+ * did nothing.
+ */
 export const OVERRIDE_ROLES = ["REGIONAL_MANAGER", "SUPER_ADMIN"] as const;
 
-export function canOverrideGate(role: string): boolean {
-  return (OVERRIDE_ROLES as readonly string[]).includes(role);
+/**
+ * Async because the answer now depends on stored overrides, not just the role.
+ * Every caller is already in an async context.
+ */
+export async function canOverrideGate(role: string): Promise<boolean> {
+  return hasCapability(role as Role, "leads.override_stage_gate");
 }
 
 // ─── Evaluation ──────────────────────────────────────────────────────────────

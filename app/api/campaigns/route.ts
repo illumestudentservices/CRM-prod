@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { CampaignStatus as CampaignStatusEnum } from "@prisma/client";
+import { hasCapability } from "@/lib/granular-permissions";
+import type { Role } from "@/lib/permissions";
 import {
   readJsonBody, assertEnum, assertString, assertDate, assertNumber, handleApiError,
 } from "@/lib/api-validation";
@@ -123,7 +125,12 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    if (existing && forceCreate && session.user.role !== "SUPER_ADMIN") {
+    // Bypassing duplicate detection is the capability
+    // recruitment_network.force_create_duplicate, whose default is SUPER_ADMIN
+    // — the same role this line hardcoded. Reading the registry makes the
+    // Security screen toggle real instead of decorative.
+    if (existing && forceCreate &&
+        !(await hasCapability(session.user.role as Role, "recruitment_network.force_create_duplicate"))) {
       return NextResponse.json(
         { error: "Only administrators may create a duplicate campaign." },
         { status: 403 }

@@ -52,6 +52,27 @@ const ADMIN_HQ_RM_ICR: Role[] = ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGE
  * Operations that are meaningfully riskier than the action containing them —
  * the ones worth being able to withhold from someone who otherwise has write.
  */
+/*
+ * REMOVED 2026-08-19: leads.export_pii, institutions.view_commercials and
+ * institutions.edit_commercials.
+ *
+ * All three were rendered as toggles on the Security screen, persisted when an
+ * administrator changed them, and read by nothing. The columns they claimed to
+ * govern are already controlled by FIELD_CATALOG below — `email`, `phone`,
+ * `dateOfBirth` and `passportNumber` on leads, `contractValue` and
+ * `renewalDate` on institutions — and THAT control is enforced, by
+ * redactFields() on the way out and checkFieldWrites() on the way in.
+ *
+ * So they were not merely inert, they were misleading: an administrator who
+ * switched one off would believe they had withheld something, while the real
+ * control sat unchanged on the Fields tab. Two switches for one decision, only
+ * one of them wired.
+ *
+ * Export is the clearest case. Exports are built in the browser from rows the
+ * API already returned, so there is no server-side moment at which to refuse
+ * one; the only honest place to withhold personal data is the response itself,
+ * which is what field redaction does.
+ */
 export const CAPABILITIES: CapabilityDef[] = [
   // ── Students ──
   {
@@ -59,12 +80,6 @@ export const CAPABILITIES: CapabilityDef[] = [
     label: "Merge duplicate students",
     description: "Irreversibly folds one student record into another.",
     defaultRoles: ADMIN,
-  },
-  {
-    key: "leads.export_pii", resource: "leads", requires: "export",
-    label: "Export personal data",
-    description: "Include email, phone, DOB and passport in exports.",
-    defaultRoles: ADMIN_HQ,
   },
   {
     key: "leads.bulk_reassign", resource: "leads", requires: "write",
@@ -76,21 +91,13 @@ export const CAPABILITIES: CapabilityDef[] = [
     key: "leads.override_stage_gate", resource: "leads", requires: "write",
     label: "Override pipeline stage gates",
     description: "Advance a student past a stage whose entry criteria are unmet.",
-    defaultRoles: ADMIN_HQ_RM,
+    // Was ADMIN_HQ_RM while nothing read it. The real gate was OVERRIDE_ROLES
+    // in lib/lead-gate.ts, which has always been SUPER_ADMIN and
+    // REGIONAL_MANAGER only. Wiring this to the registry without narrowing the
+    // default first would have handed HQ_EXECUTIVE an override they never had.
+    defaultRoles: ["SUPER_ADMIN", "REGIONAL_MANAGER"],
   },
   // ── Clients ──
-  {
-    key: "institutions.view_commercials", resource: "institutions", requires: "read",
-    label: "View contract value and renewal",
-    description: "See commercial terms on the client record.",
-    defaultRoles: ADMIN_HQ_RM,
-  },
-  {
-    key: "institutions.edit_commercials", resource: "institutions", requires: "write",
-    label: "Edit contract value and renewal",
-    description: "Change commercial terms.",
-    defaultRoles: ADMIN_HQ,
-  },
   {
     key: "institutions.set_health", resource: "institutions", requires: "write",
     label: "Set account health",
@@ -109,7 +116,10 @@ export const CAPABILITIES: CapabilityDef[] = [
     key: "reports.approve_final", resource: "reports", requires: "approve",
     label: "Give final report approval",
     description: "Move a monthly report to its approved state.",
-    defaultRoles: ADMIN_HQ_RM,
+    // Narrowed from ADMIN_HQ_RM to match the check this now replaces: both
+    // approve routes accept REGIONAL_MANAGER and SUPER_ADMIN and refuse
+    // everyone else, HQ_EXECUTIVE included.
+    defaultRoles: ["SUPER_ADMIN", "REGIONAL_MANAGER"],
   },
   {
     key: "reports.email_external", resource: "reports", requires: "export",
@@ -122,13 +132,23 @@ export const CAPABILITIES: CapabilityDef[] = [
     key: "recruitment_planning.approve_plan", resource: "recruitment_planning", requires: "approve",
     label: "Approve a recruitment plan",
     description: "Give the approval that activates a plan and commits budget.",
-    defaultRoles: ADMIN_HQ,
+    // Matches PLAN_TRANSITIONS.APPROVED in lib/plan-workflow.ts, which is the
+    // hop this guards. VP_GLOBAL_SALES is a named step in that chain and was
+    // missing from ADMIN_HQ, so keeping the old default would have locked the
+    // VP out of the approval the workflow assigns to them.
+    defaultRoles: ["SUPER_ADMIN", "HQ_EXECUTIVE", "VP_GLOBAL_SALES"],
   },
   {
     key: "recruitment_planning.approve_variation", resource: "recruitment_planning", requires: "approve",
     label: "Approve a variation request",
     description: "Approve a change to an already-locked plan.",
-    defaultRoles: ADMIN_HQ,
+    // The variation route gates on recruitment_planning:approve alone, which
+    // the matrix grants to these five. Listed explicitly so wiring the
+    // capability withdraws nothing that was previously allowed.
+    defaultRoles: [
+      "SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER",
+      "ACCOUNT_MANAGER", "VP_GLOBAL_SALES",
+    ],
   },
   // ── Network ──
   {

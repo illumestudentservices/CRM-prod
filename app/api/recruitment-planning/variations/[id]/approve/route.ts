@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { hasCapability } from "@/lib/granular-permissions";
 
 const schema = z.object({
   decision: z.enum(["APPROVED", "RETURNED"]),
@@ -17,6 +18,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const { role, id: userId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "approve"))) {
       return NextResponse.json({ error: "Forbidden — approval permission required" }, { status: 403 });
+    }
+    // The finer control, which until now existed only on the Security screen.
+    // Its default is exactly the set the coarse check above already allows, so
+    // this withdraws nothing by itself.
+    if (!(await hasCapability(role as Role, "recruitment_planning.approve_variation"))) {
+      return NextResponse.json(
+        { error: "Your role is not permitted to approve variation requests" },
+        { status: 403 }
+      );
     }
     const { id } = await ctx.params;
 
