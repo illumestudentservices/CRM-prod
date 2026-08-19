@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
 import type { Role } from "@/lib/permissions";
+import { regionScope } from "@/lib/region-scope";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,8 @@ function buildScopeWhere(
     case "ICR":
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER":
-      return regionId ? { regionId } : {};
+      // No region means no rows, not all of them. See lib/region-scope.ts.
+      return regionScope(regionId);
     default:
       return {};
   }

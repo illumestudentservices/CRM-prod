@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { regionScope } from "@/lib/region-scope";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 
@@ -93,7 +94,10 @@ async function leadScope(role: Role, userId: string): Promise<Record<string, unk
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER": {
       const u = await db.user.findUnique({ where: { id: userId }, select: { regionId: true } });
-      return u?.regionId ? { regionId: u.regionId } : {};
+      // No region means no rows. The assistant answers questions with counts,
+      // so falling back to `{}` here quietly told a regionless manager the
+      // organisation-wide figure. See lib/region-scope.ts.
+      return regionScope(u?.regionId ?? null);
     }
     case "INSTITUTION_CLIENT": {
       const rows = await db.institutionUser.findMany({

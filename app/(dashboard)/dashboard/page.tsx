@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { NoRegionBanner } from "@/components/shared/no-region-banner";
+import { NO_REGION } from "@/lib/region-scope";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1326,6 +1328,7 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
+      <NoRegionBanner role={role} regionId={regionId} />
       {/* Tab switcher — only show if user can see both */}
       {canViewExecutive && (
         <div className="flex items-center justify-between">
@@ -1334,8 +1337,12 @@ export default async function DashboardPage({
       )}
 
       {activeView === "executive" && canViewExecutive ? (
+        // `undefined` means unscoped, which is right for the HQ roles and wrong
+        // for a Regional Manager: passing their null regionId straight through
+        // gave them the organisation-wide dashboard. NO_REGION matches nothing.
+        // See lib/region-scope.ts.
         <ExecutiveDashboard
-          regionId={role === "REGIONAL_MANAGER" ? regionId : undefined}
+          regionId={role === "REGIONAL_MANAGER" ? (regionId ?? NO_REGION) : undefined}
           title={execTitle}
           description={execDesc}
           showTabs={false}

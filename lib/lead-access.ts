@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { inRegion } from "@/lib/region-scope";
 
 /**
  * Who may see and act on a lead.
@@ -26,7 +27,10 @@ export function canAccessLead(
     case "HQ_ANALYTICS":
       return true;
     case "REGIONAL_MANAGER":
-      return !regionId || lead.regionId === regionId;
+      // Was `!regionId || lead.regionId === regionId`, which read "a manager
+      // with no region belongs to every region" and let a regionless manager
+      // open any student by id. See lib/region-scope.ts.
+      return inRegion(lead, regionId);
     case "ICR":
       return lead.assignedICRId === userId;
     case "INSTITUTION_CLIENT":

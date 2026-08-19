@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { regionScopeVia } from "@/lib/region-scope";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -21,7 +22,8 @@ const createSchema = z.object({
 function scope(role: Role, userId: string, regionId: string | null) {
   switch (role) {
     case "ICR": return { icrId: userId };
-    case "REGIONAL_MANAGER": return regionId ? { icr: { regionId } } : {};
+    // No region means no plans. See lib/region-scope.ts.
+    case "REGIONAL_MANAGER": return regionScopeVia("icr", regionId);
     default: return {};
   }
 }
