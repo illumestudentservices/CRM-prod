@@ -1,3 +1,4 @@
+import { formatCurrency } from "@/lib/utils";
 /**
  * Formatting for `MonthlyReport.kpiSummary`.
  *
@@ -45,5 +46,10 @@ export function kpiPct(kpi: PartialKpi, key: keyof KpiSummary): string {
 export function kpiMoney(kpi: PartialKpi, key: keyof KpiSummary): string {
   const v = kpi?.[key];
   if (typeof v !== "number" || v <= 0) return KPI_ABSENT;
-  return `$${v.toLocaleString()}`;
+  // Locale-pinned via formatCurrency. A bare Number.toLocaleString() formats
+  // against whatever default locale the runtime has, and the server's is not
+  // guaranteed to match the browser's — React then reports a hydration
+  // mismatch (#418, seen on production) and re-renders past it. Same class of
+  // bug as the toLocaleDateString() calls already replaced on this page.
+  return formatCurrency(v);
 }

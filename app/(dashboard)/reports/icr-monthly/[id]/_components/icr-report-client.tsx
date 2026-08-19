@@ -28,7 +28,7 @@ import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 // Locale-stable: toLocaleDateString() formats differently on the server and in
 // the browser, which React reports as a hydration mismatch and then re-renders
 // past. These format identically in both places.
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type {
   AgentEngagement, AgentRow, AtRiskAgentRow, EventRow,
   InstitutionRow, MonthlyKpiRow, PerformanceRow, PipelineSnapshot,
@@ -738,11 +738,11 @@ export function IcrReportClient({
                       {formatDate(e.date)}
                     </td>
                     <td className="px-3 py-2 tabular-nums text-slate-700 dark:text-slate-300">
-                      {e.cost > 0 ? `$${e.cost.toLocaleString()}` : "—"}
+                      {e.cost > 0 ? formatCurrency(e.cost) : "—"}
                     </td>
                     <td className="px-3 py-2 tabular-nums text-slate-700 dark:text-slate-300">{e.leadsGenerated}</td>
                     <td className="px-3 py-2 tabular-nums text-slate-700 dark:text-slate-300">
-                      {e.costPerLead == null ? "—" : `$${e.costPerLead.toLocaleString()}`}
+                      {formatCurrency(e.costPerLead)}
                     </td>
                     <td className="px-3 py-2">
                       {editable ? (
