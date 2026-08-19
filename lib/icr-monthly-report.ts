@@ -24,6 +24,11 @@
  */
 import { db } from "@/lib/db";
 import { displayNameOr } from "@/lib/person-name";
+import {
+  WEEKLY_ACTIVITY_LIST,
+  WEEKS_OF_MONTH,
+  type WeeklyActivityType,
+} from "@/lib/weekly-activities";
 import type { LeadStage, Prisma } from "@prisma/client";
 
 /**
@@ -126,6 +131,29 @@ export interface EventRow {
   quality: string;
 }
 
+/**
+ * §8 — one of the six mandatory activities, rolled up over the month.
+ *
+ * `entered` is the load-bearing field. A rep who did the work but never opened
+ * the planner is not a rep who did nothing, and reporting them at 0% would say
+ * that they were. Where the planner holds nothing, `pct` is null and the
+ * section says so — the same rule as the visa row in §1.1.
+ */
+export interface MonthlyKpiRow {
+  type: WeeklyActivityType;
+  label: string;
+  cadence: "WEEKLY" | "MONTHLY";
+  /** Monthly target: a weekly cadence is multiplied by the four planner weeks. */
+  target: number;
+  completed: number;
+  /** null when the planner holds nothing for this month — not zero. */
+  pct: number | null;
+  /** Whether any planner row exists for this activity in this month. */
+  entered: boolean;
+  /** The free-text notes the rep typed per week, blanks dropped. */
+  detail: string[];
+}
+
 export interface AutoFilledSections {
   performance: PerformanceRow[];
   pipelineSnapshot: PipelineSnapshot;
@@ -135,6 +163,7 @@ export interface AutoFilledSections {
   topAgents: AgentRow[];
   atRiskAgents: AtRiskAgentRow[];
   eventActivities: EventRow[];
+  monthlyKpi: MonthlyKpiRow[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -610,6 +639,66 @@ async function buildEvents(icrId: string, year: number, month: number): Promise<
 // ── Entry point ────────────────────────────────────────────────────────────
 
 /**
+ * §8 — the Monthly KPI table.
+ *
+ * Rolls the Weekly Activity Planner (Reports → Weekly Activities) up over the
+ * four weeks of the reporting month. The planner is the CRM's copy of the
+ * "Illume KPIs" spreadsheet and is already keyed on icr + year + month + week,
+ * so this is a straight sum rather than a derivation.
+ *
+ * The target comes from the planner rows the rep actually has, not from the
+ * registry default, because a target can be adjusted per week. Only where a
+ * week has no row at all does the registry default stand in for it — otherwise
+ * a rep whose manager lowered one week's target would be measured against a
+ * number nobody agreed to.
+ */
+async function buildMonthlyKpi(
+  icrId: string,
+  year: number,
+  month: number
+): Promise<MonthlyKpiRow[]> {
+  const rows = await db.weeklyActivity.findMany({
+    where: { icrId, year, month },
+    select: { type: true, weekOfMonth: true, target: true, completed: true, detail: true },
+  });
+
+  return WEEKLY_ACTIVITY_LIST.map((def) => {
+    const mine = rows.filter((r) => r.type === def.type);
+    const entered = mine.length > 0;
+
+    // A monthly-cadence activity is one target for the whole month, not one per
+    // week — multiplying it by four would ask for four webinars.
+    const weeks = def.cadence === "MONTHLY" ? 1 : WEEKS_OF_MONTH.length;
+    const target = entered
+      ? def.cadence === "MONTHLY"
+        // Monthly cadence: the rep may hold rows in several weeks but the
+        // target is the month's, so take one rather than the sum.
+        ? Math.max(...mine.map((r) => r.target), def.defaultTarget)
+        : mine.reduce((sum, r) => sum + r.target, 0) +
+          // Weeks with no row still carry the agreed target.
+          (WEEKS_OF_MONTH.length - mine.length) * def.defaultTarget
+      : def.defaultTarget * weeks;
+
+    const completed = mine.reduce((sum, r) => sum + r.completed, 0);
+
+    return {
+      type: def.type,
+      label: def.label,
+      cadence: def.cadence,
+      target,
+      completed,
+      // Not `entered ? ... : 0`. An empty planner means unknown, not none.
+      pct: entered && target > 0 ? Math.round((completed / target) * 100) : null,
+      entered,
+      detail: mine
+        .sort((a, b) => a.weekOfMonth - b.weekOfMonth)
+        .map((r) => (r.detail ?? "").trim())
+        .filter((d) => d.length > 0),
+    };
+  });
+}
+
+/**
  * Everything the CRM can fill in for one rep and one month.
  *
  * Called at generation and again on an explicit refresh. It is deliberately a
@@ -629,6 +718,7 @@ export async function computeAutoFilledSections(
     agentEngagement,
     agentTables,
     eventActivities,
+    monthlyKpi,
   ] = await Promise.all([
     buildPerformance(icrId, year, month),
     buildPipelineSnapshot(icrId),
@@ -637,6 +727,7 @@ export async function computeAutoFilledSections(
     buildAgentEngagement(icrId, year, month),
     buildAgentTables(icrId, year, month),
     buildEvents(icrId, year, month),
+    buildMonthlyKpi(icrId, year, month),
   ]);
 
   return {
@@ -648,6 +739,7 @@ export async function computeAutoFilledSections(
     topAgents: agentTables.topAgents,
     atRiskAgents: agentTables.atRiskAgents,
     eventActivities,
+    monthlyKpi,
   };
 }
 

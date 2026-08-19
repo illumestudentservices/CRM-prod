@@ -2128,6 +2128,14 @@ model IcrMonthlyReport {
   atRiskAgents         Json?
   /// §3.1 — per event: { id, name, date, cost, leadsGenerated, costPerLead, quality }.
   eventActivities      Json?
+  /// §8 — Monthly KPI. The six mandatory activities from the "Illume KPIs —
+  /// Weekly Activity Planner", rolled up from the four weeks of this month:
+  /// per type { type, label, cadence, target, completed, pct, entered, detail[] }.
+  ///
+  /// `entered` distinguishes "the planner says zero" from "the planner was never
+  /// filled in". A rep who did the work but skipped the spreadsheet must not be
+  /// reported at 0%, which reads as failure rather than as missing data.
+  monthlyKpi           Json?
 
   // ── Written by the rep ──────────────────────────────────────────────────
   /// §1.4

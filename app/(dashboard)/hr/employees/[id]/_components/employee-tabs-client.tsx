@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { LeaveSection } from "./leave-section";
-import { KpiSection } from "./kpi-section";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -33,18 +32,6 @@ interface Worklog {
   notes: string | null;
   hours: number;
   location: string | null;
-}
-
-interface KPITarget {
-  id: string;
-  title: string;
-  description: string | null;
-  target: string;
-  current: string | null;
-  unit: string | null;
-  period: string;
-  dueDate: Date | string | null;
-  achieved: boolean;
 }
 
 interface TrainingRecord {
@@ -96,7 +83,6 @@ interface EmployeeTabsClientProps {
   leaveBalances: LeaveBalance[];
   isOwnProfile: boolean;
   worklogs: Worklog[];
-  kpiTargets: KPITarget[];
   isHR: boolean;
   trainingRecords: TrainingRecord[];
   assetAssignments: AssetAssignment[];
@@ -112,7 +98,6 @@ export function EmployeeTabsClient({
   leaveBalances,
   isOwnProfile,
   worklogs,
-  kpiTargets,
   isHR,
   trainingRecords,
   assetAssignments,
@@ -125,7 +110,6 @@ export function EmployeeTabsClient({
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="leave">Leave</TabsTrigger>
         <TabsTrigger value="worklogs">Worklogs</TabsTrigger>
-        <TabsTrigger value="kpis">KPIs</TabsTrigger>
         <TabsTrigger value="training">Training</TabsTrigger>
         <TabsTrigger value="assets">Assets</TabsTrigger>
         <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
@@ -197,11 +181,6 @@ export function EmployeeTabsClient({
             </div>
           </CardContent>
         </Card>
-      </TabsContent>
-
-      {/* KPIs */}
-      <TabsContent value="kpis" className="mt-4">
-        <KpiSection employeeId={employeeId} kpis={kpiTargets} isHR={isHR} />
       </TabsContent>
 
       {/* TRAINING */}

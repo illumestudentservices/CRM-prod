@@ -82,7 +82,6 @@ export async function GET(
         orderBy: { date: "desc" },
         take: 30,
       },
-      kpiTargets: { orderBy: { createdAt: "desc" } },
       trainingRecords: { orderBy: { completedAt: "desc" } },
       documents: { orderBy: { uploadedAt: "desc" } },
       assetAssignments: {

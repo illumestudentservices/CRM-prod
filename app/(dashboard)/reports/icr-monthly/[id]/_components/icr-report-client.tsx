@@ -31,7 +31,8 @@ import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import type {
   AgentEngagement, AgentRow, AtRiskAgentRow, EventRow,
-  InstitutionRow, PerformanceRow, PipelineSnapshot, PriorityApplicationRow,
+  InstitutionRow, MonthlyKpiRow, PerformanceRow, PipelineSnapshot,
+  PriorityApplicationRow,
 } from "@/lib/icr-monthly-report";
 
 const MONTHS = ["", "January", "February", "March", "April", "May", "June",
@@ -73,6 +74,7 @@ interface Sections {
   topAgents: AgentRow[];
   atRiskAgents: AtRiskAgentRow[];
   eventActivities: EventRow[];
+  monthlyKpi: MonthlyKpiRow[];
 }
 
 interface Approval {
@@ -903,6 +905,71 @@ export function IcrReportClient({
             parentId={report.id}
             readOnly={!editable}
           />
+        </CardContent>
+      </Card>
+
+      {/* ── 8. Monthly KPI ──────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+            8. Monthly KPI
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            The six mandatory activities, totalled from Weeks 1–4 of {period} in
+            Reports → Weekly Activities. Fill the planner in there; this table
+            only reports it.
+          </p>
+
+          {sections.monthlyKpi.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400 rounded-md bg-slate-50 dark:bg-slate-900/40 px-3 py-2">
+              No KPI snapshot on this report yet. Use Refresh to pull in the month&apos;s planner.
+            </p>
+          ) : (
+            <TableShell head={["Activity", "Target", "Done", "%", "Detail"]}>
+              {sections.monthlyKpi.map((row) => (
+                <tr key={row.type} className="border-t border-slate-100 dark:border-slate-800 align-top">
+                  <td className="px-3 py-2 text-slate-800 dark:text-slate-200">
+                    {row.label}
+                    {row.cadence === "MONTHLY" && (
+                      <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">/ month</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-400">{row.target}</td>
+                  <td className="px-3 py-2 tabular-nums text-slate-800 dark:text-slate-200">
+                    {row.entered ? row.completed : "—"}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {/*
+                      An unfilled planner is not nought per cent. A rep who did
+                      the work and skipped the spreadsheet would otherwise be
+                      reported as having achieved none of it, and a manager would
+                      be approving that as fact.
+                    */}
+                    {row.pct == null ? (
+                      <span className="text-slate-400 dark:text-slate-500">Not entered</span>
+                    ) : (
+                      <span
+                        className={
+                          row.pct >= 100
+                            ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                            : row.pct >= 70
+                            ? "font-semibold text-amber-600 dark:text-amber-400"
+                            : "font-semibold text-red-600 dark:text-red-400"
+                        }
+                      >
+                        {row.pct}%
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                    {row.detail.length ? row.detail.join(" · ") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </TableShell>
+          )}
         </CardContent>
       </Card>
 

@@ -48,7 +48,11 @@ export function HRTabsClient({
   openTasks,
   pendingLeave,
 }: HRTabsClientProps) {
-  const [activeTab, setActiveTab] = React.useState("employees");
+  // "employees" only renders for HR now, so defaulting everyone to it would
+  // open this page on a tab that does not exist for them — an empty panel under
+  // a trigger that isn't there. Non-HR staff come here for their own leave, so
+  // that is where they land.
+  const [activeTab, setActiveTab] = React.useState(isHR ? "employees" : "leave");
 
   // Notification emails link to /hr?tab=account-requests and /hr?tab=offboarding,
   // so honour that rather than dropping the reviewer on the Employees tab and
@@ -88,16 +92,27 @@ export function HRTabsClient({
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="employees">Employees</TabsTrigger>
+          {isHR && <TabsTrigger value="employees">Employees</TabsTrigger>}
           <TabsTrigger value="leave">Leave Management</TabsTrigger>
           <TabsTrigger value="holidays">Holidays</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
+          {/*
+            Employees, Assets, Performance Reviews and Succession Planning all
+            read HR-only endpoints — those routes accept HR_MANAGER and
+            SUPER_ADMIN and answer 403 to everyone else. Rendering the tabs for
+            every role meant a Regional Manager opening HR & ERP got a row of
+            panels that each failed to load: measured at 70 rejected requests
+            across five sweeps. PERMISSION_MATRIX already says this, giving
+            REGIONAL_MANAGER `erp: ["read"]` but `erp_hr: []` — the tabs simply
+            were not reading it. The self-service tabs below stay visible,
+            because those routes branch on isHR and serve everyone their own row.
+          */}
+          {isHR && <TabsTrigger value="assets">Assets</TabsTrigger>}
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
-          <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>
-          <TabsTrigger value="succession-planning">Succession Planning</TabsTrigger>
+          {isHR && <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>}
+          {isHR && <TabsTrigger value="succession-planning">Succession Planning</TabsTrigger>}
           {canSeeAccountRequests && (
             <TabsTrigger value="account-requests">Account Requests</TabsTrigger>
           )}
@@ -109,9 +124,11 @@ export function HRTabsClient({
           <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
           {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
         </TabsList>
-        <TabsContent value="employees" className="mt-4">
-          <EmployeeTable isHR={isHR} isSuperAdmin={isSuperAdmin} />
-        </TabsContent>
+        {isHR && (
+          <TabsContent value="employees" className="mt-4">
+            <EmployeeTable isHR={isHR} isSuperAdmin={isSuperAdmin} />
+          </TabsContent>
+        )}
         <TabsContent value="leave" className="mt-4">
           <LeaveManager isHR={isHR} userId={userId} />
         </TabsContent>
@@ -127,18 +144,24 @@ export function HRTabsClient({
         <TabsContent value="announcements" className="mt-4">
           <Announcements isHR={isHR} userId={userId} />
         </TabsContent>
-        <TabsContent value="assets" className="mt-4">
-          <AssetManager isHR={isHR} />
-        </TabsContent>
+        {isHR && (
+          <TabsContent value="assets" className="mt-4">
+            <AssetManager isHR={isHR} />
+          </TabsContent>
+        )}
         <TabsContent value="knowledge" className="mt-4">
           <KnowledgeBaseView isHR={isHR} />
         </TabsContent>
-        <TabsContent value="performance-reviews" className="mt-4">
-          <PerformanceReviews isHR={isHR} />
-        </TabsContent>
-        <TabsContent value="succession-planning" className="mt-4">
-          <SuccessionPlanning isHR={isHR} />
-        </TabsContent>
+        {isHR && (
+          <TabsContent value="performance-reviews" className="mt-4">
+            <PerformanceReviews isHR={isHR} />
+          </TabsContent>
+        )}
+        {isHR && (
+          <TabsContent value="succession-planning" className="mt-4">
+            <SuccessionPlanning isHR={isHR} />
+          </TabsContent>
+        )}
         {/* Visible to everyone: the panel itself shows only the sheets you own
             or approve, and staff who are not required to submit simply see an
             empty state explaining why. Gating the tab by role would hide it
