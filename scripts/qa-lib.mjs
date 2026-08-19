@@ -229,6 +229,18 @@ export async function destroyUser(ctx) {
   // FK — it only surfaced as the warning below, after the rows had leaked.
   await db.institutionUser.deleteMany({ where: { userId: id } }).catch(() => {});
   await db.passwordHistory.deleteMany({ where: { userId: id } }).catch(() => {});
+  // Rows that reference the user by a name other than `userId`, so the deletes
+  // above cannot see them. The button sweep clicks "new plan" controls, which
+  // materialises QuarterlyRecruitmentPlan rows with icrId set to the sweeping
+  // user — three of them survived a crashed run and blocked the teardown of two
+  // disposable accounts until they were removed by hand.
+  for (const [model, field] of [
+    ["quarterlyRecruitmentPlan", "icrId"],
+    ["icrMonthlyReport", "icrId"],
+  ]) {
+    if (!db[model]?.deleteMany) continue;
+    await db[model].deleteMany({ where: { [field]: id } }).catch(() => {});
+  }
   await db.$executeRaw`DELETE FROM attachments WHERE "uploadedById" = ${id}`.catch(() => {});
   await db.$executeRaw`UPDATE leads SET "assignedICRId" = NULL WHERE "assignedICRId" = ${id}`.catch(() => {});
 
