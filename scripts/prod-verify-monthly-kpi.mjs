@@ -32,7 +32,10 @@ const errs = [];
 try {
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 1200 } });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errs.push(e.message));
+  // Attribute the error to the page that was open when it fired. Collecting
+  // bare messages told me an error existed but not where, and I guessed wrong
+  // about the cause once already.
+  page.on("pageerror", (e) => errs.push(`${new URL(page.url()).pathname} :: ${e.message.slice(0, 120)}`));
 
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle", timeout: 60000 });
   await page.locator('input[type="email"]').fill(email);
@@ -61,11 +64,17 @@ try {
     });
     return { status: r.status, body: (await r.text()).slice(0, 400) };
   }, { month, year });
-  check(created.status === 200 || created.status === 201,
-    "the ICR monthly report generates", `status ${created.status} ${created.body.slice(0, 140)}`);
+  // 409 means a report for this period already exists and the route hands back
+  // its id — a re-run should verify that report rather than fail on its own
+  // first run's side effect.
+  check(created.status === 200 || created.status === 201 || created.status === 409,
+    "the ICR monthly report exists", `status ${created.status} ${created.body.slice(0, 140)}`);
 
   let id = null;
-  try { id = JSON.parse(created.body)?.id ?? JSON.parse(created.body)?.data?.id; } catch { /* below */ }
+  try {
+    const parsed = JSON.parse(created.body);
+    id = parsed?.id ?? parsed?.data?.id ?? parsed?.reportId;
+  } catch { /* below */ }
   check(!!id, "and returns an id", created.body.slice(0, 120));
 
   if (id) {
@@ -97,7 +106,7 @@ try {
   });
   check(kpiRoute === 404, "the retired employee KPIs endpoint is gone", `status ${kpiRoute}`);
 
-  check(errs.length === 0, "no uncaught client errors", errs.slice(0, 2).join(" | "));
+  check(errs.length === 0, "no uncaught client errors", errs.slice(0, 4).join("  |  "));
 } catch (e) {
   check(false, "verification run completed", String(e.message).split("\n")[0].slice(0, 200));
 } finally {

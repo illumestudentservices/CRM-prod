@@ -28,6 +28,19 @@ import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 // Locale-stable: toLocaleDateString() formats differently on the server and in
 // the browser, which React reports as a hydration mismatch and then re-renders
 // past. These format identically in both places.
+//
+// TIMEZONE is a second, separate source of the same mismatch and is NOT solved
+// by the above. date-fns `format()` renders in the runtime's own zone, and the
+// server is not in the reader's: production runs Etc/UTC while a reader in
+// Asia/Calcutta is +5:30, so the same instant is written "09:21" on the server
+// and "14:51" in the browser. React reported that as #418 on production and it
+// did not reproduce in development, where the dev server and the browser happen
+// to share a zone.
+//
+// The timestamps below are therefore marked suppressHydrationWarning: the
+// reader should keep seeing their own local time, and React should stop
+// treating the correct client value as a defect. This is the one case the
+// attribute exists for.
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type {
   AgentEngagement, AgentRow, AtRiskAgentRow, EventRow,
@@ -349,7 +362,7 @@ export function IcrReportClient({
         <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 font-medium text-slate-700 dark:text-slate-300">
           {statusLabel[report.status] ?? report.status}
         </span>
-        <span className="text-slate-400 dark:text-slate-500 text-xs">
+        <span className="text-slate-400 dark:text-slate-500 text-xs" suppressHydrationWarning>
           CRM figures as at{" "}
           {formatDateTime(report.refreshedAt ?? report.generatedAt)}
         </span>
@@ -457,7 +470,7 @@ export function IcrReportClient({
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">Report submission date</dt>
-              <dd className="mt-0.5 text-slate-800 dark:text-slate-200">
+              <dd className="mt-0.5 text-slate-800 dark:text-slate-200" suppressHydrationWarning>
                 {report.submittedAt ? formatDate(report.submittedAt) : "Not yet submitted"}
               </dd>
             </div>
@@ -735,7 +748,7 @@ export function IcrReportClient({
                   <tr key={e.eventId} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
                     <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{e.name}</td>
                     <td className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                      {formatDate(e.date)}
+                      <span suppressHydrationWarning>{formatDate(e.date)}</span>
                     </td>
                     <td className="px-3 py-2 tabular-nums text-slate-700 dark:text-slate-300">
                       {e.cost > 0 ? formatCurrency(e.cost) : "—"}
@@ -984,7 +997,7 @@ export function IcrReportClient({
           <CardContent className="space-y-2">
             {approvals.map((a) => (
               <div key={a.id} className="text-sm flex gap-3">
-                <span className="text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                <span className="text-slate-400 dark:text-slate-500 whitespace-nowrap" suppressHydrationWarning>
                   {formatDateTime(a.createdAt)}
                 </span>
                 <span className="text-slate-700 dark:text-slate-300">
