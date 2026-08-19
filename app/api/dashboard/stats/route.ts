@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
 import type { Role } from "@/lib/permissions";
+import { regionScope } from "@/lib/region-scope";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,8 @@ function buildScopeWhere(
     case "ICR":
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER":
-      return regionId ? { regionId } : {};
+      // No region means no rows, not all of them. See lib/region-scope.ts.
+      return regionScope(regionId);
     default:
       return {};
   }
@@ -167,8 +169,9 @@ function buildScopeWhere(
 async function getERPStats(userId: string, now: Date) {
   const employee = await db.employee.findUnique({
     where: { userId },
-    // startDate drives the entitlement calculation.
-    select: { id: true, startDate: true },
+    // startDate drives the entitlement calculation; gender decides which
+    // parental types are offered at all.
+    select: { id: true, startDate: true, gender: true },
   });
 
   if (!employee) {
@@ -211,7 +214,7 @@ async function getERPStats(userId: string, now: Date) {
         pendingLeaves,
         travelRequests,
         // Derived, never the stored totalDays column — see lib/leave-policy.
-        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
+        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
         currentMonth,
         currentYear,
       },

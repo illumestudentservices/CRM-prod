@@ -109,6 +109,16 @@ const PATH_TO_MODULE: ReadonlyArray<readonly [string, string]> = [
   ["/market-intelligence", "market_intelligence"],
   ["/field-operations", "field_operations"],
   ["/risk-compliance", "risk_compliance"],
+  // Added 2026-08-19. Both modules were listed in NAV_PERMISSIONS with a
+  // restricted role list and had no prefix here, so this proxy never gated
+  // them — the list was decoration and the only real check was the one each
+  // page happens to run for itself. Those page checks are correct today, which
+  // is why nothing leaked, but "correct because every page remembered" is not
+  // the guarantee this file exists to provide. Verified before adding that the
+  // NAV_PERMISSIONS lists and PERMISSION_MATRIX read grants agree for both, so
+  // this closes the gap without changing who gets in.
+  ["/icr-transition", "icr_transition"],
+  ["/forecasting", "forecasting"],
   ["/activity-log", "activity_log"],
   ["/recycle-bin", "recycle_bin"],
   ["/institutions", "institutions"],

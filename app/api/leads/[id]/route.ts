@@ -7,6 +7,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { inRegion } from "@/lib/region-scope";
 import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -83,7 +84,11 @@ async function canAccessLead(
     case "HQ_ANALYTICS":
       return { allowed: true, lead };
     case "REGIONAL_MANAGER":
-      return { allowed: !regionId || lead.regionId === regionId, lead };
+      // Was `!regionId || lead.regionId === regionId` — "a manager with no
+      // region belongs to every region" — which let a regionless manager open
+      // any student in the organisation by id, one at a time, even once the
+      // list endpoints were scoped. See lib/region-scope.ts.
+      return { allowed: inRegion(lead, regionId), lead };
     case "ICR":
       return { allowed: lead.assignedICRId === userId, lead };
     case "INSTITUTION_CLIENT": {

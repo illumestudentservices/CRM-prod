@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { regionScope } from "@/lib/region-scope";
 
 const createReportSchema = z.object({
   institutionId: z.string().min(1),
@@ -16,7 +17,9 @@ function buildReportScopeFilter(role: Role, userId: string, regionId: string | n
     case "ICR":
       return { icrId: userId };
     case "REGIONAL_MANAGER":
-      return regionId ? { regionId } : {};
+      // No region means no reports, not every report in the organisation.
+      // See lib/region-scope.ts.
+      return regionScope(regionId);
     default:
       return {};
   }

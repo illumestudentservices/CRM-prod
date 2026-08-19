@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
+import { regionScope } from "@/lib/region-scope";
 import { PageHeader } from "@/components/shared/page-header";
+import { NoRegionBanner } from "@/components/shared/no-region-banner";
+import type { Role } from "@/lib/permissions";
 import { StudentsClientPage } from "./_components/students-client";
 import { MergeLeadsButton } from "./_components/merge-leads-button";
 import type { LeadWithRelations } from "./_components/lead-card";
@@ -16,7 +19,10 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
 
   const whereClause = {
     deletedAt: null,
-    ...(role === "REGIONAL_MANAGER" && regionId ? { regionId } : {}),
+    // `&& regionId` used to drop the filter entirely when the manager had no
+    // region, so the page rendered every student in the organisation. See
+    // lib/region-scope.ts.
+    ...(role === "REGIONAL_MANAGER" ? regionScope(regionId) : {}),
     ...(role === "ICR" ? { assignedICRId: userId } : {}),
   };
 
@@ -69,6 +75,7 @@ export default async function StudentsPage() {
 
   return (
     <div className="space-y-6">
+      <NoRegionBanner role={role as Role} regionId={regionId} />
       <PageHeader
         title="Student Pipeline"
         description="Track and manage student leads through the recruitment funnel."

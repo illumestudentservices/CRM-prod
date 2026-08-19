@@ -9,6 +9,7 @@ import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 import { LeadStage } from "@prisma/client";
 import { redactFields } from "@/lib/granular-permissions";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { regionScope } from "@/lib/region-scope";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
@@ -131,7 +132,10 @@ async function buildScopeFilter(
     case "ICR":
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER":
-      return regionId ? { regionId } : {};
+      // No region means no students, on the same reading as the
+      // INSTITUTION_CLIENT case below. This used to fall back to `{}`, which
+      // returned every student in every region. See lib/region-scope.ts.
+      return regionScope(regionId);
     case "INSTITUTION_CLIENT": {
       const allowed = await institutionIdsForUser(userId, role);
       // No assignment means no students, not all of them. `in: []` matches

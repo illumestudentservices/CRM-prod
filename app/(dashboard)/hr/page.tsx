@@ -55,6 +55,7 @@ export default async function HRPage() {
     where: ACTIVE_EMPLOYEE,
     select: {
       startDate: true,
+      gender: true,
       leaveBalances: {
         where: { year: new Date().getUTCFullYear() },
         select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
@@ -64,7 +65,7 @@ export default async function HRPage() {
 
   const utilisation = new Map<string, { used: number; total: number }>();
   for (const emp of leaveEmployees) {
-    for (const b of deriveLeaveBalances(emp.startDate, emp.leaveBalances)) {
+    for (const b of deriveLeaveBalances(emp.startDate, emp.leaveBalances, emp.gender)) {
       const acc = utilisation.get(b.leaveType) ?? { used: 0, total: 0 };
       acc.used += b.usedDays;
       acc.total += b.totalDays;

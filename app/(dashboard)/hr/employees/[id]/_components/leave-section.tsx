@@ -175,8 +175,19 @@ export function LeaveSection({
               <Select value={form.leaveType} onValueChange={(v) => setForm({ ...form, leaveType: v as LeaveTypeKey })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  {/*
+                    Driven by the balances, not by LEAVE_TYPE_LABELS. Listing
+                    every label offered Maternity and Paternity to the same
+                    person regardless of gender, and POST /api/hr/leave then
+                    refused the mismatched one — so the employee was picking a
+                    type the server was always going to reject. `balances` is
+                    already filtered by gender in lib/leave-policy.ts, so this
+                    list now agrees with what the server will accept.
+                  */}
+                  {initialBalances.map((b) => (
+                    <SelectItem key={b.leaveType} value={b.leaveType}>
+                      {LEAVE_TYPE_LABELS[b.leaveType as LeaveTypeKey] ?? b.leaveType}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

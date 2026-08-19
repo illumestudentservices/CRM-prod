@@ -8,11 +8,11 @@ import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 import {
   LEAVE_POLICIES,
   computeEntitlement,
+  leaveTypesForGender,
   type LeaveTypeKey,
 } from "@/lib/leave-policy";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
-const LEAVE_TYPES = Object.keys(LEAVE_POLICIES) as LeaveTypeKey[];
 
 // ─── GET /api/hr/leave/balances ────────────────────────────────────────────────
 
@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       startDate: true,
+      // Decides which parental types this employee is entitled to at all.
+      gender: true,
       user: { select: { id: true, name: true, image: true } },
       department: { select: { name: true } },
       leaveBalances: { where: { year } },
@@ -60,8 +62,13 @@ export async function GET(req: NextRequest) {
   const asOf =
     year < nowYear ? new Date(Date.UTC(year, 11, 31)) : new Date();
 
+  // Per employee, not a shared list: this used to map over every leave type,
+  // so the response carried Maternity AND Paternity for the same person and the
+  // screens built on it offered both. POST /api/hr/leave calls
+  // checkGenderEligibility and refuses the mismatched one, so the employee was
+  // being offered a choice the server would always reject.
   const balances = employees.flatMap((emp) =>
-    LEAVE_TYPES.map((leaveType) => {
+    leaveTypesForGender(emp.gender).map((leaveType) => {
       const row = emp.leaveBalances.find((b) => b.leaveType === leaveType);
       const e = computeEntitlement(
         leaveType,

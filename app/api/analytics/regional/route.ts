@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { NO_REGION } from "@/lib/region-scope";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,10 +26,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const regionIdParam = searchParams.get("regionId");
 
-    // Determine region scope
+    // Determine region scope.
+    //
+    // For a Regional Manager this is a scope, not a filter: it is not theirs to
+    // widen, and `null` must mean "no region" rather than "every region". It
+    // used to fall through to `{}` below, which served a manager with no region
+    // the organisation-wide numbers on a screen titled Regional. For the HQ
+    // roles the parameter really is an optional filter, and `{}` there
+    // correctly means unfiltered. See lib/region-scope.ts.
     let regionId: string | null = null;
     if (role === "REGIONAL_MANAGER") {
-      regionId = userRegionId;
+      regionId = userRegionId ?? NO_REGION;
     } else if (regionIdParam) {
       regionId = regionIdParam;
     }

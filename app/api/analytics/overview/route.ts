@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { regionScope } from "@/lib/region-scope";
 
 /**
  * Parses a range boundary, treating a date-only value as the whole of that day.
@@ -30,7 +31,10 @@ function buildScopeFilter(role: Role, userId: string, regionId: string | null) {
     case "ICR":
       return { assignedICRId: userId };
     case "REGIONAL_MANAGER":
-      return regionId ? { regionId } : {};
+      // A manager with no region gets no rows, not every row. This used to fall
+      // back to `{}`, which served a regionless manager analytics numerically
+      // identical to a SUPER_ADMIN's. See lib/region-scope.ts.
+      return regionScope(regionId);
     default:
       return {};
   }

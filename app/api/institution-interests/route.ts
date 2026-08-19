@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { regionScopeVia } from "@/lib/region-scope";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -50,7 +51,9 @@ async function scope(role: Role, userId: string, regionId: string | null) {
     case "ICR":
       return { OR: [{ assignedICRId: userId }, { lead: { assignedICRId: userId } }] };
     case "REGIONAL_MANAGER":
-      return regionId ? { lead: { regionId } } : {};
+      // No region means no interests, matching the INSTITUTION_CLIENT case
+      // below and the `default` fail-closed branch. See lib/region-scope.ts.
+      return regionScopeVia("lead", regionId);
     case "INSTITUTION_CLIENT": {
       const allowed = await institutionIdsForUser(userId, role);
       // No assignments means no interests, not all of them.

@@ -1,7 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { regionScope } from "@/lib/region-scope";
 import { PageHeader } from "@/components/shared/page-header";
+import { NoRegionBanner } from "@/components/shared/no-region-banner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus, BarChart3 } from "lucide-react";
@@ -23,7 +25,8 @@ const REPORT_EXPORT_COLUMNS = [
 async function getSummary(role: Role, userId: string, regionId: string | null) {
   const scopeFilter =
     role === "ICR" ? { icrId: userId }
-    : role === "REGIONAL_MANAGER" ? (regionId ? { regionId } : {})
+    // No region means no reports, not every report. See lib/region-scope.ts.
+    : role === "REGIONAL_MANAGER" ? regionScope(regionId)
     : {};
 
   const base = { ...scopeFilter, deletedAt: null };
@@ -68,6 +71,7 @@ export default async function ReportsPage() {
 
   return (
     <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
+      <NoRegionBanner role={role} regionId={regionId} />
       <PageHeader
         title={pageTitle}
         description={pageDescription}

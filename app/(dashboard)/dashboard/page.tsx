@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { NoRegionBanner } from "@/components/shared/no-region-banner";
+import { NO_REGION } from "@/lib/region-scope";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -307,7 +309,9 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
     where: { userId },
     // startDate is load-bearing, not decoration: leave entitlement is derived
     // from the joining date, never read from a stored total.
-    select: { id: true, startDate: true, jobTitle: true, department: { select: { name: true } } },
+    // gender is load-bearing too: it decides which parental leave types this
+    // employee is entitled to see. See lib/leave-policy.ts.
+    select: { id: true, startDate: true, gender: true, jobTitle: true, department: { select: { name: true } } },
   });
 
   if (!employee) {
@@ -361,7 +365,7 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
   return {
     employee: { jobTitle: employee.jobTitle, department: employee.department?.name },
     stats: { openTasks, pendingLeaves, travelRequests },
-    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances),
+    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
     leaveRequests,
     holidays,
     assets,
@@ -377,7 +381,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
 
   const employee = await db.employee.findUnique({
     where: { userId },
-    select: { id: true, startDate: true },
+    select: { id: true, startDate: true, gender: true },
   });
 
   const holidayWhere = {
@@ -423,7 +427,7 @@ async function getPersonalData(userId: string, regionId?: string | null) {
   ]);
 
   return {
-    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances) : [],
+    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender) : [],
     leaveRequests, holidays, assets,
   };
 }
@@ -1326,6 +1330,7 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6">
+      <NoRegionBanner role={role} regionId={regionId} />
       {/* Tab switcher — only show if user can see both */}
       {canViewExecutive && (
         <div className="flex items-center justify-between">
@@ -1334,8 +1339,12 @@ export default async function DashboardPage({
       )}
 
       {activeView === "executive" && canViewExecutive ? (
+        // `undefined` means unscoped, which is right for the HQ roles and wrong
+        // for a Regional Manager: passing their null regionId straight through
+        // gave them the organisation-wide dashboard. NO_REGION matches nothing.
+        // See lib/region-scope.ts.
         <ExecutiveDashboard
-          regionId={role === "REGIONAL_MANAGER" ? regionId : undefined}
+          regionId={role === "REGIONAL_MANAGER" ? (regionId ?? NO_REGION) : undefined}
           title={execTitle}
           description={execDesc}
           showTabs={false}
