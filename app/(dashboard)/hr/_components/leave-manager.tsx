@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ApplyLeaveDialog } from "@/components/hr/apply-leave-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -27,7 +28,18 @@ const STATUS_VARIANTS: Record<string, "default" | "success" | "destructive" | "w
   PENDING: "warning", APPROVED: "success", REJECTED: "destructive", CANCELLED: "secondary",
 };
 
-export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }) {
+export function LeaveManager({
+  isHR,
+  userId,
+  myEmployeeId,
+  myLeaveBalances,
+}: {
+  isHR: boolean;
+  userId: string;
+  /** Null when the signed-in account has no employee record to book leave against. */
+  myEmployeeId?: string | null;
+  myLeaveBalances?: { leaveType: string; totalDays: number; availableDays: number }[];
+}) {
   const { toast } = useToast();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
@@ -143,6 +155,30 @@ export function LeaveManager({ isHR, userId }: { isHR: boolean; userId: string }
 
   return (
     <div className="space-y-6">
+      {/*
+        The dashboard link is labelled "Apply for leave →" and lands here, so
+        the action has to exist here. Until now this tab only listed requests,
+        and the sole apply form was inside a person's own employee profile —
+        reachable for an EMPLOYEE, who is redirected there, but not for anyone
+        else without navigating to themselves on purpose.
+      */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {isHR ? "Requests awaiting your approval." : "Your leave requests."}
+        </p>
+        {myEmployeeId ? (
+          <ApplyLeaveDialog
+            employeeId={myEmployeeId}
+            balances={myLeaveBalances ?? []}
+            onApplied={load}
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Your account has no employee record, so there is no leave to book.
+          </p>
+        )}
+      </div>
+
       {/* On Leave Today banner */}
       {isHR && approvedLeaves.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4">
