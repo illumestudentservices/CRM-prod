@@ -32,13 +32,28 @@ import {
   Eye,
   Calendar,
   Tag,
+  Paperclip,
+  Upload,
+  Download,
+  X,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { checkUploadSize } from "@/lib/uploads";
 import { ExportButton } from "@/components/shared/export-button";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface KbAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
 interface Article {
   id: string;
+  /** Already returned by all three knowledge endpoints; the UI simply never read it. */
+  attachments?: KbAttachment[];
   title: string;
   content: string;
   category: string;
@@ -65,6 +80,14 @@ interface KnowledgeClientProps {
   institutions: Institution[];
   markets: Market[];
   proposalArticles: Article[];
+  /**
+   * Attaching is decided per article, because the three knowledge bases are
+   * gated differently — a Regional Manager may attach to a client or market
+   * article but not a general one. Mirrors canWriteKbArticle in lib/kb-access.ts.
+   */
+  canWriteGeneral: boolean;
+  canWriteInstitutions: boolean;
+  canWriteMarkets: boolean;
 }
 
 // ─── Article Card ────────────────────────────────────────────────────────────
@@ -140,16 +163,164 @@ function ArticleCard({
   );
 }
 
-// ─── Article Detail Dialog ───────────────────────────────────────────────────
+
+/** Human-readable file size. 1 kB rather than 1024 B, as file managers show. */
+function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Attachments on a knowledge article.
+ *
+ * One component for all three knowledge bases — General, Client and Market —
+ * because all three write to the same table and share this dialog. The upload
+ * endpoint lives under /api/hr/ for historical reasons but is not HR-specific:
+ * it takes any article id, and since lib/kb-access.ts it authorises against the
+ * article rather than a fixed role list.
+ */
+function ArticleAttachments({
+  article,
+  canEdit,
+  onChanged,
+}: {
+  article: Article;
+  canEdit: boolean;
+  onChanged: (next: KbAttachment[]) => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const items = article.attachments ?? [];
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const check = checkUploadSize(file);
+    if (!check.ok) {
+      toast({ title: "File too large", description: check.message, variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/hr/knowledge-base/attachments?articleId=${article.id}`, {
+        method: "POST", body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Upload failed");
+      onChanged([...(article.attachments ?? []), data.attachment]);
+      toast({ title: "Attached", description: file.name });
+    } catch (err) {
+      toast({
+        title: "Could not attach",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(att: KbAttachment) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/hr/knowledge-base/attachments/${att.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error ?? "Delete failed");
+      }
+      onChanged(items.filter((a) => a.id !== att.id));
+      toast({ title: "Attachment removed", description: att.name });
+    } catch (err) {
+      toast({
+        title: "Could not remove",
+        description: err instanceof Error ? err.message : "Try again",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canEdit && items.length === 0) return null;
+
+  return (
+    <div className="border-t border-slate-200 dark:border-slate-800 pt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+          <Paperclip className="h-3.5 w-3.5" />
+          Attachments{items.length > 0 ? ` (${items.length})` : ""}
+        </p>
+        {canEdit && (
+          <>
+            <input ref={inputRef} type="file" className="hidden" onChange={upload} />
+            <Button
+              size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+              disabled={busy}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {busy ? "Working…" : "Add file"}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-xs text-slate-400 dark:text-slate-500">No files attached.</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((a) => (
+            <li
+              key={a.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-slate-200 dark:border-slate-800 px-2.5 py-1.5"
+            >
+              <a
+                href={`/api/hr/knowledge-base/attachments/${a.id}`}
+                className="text-xs text-[#0EA5E9] hover:underline truncate flex items-center gap-1.5 min-w-0"
+              >
+                <Download className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{a.name}</span>
+              </a>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500">{fileSize(a.size)}</span>
+                {canEdit && (
+                  <button
+                    onClick={() => remove(a)}
+                    disabled={busy}
+                    aria-label={`Remove ${a.name}`}
+                    className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── Article Detail Dialog ─────────────────────────────────────────────
 
 function ArticleDialog({
   article,
   open,
   onClose,
+  canEdit,
+  onArticleChanged,
 }: {
   article: Article | null;
   open: boolean;
   onClose: () => void;
+  canEdit: boolean;
+  onArticleChanged: (next: Article) => void;
 }) {
   if (!article) return null;
 
@@ -188,6 +359,11 @@ function ArticleDialog({
           <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
             {article.content}
           </div>
+          <ArticleAttachments
+            article={article}
+            canEdit={canEdit}
+            onChanged={(next) => onArticleChanged({ ...article, attachments: next })}
+          />
         </div>
       </DialogContent>
     </Dialog>
@@ -440,6 +616,9 @@ const PROPOSAL_CATEGORIES = [
 ];
 
 export function KnowledgeClient({
+  canWriteGeneral,
+  canWriteInstitutions,
+  canWriteMarkets,
   generalArticles: initialGeneral,
   institutions,
   markets,
@@ -902,6 +1081,14 @@ export function KnowledgeClient({
         article={viewArticle}
         open={!!viewArticle}
         onClose={() => setViewArticle(null)}
+        canEdit={
+          viewArticle?.institutionId
+            ? canWriteInstitutions
+            : viewArticle?.marketId
+            ? canWriteMarkets
+            : canWriteGeneral
+        }
+        onArticleChanged={(next) => setViewArticle(next)}
       />
 
       {/* Create Article Dialog */}

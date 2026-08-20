@@ -4,12 +4,19 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { KnowledgeClient } from "./_components/knowledge-client";
+import { KB_WRITE_ROLES } from "@/lib/kb-access";
 
 async function getGeneralArticles() {
   return db.knowledgeBase.findMany({
     where: { knowledgeType: "GENERAL", deletedAt: null, isPublished: true },
     orderBy: { views: "desc" },
     take: 50,
+    include: {
+      attachments: {
+        select: { id: true, name: true, mimeType: true, size: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 }
 
@@ -34,6 +41,12 @@ async function getProposalArticles() {
     where: { knowledgeType: "PROPOSAL", deletedAt: null, isPublished: true },
     orderBy: { createdAt: "desc" },
     take: 50,
+    include: {
+      attachments: {
+        select: { id: true, name: true, mimeType: true, size: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 }
 
@@ -61,6 +74,9 @@ export default async function KnowledgePage() {
         institutions={institutions}
         markets={markets}
         proposalArticles={JSON.parse(JSON.stringify(proposalArticles))}
+        canWriteGeneral={KB_WRITE_ROLES.includes(session.user.role)}
+        canWriteInstitutions={await effectiveHasPermission(session.user.role, "institutions", "write")}
+        canWriteMarkets={await effectiveHasPermission(session.user.role, "markets", "write")}
       />
     </div>
   );

@@ -6,11 +6,13 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
+import { canWriteKbArticle, KB_WRITE_ROLES } from "@/lib/kb-access";
 
-/// Roles that can manage KB attachments (matches the sibling parent-article
-/// write gate). Any role at or above this level can also read all attachments
-/// including drafts.
-const KB_WRITE_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"];
+/// KB_WRITE_ROLES covers GENERAL articles only. Attaching and removing is
+/// decided per article by canWriteKbArticle(), because client and market
+/// articles are gated by institutions:write / markets:write instead — see
+/// lib/kb-access.ts. This list is still the right one for deciding who may READ
+/// an unpublished or PROPOSAL attachment.
 
 /**
  * GET /api/hr/knowledge-base/attachments/[attachmentId]
@@ -54,7 +56,7 @@ export async function GET(
     where: { id: attachmentId },
     include: {
       article: {
-        select: { id: true, isPublished: true, knowledgeType: true },
+        select: { id: true, isPublished: true, knowledgeType: true, institutionId: true, marketId: true },
       },
     },
   });
@@ -94,10 +96,17 @@ export async function DELETE(
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const role = session.user.role as Role;
-  if (!KB_WRITE_ROLES.includes(role))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   const { attachmentId } = await params;
+
+  // Same rule as attaching: you may remove an attachment from an article you
+  // could have written. See lib/kb-access.ts.
+  const owning = await db.knowledgeBaseAttachment.findUnique({
+    where: { id: attachmentId },
+    select: { article: { select: { institutionId: true, marketId: true } } },
+  });
+  if (!owning) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await canWriteKbArticle(role, owning.article)))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   // This handler had no try/catch at all, so deleting an id that does not exist
   // threw out of the route and Next answered 500.
   try {
