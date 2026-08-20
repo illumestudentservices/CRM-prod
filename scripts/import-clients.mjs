@@ -37,6 +37,12 @@ import { execFileSync } from "node:child_process";
 
 const [, , file, ...flags] = process.argv;
 const COMMIT = flags.includes("--commit");
+/**
+ * Skip rows with no region ticked. Four of the first list have none, and an
+ * unregioned client is invisible to every regional view — better absent than
+ * present-but-unreachable, until someone says which region they belong to.
+ */
+const SKIP_NO_REGION = flags.includes("--skip-no-region");
 
 if (!file) {
   console.error("usage: import-clients.mjs <file.xlsx> [--commit]");
@@ -108,8 +114,18 @@ print(json.dumps(out, default=str))
 }
 
 async function main() {
-  const rows = readSheet(file);
-  console.log(`read ${rows.length} clients from ${file}\n`);
+  let rows = readSheet(file);
+  console.log(`read ${rows.length} clients from ${file}`);
+
+  if (SKIP_NO_REGION) {
+    const skipped = rows.filter((r) => r.regions.length === 0);
+    rows = rows.filter((r) => r.regions.length > 0);
+    if (skipped.length) {
+      console.log(`skipping ${skipped.length} with no region ticked:`);
+      for (const s of skipped) console.log(`    - ${s.name}`);
+    }
+  }
+  console.log();
 
   // ── Validate before touching anything ───────────────────────────────────
   const problems = [];
@@ -119,7 +135,7 @@ async function main() {
     else if (!VALID_TYPES.includes(r.type)) {
       problems.push(`${r.name}: Type "${r.type}" is not one of ${VALID_TYPES.join(" / ")}`);
     }
-    if (r.regions.length === 0) problems.push(`${r.name}: no region ticked — will import with none`);
+    if (!SKIP_NO_REGION && r.regions.length === 0) problems.push(`${r.name}: no region ticked — will import with none`);
   }
 
   const regionRows = await db.region.findMany({ select: { id: true, name: true } });
