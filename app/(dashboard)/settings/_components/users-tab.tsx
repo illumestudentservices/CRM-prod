@@ -165,10 +165,18 @@ export function UsersSettingsTab() {
     }
   }
 
+  // What the table is currently showing. The export used to send `users`
+  // regardless of the search, so filtering the screen and pressing Export gave
+  // you the full list anyway.
+  const [exportRows, setExportRows] = useState<UserRow[]>([]);
+  useEffect(() => { setExportRows(users); }, [users]);
+
   const columns: ColumnDef<UserRow>[] = [
     {
       id: "user",
       header: "User",
+      // Name AND email, so searching either finds the person.
+      accessorFn: (u) => `${u.name ?? ""} ${u.email}`,
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
@@ -184,7 +192,11 @@ export function UsersSettingsTab() {
       ),
     },
     {
+      id: "role",
       header: "Role",
+      // The displayed form, so typing "regional manager" matches what is on screen
+      // rather than the REGIONAL_MANAGER stored underneath.
+      accessorFn: (u) => u.role.replace(/_/g, " "),
       cell: ({ row }) => (
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROLE_COLORS[row.original.role] ?? "bg-gray-100 text-gray-700 dark:bg-slate-700/60 dark:text-slate-300"}`}>
           {row.original.role.replace(/_/g, " ")}
@@ -192,11 +204,15 @@ export function UsersSettingsTab() {
       ),
     },
     {
+      id: "region",
       header: "Region",
+      accessorFn: (u) => u.region?.name ?? "Global",
       cell: ({ row }) => <span className="text-sm">{row.original.region?.name ?? "Global"}</span>,
     },
     {
+      id: "status",
       header: "Status",
+      accessorFn: (u) => (u.isActive ? "Active" : "Inactive"),
       cell: ({ row }) => (
         <Badge variant={row.original.isActive ? "success" : "secondary"}>
           {row.original.isActive ? "Active" : "Inactive"}
@@ -204,7 +220,9 @@ export function UsersSettingsTab() {
       ),
     },
     {
+      id: "mfa",
       header: "MFA",
+      accessorFn: (u) => (u.twoFactorEnabled ? "On" : "Off"),
       cell: ({ row }) =>
         row.original.twoFactorEnabled ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -217,7 +235,9 @@ export function UsersSettingsTab() {
         ),
     },
     {
+      id: "joined",
       header: "Joined",
+      accessorFn: (u) => formatDate(u.createdAt),
       cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
     },
     {
@@ -235,7 +255,7 @@ export function UsersSettingsTab() {
     <>
       <div className="flex justify-end mb-3">
         <ExportButton
-          data={users.map((u) => ({
+          data={exportRows.map((u) => ({
             name: u.name ?? "—",
             email: u.email,
             role: u.role.replace(/_/g, " "),
@@ -308,7 +328,24 @@ export function UsersSettingsTab() {
         </div>
       )}
 
-      <DataTable columns={columns} data={users} searchKey="" searchPlaceholder="Search users..." loading={loading} />
+      <DataTable
+        columns={columns}
+        data={users}
+        /*
+         * An empty searchKey is DataTable's way of saying "search every column"
+         * rather than one named column — undefined would hide the box entirely,
+         * which is what the two callers passing searchKey={undefined} want.
+         * The search was broken because none of the columns above declared an
+         * accessor, so the global filter had no values to match, not because of
+         * this prop.
+         */
+        searchKey=""
+        searchPlaceholder="Search users…"
+        loading={loading}
+        /* This screen has its own Excel / CSV / PDF export above the table. */
+        showExport={false}
+        onFilteredDataChange={setExportRows}
+      />
 
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
         <DialogContent className="max-w-sm">
