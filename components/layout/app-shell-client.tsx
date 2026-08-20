@@ -171,11 +171,16 @@ function SidebarInner({
         >
           <div
             className={cn(
-              "flex items-center justify-center rounded-lg bg-white dark:bg-slate-900",
-              // Inner ring for the recessed look, plus a soft drop shadow
-              // matching the sidebar tone so the tile appears embedded.
-              "ring-1 ring-inset ring-slate-200/60",
-              "shadow-[0_1px_2px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.9)]",
+              // White in BOTH themes, deliberately. The PNG carries a baked-in
+              // white background, so a dark tile behind it does not darken the
+              // logo — it only shows through the padding, drawing a black frame
+              // around a white rectangle. `dark:bg-slate-900` did exactly that.
+              "flex items-center justify-center rounded-lg bg-white",
+              // Barely-there edge so the tile still reads as a surface rather
+              // than a cut-out. The previous ring-slate-200/60 plus a
+              // 0.35-alpha drop shadow was strong enough to look like a border
+              // in its own right against the navy.
+              "ring-1 ring-inset ring-black/5 shadow-sm",
               "transition-all duration-200",
               collapsed ? "h-9 w-9 p-1" : "h-10 px-2.5 py-1.5"
             )}
