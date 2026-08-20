@@ -19,9 +19,10 @@
  * under the wrong region and nobody would notice:
  *
  *   Africa → Africa          India → South Asia      MENA  → Middle East
- *   SEA    → Southeast Asia  China → East Asia       LATAM → Latin America
+ *   SEA    → Southeast Asia  China → China           LATAM → Latin America
  *
- * East Asia and Latin America are created by migration 033; the rest predate it.
+ * China and Latin America are created by migration 033 (China was named "East
+ * Asia" there and renamed by 034); the rest predate them.
  *
  * IDEMPOTENT. Clients are matched on name (case-insensitive, trimmed). Running
  * twice updates rather than duplicating, and region rows are reconciled — added
@@ -34,6 +35,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const [, , file, ...flags] = process.argv;
 const COMMIT = flags.includes("--commit");
@@ -52,7 +54,7 @@ if (!file) {
 /** Sheet column → CRM region name. Deliberately explicit, never fuzzy. */
 const REGION_MAP = {
   africa: "Africa",
-  china: "East Asia",
+  china: "China",
   india: "South Asia",
   latam: "Latin America",
   mena: "Middle East",
@@ -76,6 +78,13 @@ const truthy = (v) =>
  * during the review.
  */
 function readSheet(path) {
+  // A .json file is read directly. The production server has no openpyxl and
+  // installing a package there for a one-off import is the wrong trade, so the
+  // workbook is converted on the machine that has it and the JSON is what
+  // travels. Same shape either way: an array of header-keyed row objects.
+  if (path.endsWith(".json")) {
+    return normalise(JSON.parse(readFileSync(path, "utf8")));
+  }
   const py = `
 import json, sys, openpyxl
 wb = openpyxl.load_workbook(sys.argv[1], data_only=True)
@@ -91,7 +100,11 @@ print(json.dumps(out, default=str))
   const raw = execFileSync("python", ["-c", py, path], {
     encoding: "utf8", maxBuffer: 32 * 1024 * 1024,
   });
-  return JSON.parse(raw).map((raw2) => {
+  return normalise(JSON.parse(raw));
+}
+
+function normalise(records) {
+  return records.map((raw2) => {
     const raw_ = raw2;
     // Header names vary in case and spacing between exports; normalise once.
     const g = (want) => {
