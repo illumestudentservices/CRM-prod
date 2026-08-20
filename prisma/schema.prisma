@@ -1027,6 +1027,30 @@ model PasswordResetToken {
 
 // ─── CORE GEOGRAPHY ────────────────────────────────────────────────────────
 
+/// Which regions a client is actually worked in.
+///
+/// `Institution.regionId` holds ONE region and is kept as the primary — the
+/// dashboard geo filter, analytics and reporting all read it, and changing that
+/// would be a far wider change than this. But a client is rarely worked in one
+/// region: of the 39 in the first client list, 24 span several and one spans
+/// all six. Storing only the primary threw the rest away silently.
+///
+/// So this is the full picture and `regionId` is the headline. Keep them
+/// consistent: the primary should always also appear here.
+model InstitutionRegion {
+  id            String      @id @default(uuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  regionId      String
+  region        Region      @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  /// One row per pairing. Re-importing a client must not duplicate its regions.
+  @@unique([institutionId, regionId])
+  @@index([regionId])
+  @@map("institution_regions")
+}
+
 model Region {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -1043,6 +1067,9 @@ model Region {
   sources          RecruitmentPartner[]
   events           Event[]
   institutions     Institution[]
+  /// Clients worked in this region, including those whose PRIMARY region is
+  /// another one — see InstitutionRegion.
+  institutionRegions InstitutionRegion[]
   monthlyReports   MonthlyReport[]
   icrMonthlyReports IcrMonthlyReport[]
   weeklyActivities WeeklyActivity[]
@@ -1677,6 +1704,9 @@ model Institution {
 
   regionId         String?
   region           Region? @relation(fields: [regionId], references: [id])
+  /// Every region this client is worked in. `regionId` above is the primary and
+  /// should also appear in here — see InstitutionRegion.
+  regions          InstitutionRegion[]
   accountManagerId String?
   accountManager   User?   @relation("AccountManager", fields: [accountManagerId], references: [id])
   /// Spec §3 (Clients) — the Regional Manager owning this client from the
