@@ -140,3 +140,39 @@ body {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+@layer base {
+  /* ── Native <select> colours ──────────────────────────────────────────────
+   *
+   * 26 of the 34 native selects in the app carry no colour classes at all, so
+   * in dark mode they rendered as a white box with dark text against a dark
+   * page. Most visible on Recruitment Planning, which uses seven of them, but
+   * the same was true on Activity Log, Auto-populate and others.
+   *
+   * Done here rather than by adding `dark:` to each of the 26, so it also
+   * covers every select added later — the bug was not that someone forgot, it
+   * is that nothing made the default correct.
+   *
+   * :not([class*="bg-"]) IS THE IMPORTANT PART. Eight selects DO set their own
+   * background (`bg-white dark:bg-slate-900` on Risk & Compliance, for one),
+   * and this rule was measured overriding them even from inside `base` — so
+   * relying on layer order or specificity to defer was not enough. Excluding
+   * anything that already carries a `bg-` utility makes deferring structural:
+   * the rule simply does not match those elements, whatever the cascade does.
+   *
+   * The tokens mean this is correct in both themes, not just dark.
+   *
+   * <option> is drawn by the operating system on macOS and will ignore this.
+   * The closed control is correct everywhere; the open list is correct on
+   * Windows and Linux, which is where it was reported.
+   */
+  select:not([class*="bg-"]) {
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+
+  select:not([class*="bg-"]) option {
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+}
