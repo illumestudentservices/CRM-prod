@@ -62,6 +62,22 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean;
   onSelectionChange?: (selectedRows: TData[]) => void;
   actions?: React.ReactNode;
+  /**
+   * Hide the built-in CSV button.
+   *
+   * For tables that supply their own richer export through `actions` — the
+   * Users and Employees screens offer Excel, CSV and PDF with proper column
+   * names — leaving this on put two Export buttons side by side.
+   */
+  showExport?: boolean;
+  /**
+   * The rows currently passing the search, so a caller's own export can cover
+   * what is on screen rather than the whole table. Without this the built-in
+   * button respected the filter and the caller's did not, which is a worse
+   * problem than the duplication: two buttons labelled Export producing
+   * different files.
+   */
+  onFilteredDataChange?: (rows: TData[]) => void;
   emptyTitle?: string;
   emptyDescription?: string;
   className?: string;
@@ -77,6 +93,8 @@ export function DataTable<TData, TValue>({
   enableRowSelection = false,
   onSelectionChange,
   actions,
+  showExport = true,
+  onFilteredDataChange,
   emptyTitle = "No results found",
   emptyDescription = "Try adjusting your search or filters.",
   className,
@@ -140,6 +158,15 @@ export function DataTable<TData, TValue>({
       pagination: { pageSize: 25 },
     },
   });
+
+  // Publish the filtered rows so a caller's own export matches what is shown.
+  const filteredRows = table.getFilteredRowModel().rows;
+  React.useEffect(() => {
+    onFilteredDataChange?.(filteredRows.map((r) => r.original));
+    // Depending on the row objects rather than the array identity, which
+    // TanStack rebuilds every render and would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalFilter, columnFilters, data]);
 
   // Notify parent of selection changes
   React.useEffect(() => {
@@ -217,16 +244,18 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center gap-2 shrink-0">
           {actions}
 
-          {/* Export CSV */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportCSV}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+          {/* Export CSV — suppressed where the caller supplies its own. */}
+          {showExport && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCSV}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          )}
 
           {/* Column Visibility */}
           <DropdownMenu>

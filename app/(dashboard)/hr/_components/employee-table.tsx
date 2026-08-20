@@ -251,6 +251,8 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
         searchKey="employeeId"
         loading={loading}
         onRowClick={(row) => router.push(`/hr/employees/${row.id}`)}
+        /* This screen has its own Excel / CSV / PDF export above the table. */
+        showExport={false}
       />
       {showForm && (
         <EmployeeForm
