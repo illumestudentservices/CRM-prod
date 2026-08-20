@@ -21,11 +21,30 @@ export default async function HRPage() {
   const canSeeAccountRequests = canRequestAccount(role) || canReviewAccountRequest(role);
   const canSeeOffboarding = canRequestOffboarding(role) || canReviewOffboardingRequest(role);
 
+  // The viewer's own employee record. Looked up for everyone, not just the
+  // EMPLOYEE redirect below, because an HR or Regional Manager needs it to
+  // apply for their own leave from this page.
+  const me = await db.employee.findUnique({
+    where: { userId },
+    select: {
+      id: true, startDate: true, gender: true,
+      leaveBalances: { where: { year: new Date().getUTCFullYear() } },
+    },
+  });
+
   // For employee self-service: redirect to their profile
-  if (role === "EMPLOYEE") {
-    const emp = await db.employee.findUnique({ where: { userId } });
-    if (emp) redirect(`/hr/employees/${emp.id}`);
+  if (role === "EMPLOYEE" && me) {
+    redirect(`/hr/employees/${me.id}`);
   }
+
+  // Gender-filtered, so nobody is offered a leave type the server will refuse.
+  const myLeaveBalances = me
+    ? deriveLeaveBalances(me.startDate, me.leaveBalances, me.gender).map((b) => ({
+        leaveType: b.leaveType,
+        totalDays: b.totalDays,
+        availableDays: b.availableDays,
+      }))
+    : [];
 
   const [totalEmployees, onLeaveToday, openTasks, pendingLeave] = await Promise.all([
     db.employee.count({ where: ACTIVE_EMPLOYEE }),
@@ -100,6 +119,8 @@ export default async function HRPage() {
       />
 
       <HRTabsClient
+        myEmployeeId={me?.id ?? null}
+        myLeaveBalances={myLeaveBalances}
         isHR={isHR}
         isSuperAdmin={role === "SUPER_ADMIN"}
         canSeeAccountRequests={canSeeAccountRequests}

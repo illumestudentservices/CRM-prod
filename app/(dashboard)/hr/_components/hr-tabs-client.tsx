@@ -20,6 +20,9 @@ import { OffboardingRequests } from "./offboarding-requests";
 import { TimesheetsPanel } from "./timesheets-panel";
 
 interface HRTabsClientProps {
+  /** The viewer's own employee record, if they have one. Null for accounts with none. */
+  myEmployeeId: string | null;
+  myLeaveBalances: { leaveType: string; totalDays: number; availableDays: number }[];
   isHR: boolean;
   isSuperAdmin: boolean;
   /** Regional and HR managers raise requests; Super Admins review them. */
@@ -38,6 +41,8 @@ interface HRTabsClientProps {
 }
 
 export function HRTabsClient({
+  myEmployeeId,
+  myLeaveBalances,
   isHR,
   isSuperAdmin,
   canSeeAccountRequests,
@@ -130,7 +135,12 @@ export function HRTabsClient({
           </TabsContent>
         )}
         <TabsContent value="leave" className="mt-4">
-          <LeaveManager isHR={isHR} userId={userId} />
+          <LeaveManager
+            isHR={isHR}
+            userId={userId}
+            myEmployeeId={myEmployeeId}
+            myLeaveBalances={myLeaveBalances}
+          />
         </TabsContent>
         <TabsContent value="holidays" className="mt-4">
           <HolidayManager isHR={isHR} />
