@@ -5,21 +5,25 @@ import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
+import { canWriteKbArticle, KB_WRITE_ROLES } from "@/lib/kb-access";
 
-const KB_WRITE_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"];
 
 // POST /api/hr/knowledge-base/attachments?articleId=xxx
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!KB_WRITE_ROLES.includes(session.user.role as Role))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   const articleId = new URL(req.url).searchParams.get("articleId");
   if (!articleId) return NextResponse.json({ error: "articleId required" }, { status: 400 });
 
   const article = await db.knowledgeBase.findFirst({ where: { id: articleId, deletedAt: null } });
   if (!article) return NextResponse.json({ error: "Article not found" }, { status: 404 });
+
+  // Checked against THIS article, not a fixed list. A client or market article
+  // is gated by institutions:write / markets:write, and a Regional Manager who
+  // holds those could previously create one and then be refused when attaching
+  // to it. See lib/kb-access.ts.
+  if (!(await canWriteKbArticle(session.user.role as Role, article)))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let formData: FormData;
   try {
