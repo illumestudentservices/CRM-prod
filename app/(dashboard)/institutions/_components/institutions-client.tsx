@@ -13,7 +13,8 @@ import {
 import { StatCard } from "@/components/shared/stat-card";
 import { InstitutionCard } from "./institution-card";
 import { cn } from "@/lib/utils";
-import type { AccountStatus } from "@prisma/client";
+import { HEALTH_LABELS, HEALTH_ORDER, HEALTH_PILL } from "@/lib/account-health";
+import type { AccountStatus, AccountHealth } from "@prisma/client";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,11 @@ export interface InstitutionRow {
   renewalDate?: string | null;
   regionId: string | null;
   regionName: string | null;
+  /// Every region worked, primary first. Drives both the card's region line and
+  /// the region filter — see the note on the filter below.
+  regionIds?: string[];
+  regionNames?: string[];
+  website?: string | null;
   /// Spec §1 (Clients) — Account Manager column supports the AM filter.
   accountManagerId?: string | null;
   accountManagerName?: string | null;
@@ -44,6 +50,8 @@ interface InstitutionStats {
   prospects: number;
   /// Spec §9 — Open Issues stat card.
   openIssues?: number;
+  /// Client HPI counts, by rating. Optional so an older caller still renders.
+  health?: Record<AccountHealth, number>;
 }
 
 interface InstitutionsClientProps {
@@ -69,6 +77,7 @@ export function InstitutionsClient({
   const [regionFilter, setRegionFilter] = React.useState("all");
   const [countryFilter, setCountryFilter] = React.useState("all");
   const [accountManagerFilter, setAccountManagerFilter] = React.useState("all");
+  const [healthFilter, setHealthFilter] = React.useState("all");
 
   // Derived country list from the loaded institutions — keeps the filter
   // tight to what's actually present.
@@ -86,12 +95,21 @@ export function InstitutionsClient({
       }
       if (statusFilter !== "all" && inst.accountStatus !== statusFilter) return false;
       if (typeFilter !== "all" && inst.type !== typeFilter) return false;
-      if (regionFilter !== "all" && inst.regionId !== regionFilter) return false;
+      // Matches ANY region the client is worked in, not only the primary one.
+      // Filtering on the primary meant a Regional Manager for Southeast Asia
+      // could not see Acadia — a client their region actively works — because
+      // Africa happened to be the first region ticked when it was imported.
+      // Falls back to the primary for rows that predate the join table.
+      if (regionFilter !== "all") {
+        const worked = inst.regionIds?.length ? inst.regionIds : [inst.regionId];
+        if (!worked.includes(regionFilter)) return false;
+      }
       if (countryFilter !== "all" && inst.country !== countryFilter) return false;
       if (accountManagerFilter !== "all" && inst.accountManagerId !== accountManagerFilter) return false;
+      if (healthFilter !== "all" && (inst.accountHealth ?? "GREY") !== healthFilter) return false;
       return true;
     });
-  }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter]);
+  }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter, healthFilter]);
 
   const statCards = [
     { title: "Total Clients", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "all" },
@@ -131,6 +149,51 @@ export function InstitutionsClient({
           />
         ))}
       </div>
+
+      {/*
+        How the book of business is feeling, as a single strip.
+
+        Four more StatCards would have pushed the real ones onto a second row
+        and given equal visual weight to "12 clients are fine" and "35 clients
+        exist". This reads left to right as a health bar, and each segment is a
+        filter — clicking "Concerned" shows exactly those clients, which is the
+        question this data gets opened for.
+      */}
+      {stats.health && (
+        <div className="flex flex-wrap items-center gap-2" data-testid="health-summary">
+          {HEALTH_ORDER.map((h) => {
+            const count = stats.health![h];
+            if (!count) return null;
+            const on = healthFilter === h;
+            return (
+              <button
+                key={h}
+                type="button"
+                onClick={() => setHealthFilter(on ? "all" : h)}
+                aria-pressed={on}
+                title={HEALTH_LABELS[h].hint}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                  HEALTH_PILL[h],
+                  on ? "ring-2 ring-[#1E3A5F] dark:ring-blue-400 ring-offset-1 dark:ring-offset-slate-950" : "hover:opacity-80"
+                )}
+              >
+                <span className="tabular-nums font-semibold">{count}</span>
+                {HEALTH_LABELS[h].sentiment}
+              </button>
+            );
+          })}
+          {healthFilter !== "all" && (
+            <button
+              type="button"
+              onClick={() => setHealthFilter("all")}
+              className="text-xs text-slate-500 dark:text-slate-400 hover:underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2">
@@ -204,6 +267,23 @@ export function InstitutionsClient({
           </Select>
         )}
 
+        {/* The strip above is the quick way in; this exists so the health filter
+            is discoverable in the same place as every other filter, and so it
+            can select Not assessed, which the strip hides when nobody holds it. */}
+        <Select value={healthFilter} onValueChange={setHealthFilter}>
+          <SelectTrigger className="h-9 w-[160px] text-sm">
+            <SelectValue placeholder="Client HPI" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All HPI</SelectItem>
+            {HEALTH_ORDER.map((h) => (
+              <SelectItem key={h} value={h}>
+                {HEALTH_LABELS[h].sentiment}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {accountManagers.length > 0 && (
           <Select value={accountManagerFilter} onValueChange={setAccountManagerFilter}>
             <SelectTrigger className="h-9 w-[170px] text-sm">
@@ -221,10 +301,18 @@ export function InstitutionsClient({
         )}
       </div>
 
-      {/* Results count */}
-      {(search || statusFilter !== "all" || typeFilter !== "all" || regionFilter !== "all") && (
+      {/* Results count. Every filter has to be listed here — country, account
+          manager and health were all able to shrink the grid without saying so,
+          which reads as missing data rather than an active filter. */}
+      {(search ||
+        statusFilter !== "all" ||
+        typeFilter !== "all" ||
+        regionFilter !== "all" ||
+        countryFilter !== "all" ||
+        accountManagerFilter !== "all" ||
+        healthFilter !== "all") && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Showing {filtered.length} of {institutions.length} institutions
+          Showing {filtered.length} of {institutions.length} clients
         </p>
       )}
 
@@ -238,7 +326,16 @@ export function InstitutionsClient({
           </div>
         ) : (
           filtered.map((institution) => (
-            <InstitutionCard key={institution.id} institution={institution} />
+            <InstitutionCard
+              key={institution.id}
+              institution={{
+                ...institution,
+                // The Client Relations owner from the client list is stored as
+                // the account manager, which is the field the rest of the app
+                // already treats as "who owns this client".
+                ownerName: institution.accountManagerName ?? null,
+              }}
+            />
           ))
         )}
       </div>

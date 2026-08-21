@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import { HEALTH_LABELS } from "@/lib/account-health";
 import {
   CheckCircle2, AlertTriangle, Clock, TrendingUp,
   DollarSign, Target, Activity, Users,
@@ -40,28 +41,36 @@ interface GovernanceTabProps {
   }>;
 }
 
-// Spec §11 — traffic-light presentation.
+/**
+ * Spec §11 — traffic-light presentation.
+ *
+ * The label comes from lib/account-health.ts. This tile used to say "Healthy"
+ * where the panel directly below it said "Green" and the client list said
+ * "Alarmed" — three names for one column on a single screen. The captions stay
+ * local because they describe what to do about the rating rather than what it
+ * is called.
+ */
 const HEALTH_CONFIG: Record<
   "GREEN" | "AMBER" | "RED" | "GREY",
   { label: string; className: string; caption: string }
 > = {
   GREEN: {
-    label: "Healthy",
+    label: HEALTH_LABELS.GREEN.sentiment,
     className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
     caption: "On track",
   },
   AMBER: {
-    label: "Attention",
+    label: HEALTH_LABELS.AMBER.sentiment,
     className: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
     caption: "Needs review",
   },
   RED: {
-    label: "At Risk",
+    label: HEALTH_LABELS.RED.sentiment,
     className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
     caption: "Action required",
   },
   GREY: {
-    label: "Not Assessed",
+    label: HEALTH_LABELS.GREY.sentiment,
     className: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
     caption: "Set by Account Manager",
   },

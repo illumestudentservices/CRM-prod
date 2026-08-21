@@ -102,9 +102,15 @@ async function runPass(pass, browser) {
     "*** the card shows 2 open issues — resolved is excluded ***",
     JSON.stringify(issuesText));
 
-  const healthText = await page.getByTestId("health-pill").allInnerTexts();
-  expect(healthText.some((t) => /At risk/.test(t)),
+  // The rating moved out of the attention block and up beside the status badge,
+  // and it now reads in the client list's vocabulary rather than the CRM's:
+  // RED is "Alarmed", not "At risk". It also renders for GREEN now, so a card
+  // says "Happy" instead of saying nothing — see lib/account-health.ts.
+  const healthText = await page.getByTestId("health-sentiment").allInnerTexts();
+  expect(healthText.some((t) => /Alarmed/.test(t)),
     "*** an at-risk client says so on the list ***", JSON.stringify(healthText));
+  expect(healthText.some((t) => /Happy/.test(t)),
+    "*** and a healthy client is labelled rather than left blank ***", JSON.stringify(healthText));
 
   const renewalText = await page.getByTestId("renewal-pill").allInnerTexts();
   expect(renewalText.some((t) => /Renews in \d+d/.test(t)),

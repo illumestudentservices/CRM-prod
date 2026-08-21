@@ -7,13 +7,22 @@ import { PageHeader } from "@/components/shared/page-header";
 import { InstitutionForm } from "./_components/institution-form";
 import { InstitutionsClient } from "./_components/institutions-client";
 import { ExportButton } from "@/components/shared/export-button";
+import { HEALTH_LABELS, HEALTH_ORDER } from "@/lib/account-health";
 
 const INSTITUTION_EXPORT_COLUMNS = [
   { key: "name",           header: "Institution Name" },
   { key: "country",        header: "Country" },
   { key: "type",           header: "Type" },
   { key: "status",         header: "Status" },
-  { key: "region",         header: "Region" },
+  { key: "region",         header: "Primary Region" },
+  // The export existed before the client list was imported and so carried none
+  // of what that list is actually used for. Someone exporting this now gets the
+  // same columns they keep in the spreadsheet, which is the point of an export.
+  { key: "allRegions",     header: "Regions Represented" },
+  { key: "health",         header: "Client HPI" },
+  { key: "owner",          header: "Client Relations" },
+  { key: "renewalDate",    header: "Contract Expiry" },
+  { key: "website",        header: "Website" },
   { key: "leadsCount",     header: "Leads" },
   { key: "contractsCount", header: "Contracts" },
   { key: "usersCount",     header: "Users" },
@@ -51,7 +60,19 @@ async function getInstitutionStats() {
       where: { status: { notIn: ["RESOLVED", "CLOSED"] } },
     }),
   ]);
-  return { total, active, renewalDue: renewalDueByContract, prospects, openIssues };
+  // How the book of business is feeling, counted once on the server. Grouped
+  // rather than five separate counts so the numbers cannot disagree with each
+  // other, and defaulted to 0 because groupBy omits ratings nobody holds.
+  const byHealth = await db.institution.groupBy({
+    by: ["accountHealth"],
+    where: { deletedAt: null },
+    _count: true,
+  });
+  const health = Object.fromEntries(
+    HEALTH_ORDER.map((h) => [h, byHealth.find((r) => r.accountHealth === h)?._count ?? 0])
+  ) as Record<(typeof HEALTH_ORDER)[number], number>;
+
+  return { total, active, renewalDue: renewalDueByContract, prospects, openIssues, health };
 }
 
 async function getInstitutions() {
@@ -60,6 +81,11 @@ async function getInstitutions() {
     include: {
       region: { select: { id: true, name: true } },
       accountManager: { select: { id: true, name: true } },
+      // Every region the client is worked in, not just the primary. This join
+      // table has been populated since the client list import but nothing read
+      // it, so a client worked in six regions was indistinguishable from one
+      // worked in a single region.
+      regions: { select: { region: { select: { id: true, name: true } } } },
       _count: {
         select: {
           // Spec §1 (Clients) — the card's "students" pill should count
@@ -165,6 +191,14 @@ export default async function InstitutionsPage() {
                 type:           i.type.replace(/_/g, " "),
                 status:         i.accountStatus.replace(/_/g, " "),
                 region:         i.region?.name ?? "",
+                allRegions:     i.regions.map((r) => r.region.name).sort().join(", "),
+                // Exported in the client list's wording rather than the CRM's
+                // colour, so the file can be compared against the spreadsheet
+                // it came from without translating every row by hand.
+                health:         HEALTH_LABELS[i.accountHealth].sentiment,
+                owner:          i.accountManager?.name ?? "",
+                renewalDate:    i.renewalDate ? i.renewalDate.toISOString().slice(0, 10) : "",
+                website:        i.website ?? "",
                 leadsCount:     i._count.leads,
                 contractsCount: i._count.contracts,
                 usersCount:     i._count.users,
@@ -199,6 +233,20 @@ export default async function InstitutionsPage() {
           renewalDate: i.renewalDate ? i.renewalDate.toISOString() : null,
           regionId: i.region?.id ?? null,
           regionName: i.region?.name ?? null,
+          // Primary first, then the rest alphabetically, so the card's
+          // truncation to three keeps the one that drives the geo filter.
+          regionIds: [
+            ...(i.region ? [i.region.id] : []),
+            ...i.regions.map((r) => r.region.id).filter((id) => id !== i.region?.id),
+          ],
+          regionNames: [
+            ...(i.region ? [i.region.name] : []),
+            ...i.regions
+              .map((r) => r.region.name)
+              .filter((n) => n !== i.region?.name)
+              .sort(),
+          ],
+          website: i.website,
           accountManagerId: i.accountManagerId ?? null,
           accountManagerName: i.accountManager?.name ?? null,
         }))}
