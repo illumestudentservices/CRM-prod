@@ -1076,6 +1076,8 @@ model Region {
   holidays         Holiday[]
   accountRequests  AccountRequest[]
   transitionReports TransitionReport[]
+  /// IT equipment sitting in this region — see ITAsset.regionId.
+  itAssets         ITAsset[]
 
   @@map("regions")
 }
@@ -2995,14 +2997,60 @@ model ITAsset {
   brand        String?
   model        String?
   purchasedAt  DateTime?
+  /// How much of `purchasedAt` is actually known — DAY / MONTH / YEAR.
+  /// The IT register records a purchase year and month, not a date, and for
+  /// roughly a fifth of the fleet not even the year. Without this the screen
+  /// renders 2024-06-01 as "1 June 2024" and states a day nobody knows. Set to
+  /// DAY for anything entered through the form's date picker.
+  purchasePrecision String?
   warrantyEnd  DateTime?
-  status       String    @default("AVAILABLE")
+  /// The register's OPERATIONAL state — see `ASSET_STATUSES` in lib/assets.ts.
+  /// Deliberately NOT custody: whether a device is out with someone is recorded
+  /// by AssetAssignment, which knows who and since when. This column used to
+  /// hold AVAILABLE/ASSIGNED, a denormalised copy of "does an assignment row
+  /// exist", which left nowhere to say a phone had been stolen. Migration 035
+  /// remapped it.
+  status       String    @default("SPARE")
+  /// Condition, separate from status on purpose: a spare in excellent condition
+  /// and a spare that will not power on are the same status and very different
+  /// problems.
+  condition    String?
+  /// The register's "Asset ID" (e.g. UAE-001). Unique where set; almost nothing
+  /// is tagged yet.
+  assetTag     String?   @unique
+  /// Where the device is. A real relation so assets can be scoped and filtered
+  /// the way every other regional thing in the app is.
+  regionId     String?
+  region       Region?   @relation(fields: [regionId], references: [id])
+  country      String?
+  /// Who is holding the device, BY NAME, and in what job.
+  ///
+  /// The register names 52 people; the CRM has 16 employees. Requiring an
+  /// Employee row to record a custodian would mean either inventing 40 staff
+  /// records or discarding the answer to the most-asked question about a laptop.
+  /// As accounts are created `AssetAssignment` takes over — it is the stronger
+  /// record, being a foreign key with a date range — and this remains the
+  /// fallback for devices held by people who are not in the system.
+  custodianName     String?
+  custodianPosition String?
+  /// What came in the box — "Charger, Backpack". Free text because the register
+  /// is, and a controlled list fails immediately on real entries like
+  /// "Charger - Bad" and "case (to be purchased)", both of which carry
+  /// information a checkbox would throw away.
+  accessories  String?
+  /// Who last physically checked the device, and when. The audit half of an
+  /// inventory: a register nobody has verified is a list of what used to be true.
+  verifiedBy   String?
+  verifiedAt   DateTime?
   notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   assignments AssetAssignment[]
 
+  @@index([regionId])
+  @@index([status])
+  @@index([custodianName])
   @@map("it_assets")
 }
 

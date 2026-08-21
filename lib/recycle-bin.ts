@@ -118,7 +118,11 @@ export const REGISTRY: Record<string, EntityDef> = {
   ITAsset: {
     delegate: "iTAsset",
     softDelete: false,
-    label: (r) => `${r.name} · ${r.type}${r.serialNumber ? ` · ${r.serialNumber}` : ""}`,
+    // The custodian is in the label because the register now holds 84 devices
+    // and "HP Elitebook · LAPTOP" describes eleven of them. Who was holding it
+    // is what tells you which one was binned.
+    label: (r) =>
+      [r.name, r.custodianName, r.serialNumber].filter(Boolean).join(" · ") || String(r.type ?? "Asset"),
   },
   Announcement: { delegate: "announcement", softDelete: false, label: (r) => r.title },
   Holiday: { delegate: "holiday", softDelete: false, label: (r) => r.name },
