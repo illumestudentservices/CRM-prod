@@ -37,6 +37,8 @@ import { formatDate } from "@/lib/utils";
 import type { Role } from "@/lib/permissions";
 import { AnnouncementsFeed } from "@/components/shared/announcements-feed";
 import { displayName } from "@/lib/person-name";
+import { HEALTH_LABELS, HEALTH_PILL } from "@/lib/account-health";
+import type { AccountHealth, IssueStatus } from "@prisma/client";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +62,17 @@ function calcChange(current: number, previous: number): number {
 // enum change fails the build here rather than silently rendering nothing.
 const stageOrder = ALL_STAGES;
 
+/**
+ * An issue that still needs somebody — the same list the Clients page uses.
+ *
+ * Typed as IssueStatus[] and NOT `as const`: a readonly tuple is not assignable
+ * to Prisma's `in`, and the resulting error cascades into the `_count` select
+ * losing its inferred shape, which reads like four unrelated bugs.
+ */
+const ATTENTION_ISSUE_STATUSES: IssueStatus[] = [
+  "OPEN", "IN_PROGRESS", "AWAITING_CLIENT", "AWAITING_INTERNAL_ACTION",
+];
+
 const accountStatusColors: Record<string, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
   RENEWAL_DUE: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
@@ -75,6 +88,9 @@ async function getExecutiveDashboardData(regionId?: string | null) {
   const lastMonthStart = startOfLastMonth(now);
   const lastMonthEnd = endOfLastMonth(now);
   const currentYear = now.getFullYear();
+  // 60 days is the renewal window the client card already uses; an expiry
+  // already in the past is obviously included.
+  const renewalHorizon = new Date(now.getTime() + 60 * 86_400_000);
 
   const geoFilter = regionId ? { regionId } : {};
   const leadScope = { deletedAt: null as null, ...geoFilter };
@@ -106,15 +122,52 @@ async function getExecutiveDashboardData(regionId?: string | null) {
       orderBy: { _count: { id: "desc" } },
       take: 6,
     }),
-    // Institutions needing attention
+    /**
+     * Clients needing attention.
+     *
+     * This used to ask for `accountStatus: RENEWAL_DUE | CHURNED` — two values
+     * nothing writes. RENEWAL_DUE is documented as legacy in the client card
+     * ("new rows should never be written with it") and CHURNED has never been
+     * set by anything. So the panel matched zero rows and printed "All
+     * institutions are on track" while nine clients sat at Amber or Red, which
+     * is worse than having no panel at all.
+     *
+     * The rating lives on `accountHealth`, not `accountStatus`. Those are
+     * different columns and the panel was reading the wrong one.
+     *
+     * All four signals are now included, because each is independently a reason
+     * to open a client today and each was already in the database with nothing
+     * reading it here.
+     */
     db.institution.findMany({
       where: {
         deletedAt: null,
         ...geoFilter,
-        OR: [{ accountStatus: "RENEWAL_DUE" }, { accountStatus: "CHURNED" }],
+        OR: [
+          { accountHealth: { in: ["AMBER", "RED"] } },
+          { interventions: { some: { resolvedAt: null } } },
+          { issues: { some: { status: { in: ATTENTION_ISSUE_STATUSES } } } },
+          { renewalDate: { lte: renewalHorizon } },
+        ],
       },
-      select: { id: true, name: true, accountStatus: true, country: true },
-      take: 6,
+      select: {
+        id: true,
+        name: true,
+        country: true,
+        accountStatus: true,
+        accountHealth: true,
+        renewalDate: true,
+        _count: {
+          select: {
+            issues: { where: { status: { in: ATTENTION_ISSUE_STATUSES } } },
+            interventions: { where: { resolvedAt: null } },
+          },
+        },
+      },
+      // Worst first, so Alarmed is never pushed below Concerned by a name.
+      // AccountHealth's enum order is GREEN, AMBER, RED, GREY, so descending
+      // puts GREY above RED — the final ordering is done in code below.
+      orderBy: { name: "asc" },
     }),
     // Top ICRs by enrolled count
     db.lead.groupBy({
@@ -207,6 +260,41 @@ async function getExecutiveDashboardData(regionId?: string | null) {
   const conversionRate =
     totalLeads > 0 ? Math.round((enrolled / totalLeads) * 100) : 0;
 
+  /**
+   * Worst first, and say WHY.
+   *
+   * The card used to show the account status badge — "ACTIVE" — beside every
+   * name, which is no help at all: every client in the list was Active. What an
+   * executive needs from this panel is which client and what about it.
+   */
+  const attention = attentionInstitutions
+    .map((i) => {
+      const days = i.renewalDate
+        ? Math.round(
+            (Date.UTC(i.renewalDate.getUTCFullYear(), i.renewalDate.getUTCMonth(), i.renewalDate.getUTCDate()) -
+              Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000
+          )
+        : null;
+      const reasons: string[] = [];
+      if (i._count.issues) reasons.push(`${i._count.issues} open issue${i._count.issues === 1 ? "" : "s"}`);
+      if (days !== null && days < 0) reasons.push(`renewal ${Math.abs(days)}d overdue`);
+      else if (days !== null && days <= 60) reasons.push(`renews in ${days}d`);
+      if (!reasons.length && i._count.interventions) reasons.push("review due");
+      return {
+        id: i.id,
+        name: i.name,
+        country: i.country,
+        accountStatus: i.accountStatus,
+        health: i.accountHealth,
+        // Ranked so the ordering is explicit rather than relying on the enum's
+        // declaration order, which puts GREY after RED.
+        rank: i.accountHealth === "RED" ? 0 : i.accountHealth === "AMBER" ? 1 : 2,
+        reason: reasons.join(" · "),
+      };
+    })
+    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))
+    .slice(0, 6);
+
   return {
     stats: {
       totalLeads,
@@ -218,7 +306,8 @@ async function getExecutiveDashboardData(regionId?: string | null) {
       conversionRate,
     },
     topInstitutions,
-    attentionInstitutions,
+    attentionInstitutions: attention,
+    attentionTotal: attentionInstitutions.length,
     topICRs,
     pipeline,
     recentLeads,
@@ -792,7 +881,7 @@ async function ExecutiveDashboard({
   showTabs?: boolean;
 }) {
   const data = await getExecutiveDashboardData(regionId);
-  const { stats, topInstitutions, attentionInstitutions, topICRs, pipeline, recentLeads } = data;
+  const { stats, topInstitutions, attentionInstitutions, attentionTotal, topICRs, pipeline, recentLeads } = data;
 
   const totalLeads = stats.totalLeads;
 
@@ -1010,24 +1099,38 @@ async function ExecutiveDashboard({
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{inst.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{inst.country}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {[inst.country, inst.reason].filter(Boolean).join(" · ")}
+                      </p>
                     </div>
+                    {/* The rating, in the client list's own words. This slot used
+                        to hold the account status, which read "ACTIVE" on every
+                        row and told nobody anything. */}
                     <span
                       className={[
                         "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        accountStatusColors[inst.accountStatus] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+                        HEALTH_PILL[inst.health as AccountHealth] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
                       ].join(" ")}
                     >
-                      {inst.accountStatus.replace(/_/g, " ")}
+                      {HEALTH_LABELS[inst.health as AccountHealth]?.sentiment ?? inst.accountStatus.replace(/_/g, " ")}
                     </span>
                   </Link>
                 ))
               )}
+              {attentionTotal > attentionInstitutions.length && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                  and {attentionTotal - attentionInstitutions.length} more
+                </p>
+              )}
+              {/* Was /institutions?status=RENEWAL_DUE — a filter for a status
+                  nothing writes, on a page that does not read query parameters
+                  at all. Plain link to the client list, which now has its own
+                  health filter. */}
               <Link
-                href="/institutions?status=RENEWAL_DUE"
+                href="/institutions"
                 className="block text-center text-xs text-[#0EA5E9] hover:underline font-medium pt-1"
               >
-                View all at-risk →
+                View all clients →
               </Link>
             </CardContent>
           </Card>
