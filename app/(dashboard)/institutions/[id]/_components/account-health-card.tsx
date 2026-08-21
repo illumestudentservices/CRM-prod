@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, ShieldAlert, CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { HEALTH_LABELS } from "@/lib/account-health";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +32,19 @@ import {
 
 type Health = "GREEN" | "AMBER" | "RED" | "GREY";
 
+/**
+ * The wording comes from lib/account-health.ts rather than being spelled out
+ * here, so this panel and the client list cannot drift apart. They had already
+ * started to: the list called RED "At risk" while the client list the regional
+ * team maintains calls it "Alarmed", and the same client read differently
+ * depending on which screen you were on. The labels now carry both the colour
+ * and the client list's word — "Red — Alarmed".
+ */
 const HEALTH: Record<Health, { label: string; hint: string; badge: "success" | "warning" | "destructive" | "secondary"; Icon: typeof CheckCircle2 }> = {
-  GREEN: { label: "Green — Healthy", hint: "No concerns.", badge: "success", Icon: CheckCircle2 },
-  AMBER: { label: "Amber — Attention Required", hint: "Needs a corrective action and an owner.", badge: "warning", Icon: AlertTriangle },
-  RED: { label: "Red — At Risk", hint: "Needs a corrective action and an owner.", badge: "destructive", Icon: ShieldAlert },
-  GREY: { label: "Grey — Not Assessed", hint: "No assessment recorded yet.", badge: "secondary", Icon: HelpCircle },
+  GREEN: { label: HEALTH_LABELS.GREEN.full, hint: HEALTH_LABELS.GREEN.hint, badge: "success", Icon: CheckCircle2 },
+  AMBER: { label: HEALTH_LABELS.AMBER.full, hint: HEALTH_LABELS.AMBER.hint, badge: "warning", Icon: AlertTriangle },
+  RED: { label: HEALTH_LABELS.RED.full, hint: HEALTH_LABELS.RED.hint, badge: "destructive", Icon: ShieldAlert },
+  GREY: { label: HEALTH_LABELS.GREY.full, hint: HEALTH_LABELS.GREY.hint, badge: "secondary", Icon: HelpCircle },
 };
 
 /** Amber and Red are the two that demand an intervention. */

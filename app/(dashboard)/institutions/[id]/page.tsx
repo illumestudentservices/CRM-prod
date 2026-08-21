@@ -1,11 +1,12 @@
 import * as React from "react";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, MapPin, DollarSign, CalendarClock } from "lucide-react";
+import { ExternalLink, MapPin, DollarSign, CalendarClock, Smile, StickyNote } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { HEALTH_LABELS, HEALTH_PILL } from "@/lib/account-health";
 import { InstitutionForm } from "../_components/institution-form";
 import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
@@ -148,6 +149,17 @@ export default async function InstitutionDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={institution.name}
+        /* The crest, on a white tile in both themes — several of these marks are
+           dark wordmarks that disappear on a dark background. Same reasoning as
+           the client card. */
+        icon={
+          institution.logoUrl ? (
+            <span className="h-10 w-10 rounded-xl bg-white ring-1 ring-black/5 p-1.5 flex items-center justify-center overflow-hidden shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={institution.logoUrl} alt="" className="h-full w-full object-contain" />
+            </span>
+          ) : undefined
+        }
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "Clients", href: "/institutions" },
@@ -199,6 +211,18 @@ export default async function InstitutionDetailPage({
           </Link>
         )}
         <span className="text-sm text-slate-500 dark:text-slate-400">{institution.type}</span>
+        {institution.accountHealth !== "GREY" && (
+          <span
+            title={HEALTH_LABELS[institution.accountHealth].hint}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium",
+              HEALTH_PILL[institution.accountHealth]
+            )}
+          >
+            <Smile className="h-3.5 w-3.5" />
+            {HEALTH_LABELS[institution.accountHealth].full}
+          </span>
+        )}
         {institution.contractValue != null && (
           <span className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
             <DollarSign className="h-3.5 w-3.5" />
@@ -216,6 +240,24 @@ export default async function InstitutionDetailPage({
       {/* Overview text */}
       {institution.overview && (
         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-3xl">{institution.overview}</p>
+      )}
+
+      {/*
+        Account notes. These were writable from the edit dialog and displayed
+        nowhere, so anything typed into that box went straight into the database
+        and out of sight. The client list import filled this column for two
+        thirds of the accounts with exactly the sort of line somebody opening the
+        record needs first — "BC PAL situation", "served notice on LATAM",
+        "contract renewal at risk if enrollments don't pick up" — which made a
+        write-only field impossible to leave as it was.
+      */}
+      {institution.notes && (
+        <div className="flex gap-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 max-w-3xl">
+          <StickyNote className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+            {institution.notes}
+          </p>
+        </div>
       )}
 
       {/* Tabs */}

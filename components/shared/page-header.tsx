@@ -13,6 +13,12 @@ interface PageHeaderProps {
   description?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
+  /**
+   * Rendered to the left of the title. Added for the client record, which now
+   * has the institution's own crest and reads as that university's page rather
+   * than as a row out of a table. Optional, so every other page is unchanged.
+   */
+  icon?: React.ReactNode;
   className?: string;
 }
 
@@ -21,6 +27,7 @@ export function PageHeader({
   description,
   breadcrumbs,
   actions,
+  icon,
   className,
 }: PageHeaderProps) {
   return (
@@ -60,13 +67,16 @@ export function PageHeader({
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-center gap-3">
+          {icon}
+          <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
             {title}
           </h1>
           {description && (
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-2xl">{description}</p>
           )}
+          </div>
         </div>
 
         {actions && (
