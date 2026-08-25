@@ -10,6 +10,7 @@ import { sendWelcomeEmail, sendSecurityAlertEmail, getSuperAdminEmails } from "@
 import { createMagicLink } from "@/lib/magic-link";
 import { generateTempPassword } from "@/lib/password";
 import { displayName, userNameFields } from "@/lib/person-name";
+import { emailIsTaken, normaliseEmail } from "@/lib/email-identity";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -161,8 +162,11 @@ export async function POST(req: NextRequest) {
 
     const data = parsed.data;
 
-    const existingUser = await db.user.findUnique({ where: { email: data.email } });
-    if (existingUser) {
+    // Case-insensitive. A case-sensitive check let "mike@" be created alongside
+    // an existing "Mike@" — two accounts for one person, and precisely the
+    // ambiguity that makes a case-insensitive sign-in lookup unsafe. Migration
+    // 036 adds a unique index on lower(email) so the database refuses it too.
+    if (await emailIsTaken(data.email)) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }
 
@@ -182,7 +186,9 @@ export async function POST(req: NextRequest) {
 
       const user = await tx.user.create({
         data: {
-          email: data.email,
+          // Stored lowercase so what is in the column matches what people type.
+          // The welcome email still goes to the address exactly as HR entered it.
+          email: normaliseEmail(data.email),
           ...userNameFields(data),
           password: hashedPassword,
           role: data.role as Role,
