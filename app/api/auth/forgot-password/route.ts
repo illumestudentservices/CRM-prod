@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { createMagicLink } from "@/lib/magic-link";
 import { sendMagicLinkEmail } from "@/lib/email";
+import { findUserByEmail } from "@/lib/email-identity";
 
 const schema = z.object({
   email: z.string().email(),
@@ -27,8 +27,12 @@ export async function POST(req: NextRequest) {
   const { email } = parsed.data;
 
   try {
-    const user = await db.user.findUnique({
-      where: { email, isActive: true, deletedAt: null },
+    // Case-insensitive, and deliberately the SAME lookup sign-in uses. If reset
+    // matched capitalisation while sign-in did not, somebody could be sent a
+    // working link for an account they were then unable to sign into — which is
+    // exactly the shape of the bug this fixes.
+    const user = await findUserByEmail(email, {
+      where: { isActive: true, deletedAt: null },
       select: { id: true, name: true, email: true },
     });
 

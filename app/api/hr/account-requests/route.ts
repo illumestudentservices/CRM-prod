@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { sendAccountRequestEmail } from "@/lib/email";
+import { findUserByEmail } from "@/lib/email-identity";
 import {
   canRequestAccount,
   canReviewAccountRequest,
@@ -115,8 +116,10 @@ export async function POST(req: NextRequest) {
   // a work login — but it is retained because it still catches the case that
   // matters: a contractor whose personal address WAS used as their login. The
   // message no longer claims an account "exists for that email" in general terms.
-  const existing = await db.user.findUnique({
-    where: { email: personalEmail },
+  // `personalEmail` is already lowercased above, but the column it is compared
+  // against was not — so a login stored as "Mike@" never matched and the check
+  // silently passed. Case-insensitive now, like every other email lookup.
+  const existing = await findUserByEmail(personalEmail, {
     select: { id: true, isActive: true, deletedAt: true },
   });
   if (existing && !existing.deletedAt) {

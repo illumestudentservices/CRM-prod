@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
 import { logActivity } from "@/lib/activity-logger";
+import { findUserByEmail } from "@/lib/email-identity";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
@@ -41,11 +42,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         let user;
         try {
-          user = await db.user.findUnique({
-            where: { email },
-            include: { region: true },
-            // twoFactorEnabled is needed to decide whether to issue a pending session
-          });
+          // Case-insensitive. This was `findUnique({ where: { email } })` on the
+          // string exactly as typed, and Postgres compares text case-sensitively
+          // — so an account stored as "Ashley-Jane@..." could only be signed into
+          // by typing that capitalisation, and anyone entering their own address
+          // in lowercase was told their password was wrong.
+          //
+          // The failure left no trace: no user row was found, so the
+          // `loginAttempts` increment below never ran, nothing was logged, and
+          // no lockout occurred. It also hid MFA enrolment, which sits behind a
+          // successful password check — so it presented as two unrelated faults.
+          // See lib/email-identity.ts.
+          user = await findUserByEmail(email, { include: { region: true } });
         } catch (err) {
           console.error("[auth] DB lookup failed:", err);
           return null;
