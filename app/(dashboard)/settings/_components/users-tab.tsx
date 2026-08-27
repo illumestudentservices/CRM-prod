@@ -138,7 +138,10 @@ export function UsersSettingsTab() {
     setResettingMfa(false);
     setConfirmMfaReset(false);
     if (res.ok) {
-      toast({ title: "MFA reset", description: `Two-factor authentication has been disabled for ${editing.name ?? editing.email}.` });
+      toast({
+        title: "MFA reset",
+        description: `${editing.name ?? editing.email} has been signed out and will scan a new QR code on their next sign-in.`,
+      });
       setEditing(null);
       load();
     } else {
@@ -385,7 +388,11 @@ export function UsersSettingsTab() {
                   </p>
                   {confirmMfaReset ? (
                     <div className="space-y-2">
-                      <p className="text-xs text-amber-700 dark:text-amber-300">This will disable MFA and clear all backup codes. The user will need to re-enrol. Are you sure?</p>
+                      {/* Says it signs them out, because it now does — and
+                          because whoever is about to click this needs to know
+                          they will interrupt whatever the person is mid-way
+                          through. */}
+                      <p className="text-xs text-amber-700 dark:text-amber-300">This disables MFA, clears all backup codes and signs the user out everywhere. They will scan a new QR code on their next sign-in. Are you sure?</p>
                       <div className="flex gap-2">
                         <Button size="sm" variant="destructive" onClick={handleResetMfa} disabled={resettingMfa}>
                           {resettingMfa ? "Resetting..." : "Yes, reset MFA"}
