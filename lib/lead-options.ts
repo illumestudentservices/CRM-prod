@@ -10,6 +10,12 @@
  * Values must match the BudgetRange, EnglishStatus and StudyLevel enums exactly.
  */
 
+import type {
+  CounsellingOutcome,
+  EligibilityOutcome,
+  EnrolmentStatus,
+} from "@prisma/client";
+
 export const BUDGET_RANGES = [
   { value: "UNDER_10K", label: "Under $10,000" },
   { value: "FROM_10K_TO_20K", label: "$10,000 - $20,000" },
@@ -36,6 +42,94 @@ export const STUDY_LEVELS = [
   { value: "PATHWAY", label: "Pathway" },
   { value: "FOUNDATION", label: "Foundation" },
 ] as const;
+
+/**
+ * The lists below use an exhaustive `Record<PrismaEnum, string>` rather than the
+ * hand-written `as const` arrays above. Adding a member to the enum without a
+ * label FAILS THE BUILD and names the member, which the arrays cannot do — and
+ * a silently missing option reads to the user as a field that will not save.
+ *
+ * Type-only imports on purpose: these are consumed by client components, and
+ * importing `@prisma/client` for its runtime enum objects would pull the Prisma
+ * runtime into the browser bundle.
+ */
+
+function optionsOf<T extends string>(labels: Record<T, string>): { value: T; label: string }[] {
+  return (Object.keys(labels) as T[]).map((value) => ({ value, label: labels[value] }));
+}
+
+// ─── Counselling outcome (spec §5) ───────────────────────────────────────────
+
+export const COUNSELLING_OUTCOME_LABELS: Record<CounsellingOutcome, string> = {
+  PROCEED_TO_ELIGIBILITY: "Proceed to eligibility assessment",
+  FURTHER_COUNSELLING_REQUIRED: "Further counselling required",
+  NOT_READY_YET: "Not ready yet",
+  UNABLE_TO_CONTACT: "Unable to contact",
+  NOT_SUITABLE: "Not suitable",
+  LOST: "Lost",
+  DEFERRED: "Deferred",
+};
+
+export const COUNSELLING_OUTCOMES = optionsOf(COUNSELLING_OUTCOME_LABELS);
+
+/**
+ * Counselling outcomes that permit moving on to Qualified.
+ *
+ * Spec §5 requires that "counselling outcome supports progression". Reading the
+ * seven options, exactly one does: each of the others describes a reason to stay
+ * where you are, or to close the journey. Anything looser would make the rule
+ * decorative — which is what it was, since the gate checked the free-text field
+ * for non-emptiness and this enum was never read anywhere at all.
+ */
+export const PROGRESSING_COUNSELLING_OUTCOMES: CounsellingOutcome[] = [
+  "PROCEED_TO_ELIGIBILITY",
+];
+
+// ─── Eligibility outcome (spec §6) ───────────────────────────────────────────
+
+export const ELIGIBILITY_OUTCOME_LABELS: Record<EligibilityOutcome, string> = {
+  ELIGIBLE: "Eligible",
+  PROVISIONALLY_ELIGIBLE: "Provisionally eligible",
+  FURTHER_INFO_REQUIRED: "Further information required",
+  NOT_ELIGIBLE: "Not eligible",
+};
+
+export const ELIGIBILITY_OUTCOMES = optionsOf(ELIGIBILITY_OUTCOME_LABELS);
+
+/** Spec §6: "Eligibility outcome is Eligible or Provisionally Eligible". */
+export const PROGRESSING_ELIGIBILITY_OUTCOMES: EligibilityOutcome[] = [
+  "ELIGIBLE",
+  "PROVISIONALLY_ELIGIBLE",
+];
+
+/**
+ * Best to worst, for deriving a student-level answer from several journeys.
+ *
+ * The Student Profile mirrors the most advanced open interest, so its
+ * eligibility has to come from somewhere too: a student counts as eligible if
+ * any live journey says so. The ordering is explicit rather than the enum's
+ * declaration order, because that order is not a ranking and relying on it
+ * would silently change meaning if a member were ever inserted.
+ */
+export const ELIGIBILITY_RANK: EligibilityOutcome[] = [
+  "ELIGIBLE",
+  "PROVISIONALLY_ELIGIBLE",
+  "FURTHER_INFO_REQUIRED",
+  "NOT_ELIGIBLE",
+];
+
+// ─── Enrolment status (spec §11) ─────────────────────────────────────────────
+
+export const ENROLMENT_STATUS_LABELS: Record<EnrolmentStatus, string> = {
+  ENROLLED: "Enrolled",
+  REGISTERED: "Registered",
+  STARTED_STUDIES: "Started studies",
+  DID_NOT_ARRIVE: "Did not arrive",
+  WITHDREW_BEFORE_START: "Withdrew before start",
+  DEFERRED_AFTER_DEPOSIT: "Deferred after deposit",
+};
+
+export const ENROLMENT_STATUSES = optionsOf(ENROLMENT_STATUS_LABELS);
 
 export const MONTHS = [
   { value: 1, label: "January" },

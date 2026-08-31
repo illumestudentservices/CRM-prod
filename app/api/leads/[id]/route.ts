@@ -9,6 +9,13 @@ import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { inRegion } from "@/lib/region-scope";
 import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
+import { COUNSELLING_OUTCOME_LABELS } from "@/lib/lead-options";
+
+/** Derived from the label map so the two lists cannot drift apart. */
+const COUNSELLING_OUTCOME_VALUES = Object.keys(COUNSELLING_OUTCOME_LABELS) as [
+  keyof typeof COUNSELLING_OUTCOME_LABELS,
+  ...(keyof typeof COUNSELLING_OUTCOME_LABELS)[]
+];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -47,6 +54,27 @@ const updateLeadSchema = z.object({
     .nullable(),
   currentQualification: z.string().min(1).optional().nullable(),
   counsellingOutcome: z.string().min(1).optional().nullable(),
+  /**
+   * Spec §5 — the categorical outcome the Contacted gate now tests. The column
+   * existed since the spec §5 work but was accepted by no route and written by
+   * nothing, so none of the seven outcomes could be recorded.
+   */
+  counsellingOutcomeEnum: z
+    .enum(COUNSELLING_OUTCOME_VALUES)
+    .optional()
+    .nullable(),
+  /**
+   * Spec §1 — per-channel communication preferences (migration 037).
+   * Nullable so an answer can be withdrawn back to "never asked", the same
+   * three-valued treatment as marketingConsent.
+   */
+  phoneContactConsent: z.boolean().optional().nullable(),
+  smsContactConsent: z.boolean().optional().nullable(),
+  whatsappContactConsent: z.boolean().optional().nullable(),
+  /** Blanket override across every channel. Not three-valued — see the schema. */
+  doNotContact: z.boolean().optional(),
+  /** Spec §1 / §4 — marketing campaign attribution (migration 037). */
+  campaignId: z.string().min(1).optional().nullable(),
   academicQualification: z.string().min(1).optional().nullable(),
   englishStatus: z
     .enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"])
@@ -250,9 +278,17 @@ export async function PATCH(
         ? { marketingConsentAt: updates.marketingConsent === null ? null : new Date() }
         : {};
 
+    // Same rule for the blanket do-not-contact instruction: the date is what
+    // makes it defensible, and lifting the instruction clears the date so a
+    // stale one cannot be read as a standing request.
+    const doNotContactStamp =
+      "doNotContact" in updates
+        ? { doNotContactAt: updates.doNotContact ? new Date() : null }
+        : {};
+
     const updatedLead = await db.lead.update({
       where: { id },
-      data: { ...updates, ...consentStamp },
+      data: { ...updates, ...consentStamp, ...doNotContactStamp },
       include: {
         region: { select: { id: true, name: true } },
         assignedICR: { select: { id: true, name: true, email: true } },

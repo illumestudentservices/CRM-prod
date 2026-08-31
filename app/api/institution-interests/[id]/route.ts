@@ -8,6 +8,13 @@ import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { trashRecord } from "@/lib/recycle-bin";
 import { accessibleInterest } from "@/lib/lead-access";
+import { ENROLMENT_STATUS_LABELS } from "@/lib/lead-options";
+
+/** Derived from the label map so the two lists cannot drift apart. */
+const ENROLMENT_STATUS_VALUES = Object.keys(ENROLMENT_STATUS_LABELS) as [
+  keyof typeof ENROLMENT_STATUS_LABELS,
+  ...(keyof typeof ENROLMENT_STATUS_LABELS)[]
+];
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -26,6 +33,16 @@ const updateSchema = z.object({
   englishStatus: z.preprocess(
     blankToUndefined,
     z.enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"]).optional(),
+  ),
+  /**
+   * Spec §11 "Enrolment status". The column existed but was accepted by no
+   * route and written by nothing anywhere in the codebase, so it was null on
+   * every row and none of the six statuses could be recorded. Derived from the
+   * label map rather than hand-listed, so the two cannot drift.
+   */
+  enrolmentStatus: z.preprocess(
+    blankToUndefined,
+    z.enum(ENROLMENT_STATUS_VALUES).optional(),
   ),
 });
 
