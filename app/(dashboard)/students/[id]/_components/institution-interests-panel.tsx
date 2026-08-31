@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { ELIGIBILITY_OUTCOMES, ENROLMENT_STATUSES } from "@/lib/lead-options";
+import { InterestStageControl } from "./interest-stage-control";
 
 interface Interest {
   id: string;
@@ -143,6 +144,13 @@ export function InstitutionInterestsPanel({
     startTransition(() => router.refresh());
   }
 
+  /** Re-reads the list. Used after a stage move, which changes several fields. */
+  async function reload() {
+    const r = await fetch(`/api/institution-interests?leadId=${leadId}&onlyOpen=false`);
+    if (r.ok) setInterests((await r.json()).data);
+    startTransition(() => router.refresh());
+  }
+
   async function reopen(id: string) {
     const resp = await fetch(`/api/institution-interests/${id}/reopen`, { method: "POST" });
     if (!resp.ok) {
@@ -196,6 +204,12 @@ export function InstitutionInterestsPanel({
               )}
             </div>
           </div>
+
+          {/* Spec page 3 — the pipeline belongs to the journey. No screen could
+              advance one until now; the route existed and nothing called it. */}
+          {!i.closedAt && (
+            <InterestStageControl interestId={i.id} stage={i.stage} onChanged={reload} />
+          )}
 
           {/* Spec §6 and §11. Both columns existed and neither had any control:
               the eligibility outcome was rendered above but could not be set,

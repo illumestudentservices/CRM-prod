@@ -182,11 +182,85 @@ try {
     );
   }
 
-  startSection("Console");
-  const real = errors.filter(
-    (e) => !/favicon|Download the React DevTools|webpack-hmr|WebSocket/i.test(e)
+  // ── The journey now has a stage control at all ───────────────────────────
+  startSection("Spec page 3 — a screen that advances the journey");
+
+  await page.waitForSelector("text=Advance to Contacted", { timeout: 20000 });
+  ok("the journey has an Advance control (there was no such screen before)");
+
+  // At New Lead there is nothing behind it, so "Move back" must not be offered.
+  expect(
+    (await page.getByRole("button", { name: "Move back" }).count()) === 0,
+    "no Move back button at the first stage",
+    "a backwards move from New Lead is meaningless"
   );
-  expect(real.length === 0, "no console errors", real.slice(0, 3).join(" | "));
+
+  // A brand-new journey cannot advance. The refusal must land on screen and
+  // STAY there — it is a list of work to do, not a notification.
+  await page.getByRole("button", { name: /Advance to Contacted/ }).click();
+  await page.waitForSelector("text=/Cannot advance yet/", { timeout: 20000 });
+  ok("clicking Advance renders the gate's refusal inline");
+
+  const blockerCount = await page.locator("text=/Cannot advance yet — \\d+ outstanding/").count();
+  expect(blockerCount >= 1, "the refusal states how many items are outstanding");
+
+  await page.waitForTimeout(2500);
+  expect(
+    (await page.locator("text=/Cannot advance yet/").count()) >= 1,
+    "the refusal persists rather than disappearing like a toast"
+  );
+
+  // The journey must NOT have moved.
+  const stillNew = await db.institutionInterest.findUnique({ where: { id: interest.id } });
+  expect(stillNew?.stage === "NEW_LEAD", "the refused journey did not move", `stage=${stillNew?.stage}`);
+
+  // SUPER_ADMIN holds the override capability, so the escape hatch is offered.
+  expect(
+    (await page.getByRole("button", { name: /Override with a reason/ }).count()) === 1,
+    "an override is offered to a holder of the capability"
+  );
+
+  await page.getByRole("button", { name: /Override with a reason/ }).click();
+  await page.waitForSelector("text=/Force this journey to/", { timeout: 10000 });
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", { name: "Override and move" });
+  expect(await confirm.isDisabled(), "Override is disabled before a reason is written");
+  await dialog.getByRole("textbox").first().fill("Offer already confirmed by the institution by phone");
+  await page.waitForTimeout(300);
+  expect(!(await confirm.isDisabled()), "Override enables once a reason is written");
+
+  await confirm.click();
+  await page.waitForTimeout(3000);
+  const moved = await db.institutionInterest.findUnique({ where: { id: interest.id } });
+  expect(moved?.stage === "CONTACTED", "the override moved the journey", `stage=${moved?.stage}`);
+
+  // The override must be on the record, not just in the response.
+  const overrideRow = await db.leadActivity.findFirst({
+    where: { institutionInterestId: interest.id, type: "STAGE_CHANGE_OVERRIDE" },
+  });
+  expect(!!overrideRow, "the override wrote an audit activity against the journey");
+  expect(
+    overrideRow?.description?.includes("gate overridden"),
+    "the recorded reason is on the activity",
+    String(overrideRow?.description).slice(0, 120)
+  );
+
+  startSection("Console");
+  // The 422 is provoked on purpose: the stage-control section above clicks
+  // Advance on a journey that cannot advance, and the browser logs every
+  // non-2xx fetch as a console error. Excluded by exact status rather than by
+  // ignoring all 4xx, so a genuine 400 or 403 would still fail this.
+  const EXPECTED_422 = /status of 422 \(Unprocessable Entity\)/i;
+  const real = errors.filter(
+    (e) =>
+      !/favicon|Download the React DevTools|webpack-hmr|WebSocket/i.test(e) &&
+      !EXPECTED_422.test(e)
+  );
+  expect(real.length === 0, "no unexpected console errors", real.slice(0, 3).join(" | "));
+  expect(
+    errors.some((e) => EXPECTED_422.test(e)),
+    "the deliberately refused advance did reach the server (422 observed)"
+  );
 
   await browser.close();
 } finally {
