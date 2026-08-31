@@ -115,6 +115,17 @@ export async function loadLeadForGate(id: string) {
       },
       applications: { where: { isActive: true }, take: 1 },
       checklistItems: { select: { category: true } },
+      /**
+       * Spec §5 requires at least one journey before Qualified, and spec §6
+       * puts the eligibility outcome on the journey rather than the person.
+       * Both rules are evaluated on this path too, so the journeys have to be
+       * loaded here — open ones only, since a closed journey is neither a live
+       * interest nor a current eligibility answer.
+       */
+      institutionInterests: {
+        where: { closedAt: null },
+        select: { eligibilityOutcome: true },
+      },
     },
   });
 }

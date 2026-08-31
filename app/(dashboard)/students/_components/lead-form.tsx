@@ -27,7 +27,13 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
-import { BUDGET_RANGES, ENGLISH_STATUSES, STUDY_LEVELS, MONTHS } from "@/lib/lead-options";
+import {
+  BUDGET_RANGES,
+  COUNSELLING_OUTCOMES,
+  ENGLISH_STATUSES,
+  STUDY_LEVELS,
+  MONTHS,
+} from "@/lib/lead-options";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +73,7 @@ const leadSchema = z.object({
   budgetRange: z.string().optional(),
   currentQualification: z.string().optional(),
   counsellingOutcome: z.string().optional(),
+  counsellingOutcomeEnum: z.string().optional(),
   academicQualification: z.string().optional(),
   englishStatus: z.string().optional(),
   enrolmentDate: z.string().optional(),
@@ -298,6 +305,7 @@ export function LeadForm({
       budgetRange: lead?.budgetRange ?? undefined,
       currentQualification: lead?.currentQualification ?? "",
       counsellingOutcome: lead?.counsellingOutcome ?? "",
+      counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
       academicQualification: lead?.academicQualification ?? "",
       englishStatus: lead?.englishStatus ?? undefined,
       enrolmentDate: lead?.enrolmentDate
@@ -330,6 +338,7 @@ export function LeadForm({
         budgetRange: lead?.budgetRange ?? undefined,
         currentQualification: lead?.currentQualification ?? "",
         counsellingOutcome: lead?.counsellingOutcome ?? "",
+      counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
         academicQualification: lead?.academicQualification ?? "",
         englishStatus: lead?.englishStatus ?? undefined,
         enrolmentDate: lead?.enrolmentDate
@@ -374,6 +383,7 @@ export function LeadForm({
         preferredCountry: orNull(values.preferredCountry),
         currentQualification: orNull(values.currentQualification),
         counsellingOutcome: orNull(values.counsellingOutcome),
+        counsellingOutcomeEnum: orUndefined(values.counsellingOutcomeEnum),
         academicQualification: orNull(values.academicQualification),
         budgetRange: orUndefined(values.budgetRange),
         englishStatus: orUndefined(values.englishStatus),
@@ -687,8 +697,30 @@ export function LeadForm({
                 <Input type="date" {...register("enrolmentDate")} />
               </FormField>
 
+              {/* Spec §5. The free-text box below stays — "how did the call go"
+                  still needs colour — but progression past Contacted now turns
+                  on this categorical answer, so it cannot be left to prose.
+                  "none" rather than "" as the cleared sentinel: Radix reserves
+                  the empty string and throws when it is used as an item value. */}
+              <FormField label="Counselling Outcome">
+                <Select
+                  value={watch("counsellingOutcomeEnum") ?? "none"}
+                  onValueChange={(v) =>
+                    setValue("counsellingOutcomeEnum", v === "none" ? undefined : v)
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not recorded</SelectItem>
+                    {COUNSELLING_OUTCOMES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
               <div className="sm:col-span-2">
-                <FormField label="Counselling Outcome">
+                <FormField label="Counselling Notes">
                   <Textarea
                     rows={2}
                     {...register("counsellingOutcome")}

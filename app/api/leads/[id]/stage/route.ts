@@ -6,7 +6,7 @@ import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS, CLOSED_STAGES } from "@/lib/lead-pipeline";
-import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
+import { evaluateStageGate, canOverrideGate, bestEligibilityOutcome } from "@/lib/lead-gate";
 import { canAccessLead, institutionIdsForUser, loadLeadForGate } from "@/lib/lead-access";
 import { CHECKLIST_TRIGGERS, resolveChecklist } from "@/lib/lead-checklists";
 import { sendLeadStageChangeEmail } from "@/lib/email";
@@ -89,10 +89,23 @@ export async function PATCH(
     }
 
     // ── The gate ────────────────────────────────────────────────────────
-    const gate = evaluateStageGate(lead, newStage, lead.activities, {
-      application: lead.applications[0] ?? null,
-      checklist: lead.checklistItems,
-    });
+    // Two of the rules belong to the journey rather than the person, so they are
+    // derived from the student's open interests before evaluating: spec §5 wants
+    // at least one journey to exist, and spec §6 puts the eligibility outcome on
+    // the journey.
+    const gate = evaluateStageGate(
+      {
+        ...lead,
+        hasInstitutionInterest: lead.institutionInterests.length > 0,
+        eligibilityOutcome: bestEligibilityOutcome(lead.institutionInterests),
+      },
+      newStage,
+      lead.activities,
+      {
+        application: lead.applications[0] ?? null,
+        checklist: lead.checklistItems,
+      }
+    );
 
     let overrodeGate = false;
     if (!gate.canProgress) {

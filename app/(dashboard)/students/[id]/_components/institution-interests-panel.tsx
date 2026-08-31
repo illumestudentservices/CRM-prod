@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { ELIGIBILITY_OUTCOMES, ENROLMENT_STATUSES } from "@/lib/lead-options";
 
 interface Interest {
   id: string;
@@ -14,6 +15,8 @@ interface Interest {
   studyLevel: string;
   stage: string;
   eligibilityOutcome: string | null;
+  /** Spec §11 — recorded once the journey reaches Enrolled. */
+  enrolmentStatus: string | null;
   assignedICRId: string | null;
   assignedICR: { id: string; name: string | null } | null;
   closedAt: string | null;
@@ -88,6 +91,7 @@ export function InstitutionInterestsPanel({
       institution: institutions.find(i => i.id === created.institutionId) ?? { id: created.institutionId, name: "?", country: "?" },
       assignedICR: null,
       eligibilityOutcome: null,
+      enrolmentStatus: null,
       closedAt: null,
       lostReason: null,
     }, ...prev]);
@@ -116,6 +120,27 @@ export function InstitutionInterestsPanel({
     // refresh local list
     const r = await fetch(`/api/institution-interests?leadId=${leadId}&onlyOpen=false`);
     if (r.ok) setInterests((await r.json()).data);
+  }
+
+  /**
+   * Saves one field on an interest and reflects it locally.
+   *
+   * The route treats "" as "no change", so clearing a value is deliberately not
+   * offered — an eligibility assessment is not something you un-record.
+   */
+  async function patchInterest(id: string, patch: Record<string, unknown>) {
+    const resp = await fetch(`/api/institution-interests/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      alert(j?.error ?? `HTTP ${resp.status}`);
+      return;
+    }
+    setInterests(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+    startTransition(() => router.refresh());
   }
 
   async function reopen(id: string) {
@@ -171,6 +196,44 @@ export function InstitutionInterestsPanel({
               )}
             </div>
           </div>
+
+          {/* Spec §6 and §11. Both columns existed and neither had any control:
+              the eligibility outcome was rendered above but could not be set,
+              which made Stage 3's assessment — the whole point of Qualified —
+              unrecordable, and the enrolment status was written by nothing at
+              all. Progression past Qualified now turns on the first of these. */}
+          {!i.closedAt && (
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="text-xs">
+                <span className="block text-muted-foreground mb-0.5">Eligibility outcome</span>
+                <select
+                  value={i.eligibilityOutcome ?? ""}
+                  onChange={e => patchInterest(i.id, { eligibilityOutcome: e.target.value })}
+                  className="w-full border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                >
+                  <option value="">Not assessed</option>
+                  {ELIGIBILITY_OUTCOMES.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+              {i.stage === "ENROLLED" && (
+                <label className="text-xs">
+                  <span className="block text-muted-foreground mb-0.5">Enrolment status</span>
+                  <select
+                    value={i.enrolmentStatus ?? ""}
+                    onChange={e => patchInterest(i.id, { enrolmentStatus: e.target.value })}
+                    className="w-full border rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
+                  >
+                    <option value="">Not recorded</option>
+                    {ENROLMENT_STATUSES.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
           {/* Per-interest attachments — LOR for this institution, offer letter, etc. */}
           <div className="mt-2">
             <AttachmentsPanel parentType="INSTITUTION_INTEREST" parentId={i.id} compact readOnly={!!i.closedAt} />

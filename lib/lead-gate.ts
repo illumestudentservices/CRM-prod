@@ -4,6 +4,15 @@ import type {
   LeadActivityKind,
 } from "@prisma/client";
 import { PIPELINE_STAGES, CLOSED_STAGES, STAGE_LABELS, stageIndex } from "./lead-pipeline";
+import {
+  PROGRESSING_STUDENT_DECISIONS,
+  SETTLED_DEPOSIT_STATUSES,
+} from "./application-options";
+import {
+  ELIGIBILITY_RANK,
+  PROGRESSING_COUNSELLING_OUTCOMES,
+  PROGRESSING_ELIGIBILITY_OUTCOMES,
+} from "./lead-options";
 import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
 
@@ -69,10 +78,48 @@ export interface GateLead {
   budgetRange?: string | null;
   currentQualification?: string | null;
   counsellingOutcome?: string | null;
+  /** Spec §5 — the categorical outcome the Contacted gate now tests. */
+  counsellingOutcomeEnum?: string | null;
   institutionId?: string | null;
   academicQualification?: string | null;
   englishStatus?: string | null;
+  studyLevel?: string | null;
   enrolmentDate?: Date | string | null;
+  /**
+   * Spec §6. Owned by the Institution Interest; on the Student Profile path it
+   * is derived from the student's open journeys by `bestEligibilityOutcome`.
+   */
+  eligibilityOutcome?: string | null;
+  /**
+   * Spec §5 — "at least one Institution Interest has been created". Supplied by
+   * the caller, which is the only place that knows the student's journeys.
+   */
+  hasInstitutionInterest?: boolean | null;
+}
+
+/**
+ * The most favourable eligibility outcome across a student's open journeys.
+ *
+ * The Student Profile has no eligibility column of its own — eligibility is
+ * assessed per institution, which is the whole point of the split. But the
+ * Profile's stage mirrors the most advanced open journey, so the gate on that
+ * path needs an answer too. A student counts as eligible if any live journey
+ * says they are; returns null when no journey has been assessed.
+ */
+export function bestEligibilityOutcome(
+  interests: { eligibilityOutcome?: string | null }[]
+): string | null {
+  let best: string | null = null;
+  let bestRank = Number.POSITIVE_INFINITY;
+  for (const i of interests) {
+    if (!i.eligibilityOutcome) continue;
+    const rank = (ELIGIBILITY_RANK as readonly string[]).indexOf(i.eligibilityOutcome);
+    if (rank >= 0 && rank < bestRank) {
+      bestRank = rank;
+      best = i.eligibilityOutcome;
+    }
+  }
+  return best;
 }
 
 export interface GateApplication {
@@ -86,6 +133,8 @@ export interface GateApplication {
   depositPaid?: boolean | null;
   depositDate?: Date | string | null;
   acceptanceStatus?: string | null;
+  /** Spec §10 — the categorical deposit lifecycle the boolean cannot express. */
+  depositStatus?: string | null;
 }
 
 export interface GateActivity {
@@ -105,20 +154,44 @@ export interface GateChecklistItem {
 
 type Source = "lead" | "application";
 
+/**
+ * Restricts a requirement to the cases where it genuinely applies.
+ *
+ * Receives the same record the requirement reads from. Needed because some
+ * fields are only meaningful given the value of another: a deposit date is
+ * required when the deposit was paid and meaningless when it was waived.
+ * Without this, "where applicable" could only be modelled as "always" or
+ * "never", and both are wrong.
+ */
+type Applies = (source: Record<string, unknown>) => boolean;
+
+type FieldReqBase = { label: string; source?: Source; when?: Applies };
+
 type FieldReq =
   /** A single value that must be present. */
-  | { kind: "field"; key: string; label: string; source?: Source }
+  | ({ kind: "field"; key: string } & FieldReqBase)
   /**
    * At least one of several. The spec says "Email or Phone" — one requirement
    * satisfied two ways, not two requirements.
    */
-  | { kind: "anyOf"; keys: string[]; label: string; source?: Source }
+  | ({ kind: "anyOf"; keys: string[] } & FieldReqBase)
   /**
    * Required unless explicitly marked not applicable. `naKey` names the boolean
    * that records that decision, so "deliberately N/A" stays distinguishable
    * from "nobody has filled this in".
    */
-  | { kind: "conditional"; key: string; label: string; naKey?: string; source?: Source };
+  | ({ kind: "conditional"; key: string; naKey?: string } & FieldReqBase)
+  /**
+   * Present AND one of a permitted set.
+   *
+   * The spec repeatedly makes progression conditional on a field's VALUE, not
+   * merely on its presence — "eligibility outcome is Eligible or Provisionally
+   * Eligible", "student decision supports progression", "deposit is Paid,
+   * Waived or Not Required". Modelled as `kind: "field"`, all three were
+   * satisfied by any value at all, so a student recorded as Declined could be
+   * advanced and a waived deposit could not.
+   */
+  | ({ kind: "enumIn"; key: string; allowed: readonly string[] } & FieldReqBase);
 
 interface StageConfig {
   requiredFields: FieldReq[];
@@ -172,7 +245,23 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
       { kind: "field", key: "budgetRange", label: "Budget range" },
       { kind: "field", key: "intakeYear", label: "Intended intake" },
       { kind: "field", key: "currentQualification", label: "Current qualification" },
-      { kind: "field", key: "counsellingOutcome", label: "Counselling outcome" },
+      // Spec §5: the outcome must SUPPORT progression. This was previously a
+      // presence check on the free-text `counsellingOutcome`, so any text at
+      // all satisfied it, while `counsellingOutcomeEnum` — added for exactly
+      // this rule — was read by nothing in the entire codebase.
+      {
+        kind: "enumIn",
+        key: "counsellingOutcomeEnum",
+        label: "Counselling outcome",
+        allowed: PROGRESSING_COUNSELLING_OUTCOMES,
+      },
+      // Spec §5: "at least one Institution Interest has been created".
+      // A boolean rather than a count, because `hasValue` treats 0 as present.
+      {
+        kind: "field",
+        key: "hasInstitutionInterest",
+        label: "At least one institution interest",
+      },
     ],
     requiredCompletedTypes: ["COUNSELLING"],
     allowedNext: ["QUALIFIED"],
@@ -184,6 +273,18 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
       { kind: "field", key: "interestedProgram", label: "Programme" },
       { kind: "field", key: "academicQualification", label: "Academic qualification" },
       { kind: "field", key: "englishStatus", label: "English status" },
+      { kind: "field", key: "studyLevel", label: "Study level" },
+      { kind: "field", key: "intakeYear", label: "Intake" },
+      // Spec §6: "Eligibility outcome is Eligible or Provisionally Eligible".
+      // The column lives on the Institution Interest; on the Student Profile
+      // path it is derived from the student's open journeys — see
+      // `bestEligibilityOutcome`.
+      {
+        kind: "enumIn",
+        key: "eligibilityOutcome",
+        label: "Eligibility outcome",
+        allowed: PROGRESSING_ELIGIBILITY_OUTCOMES,
+      },
     ],
     requiredCompletedTypes: ["ELIGIBILITY_REVIEW"],
     requiresChecklist: "DOCUMENT",
@@ -213,7 +314,17 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
   OFFER_RECEIVED: {
     requiredFields: [
       { kind: "field", key: "offerType", label: "Offer type", source: "application" },
-      { kind: "field", key: "studentDecision", label: "Student decision", source: "application" },
+      // Spec §9 "Offer date".
+      { kind: "field", key: "offerReceivedAt", label: "Offer date", source: "application" },
+      // Spec §9: the decision must SUPPORT progression, not merely exist.
+      // Declined and Undecided block; see PROGRESSING_STUDENT_DECISIONS.
+      {
+        kind: "enumIn",
+        key: "studentDecision",
+        label: "Student decision",
+        allowed: PROGRESSING_STUDENT_DECISIONS,
+        source: "application",
+      },
       // "(if applicable)" — dismissible, but only deliberately
       {
         kind: "conditional",
@@ -229,8 +340,25 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
 
   DEPOSIT_PAID: {
     requiredFields: [
-      { kind: "field", key: "depositPaid", label: "Deposit confirmed", source: "application" },
-      { kind: "field", key: "depositDate", label: "Deposit date", source: "application" },
+      // Spec §10: "Deposit is Paid, Waived or Not Required". This replaced a
+      // `depositPaid` boolean requirement, which could not express the last two
+      // — so an institution that waived the deposit left the student stuck one
+      // stage short of Enrolled with no field in which to say so.
+      {
+        kind: "enumIn",
+        key: "depositStatus",
+        label: "Deposit status",
+        allowed: SETTLED_DEPOSIT_STATUSES,
+        source: "application",
+      },
+      // Only meaningful when money actually moved. Spec: "where applicable".
+      {
+        kind: "field",
+        key: "depositDate",
+        label: "Deposit date",
+        source: "application",
+        when: (a) => a.depositStatus === "PAID" || a.depositStatus === "PARTIALLY_PAID",
+      },
       { kind: "field", key: "acceptanceStatus", label: "Acceptance status", source: "application" },
     ],
     requiredCompletedTypes: ["POST_OFFER_SUPPORT"],
@@ -323,6 +451,26 @@ function pick(
   return (req.source === "application" ? application : lead) as Record<string, unknown>;
 }
 
+/** ENUM_VALUE -> "Enum value", for blocker messages users have to act on. */
+function humanise(v: string): string {
+  const words = v.replace(/_/g, " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Fills in `depositStatus` for rows written before that column was used.
+ *
+ * Deposit state was a boolean for most of this system's life, and the gate now
+ * reads the categorical column. Without this, every application recorded before
+ * the change would read "deposit status is required" despite showing a paid
+ * deposit and a deposit date — a rule tightening that looks like data loss.
+ */
+function normaliseApplication(app: GateApplication | null): GateApplication | null {
+  if (!app) return null;
+  if (app.depositStatus) return app;
+  return { ...app, depositStatus: app.depositPaid ? "PAID" : null };
+}
+
 function toTime(v: Date | string | null | undefined): number | null {
   if (!v) return null;
   const d = typeof v === "string" ? new Date(v) : v;
@@ -347,7 +495,8 @@ export function evaluateStageGate(
     now?: Date;
   } = {}
 ): GateResult {
-  const { application = null, checklist = [], now = new Date() } = options;
+  const { application: rawApplication = null, checklist = [], now = new Date() } = options;
+  const application = normaliseApplication(rawApplication);
   const blockers: Blocker[] = [];
   const from = lead.stage;
   const config = STAGE_CONFIG[from];
@@ -381,6 +530,12 @@ export function evaluateStageGate(
   // ── Required fields ────────────────────────────────────────────────────
   const checkFields = (reqs: FieldReq[]) => {
     for (const req of reqs) {
+      // "Where applicable" — skip requirements whose precondition is unmet.
+      if (req.when) {
+        const src = pick(req, lead, application);
+        if (!src || !req.when(src)) continue;
+      }
+
       if (req.kind === "field") {
         const src = pick(req, lead, application);
         if (!src || !hasValue(src[req.key])) {
@@ -390,6 +545,20 @@ export function evaluateStageGate(
         const src = pick(req, lead, application);
         if (!src || !req.keys.some((k) => hasValue(src[k]))) {
           blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.keys[0] });
+        }
+      } else if (req.kind === "enumIn") {
+        const src = pick(req, lead, application);
+        const value = src?.[req.key];
+        if (!hasValue(value)) {
+          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.key });
+        } else if (!req.allowed.includes(String(value))) {
+          // Naming the offending value matters: "Student decision is required"
+          // is baffling when a decision is plainly recorded on screen.
+          blockers.push({
+            kind: "FIELD",
+            message: `${req.label} is "${humanise(String(value))}", which does not allow moving on.`,
+            field: req.key,
+          });
         }
       } else {
         const src = pick(req, lead, application);

@@ -9,6 +9,13 @@ import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { inRegion } from "@/lib/region-scope";
 import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
+import { COUNSELLING_OUTCOME_LABELS } from "@/lib/lead-options";
+
+/** Derived from the label map so the two lists cannot drift apart. */
+const COUNSELLING_OUTCOME_VALUES = Object.keys(COUNSELLING_OUTCOME_LABELS) as [
+  keyof typeof COUNSELLING_OUTCOME_LABELS,
+  ...(keyof typeof COUNSELLING_OUTCOME_LABELS)[]
+];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -47,6 +54,15 @@ const updateLeadSchema = z.object({
     .nullable(),
   currentQualification: z.string().min(1).optional().nullable(),
   counsellingOutcome: z.string().min(1).optional().nullable(),
+  /**
+   * Spec §5 — the categorical outcome the Contacted gate now tests. The column
+   * existed since the spec §5 work but was accepted by no route and written by
+   * nothing, so none of the seven outcomes could be recorded.
+   */
+  counsellingOutcomeEnum: z
+    .enum(COUNSELLING_OUTCOME_VALUES)
+    .optional()
+    .nullable(),
   academicQualification: z.string().min(1).optional().nullable(),
   englishStatus: z
     .enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"])

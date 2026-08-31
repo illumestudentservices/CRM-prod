@@ -6,6 +6,15 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { logActivity } from "@/lib/activity-logger";
+import {
+  ACCEPTANCE_STATUS_LABELS,
+  APPLICATION_STATUS_LABELS,
+  DEPOSIT_STATUS_LABELS,
+  OFFER_TYPE_LABELS,
+  STUDENT_DECISION_LABELS,
+  SUBMISSION_METHOD_LABELS,
+  enumValues,
+} from "@/lib/application-options";
 
 /**
  * Applications made on a student's behalf.
@@ -17,37 +26,54 @@ import { logActivity } from "@/lib/activity-logger";
  * Submitted and never leave it.
  */
 
+/**
+ * Every enum below is derived from the label maps in lib/application-options.ts
+ * rather than hand-listed here. Hand-listing is what made this route the
+ * narrowest of three disagreeing lists, silently refusing values the database
+ * and the specification both allow.
+ */
+const submissionMethodEnum = z.enum(enumValues(SUBMISSION_METHOD_LABELS));
+const offerTypeEnum = z.enum(enumValues(OFFER_TYPE_LABELS));
+const studentDecisionEnum = z.enum(enumValues(STUDENT_DECISION_LABELS));
+const acceptanceStatusEnum = z.enum(enumValues(ACCEPTANCE_STATUS_LABELS));
+const applicationStatusEnum = z.enum(enumValues(APPLICATION_STATUS_LABELS));
+const depositStatusEnum = z.enum(enumValues(DEPOSIT_STATUS_LABELS));
+
 const createSchema = z.object({
   institutionId: z.string().min(1),
   program: z.string().min(1).max(200),
   applicationNumber: z.string().max(100).optional(),
-  submissionMethod: z
-    .enum(["ONLINE_PORTAL", "EMAIL", "AGENT", "DIRECT", "OTHER"])
-    .optional(),
+  submissionMethod: submissionMethodEnum.optional(),
   submissionDate: z.string().datetime().optional(),
 });
 
 const updateSchema = z.object({
   applicationId: z.string().min(1),
   applicationNumber: z.string().max(100).optional().nullable(),
-  submissionMethod: z.enum(["ONLINE_PORTAL", "EMAIL", "AGENT", "DIRECT", "OTHER"]).optional().nullable(),
+  submissionMethod: submissionMethodEnum.optional().nullable(),
   submissionDate: z.string().datetime().optional().nullable(),
-  status: z
-    .enum(["SUBMITTED", "AWAITING_DECISION", "OFFER_RECEIVED", "ACCEPTED", "REJECTED", "WITHDRAWN"])
-    .optional(),
+  status: applicationStatusEnum.optional(),
   // Stage 6
-  offerType: z.enum(["UNCONDITIONAL", "CONDITIONAL", "SCHOLARSHIP", "REJECTED"]).optional().nullable(),
+  offerType: offerTypeEnum.optional().nullable(),
   offerReceivedAt: z.string().datetime().optional().nullable(),
   offerExpiryDate: z.string().datetime().optional().nullable(),
   offerConditions: z.string().max(2000).optional().nullable(),
-  studentDecision: z.enum(["ACCEPTED", "DECLINED", "UNDECIDED"]).optional().nullable(),
+  studentDecision: studentDecisionEnum.optional().nullable(),
   depositDeadline: z.string().datetime().optional().nullable(),
   /** Records that a deposit deadline genuinely doesn't apply, rather than being unfilled. */
   depositDeadlineNotApplicable: z.boolean().optional(),
   // Stage 7
   depositPaid: z.boolean().optional(),
   depositDate: z.string().datetime().optional().nullable(),
-  acceptanceStatus: z.enum(["ACCEPTED", "DEFERRED", "WITHDRAWN"]).optional().nullable(),
+  acceptanceStatus: acceptanceStatusEnum.optional().nullable(),
+  /**
+   * Spec §10 — the categorical deposit lifecycle. Absent from this schema
+   * until now, so all six of the specification's deposit statuses were
+   * unreachable and deposit state could only be expressed by the boolean.
+   */
+  depositStatus: depositStatusEnum.optional().nullable(),
+  depositAmount: z.number().nonnegative().max(1_000_000).optional().nullable(),
+  depositCurrency: z.string().min(3).max(3).optional().nullable(),
 });
 
 async function authorise(id: string) {
@@ -203,6 +229,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Recording an offer implies the date it arrived, if not given explicitly.
   if (rest.offerType && !rest.offerReceivedAt && !existing.offerReceivedAt) {
     data.offerReceivedAt = new Date();
+  }
+
+  // `depositStatus` and `depositPaid` describe the same thing at different
+  // resolutions, and plenty of readers still use the boolean. Deriving it here
+  // means the two can never disagree — recording a deposit as Waived must not
+  // leave `depositPaid` reading true from an earlier save.
+  if (rest.depositStatus !== undefined) {
+    data.depositPaid = rest.depositStatus === "PAID";
+  }
+
+  // Currency codes are compared and displayed, so store them one way.
+  if (typeof rest.depositCurrency === "string") {
+    data.depositCurrency = rest.depositCurrency.toUpperCase();
   }
 
   const application = await db.leadApplication.update({
