@@ -63,6 +63,18 @@ const updateLeadSchema = z.object({
     .enum(COUNSELLING_OUTCOME_VALUES)
     .optional()
     .nullable(),
+  /**
+   * Spec §1 — per-channel communication preferences (migration 037).
+   * Nullable so an answer can be withdrawn back to "never asked", the same
+   * three-valued treatment as marketingConsent.
+   */
+  phoneContactConsent: z.boolean().optional().nullable(),
+  smsContactConsent: z.boolean().optional().nullable(),
+  whatsappContactConsent: z.boolean().optional().nullable(),
+  /** Blanket override across every channel. Not three-valued — see the schema. */
+  doNotContact: z.boolean().optional(),
+  /** Spec §1 / §4 — marketing campaign attribution (migration 037). */
+  campaignId: z.string().min(1).optional().nullable(),
   academicQualification: z.string().min(1).optional().nullable(),
   englishStatus: z
     .enum(["IELTS", "TOEFL", "PTE", "DUOLINGO", "MOI", "NATIVE_SPEAKER", "NOT_TAKEN", "EXEMPT"])
@@ -266,9 +278,17 @@ export async function PATCH(
         ? { marketingConsentAt: updates.marketingConsent === null ? null : new Date() }
         : {};
 
+    // Same rule for the blanket do-not-contact instruction: the date is what
+    // makes it defensible, and lifting the instruction clears the date so a
+    // stale one cannot be read as a standing request.
+    const doNotContactStamp =
+      "doNotContact" in updates
+        ? { doNotContactAt: updates.doNotContact ? new Date() : null }
+        : {};
+
     const updatedLead = await db.lead.update({
       where: { id },
-      data: { ...updates, ...consentStamp },
+      data: { ...updates, ...consentStamp, ...doNotContactStamp },
       include: {
         region: { select: { id: true, name: true } },
         assignedICR: { select: { id: true, name: true, email: true } },

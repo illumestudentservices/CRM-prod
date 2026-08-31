@@ -102,6 +102,13 @@ const APP = {
   depositDate: past,
   depositStatus: "PAID",
   acceptanceStatus: "ACCEPTED",
+  // Migration 037 fields, populated so sections not under test stay green.
+  acceptanceDate: past,
+  status: "UNDER_REVIEW",
+  lastInstitutionUpdateAt: past,
+  expectedDecisionDate: future,
+  outstandingRequirement: null,
+  submissionEvidence: null,
 };
 
 const at = (stage, over = {}) => ({
@@ -364,6 +371,162 @@ section("§10 Deposit Paid → Enrolled: deposit status");
   );
 }
 
+// ─── Spec §7 — reference number OR evidence of submission ────────────────────
+section("§7 Application Submitted → Awaiting Decision: reference or evidence");
+
+{
+  const acts = [completed("FOLLOW_UP", "APPLICATION_SUBMITTED"), scheduled()];
+  const base = at("APPLICATION_SUBMITTED");
+  const app = { ...APP, applicationNumber: null, submissionEvidence: null };
+
+  const neither = evaluateStageGate(base, "AWAITING_DECISION", acts, { now, application: app });
+  check(
+    "neither reference nor evidence is refused",
+    !neither.canProgress && blocked(neither, "applicationNumber"),
+    messages(neither)
+  );
+
+  const withRef = evaluateStageGate(base, "AWAITING_DECISION", acts, {
+    now,
+    application: { ...app, applicationNumber: "APP-123" },
+  });
+  check("a reference number alone progresses", withRef.canProgress, messages(withRef));
+
+  // The whole point of migration 037: an application submitted by email, to an
+  // institution that issues no reference, could never leave this stage.
+  const withEvidence = evaluateStageGate(base, "AWAITING_DECISION", acts, {
+    now,
+    application: { ...app, submissionEvidence: "Confirmation email from admissions, 3 May" },
+  });
+  check("evidence alone progresses", withEvidence.canProgress, messages(withEvidence));
+}
+
+// ─── Spec §8 — Awaiting Decision required fields ─────────────────────────────
+section("§8 Awaiting Decision: the four required fields");
+
+{
+  const acts = [scheduled()];
+  const base = at("AWAITING_DECISION");
+  const good = {
+    ...APP,
+    status: "UNDER_REVIEW",
+    lastInstitutionUpdateAt: past,
+    expectedDecisionDate: future,
+    outstandingRequirement: null,
+  };
+
+  const ok0 = evaluateStageGate(base, "OFFER_RECEIVED", acts, { now, application: good });
+  check("a fully recorded application progresses", ok0.canProgress, messages(ok0));
+
+  // `status` defaults to SUBMITTED on every row, so a presence check would be
+  // vacuous. It must be one of the statuses spec §8 defines for this stage.
+  const ourStatus = evaluateStageGate(base, "OFFER_RECEIVED", acts, {
+    now,
+    application: { ...good, status: "SUBMITTED" },
+  });
+  check(
+    "our own status (SUBMITTED) does not satisfy the institution-side rule",
+    !ourStatus.canProgress && blocked(ourStatus, "status"),
+    messages(ourStatus)
+  );
+
+  for (const field of ["lastInstitutionUpdateAt", "expectedDecisionDate"]) {
+    const r = evaluateStageGate(base, "OFFER_RECEIVED", acts, {
+      now,
+      application: { ...good, [field]: null },
+    });
+    check(`missing ${field} is refused`, !r.canProgress && blocked(r, field), messages(r));
+  }
+
+  // "where applicable" — demanded only when the institution has actually asked.
+  const notAsked = evaluateStageGate(base, "OFFER_RECEIVED", acts, {
+    now,
+    application: { ...good, status: "ON_HOLD", outstandingRequirement: null },
+  });
+  check(
+    "outstanding requirement is NOT demanded when nothing was requested",
+    notAsked.canProgress,
+    messages(notAsked)
+  );
+
+  for (const status of ["ADDITIONAL_DOCUMENTS_REQUIRED", "INTERVIEW_REQUIRED"]) {
+    const r = evaluateStageGate(base, "OFFER_RECEIVED", acts, {
+      now,
+      application: { ...good, status, outstandingRequirement: null },
+    });
+    check(
+      `outstanding requirement IS demanded when status is ${status}`,
+      !r.canProgress && blocked(r, "outstandingRequirement"),
+      messages(r)
+    );
+  }
+
+  for (const status of [
+    "UNDER_REVIEW",
+    "ADDITIONAL_DOCUMENTS_REQUIRED",
+    "INTERVIEW_REQUIRED",
+    "ON_HOLD",
+    "DECISION_DELAYED",
+    "DECISION_RECEIVED",
+  ]) {
+    const r = evaluateStageGate(base, "OFFER_RECEIVED", acts, {
+      now,
+      application: { ...good, status, outstandingRequirement: "Transcript certified copy" },
+    });
+    check(`status ${status} is accepted by the gate`, r.canProgress, messages(r));
+  }
+}
+
+// ─── Spec §10 — acceptance date ──────────────────────────────────────────────
+section("§10 Deposit Paid → Enrolled: acceptance date");
+
+{
+  const acts = [
+    completed("POST_OFFER_SUPPORT", "DEPOSIT_PAID"),
+    completed("ENROLMENT_CONFIRMATION", "DEPOSIT_PAID"),
+    scheduled(),
+  ];
+  const base = at("DEPOSIT_PAID", { enrolmentDate: past });
+  const r = evaluateStageGate(base, "ENROLLED", acts, {
+    now,
+    application: { ...APP, acceptanceDate: null },
+  });
+  check(
+    "missing acceptance date is refused",
+    !r.canProgress && blocked(r, "acceptanceDate"),
+    messages(r)
+  );
+}
+
+// ─── Spec §10 — the arrival checklist exists ─────────────────────────────────
+section("§10 Arrival checklist");
+
+{
+  const { CHECKLIST_TRIGGERS, CHECKLIST_LABELS, resolveChecklist } = await import(
+    "../lib/lead-checklists.ts"
+  );
+  check(
+    "ARRIVAL is generated on entering Deposit Paid",
+    CHECKLIST_TRIGGERS.DEPOSIT_PAID.includes("ARRIVAL"),
+    JSON.stringify(CHECKLIST_TRIGGERS.DEPOSIT_PAID)
+  );
+  check("ARRIVAL has a label", typeof CHECKLIST_LABELS.ARRIVAL === "string");
+  const items = resolveChecklist("ARRIVAL", { destination: "Canada" });
+  check("ARRIVAL resolves to real items", items.length > 0, `${items.length} items`);
+  check(
+    "ARRIVAL has at least one mandatory item",
+    items.some((i) => i.isRequired),
+    JSON.stringify(items.map((i) => i.label))
+  );
+  check(
+    "all four spec §10 post-deposit workflows now exist",
+    ["VISA", "PRE_DEPARTURE", "ACCOMMODATION", "ARRIVAL"].every((c) =>
+      CHECKLIST_TRIGGERS.DEPOSIT_PAID.includes(c)
+    ),
+    JSON.stringify(CHECKLIST_TRIGGERS.DEPOSIT_PAID)
+  );
+}
+
 // ─── The headline: the interest path is gated at all ─────────────────────────
 section("Interest path: gate applies, and no stage skipping");
 
@@ -488,8 +651,8 @@ section("Config sanity");
     }
   }
   check(
-    "the three value-based rules from the spec are present",
-    enumIn.length === 4,
+    "every value-based rule from the spec is present",
+    enumIn.length === 5,
     `enumIn rules: ${enumIn.join(", ")}`
   );
 }

@@ -96,6 +96,27 @@ function normalise(country: string | null | undefined): string {
  * Items for one category, tailored to the student where we know enough to do so.
  * Returns them already ordered.
  */
+/**
+ * Spec §10 — the arrival checklist. Had no category at all until migration 037,
+ * so this workflow could not exist however the stage was reached.
+ *
+ * Kept destination-agnostic: everything here is what the STUDENT must do in the
+ * first days after landing, and it does not vary by country the way visa
+ * requirements do. Only the first two are mandatory; the rest are prompts an
+ * ICR ticks off, and marking them required would make every arrival look
+ * overdue.
+ */
+const ARRIVAL_ITEMS: ChecklistTemplateItem[] = [
+  { label: "Arrival confirmed with student", isRequired: true },
+  { label: "Enrolment / registration completed at institution", isRequired: true },
+  { label: "Biometric residence permit or study permit collected", isRequired: false },
+  { label: "Local bank account opened", isRequired: false },
+  { label: "Local SIM / phone number recorded", isRequired: false },
+  { label: "Accommodation move-in confirmed", isRequired: false },
+  { label: "Institution orientation attended", isRequired: false },
+  { label: "Emergency contact in country recorded", isRequired: false },
+];
+
 export function resolveChecklist(
   category: LeadChecklistCategory,
   ctx: { destination?: string | null; studyLevel?: StudyLevel | null } = {}
@@ -126,6 +147,9 @@ export function resolveChecklist(
       // Optional throughout — the spec marks accommodation tasks as optional.
       items = ACCOMMODATION_ITEMS;
       break;
+    case "ARRIVAL":
+      items = ARRIVAL_ITEMS;
+      break;
     default:
       items = [];
   }
@@ -136,7 +160,7 @@ export function resolveChecklist(
 /** Categories generated on entering a given stage. */
 export const CHECKLIST_TRIGGERS: Partial<Record<string, LeadChecklistCategory[]>> = {
   QUALIFIED: ["DOCUMENT"],
-  DEPOSIT_PAID: ["VISA", "PRE_DEPARTURE", "ACCOMMODATION"],
+  DEPOSIT_PAID: ["VISA", "PRE_DEPARTURE", "ACCOMMODATION", "ARRIVAL"],
 };
 
 export const CHECKLIST_LABELS: Record<LeadChecklistCategory, string> = {
@@ -144,4 +168,5 @@ export const CHECKLIST_LABELS: Record<LeadChecklistCategory, string> = {
   VISA: "Visa checklist",
   PRE_DEPARTURE: "Pre-departure checklist",
   ACCOMMODATION: "Accommodation",
+  ARRIVAL: "Arrival checklist",
 };

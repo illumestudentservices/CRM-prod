@@ -65,6 +65,14 @@ interface Application {
   depositDate: string | null;
   /** Spec §10 — the six deposit statuses the boolean below cannot express. */
   depositStatus: string | null;
+  /** Spec §10 — when the acceptance was recorded (migration 037). */
+  acceptanceDate: string | null;
+  /** Spec §8 Stage 5 (migration 037). */
+  lastInstitutionUpdateAt: string | null;
+  expectedDecisionDate: string | null;
+  outstandingRequirement: string | null;
+  /** Spec §7 — the alternative to a reference number (migration 037). */
+  submissionEvidence: string | null;
   depositAmount: number | null;
   depositCurrency: string | null;
   acceptanceStatus: string | null;
@@ -331,7 +339,74 @@ export function ApplicationPanel({
                 onChange={(v) => patch(active.id, { acceptanceStatus: v })}
               />
             </Field>
+            <Field label="Accepted on">
+              <Input
+                type="date"
+                className="h-8 text-xs"
+                defaultValue={dayValue(active.acceptanceDate)}
+                onBlur={(e) =>
+                  patch(active.id, { acceptanceDate: e.target.value ? iso(e.target.value) : null })
+                }
+              />
+            </Field>
+            {/* Spec §8 Stage 5. All three columns are new in migration 037;
+                before that the Awaiting Decision stage had nothing to ask for. */}
+            <Field label="Last institutional update">
+              <Input
+                type="date"
+                className="h-8 text-xs"
+                defaultValue={dayValue(active.lastInstitutionUpdateAt)}
+                onBlur={(e) =>
+                  patch(active.id, {
+                    lastInstitutionUpdateAt: e.target.value ? iso(e.target.value) : null,
+                  })
+                }
+              />
+            </Field>
+            <Field label="Expected decision">
+              <Input
+                type="date"
+                className="h-8 text-xs"
+                defaultValue={dayValue(active.expectedDecisionDate)}
+                onBlur={(e) =>
+                  patch(active.id, {
+                    expectedDecisionDate: e.target.value ? iso(e.target.value) : null,
+                  })
+                }
+              />
+            </Field>
           </div>
+
+          {/* Spec §8 — what the institution is waiting for. Required by the gate
+              only when the status says they have actually asked for something. */}
+          <Field label="Outstanding requirement">
+            <Textarea
+              rows={2}
+              className="text-xs"
+              placeholder="What is the institution waiting for?"
+              defaultValue={active.outstandingRequirement ?? ""}
+              onBlur={(e) =>
+                e.target.value !== (active.outstandingRequirement ?? "") &&
+                patch(active.id, { outstandingRequirement: e.target.value || null })
+              }
+            />
+          </Field>
+
+          {/* Spec §7 — the alternative to a reference number. An application
+              submitted by email, or to an institution that issues no reference,
+              could not previously leave this stage at all. */}
+          <Field label="Evidence of submission (if no reference number)">
+            <Textarea
+              rows={2}
+              className="text-xs"
+              placeholder="Confirmation email, portal screenshot reference, who confirmed and when"
+              defaultValue={active.submissionEvidence ?? ""}
+              onBlur={(e) =>
+                e.target.value !== (active.submissionEvidence ?? "") &&
+                patch(active.id, { submissionEvidence: e.target.value || null })
+              }
+            />
+          </Field>
 
           {/* Spec §9 "Conditions, where applicable" — full width, because
               conditions are prose and never fitted in a grid cell. */}

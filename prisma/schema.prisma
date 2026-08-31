@@ -126,6 +126,21 @@ enum ApplicationStatus {
   ACCEPTED
   REJECTED
   WITHDRAWN
+  /// Spec §8 "Application Statuses" (migration 037) — the INSTITUTION's
+  /// position on the application, which is what the specification asks for.
+  /// The six above describe OUR position and are kept because nothing in the
+  /// codebase branches on any of these values and removing an enum member
+  /// needs a full table rewrite.
+  ///
+  /// UNDER_REVIEW is its own member rather than a reuse of AWAITING_DECISION:
+  /// that one is a pipeline stage name, and conflating "the institution is
+  /// reviewing it" with "our stage" is the confusion this column resolves.
+  UNDER_REVIEW
+  ADDITIONAL_DOCUMENTS_REQUIRED
+  INTERVIEW_REQUIRED
+  ON_HOLD
+  DECISION_DELAYED
+  DECISION_RECEIVED
 }
 
 /// Result of the Qualified-stage eligibility check for an institution interest.
@@ -254,6 +269,9 @@ enum LeadChecklistCategory {
   VISA
   PRE_DEPARTURE
   ACCOMMODATION
+  /// Spec §10 names five post-deposit workflows; this one had no category at
+  /// all, so the arrival checklist could not exist (migration 037).
+  ARRIVAL
 }
 
 enum StudyLevel {
@@ -1242,6 +1260,27 @@ model Lead {
   /// and in what circumstances, so the flag alone is not a defensible record.
   marketingConsentAt DateTime?
 
+  /// Spec §1 — per-channel communication preferences (migration 037). Only
+  /// marketing EMAIL consent existed, while the spec asks for "consent and
+  /// communication preferences" as a set.
+  ///
+  /// All three are three-valued for the same reason as `marketingConsent`:
+  /// NULL means nobody asked, false means they were asked and said no.
+  phoneContactConsent    Boolean?
+  smsContactConsent      Boolean?
+  whatsappContactConsent Boolean?
+  /// A blanket override across every channel. Plain boolean, unlike the three
+  /// above, because its absence genuinely means "no such instruction was
+  /// given", which is the same thing as false.
+  doNotContact           Boolean   @default(false)
+  doNotContactAt         DateTime?
+
+  /// Spec §1 / §4 — marketing campaign attribution (migration 037). A Campaign
+  /// model already existed with nothing linking a student to one, so
+  /// `Campaign.leadsGenerated` was a hand-typed integer rather than a count.
+  campaignId         String?
+  campaign           Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
   /// Idempotency key for offline capture, generated on the device the moment a
   /// lead is written down and never reused.
   ///
@@ -1374,6 +1413,27 @@ model LeadApplication {
   /// Spec §10 — partial-payment support.
   depositAmount                Float?
   depositCurrency              String?
+  /// Spec §10 — WHEN the acceptance was recorded. `acceptanceStatus` said what
+  /// was decided with no record of when (migration 037).
+  acceptanceDate               DateTime?
+
+  // Stage 5 — Awaiting Decision (spec §8, migration 037). Until these existed
+  // the Awaiting Decision gate had an empty required-field list, and "notify
+  // the ICR when the expected decision date passes" had no date to compare to.
+  /// When the institution is expected to decide, where known.
+  expectedDecisionDate         DateTime?
+  /// Last time the institution told us anything about this application.
+  lastInstitutionUpdateAt      DateTime?
+  /// What the institution is waiting for, where applicable.
+  outstandingRequirement       String?           @db.Text
+
+  /// Spec §7 — the alternative to an application reference number. The spec
+  /// requires the reference "where available", with submission confirmation or
+  /// evidence where none exists; with nowhere to record evidence the gate had
+  /// to demand the reference unconditionally, which blocked any application
+  /// submitted by email or to an institution that issues no reference.
+  submissionEvidence           String?           @db.Text
+
   /// Spec §15 — Application-Rejected requires "Appeal possible: Yes/No".
   appealPossible               Boolean?
   rejectionDate                DateTime?
@@ -1522,8 +1582,22 @@ model LeadChecklistItem {
 
   createdAt DateTime @default(now())
 
-  /// Stops a double-advance generating the checklist twice.
-  @@unique([leadId, category, label])
+  /// UNIQUENESS IS NOT DECLARED HERE — it lives in migration 037 as two
+  /// PARTIAL unique indexes, which Prisma cannot express:
+  ///   ("leadId", "institutionInterestId", category, label) WHERE interest IS NOT NULL
+  ///   ("leadId", category, label)                          WHERE interest IS NULL
+  ///
+  /// It was `@@unique([leadId, category, label])` — per STUDENT — while this
+  /// model's own comments and spec §6 both describe programme-specific lists
+  /// belonging to one journey. A second interest reaching Qualified therefore
+  /// generated nothing, because createMany's skipDuplicates matched the first
+  /// interest's rows. A plain four-column unique would not fix it either:
+  /// Postgres treats NULLs as distinct, so student-level rows could duplicate
+  /// without limit.
+  ///
+  /// `createMany({ skipDuplicates: true })` still works — it emits
+  /// ON CONFLICT DO NOTHING, which honours any unique index including partial
+  /// ones. Do not re-add an @@unique here; it would recreate the old rule.
   @@index([leadId, category])
   @@map("lead_checklist_items")
 }
@@ -1655,6 +1729,10 @@ model Campaign {
 
   /// Field Ops activities linked to this campaign.
   activities Activity[] @relation("ActivityCampaign")
+  /// Spec §1 — students attributed to this campaign (migration 037).
+  /// `leadsGenerated` above is a hand-entered figure and is NOT derived
+  /// from this; the two can disagree.
+  leads      Lead[]
 
   @@index([status])
   @@index([name, city, country, startDate])

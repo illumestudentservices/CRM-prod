@@ -5,6 +5,8 @@ import type {
 } from "@prisma/client";
 import { PIPELINE_STAGES, CLOSED_STAGES, STAGE_LABELS, stageIndex } from "./lead-pipeline";
 import {
+  AWAITING_INSTITUTION_ACTION,
+  INSTITUTION_APPLICATION_STATUSES,
   PROGRESSING_STUDENT_DECISIONS,
   SETTLED_DEPOSIT_STATUSES,
 } from "./application-options";
@@ -135,6 +137,17 @@ export interface GateApplication {
   acceptanceStatus?: string | null;
   /** Spec §10 — the categorical deposit lifecycle the boolean cannot express. */
   depositStatus?: string | null;
+  /** Spec §9 "Offer date". */
+  offerReceivedAt?: Date | string | null;
+  /** Spec §10 — when the acceptance was recorded (migration 037). */
+  acceptanceDate?: Date | string | null;
+  /** Spec §8 Stage 5 required fields (migration 037). */
+  status?: string | null;
+  lastInstitutionUpdateAt?: Date | string | null;
+  expectedDecisionDate?: Date | string | null;
+  outstandingRequirement?: string | null;
+  /** Spec §7 — the alternative to a reference number (migration 037). */
+  submissionEvidence?: string | null;
 }
 
 export interface GateActivity {
@@ -293,7 +306,18 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
 
   APPLICATION_SUBMITTED: {
     requiredFields: [
-      { kind: "field", key: "applicationNumber", label: "Application number", source: "application" },
+      // Spec §7: the reference is required "where available", with submission
+      // confirmation or evidence as the alternative "where no reference number
+      // exists". This was an unconditional requirement on the reference alone,
+      // so an application submitted by email — or to an institution that issues
+      // no reference — could never leave this stage. `submissionEvidence`
+      // (migration 037) is the alternative the spec asks for.
+      {
+        kind: "anyOf",
+        keys: ["applicationNumber", "submissionEvidence"],
+        label: "Application reference, or evidence of submission",
+        source: "application",
+      },
       { kind: "field", key: "submissionDate", label: "Submission date", source: "application" },
       { kind: "field", key: "submissionMethod", label: "Submission method", source: "application" },
     ],
@@ -302,7 +326,43 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
   },
 
   AWAITING_DECISION: {
-    requiredFields: [],
+    // Spec §8's four required fields. This list was empty: three of the four
+    // columns did not exist until migration 037, so nothing could be asked for.
+    requiredFields: [
+      // "Current application status" — and it must be one of the statuses the
+      // spec defines for this stage, not merely present. A plain presence check
+      // would be vacuous, since `status` defaults to SUBMITTED on every row.
+      {
+        kind: "enumIn",
+        key: "status",
+        label: "Application status",
+        allowed: INSTITUTION_APPLICATION_STATUSES,
+        source: "application",
+      },
+      {
+        kind: "field",
+        key: "lastInstitutionUpdateAt",
+        label: "Last institutional update",
+        source: "application",
+      },
+      // "where known"
+      {
+        kind: "conditional",
+        key: "expectedDecisionDate",
+        label: "Expected decision date",
+        source: "application",
+      },
+      // "where applicable" — only when the institution has actually asked for
+      // something. Demanding it otherwise would be asking the ICR to invent one.
+      {
+        kind: "field",
+        key: "outstandingRequirement",
+        label: "Outstanding requirement",
+        source: "application",
+        when: (a) =>
+          (AWAITING_INSTITUTION_ACTION as readonly string[]).includes(String(a.status)),
+      },
+    ],
     requiredCompletedTypes: [],
     // System-monitored: the institution holds the next move, so there is no
     // task to complete — but the chase must still be booked.
@@ -360,6 +420,9 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
         when: (a) => a.depositStatus === "PAID" || a.depositStatus === "PARTIALLY_PAID",
       },
       { kind: "field", key: "acceptanceStatus", label: "Acceptance status", source: "application" },
+      // Spec §10 "Acceptance date" (migration 037). The status recorded what was
+      // decided with no record of when.
+      { kind: "field", key: "acceptanceDate", label: "Acceptance date", source: "application" },
     ],
     requiredCompletedTypes: ["POST_OFFER_SUPPORT"],
     allowedNext: ["ENROLLED"],

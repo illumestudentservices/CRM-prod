@@ -35,6 +35,19 @@ import {
   MONTHS,
 } from "@/lib/lead-options";
 
+/**
+ * Three-valued consent, both directions.
+ *
+ * NULL means nobody asked and false means they were asked and declined, and the
+ * form has to preserve that difference — sending `false` for an unanswered
+ * question records a refusal that never happened.
+ */
+const triState = (v: boolean | null | undefined): "" | "yes" | "no" =>
+  v === true ? "yes" : v === false ? "no" : "";
+
+const fromTriState = (v: "" | "yes" | "no" | undefined): boolean | undefined =>
+  !v ? undefined : v === "yes";
+
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const leadSchema = z.object({
@@ -63,6 +76,13 @@ const leadSchema = z.object({
   /// "" = not asked. Mapped to true/false/undefined on submit, never to a
   /// default — an unanswered question is not a refusal.
   marketingConsent: z.enum(["", "yes", "no"]).optional(),
+  /// Spec §1 — per-channel preferences. Same tri-state as above: "" is
+  /// "didn't ask", which is not a refusal.
+  phoneContactConsent: z.enum(["", "yes", "no"]).optional(),
+  smsContactConsent: z.enum(["", "yes", "no"]).optional(),
+  whatsappContactConsent: z.enum(["", "yes", "no"]).optional(),
+  /// Blanket override. A plain boolean — absent genuinely means no instruction.
+  doNotContact: z.boolean().optional(),
 
   // Pipeline capture. Optional here on purpose: the stage gate decides when
   // each one becomes mandatory, so requiring them at creation would block a
@@ -300,6 +320,10 @@ export function LeadForm({
       notes: lead?.notes ?? "",
       marketingConsent:
         lead?.marketingConsent === true ? "yes" : lead?.marketingConsent === false ? "no" : "",
+      phoneContactConsent: triState(lead?.phoneContactConsent),
+      smsContactConsent: triState(lead?.smsContactConsent),
+      whatsappContactConsent: triState(lead?.whatsappContactConsent),
+      doNotContact: lead?.doNotContact ?? false,
       intendedDestination: lead?.intendedDestination ?? "",
       preferredCountry: lead?.preferredCountry ?? "",
       budgetRange: lead?.budgetRange ?? undefined,
@@ -338,12 +362,23 @@ export function LeadForm({
         budgetRange: lead?.budgetRange ?? undefined,
         currentQualification: lead?.currentQualification ?? "",
         counsellingOutcome: lead?.counsellingOutcome ?? "",
-      counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
+        counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
         academicQualification: lead?.academicQualification ?? "",
         englishStatus: lead?.englishStatus ?? undefined,
         enrolmentDate: lead?.enrolmentDate
           ? new Date(lead.enrolmentDate).toISOString().slice(0, 10)
           : "",
+        // Every consent field must be reset with the rest of the form.
+        // `marketingConsent` was missing here, so opening student B after
+        // student A left A's answer on the buttons — and saving would have
+        // written it to B. On a CASL field that is a record of consent the
+        // student never gave.
+        marketingConsent:
+          lead?.marketingConsent === true ? "yes" : lead?.marketingConsent === false ? "no" : "",
+        phoneContactConsent: triState(lead?.phoneContactConsent),
+        smsContactConsent: triState(lead?.smsContactConsent),
+        whatsappContactConsent: triState(lead?.whatsappContactConsent),
+        doNotContact: lead?.doNotContact ?? false,
       });
       setIsDuplicateWarning(false);
     }
@@ -395,6 +430,11 @@ export function LeadForm({
         // NULL. Sending false would record a refusal that never happened.
         marketingConsent:
           !values.marketingConsent ? undefined : values.marketingConsent === "yes",
+        // Same rule for every other channel: unanswered stays unanswered.
+        phoneContactConsent: fromTriState(values.phoneContactConsent),
+        smsContactConsent: fromTriState(values.smsContactConsent),
+        whatsappContactConsent: fromTriState(values.whatsappContactConsent),
+        doNotContact: values.doNotContact === true,
       };
 
       const response = await fetch(url, {
@@ -846,6 +886,56 @@ export function LeadForm({
                   {o.label}
                 </button>
               ))}
+            </div>
+
+            {/* Spec §1 asks for communication preferenceS. Email consent alone
+                looked like coverage while the other channels sat unrecorded. */}
+            <div className="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800">
+              {([
+                { key: "phoneContactConsent", label: "Telephone calls" },
+                { key: "smsContactConsent", label: "SMS" },
+                { key: "whatsappContactConsent", label: "WhatsApp" },
+              ] as const).map((ch) => (
+                <div key={ch.key} className="flex items-center justify-between gap-3">
+                  <Label className="text-[11px] font-normal text-slate-600 dark:text-slate-400">
+                    {ch.label}
+                  </Label>
+                  <div className="flex gap-1.5">
+                    {([
+                      { v: "yes", label: "Yes" },
+                      { v: "no", label: "No" },
+                      { v: "", label: "Didn't ask" },
+                    ] as const).map((o) => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => setValue(ch.key, o.v)}
+                        className={cn(
+                          "px-2 py-1 rounded text-[11px] font-medium border transition-colors",
+                          (watch(ch.key) ?? "") === o.v
+                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <label className="flex items-start gap-2 pt-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={watch("doNotContact") === true}
+                  onChange={(e) => setValue("doNotContact", e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <span className="font-medium">Do not contact</span> — the student has asked
+                  us to stop entirely. Overrides every channel above, whatever they say.
+                </span>
+              </label>
             </div>
           </div>
 

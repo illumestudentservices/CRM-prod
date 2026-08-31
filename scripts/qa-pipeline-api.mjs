@@ -25,13 +25,13 @@ import {
   TAG,
 } from "./qa-lib.mjs";
 
-const created = { leads: [], interests: [], applications: [], institutions: [] };
+const created = { leads: [], interests: [], applications: [], institutions: [], campaigns: [] };
 let ctx = null;
 
 /** Row counts we must return to. */
 async function snapshot() {
   const out = {};
-  for (const m of ["lead", "institutionInterest", "leadApplication", "user", "institution"]) {
+  for (const m of ["lead", "institutionInterest", "leadApplication", "user", "institution", "campaign"]) {
     out[m] = await db[m].count();
   }
   return out;
@@ -292,6 +292,141 @@ async function main() {
     expect(r.ok && row?.status === v, `application status ${v} accepted`, `status ${r.status}, stored ${row?.status}`);
   }
 
+  // ── Migration 037 fields ────────────────────────────────────────────────
+  startSection("§8 institution-side application statuses (migration 037)");
+
+  for (const v of [
+    "UNDER_REVIEW",
+    "ADDITIONAL_DOCUMENTS_REQUIRED",
+    "INTERVIEW_REQUIRED",
+    "ON_HOLD",
+    "DECISION_DELAYED",
+    "DECISION_RECEIVED",
+  ]) {
+    const r = await patchApp({ status: v });
+    const row = await db.leadApplication.findUnique({ where: { id: appId } });
+    expect(r.ok && row?.status === v, `application status ${v} accepted`, `status ${r.status}, stored ${row?.status}`);
+  }
+
+  // Recording an institution-side status IS news from the institution, so the
+  // update date is stamped rather than asked for twice.
+  await db.leadApplication.update({ where: { id: appId }, data: { lastInstitutionUpdateAt: null } });
+  await patchApp({ status: "ON_HOLD" });
+  const stamped = await db.leadApplication.findUnique({ where: { id: appId } });
+  expect(
+    stamped?.lastInstitutionUpdateAt !== null,
+    "a status change stamps the last institutional update date",
+    `stored ${stamped?.lastInstitutionUpdateAt}`
+  );
+
+  startSection("§7/§8/§10 columns that did not exist before migration 037");
+
+  const newFields = await patchApp({
+    expectedDecisionDate: "2026-11-01T00:00:00.000Z",
+    lastInstitutionUpdateAt: "2026-09-15T00:00:00.000Z",
+    outstandingRequirement: "Certified copy of final transcript",
+    submissionEvidence: "Confirmation email from admissions, 3 May 2026",
+    acceptanceDate: "2026-10-02T00:00:00.000Z",
+  });
+  const nf = await db.leadApplication.findUnique({ where: { id: appId } });
+  expect(newFields.ok, "all five new application fields accepted", `status ${newFields.status}`);
+  expect(
+    nf?.expectedDecisionDate?.toISOString().startsWith("2026-11-01"),
+    "expectedDecisionDate saved as a date",
+    String(nf?.expectedDecisionDate)
+  );
+  expect(
+    nf?.lastInstitutionUpdateAt?.toISOString().startsWith("2026-09-15"),
+    "lastInstitutionUpdateAt saved as a date",
+    String(nf?.lastInstitutionUpdateAt)
+  );
+  expect(
+    nf?.acceptanceDate?.toISOString().startsWith("2026-10-02"),
+    "acceptanceDate saved as a date",
+    String(nf?.acceptanceDate)
+  );
+  expect(
+    nf?.outstandingRequirement?.includes("final transcript"),
+    "outstandingRequirement saved",
+    String(nf?.outstandingRequirement)
+  );
+  expect(
+    nf?.submissionEvidence?.includes("Confirmation email"),
+    "submissionEvidence saved — this is what unblocks an application with no reference",
+    String(nf?.submissionEvidence)
+  );
+
+  // Recording an acceptance status with no date implies the date.
+  await db.leadApplication.update({ where: { id: appId }, data: { acceptanceDate: null } });
+  await patchApp({ acceptanceStatus: "ACCEPTED" });
+  const accStamp = await db.leadApplication.findUnique({ where: { id: appId } });
+  expect(
+    accStamp?.acceptanceDate !== null,
+    "recording an acceptance stamps the acceptance date",
+    String(accStamp?.acceptanceDate)
+  );
+
+  startSection("§1 communication preferences and campaign attribution");
+
+  for (const field of ["phoneContactConsent", "smsContactConsent", "whatsappContactConsent"]) {
+    // All three are three-valued: true, false and "never asked" must be
+    // distinguishable, which is the whole point under CASL.
+    for (const value of [true, false, null]) {
+      const r = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, { [field]: value });
+      const row = await db.lead.findUnique({ where: { id: leadId } });
+      expect(
+        r.ok && row?.[field] === value,
+        `${field} = ${JSON.stringify(value)} saved`,
+        `status ${r.status}, stored ${JSON.stringify(row?.[field])}`
+      );
+    }
+  }
+
+  const dnc = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, { doNotContact: true });
+  const dncRow = await db.lead.findUnique({ where: { id: leadId } });
+  expect(dnc.ok && dncRow?.doNotContact === true, "doNotContact set", `stored ${dncRow?.doNotContact}`);
+  expect(
+    dncRow?.doNotContactAt !== null,
+    "setting doNotContact stamps the date, the way consent does",
+    String(dncRow?.doNotContactAt)
+  );
+
+  const lifted = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, { doNotContact: false });
+  const liftedRow = await db.lead.findUnique({ where: { id: leadId } });
+  expect(
+    lifted.ok && liftedRow?.doNotContactAt === null,
+    "lifting doNotContact clears the date, so a stale one cannot be read as standing",
+    String(liftedRow?.doNotContactAt)
+  );
+
+  // Campaign attribution — a Campaign existed with nothing linking a student.
+  const campaign = await db.campaign.create({
+    data: {
+      name: `${TAG} Test Campaign`,
+      channel: "EMAIL",
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      createdById: ctx.user.id,
+    },
+  });
+  created.campaigns.push(campaign.id);
+  const attributed = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, { campaignId: campaign.id });
+  const attrRow = await db.lead.findUnique({ where: { id: leadId } });
+  expect(
+    attributed.ok && attrRow?.campaignId === campaign.id,
+    "a student can be attributed to a campaign",
+    `status ${attributed.status}, stored ${attrRow?.campaignId}`
+  );
+
+  // ON DELETE SET NULL: removing a campaign must not remove students.
+  await db.campaign.delete({ where: { id: campaign.id } });
+  created.campaigns = created.campaigns.filter((c) => c !== campaign.id);
+  const afterDelete = await db.lead.findUnique({ where: { id: leadId } });
+  expect(
+    afterDelete !== null && afterDelete?.campaignId === null,
+    "deleting a campaign nulls the attribution and keeps the student",
+    `lead ${afterDelete ? "kept" : "DELETED"}, campaignId ${afterDelete?.campaignId}`
+  );
+
   // ── The backwards-reset bug ─────────────────────────────────────────────
   startSection("Adding a first journey no longer resets the student backwards");
 
@@ -356,6 +491,9 @@ async function main() {
   }
   for (const id of created.institutions) {
     await db.institution.deleteMany({ where: { id } });
+  }
+  for (const id of created.campaigns) {
+    await db.campaign.deleteMany({ where: { id } });
   }
   ok("fixtures removed");
 

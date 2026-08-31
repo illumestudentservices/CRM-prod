@@ -154,23 +154,63 @@ export const ACCEPTANCE_STATUS_OPTIONS = optionsOf(ACCEPTANCE_STATUS_LABELS);
 // ─── Application status (spec §8) ────────────────────────────────────────────
 
 /**
- * Spec §8 asks for six institution-side statuses: Under Review, Additional
- * Documents Required, Interview Required, On Hold, Decision Delayed and
- * Decision Received. Only the first and last have anything close to an
- * equivalent here; the enum below tracks OUR position in the process rather
- * than the institution's. Closing that gap needs a migration and is tracked
- * separately — do not paper over it by relabelling these.
+ * Spec §8's six institution-side statuses, added by migration 037, plus the six
+ * pre-existing members that describe OUR position in the process.
+ *
+ * Both sets live in one enum because the specification treats "current
+ * application status" as a single field and nothing in the codebase branches on
+ * any of these values. The older members are labelled "(our status)" so the two
+ * vocabularies are distinguishable on screen rather than silently mixed.
+ *
+ * `AWAITING_DECISION` is NOT relabelled "Under review" any more — that reading
+ * is what hid the gap. It is a pipeline stage name; `UNDER_REVIEW` is the
+ * institution actually reviewing the application, and they are different facts.
  */
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  SUBMITTED: "Submitted",
-  AWAITING_DECISION: "Under review",
-  OFFER_RECEIVED: "Decision received — offer",
-  ACCEPTED: "Accepted",
-  REJECTED: "Decision received — rejected",
-  WITHDRAWN: "Withdrawn",
+  // Spec §8 — the institution's position. Offer these first; they are what an
+  // ICR is recording when an institution comes back to them.
+  UNDER_REVIEW: "Under review",
+  ADDITIONAL_DOCUMENTS_REQUIRED: "Additional documents required",
+  INTERVIEW_REQUIRED: "Interview required",
+  ON_HOLD: "On hold",
+  DECISION_DELAYED: "Decision delayed",
+  DECISION_RECEIVED: "Decision received",
+  // Pre-existing — our own position.
+  SUBMITTED: "Submitted (our status)",
+  AWAITING_DECISION: "Awaiting decision (our status)",
+  OFFER_RECEIVED: "Offer received (our status)",
+  ACCEPTED: "Accepted (our status)",
+  REJECTED: "Rejected (our status)",
+  WITHDRAWN: "Withdrawn (our status)",
 };
 
 export const APPLICATION_STATUS_OPTIONS = optionsOf(APPLICATION_STATUS_LABELS);
+
+/**
+ * The six statuses spec §8 defines for an application under institutional
+ * review. The Awaiting Decision gate requires one of these rather than merely
+ * requiring `status` to be present — it defaults to SUBMITTED on every row, so
+ * a presence check would be satisfied by every application ever created.
+ */
+export const INSTITUTION_APPLICATION_STATUSES: ApplicationStatus[] = [
+  "UNDER_REVIEW",
+  "ADDITIONAL_DOCUMENTS_REQUIRED",
+  "INTERVIEW_REQUIRED",
+  "ON_HOLD",
+  "DECISION_DELAYED",
+  "DECISION_RECEIVED",
+];
+
+/**
+ * Statuses that mean the institution has asked for something.
+ *
+ * Spec §8 requires a task to be created when additional documents are needed,
+ * and lists the ICR's triggers for acting while an application is under review.
+ */
+export const AWAITING_INSTITUTION_ACTION: ApplicationStatus[] = [
+  "ADDITIONAL_DOCUMENTS_REQUIRED",
+  "INTERVIEW_REQUIRED",
+];
 
 /** Every member of a label map, as a tuple zod's `z.enum` will accept. */
 export function enumValues<T extends string>(labels: Record<T, string>): [T, ...T[]] {

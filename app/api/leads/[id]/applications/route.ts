@@ -74,6 +74,19 @@ const updateSchema = z.object({
   depositStatus: depositStatusEnum.optional().nullable(),
   depositAmount: z.number().nonnegative().max(1_000_000).optional().nullable(),
   depositCurrency: z.string().min(3).max(3).optional().nullable(),
+  /** Spec §10 — when the acceptance was recorded (migration 037). */
+  acceptanceDate: z.string().datetime().optional().nullable(),
+  // Spec §8 Stage 5 (migration 037). None of these existed, which is why the
+  // Awaiting Decision gate had nothing to ask for.
+  lastInstitutionUpdateAt: z.string().datetime().optional().nullable(),
+  expectedDecisionDate: z.string().datetime().optional().nullable(),
+  outstandingRequirement: z.string().max(2000).optional().nullable(),
+  /**
+   * Spec §7 — the alternative to an application reference. The gate accepts
+   * either this or `applicationNumber`, which is what lets an application
+   * submitted by email progress.
+   */
+  submissionEvidence: z.string().max(2000).optional().nullable(),
 });
 
 async function authorise(id: string) {
@@ -220,6 +233,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "offerExpiryDate",
     "depositDeadline",
     "depositDate",
+    "acceptanceDate",
+    "lastInstitutionUpdateAt",
+    "expectedDecisionDate",
   ] as const;
   const data: Record<string, unknown> = { ...rest };
   for (const k of dateKeys) {
@@ -229,6 +245,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Recording an offer implies the date it arrived, if not given explicitly.
   if (rest.offerType && !rest.offerReceivedAt && !existing.offerReceivedAt) {
     data.offerReceivedAt = new Date();
+  }
+
+  // Recording an acceptance implies the date it happened, if not given —
+  // mirrors the offer rule above, and spec §10 makes the date a required field.
+  if (rest.acceptanceStatus && !rest.acceptanceDate && !existing.acceptanceDate) {
+    data.acceptanceDate = new Date();
+  }
+
+  // Any institution-side status change IS news from the institution, so it
+  // stamps the update date unless one was given explicitly. Without this the
+  // gate would ask the user to record the same fact twice.
+  if (rest.status && !rest.lastInstitutionUpdateAt) {
+    data.lastInstitutionUpdateAt = new Date();
   }
 
   // `depositStatus` and `depositPaid` describe the same thing at different
