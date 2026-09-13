@@ -212,6 +212,25 @@ try {
     for (const b of bodies) console.log("\nPATCH:", b);
     await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
     await dump();
+  } else if (cmd === "set-eligibility") {
+    // The eligibility outcome lives on the JOURNEY, not the person — spec §6.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(3000);
+    let done = false;
+    for (const sel of await page.locator("select:visible").all()) {
+      const opts = await sel.locator("option").evaluateAll((os) =>
+        os.map((o) => ({ v: o.getAttribute("value"), t: o.textContent?.trim() }))
+      );
+      if (!opts.some((o) => /provisionally eligible|^eligible$/i.test(o.t ?? ""))) continue;
+      console.log("ELIGIBILITY OPTIONS:", JSON.stringify(opts.map((o) => o.t)));
+      const pick = opts.find((o) => /^eligible$/i.test(o.t ?? "")) ?? opts.find((o) => /provisionally/i.test(o.t ?? ""));
+      if (pick?.v) { await sel.selectOption(pick.v); console.log("SELECTED:", pick.t); done = true; }
+      break;
+    }
+    if (!done) console.log("NO ELIGIBILITY CONTROL FOUND ON THE PAGE");
+    await page.waitForTimeout(3500);
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
   } else if (cmd === "activity") {
     // activity <schedule|log> "<description>" [typeLabelRegex]
     const [mode, description, typeRe] = args;

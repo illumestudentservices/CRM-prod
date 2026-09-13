@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { bestEligibilityOutcome } from "@/lib/lead-gate";
 import type { Role } from "@/lib/permissions";
 import { inRegion } from "@/lib/region-scope";
 
@@ -102,8 +103,37 @@ export async function accessibleInterest(
 /**
  * Loads everything the stage gate needs in one round trip: the lead, its live
  * engagement activities, the active application, and the checklist.
+ *
+ * ⚠ TWO OF THE GATE'S INPUTS ARE DERIVED, NOT COLUMNS. Spec §5 wants at least
+ * one journey to exist, and spec §6 puts the eligibility outcome on the journey
+ * — so the gate reads `hasInstitutionInterest` (a boolean) and
+ * `eligibilityOutcome` (a single value), while the database holds an array of
+ * interests.
+ *
+ * They are derived HERE, once, because they used to be derived only inside
+ * `app/api/leads/[id]/stage/route.ts`. The student page called this function
+ * and handed the raw record straight to the gate, so both were undefined and
+ * its blocker panel told every student "at least one institution interest is
+ * required" and "eligibility outcome is required" — however many journeys they
+ * had, and even with one already marked Eligible.
+ *
+ * The moves themselves were never blocked; only the on-screen list was wrong,
+ * which is worse in its way, because the list is what people act on. Both were
+ * found on production, and the second only after the first had been fixed on
+ * its own — which is exactly why this now lives in one place rather than at
+ * each call site.
  */
 export async function loadLeadForGate(id: string) {
+  const lead = await loadLeadRow(id);
+  if (!lead) return null;
+  return {
+    ...lead,
+    hasInstitutionInterest: lead.institutionInterests.length > 0,
+    eligibilityOutcome: bestEligibilityOutcome(lead.institutionInterests),
+  };
+}
+
+async function loadLeadRow(id: string) {
   return db.lead.findFirst({
     where: { id, deletedAt: null },
     include: {
