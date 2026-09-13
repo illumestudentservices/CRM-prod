@@ -165,6 +165,23 @@ try {
     "the on-screen blocker list disagrees with the database"
   );
   ok("(the move itself was never blocked — the route computed the flag correctly)");
+
+  // The twin of the same bug, and the reason the derivation moved into
+  // loadLeadForGate: `eligibilityOutcome` is derived from the journeys too, and
+  // fixing only `hasInstitutionInterest` left this one still lying.
+  await db.institutionInterest.updateMany({
+    where: { leadId }, data: { eligibilityOutcome: "ELIGIBLE" },
+  });
+  await db.lead.update({ where: { id: leadId }, data: { stage: "QUALIFIED" } });
+
+  await page.goto(`${BROWSER_BASE}/students/${leadId}`, { waitUntil: "networkidle", timeout: 60000 });
+  await page.waitForTimeout(3500);
+  const body2 = await page.locator("body").innerText();
+  expect(
+    !/Eligibility outcome is required/i.test(body2),
+    "the panel no longer asks for an eligibility outcome the journey already has",
+    "the journey is ELIGIBLE in the database but the panel still demands it"
+  );
 } catch (e) {
   startSection("fatal");
   fail("suite threw", e?.stack ?? String(e));
