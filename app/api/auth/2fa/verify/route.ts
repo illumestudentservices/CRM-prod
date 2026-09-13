@@ -2,7 +2,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { totpVerify } from "@/lib/totp";
-import { verifyEmailOtp } from "@/lib/mfa";
+import {
+  verifyEmailOtp, checkMfaLock, recordMfaFailure, clearMfaFailures,
+} from "@/lib/mfa";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity-logger";
@@ -51,6 +53,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // ── Attempt ceiling, before any code is checked ──────────────────────────
+  //
+  // This route used to count nothing. Every factor below — authenticator code,
+  // emailed code, backup code — could be guessed as often as a script liked by
+  // anyone holding the password. Checked FIRST so a locked account costs an
+  // attacker a bcrypt comparison of nothing at all.
+  const lock = await checkMfaLock(session.user.id);
+  if (lock.locked) {
+    return NextResponse.json(
+      {
+        error: `Too many incorrect codes. Try again in ${Math.ceil(lock.retryAfterSeconds / 60)} minute(s).`,
+        lockedOut: true,
+        retryAfterSeconds: lock.retryAfterSeconds,
+      },
+      { status: 429, headers: { "Retry-After": String(lock.retryAfterSeconds) } }
+    );
+  }
+
   const cleanCode = code.replace(/\s/g, "");
 
   // Why the emailed code was refused, kept so the final message can be useful.
@@ -68,6 +88,7 @@ export async function POST(req: NextRequest) {
   if (user.mfaMethod === "EMAIL") {
     const result = await verifyEmailOtp(session.user.id, cleanCode);
     if (result.ok) {
+      await clearMfaFailures(session.user.id);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "email_otp" });
       return NextResponse.json({ success: true });
     }
@@ -82,6 +103,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
     }
     if (await totpVerify(user.twoFactorSecret, cleanCode)) {
+      await clearMfaFailures(session.user.id);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
       return NextResponse.json({ success: true });
     }
@@ -102,6 +124,7 @@ export async function POST(req: NextRequest) {
       where: { id: session.user.id },
       data: { twoFactorBackupCodes: remaining },
     });
+    await clearMfaFailures(session.user.id);
     void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, {
       method: "backup_code",
       codesRemaining: remaining.length,
@@ -109,10 +132,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, usedBackupCode: true, codesRemaining: remaining.length });
   }
 
-  // Nothing matched. The caller is already past the password, so naming the
-  // reason tells them nothing they could not work out by waiting — and saying
-  // "invalid" to someone holding a correct-but-expired code is how people end
-  // up locked out of their own account convinced the system is broken.
+  // Nothing matched. Counted ONCE here rather than at each factor above, so a
+  // single wrong entry is one strike and not two or three just because the
+  // route tried several things with it.
+  const afterFailure = await recordMfaFailure(session.user.id);
+  if (afterFailure.locked) {
+    return NextResponse.json(
+      {
+        error: `Too many incorrect codes. Try again in ${Math.ceil(afterFailure.retryAfterSeconds / 60)} minute(s).`,
+        lockedOut: true,
+        retryAfterSeconds: afterFailure.retryAfterSeconds,
+      },
+      { status: 429, headers: { "Retry-After": String(afterFailure.retryAfterSeconds) } }
+    );
+  }
+
+  // The caller is already past the password, so naming the reason tells them
+  // nothing they could not work out by waiting — and saying "invalid" to
+  // someone holding a correct-but-expired code is how people end up locked out
+  // of their own account convinced the system is broken.
   if (emailOtpFailure === "expired" || emailOtpFailure === "no_code") {
     return NextResponse.json(
       { error: "That code has expired. Request a new one.", expired: true },

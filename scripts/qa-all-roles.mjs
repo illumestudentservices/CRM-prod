@@ -73,7 +73,15 @@ async function signIn(page, acct, secret) {
   await page.waitForURL(/verify-2fa/, { timeout: 30000 });
   await page.locator('input[inputmode="numeric"]').fill(await totpGenerate(secret));
   await page.locator('button[type="submit"]').first().click();
-  await page.waitForURL((u) => !/verify-2fa|login/.test(u.pathname), { timeout: 30000 });
+  // 90s, not 30s. The happy path is ~15 seconds against a dev server whose
+  // database sits on the far side of an SSH tunnel, and about ten of those are
+  // the MfaUnlockOverlay animation between a correct code and the dashboard.
+  // 30s left barely 2x headroom and this step failed intermittently under load
+  // — measured at 11 of 12 on one branch and 3 of 3 on another with identical
+  // timings, i.e. a flaky test, not a broken login. Raised rather than
+  // shortening the animation, which is product behaviour and not the test's to
+  // change.
+  await page.waitForURL((u) => !/verify-2fa|login/.test(u.pathname), { timeout: 90000 });
 }
 
 async function sweepRole(browser, role, region) {

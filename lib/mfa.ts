@@ -196,6 +196,94 @@ export async function clearEmailOtp(userId: string): Promise<void> {
   });
 }
 
+// ── Attempt limiting, across every factor ──────────────────────────────────
+//
+// `/api/auth/2fa/verify` counted nothing at all before this. Migration 038 put
+// a ceiling on the emailed code; an authenticator code and a backup code could
+// still be guessed without limit by anyone holding the password. A six-digit
+// TOTP is a million possibilities and a backup code is eleven characters —
+// neither is much protection against a script allowed to try forever.
+//
+// This is the outer limit and applies to ALL methods. The emailed code keeps
+// its own tighter, per-code ceiling on top; that one burns the single code,
+// while this one pauses the account.
+
+/**
+ * Ten, not the password's five. A TOTP code rotates every 30 seconds, so a few
+ * misses is ordinary for someone whose phone clock has drifted — and being
+ * locked out of your own account for mistyping a rotating number is how people
+ * end up disabling MFA altogether.
+ */
+export const MFA_MAX_ATTEMPTS = 10;
+
+/**
+ * Fifteen minutes, not the password's thirty. Whoever is here already proved
+ * the password, so this is usually the real owner having a bad time; the point
+ * is to make guessing expensive, not to end someone's afternoon.
+ *
+ * A WINDOW, never permanent. A second factor that can be locked forever is a
+ * denial of service handed to anyone who knows the password.
+ */
+export const MFA_LOCKOUT_MS = 15 * 60 * 1000;
+
+export type MfaLockState = { locked: true; retryAfterSeconds: number } | { locked: false };
+
+/** Whether the account is currently inside a lockout window. */
+export async function checkMfaLock(userId: string, now = new Date()): Promise<MfaLockState> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { mfaLockedUntil: true },
+  });
+  if (!user?.mfaLockedUntil || user.mfaLockedUntil.getTime() <= now.getTime()) {
+    return { locked: false };
+  }
+  return {
+    locked: true,
+    retryAfterSeconds: Math.ceil((user.mfaLockedUntil.getTime() - now.getTime()) / 1000),
+  };
+}
+
+/**
+ * Counts one failed attempt and locks the account if that reaches the ceiling.
+ *
+ * Returns the resulting state so the caller can tell the user how long to wait
+ * instead of leaving them retrying into a wall.
+ */
+export async function recordMfaFailure(userId: string, now = new Date()): Promise<MfaLockState> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { mfaAttempts: true },
+  });
+  const attempts = (user?.mfaAttempts ?? 0) + 1;
+
+  if (attempts >= MFA_MAX_ATTEMPTS) {
+    const until = new Date(now.getTime() + MFA_LOCKOUT_MS);
+    // The counter resets at the same time as the lock is set, so that when the
+    // window expires the account starts clean rather than locking again on the
+    // very next mistake.
+    await db.user.update({
+      where: { id: userId },
+      data: { mfaAttempts: 0, mfaLockedUntil: until },
+    });
+    return { locked: true, retryAfterSeconds: Math.ceil(MFA_LOCKOUT_MS / 1000) };
+  }
+
+  await db.user.update({ where: { id: userId }, data: { mfaAttempts: attempts } });
+  return { locked: false };
+}
+
+/**
+ * Clears the counter and the lock. Called whenever ANY factor succeeds — a
+ * correct code is proof the person is who they say, whatever they mistyped on
+ * the way there.
+ */
+export async function clearMfaFailures(userId: string): Promise<void> {
+  await db.user.update({
+    where: { id: userId },
+    data: { mfaAttempts: 0, mfaLockedUntil: null },
+  });
+}
+
 /**
  * Masks an address for display on the pre-authentication verify screen.
  *
