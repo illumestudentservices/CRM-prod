@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
@@ -23,7 +23,13 @@ export default function Setup2FAPage() {
   const { toast } = useToast();
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
 
-  const [step, setStep] = useState<"intro" | "qr" | "done">("intro");
+  const [step, setStep] = useState<"intro" | "qr" | "email" | "done">("intro");
+  // Which second factor is being enrolled. The email path exists because an
+  // account that will not run an authenticator app previously had no way in at
+  // all: the admin switch refuses accounts that have not finished enrolment,
+  // and the only way to enrol was with an app.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
   const [loading, setLoading] = useState(false);
   const [secret, setSecret] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -49,6 +55,64 @@ export default function Setup2FAPage() {
         title: e instanceof Error ? e.message : "Failed to start setup",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Starts the email path: sends the first code to the account's own mailbox. */
+  async function startEmailSetup(isResend = false) {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/2fa/enroll-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (typeof data.retryAfterSeconds === "number") setResendIn(data.retryAfterSeconds);
+        throw new Error(data.error ?? "Could not send your code");
+      }
+      setSentTo(data.sentTo ?? null);
+      setResendIn(60);
+      setStep("email");
+      if (isResend) toast({ title: "A new code is on its way." });
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Could not send your code",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Confirms the emailed code and turns on two-factor without any app. */
+  async function confirmEmail() {
+    if (!code.trim()) return;
+    if (!currentPassword) {
+      toast({ title: "Enter your account password to confirm.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/2fa/enroll-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "confirm", code: code.trim(), currentPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Verification failed");
+      setBackupCodes(data.backupCodes ?? []);
+      setStep("done");
+      setCurrentPassword("");
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Verification failed",
+        variant: "destructive",
+      });
+      setCode("");
     } finally {
       setLoading(false);
     }
@@ -92,6 +156,13 @@ export default function Setup2FAPage() {
     await update({ twoFactorEnrolled: true });
     setWelcomeName(session?.user?.name ?? "there");
   }
+
+  // Resend countdown for the email path.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   function copyCodes() {
     navigator.clipboard.writeText(backupCodes.join("\n"));
@@ -155,6 +226,94 @@ export default function Setup2FAPage() {
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Begin setup
+          </button>
+
+          {/* The alternative, offered plainly but secondary. An app is the
+              stronger factor and stays the default; this is here so that
+              "I will not install an app" ends in a second factor rather than
+              in nothing at all. */}
+          <div className="pt-4 border-t border-white/10 space-y-2">
+            <p className="text-xs text-white/40">
+              Don&apos;t want to use an app? You can get your codes by email
+              instead. It is less secure than an app, because anyone who reaches
+              your mailbox could also reset your password.
+            </p>
+            <button
+              onClick={() => startEmailSetup()}
+              disabled={loading}
+              className="text-sm text-blue-400/80 hover:text-blue-300 underline underline-offset-2 disabled:opacity-50"
+            >
+              Email my codes instead
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Email path: enter the code we just sent ── */}
+      {step === "email" && (
+        <div className="space-y-5">
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-sm text-white/85 font-medium">Check your email</p>
+            <p className="text-xs text-white/40 mt-1">
+              We sent a 6-digit code to{" "}
+              <span className="text-white/60">{sentTo ?? "your inbox"}</span>. It
+              expires in 10 minutes.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-white/60">Code from your email</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={10}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="w-full rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 bg-white/5 border border-white/10 tracking-widest text-center font-mono text-base focus:outline-none focus:border-blue-500/60"
+            />
+            <button
+              type="button"
+              disabled={resendIn > 0 || loading}
+              onClick={() => startEmailSetup(true)}
+              className="text-xs text-blue-400/70 hover:text-blue-300 underline underline-offset-2 disabled:no-underline disabled:text-white/25"
+            >
+              {resendIn > 0 ? `Send a new code in ${resendIn}s` : "Send a new code"}
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-white/60">Your account password</label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full rounded-lg px-4 py-2.5 text-sm text-white placeholder-white/25 bg-white/5 border border-white/10 focus:outline-none focus:border-blue-500/60"
+            />
+            <p className="text-xs text-white/30">
+              Asked for so that a stolen browser session cannot turn on
+              two-factor for someone else.
+            </p>
+          </div>
+
+          <button
+            onClick={confirmEmail}
+            disabled={loading || !code.trim() || !currentPassword}
+            className="w-full py-2.5 px-4 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)" }}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Turn on two-factor
+          </button>
+
+          <button
+            onClick={() => { setStep("intro"); setCode(""); }}
+            className="w-full text-xs text-white/40 hover:text-white/60"
+          >
+            Use an authenticator app instead
           </button>
         </div>
       )}
