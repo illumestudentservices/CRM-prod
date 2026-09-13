@@ -102,3 +102,6 @@ shots/
 
 # Scratch output from QA runs (screenshots, dumps). Never source.
 tmp/
+
+# Python byte-code from scripts/ (e.g. make-favicon.py)
+__pycache__/
