@@ -16,6 +16,23 @@ export function formatDateTime(date: Date | string | null | undefined): string {
   return format(new Date(date), "dd MMM yyyy, HH:mm");
 }
 
+/**
+ * "3 minutes ago", and similar.
+ *
+ * ⚠ THE ELEMENT RENDERING THIS MUST CARRY `suppressHydrationWarning`.
+ *
+ * The answer depends on the clock, so the server computes it at one instant and
+ * the browser recomputes it at another. Cross a boundary in between — which for
+ * anything recent is close to guaranteed, "less than a minute ago" becoming
+ * "1 minute ago" — and the two strings differ. React treats that as a failed
+ * hydration and reports minified error #418.
+ *
+ * Observed on production on the student page, where every visit logged it,
+ * because the History panel renders activities created moments earlier.
+ *
+ * All five call sites are marked. Adding a sixth without the attribute puts the
+ * error straight back, so check the element before reaching for this.
+ */
 export function formatRelative(date: Date | string | null | undefined): string {
   if (!date) return "—";
   return formatDistanceToNow(new Date(date), { addSuffix: true });

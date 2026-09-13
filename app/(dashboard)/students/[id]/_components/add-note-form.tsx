@@ -160,7 +160,7 @@ export function AddNoteForm({ leadId, initialNotes, currentUser }: AddNoteFormPr
                     {note.author?.name ?? "Unknown"}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0" suppressHydrationWarning>
                   {formatRelative(note.createdAt)}
                 </span>
               </div>

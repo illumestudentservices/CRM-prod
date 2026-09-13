@@ -75,7 +75,7 @@ export function AnnouncementsFeed() {
                       )}
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">{ann.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5" suppressHydrationWarning>
                           {formatRelative(ann.publishedAt)}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">

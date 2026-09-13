@@ -86,7 +86,7 @@ export function Announcements({ isHR, userId }: { isHR: boolean; userId: string 
                     {!ann.isRead && <div className="w-2 h-2 rounded-full bg-[#0EA5E9] mt-1.5 shrink-0" />}
                     <div>
                       <p className="font-semibold text-sm">{ann.title}</p>
-                      <p className="text-xs text-muted-foreground">{formatRelative(ann.publishedAt)}</p>
+                      <p className="text-xs text-muted-foreground" suppressHydrationWarning>{formatRelative(ann.publishedAt)}</p>
                     </div>
                   </div>
                   {!ann.isRead && (

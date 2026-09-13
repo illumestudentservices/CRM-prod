@@ -203,7 +203,7 @@ export function RecycleBinClient({ retentionDays }: Props) {
                     <td className="p-2 text-xs text-muted-foreground">
                       {item.deletedBy?.name ?? item.deletedBy?.email ?? "—"}
                     </td>
-                    <td className="p-2 text-xs text-muted-foreground">
+                    <td className="p-2 text-xs text-muted-foreground" suppressHydrationWarning>
                       {formatRelative(item.deletedAt)}
                     </td>
                     <td className="p-2 text-xs">
