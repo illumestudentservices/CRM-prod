@@ -21,9 +21,25 @@ const stamp = Date.now().toString().slice(-6);
 let ctx;
 const made = { leads: [], partners: [] };
 
-/** Newest audit row for an entity, if any. */
-const rowFor = (entityId) =>
-  db.auditLog.findFirst({ where: { entityId }, orderBy: { createdAt: "desc" } });
+/**
+ * Newest audit row for an entity, waiting for it to appear.
+ *
+ * `logActivity` is deliberately fire-and-forget — an audit write must never
+ * delay or fail the request it describes — so the row lands a moment after the
+ * response. Reading once races it: this suite passed, then failed on the same
+ * code, which is the signature of that race rather than of a missing row.
+ */
+async function rowFor(entityId, where = {}, tries = 12) {
+  for (let i = 0; i < tries; i++) {
+    const row = await db.auditLog.findFirst({
+      where: { entityId, ...where },
+      orderBy: { createdAt: "desc" },
+    });
+    if (row) return row;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return null;
+}
 
 try {
   ctx = await createAndLogin({ role: "SUPER_ADMIN" });
@@ -86,6 +102,7 @@ try {
 
   const upd = await api(ctx.jar, "PATCH", `/api/sources/${partnerId}`, { city: "Mumbai" });
   expect(upd.status === 200, "partner updated", `status ${upd.status}`);
+  await rowFor(partnerId, { action: "UPDATE" });
   const uRows = await db.auditLog.count({ where: { entityId: partnerId } });
   expect(uRows >= 2, "the update added a second row", `only ${uRows} row(s) for this partner`);
 
@@ -95,10 +112,13 @@ try {
   const del = await api(ctx.jar, "DELETE", `/api/sources/${partnerId}`);
   expect(del.status === 200 || del.status === 204, "partner deleted", `status ${del.status}`);
 
-  const dRow = await db.auditLog.findFirst({
-    where: { entityId: partnerId, action: "DELETE" },
-    orderBy: { createdAt: "desc" },
-  });
+  // Pinned to the entity trashRecord uses. `/api/sources/[id]` ALSO logs its
+  // own DELETE — as "Source", with a full before-snapshot — so a bare
+  // action:"DELETE" lookup returns whichever of the two sorts first and the
+  // assertion below passes or fails at random. The two rows are complementary,
+  // not duplicates: the route keeps the old values, trashRecord names what was
+  // deleted and what it belonged to.
+  const dRow = await rowFor(partnerId, { action: "DELETE", entity: "RecruitmentPartner" });
   expect(
     !!dRow,
     "the deletion was recorded",

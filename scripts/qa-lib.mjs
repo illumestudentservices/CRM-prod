@@ -21,17 +21,15 @@ import crypto from "node:crypto";
  * The default is now localhost, and pointing at production takes a deliberate
  * ALLOW_PROD_QA opt-in.
  */
-const PROD_HOST_RE = /illumestudentservices\.(cloud|ca)|187\.124\.112\.151/i;
-
-export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-
-if (PROD_HOST_RE.test(BASE) && process.env.ALLOW_PROD_QA !== "yes-i-mean-it") {
-  throw new Error(
-    `Refusing to run the QA suite against production (${BASE}).\n` +
-    `These scripts create users and fixture data. Point BASE_URL at a dev server,\n` +
-    `or set ALLOW_PROD_QA=yes-i-mean-it if you genuinely intend to write to prod.`
-  );
-}
+// Moved to ./qa-base.mjs, and re-exported so nothing that imports this module
+// has to change. Five standalone scripts do NOT import qa-lib, and each carried
+// its own copy of this line defaulting to PRODUCTION — the guard only protected
+// the scripts that already had it. One definition now, shared by both.
+// Imported AND re-exported, not `export { BASE } from "./qa-base.mjs"` — a bare
+// re-export forwards the name to importers without creating a local binding,
+// and this module uses BASE itself a few lines below.
+import { BASE } from "./qa-base.mjs";
+export { BASE };
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = new PrismaClient({ adapter: new PrismaPg(pool) });

@@ -13,7 +13,7 @@
  */
 
 import {
-  db, TAG, api, idOf, createAndLogin, destroyUser,
+  BASE, db, TAG, api, idOf, createAndLogin, destroyUser,
   startSection, ok, fail, expect, summary,
 } from "./qa-lib.mjs";
 
@@ -414,7 +414,7 @@ async function main() {
         const content = `${TAG} attachment payload`;
         fd.append("file", new Blob([content], { type: "text/plain" }), `${TAG}.txt`);
         const res = await fetch(
-          `${process.env.BASE_URL ?? "https://illumestudentservices.cloud"}/api/attachments?parentType=LEAD&parentId=${lead.id}`,
+          `${BASE}/api/attachments?parentType=LEAD&parentId=${lead.id}`,
           { method: "POST", headers: { Cookie: jar.header() }, body: fd }
         );
         if (expect(res.ok, "POST attachment → 2xx", `got ${res.status}`)) {

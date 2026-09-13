@@ -20,7 +20,7 @@ import bcrypt from "bcryptjs";
 import { generateSecret, generate as totpGenerate } from "otplib";
 import crypto from "node:crypto";
 
-const BASE = process.env.BASE_URL ?? "https://illumestudentservices.cloud";
+import { BASE } from "./qa-base.mjs";
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter: new PrismaPg(pool) });
 
