@@ -380,6 +380,63 @@ try {
     await page.waitForTimeout(4000);
     await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
     await dump();
+  } else if (cmd === "pp") {
+    // pp '{"Eligibility outcome":"Eligible","Application number":"APP-1"}'
+    //
+    // Drives the "Pipeline progress" section on the edit form — the whole point
+    // of which is that these fields no longer need three separate screens. Sets
+    // them all in ONE dialog open, which is what a person would do.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(2500);
+    await page.getByRole("button", { name: /edit lead/i }).first().click();
+    await page.waitForTimeout(2200);
+
+    const toggle = page.getByRole("button", { name: /pipeline progress/i }).first();
+    if (!(await toggle.isVisible().catch(() => false))) {
+      console.log("NO 'Pipeline progress' SECTION ON THE EDIT FORM");
+    } else {
+      await toggle.click();
+      await page.waitForTimeout(3500);
+      const d = page.locator('[role="dialog"]').first();
+
+      for (const [label, value] of Object.entries(JSON.parse(args[0]))) {
+        // Each control sits under its own <Label>; find the wrapper by label
+        // text and act on whatever control is inside it.
+        // `has-text`, not `text-is`: the eligibility label carries the
+        // institution name after it ("Eligibility outcome — Acadia University"),
+        // so an exact match finds nothing.
+        const group = d
+          .locator("div")
+          .filter({ has: page.locator(`label:has-text("${label}")`) })
+          .last();
+        if (!(await group.count())) { console.log(`  MISS: no field labelled "${label}"`); continue; }
+
+        const sel = group.locator("select").first();
+        if (await sel.count()) {
+          const opts = await sel.locator("option").evaluateAll((os) =>
+            os.map((o) => ({ v: o.getAttribute("value"), t: o.textContent?.trim() }))
+          );
+          const hit = opts.find((o) => o.v && new RegExp(`^${value}$`, "i").test(o.t ?? ""))
+            ?? opts.find((o) => o.v && new RegExp(String(value), "i").test(o.t ?? ""));
+          if (!hit) { console.log(`  MISS: "${label}" has no option like "${value}" (${opts.map((o) => o.t).join(", ")})`); continue; }
+          await sel.selectOption(hit.v);
+          console.log(`  set ${label} = ${hit.t}`);
+        } else {
+          const inp = group.locator("input").first();
+          if (!(await inp.count())) { console.log(`  MISS: "${label}" has no input`); continue; }
+          await inp.fill(String(value));
+          await inp.blur();
+          console.log(`  set ${label} = ${value}`);
+        }
+        // Each field saves on its own request; let it land before the next.
+        await page.waitForTimeout(1600);
+      }
+      await page.waitForTimeout(1500);
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(1500);
+    }
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
   } else if (cmd === "activity") {
     // activity <schedule|log> "<description>" [typeLabelRegex]
     const [mode, description, typeRe] = args;
