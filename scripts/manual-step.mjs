@@ -231,6 +231,155 @@ try {
     await page.waitForTimeout(3500);
     await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
     await dump();
+  } else if (cmd === "record-application") {
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(2500);
+    await page.getByRole("button", { name: /record application/i }).first().click();
+    await page.waitForTimeout(2000);
+    const d = page.locator('[role="dialog"]').first();
+
+    // Radix comboboxes here, not native selects — open each and take the first
+    // real option.
+    for (const combo of await d.getByRole("combobox").all()) {
+      await combo.click();
+      await page.waitForTimeout(700);
+      const opt = page.getByRole("option").first();
+      if (await opt.isVisible().catch(() => false)) await opt.click();
+      await page.waitForTimeout(500);
+    }
+    await d.getByLabel(/programme/i).first().fill("Business Administration").catch(async () => {
+      await d.locator("input").nth(0).fill("Business Administration");
+    });
+    await d.getByLabel(/application number/i).first().fill("APP-2026-0001").catch(() => {});
+    await d.locator('input[type="date"]').first().fill(new Date().toISOString().slice(0, 10));
+
+    await d.getByRole("button", { name: /save|record|create|add/i }).last().click();
+    await page.waitForTimeout(4000);
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
+  } else if (cmd === "fill-app-number") {
+    // The application panel edits in place and saves on blur, so the value has
+    // to be typed and then focus moved away — filling alone does nothing.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(3000);
+    const inputs = await page.locator("input:visible").all();
+    let filled = false;
+    for (const inp of inputs) {
+      const lbl = await inp.evaluate((e) => {
+        const wrap = e.closest("div")?.parentElement;
+        return (wrap?.querySelector("label")?.textContent ?? e.closest("div")?.querySelector("label")?.textContent ?? "").trim();
+      });
+      if (!/application number|reference/i.test(lbl)) continue;
+      await inp.fill(args[0] ?? "APP-2026-0001");
+      await inp.blur();
+      console.log("FILLED:", lbl);
+      filled = true;
+      break;
+    }
+    if (!filled) console.log("NO APPLICATION NUMBER INPUT FOUND");
+    await page.waitForTimeout(3500);
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
+  } else if (cmd === "app-fields") {
+    // Lists every editable control on the application panel with its label, so
+    // the next step is written against real labels instead of guesses.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(3000);
+    const ctrls = await page.evaluate(() => {
+      const out = [];
+      for (const el of document.querySelectorAll("input, textarea, select, [role='combobox']")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        const wrap = el.closest("div")?.parentElement;
+        const label = (wrap?.querySelector("label")?.textContent
+          ?? el.closest("div")?.querySelector("label")?.textContent ?? "").trim();
+        out.push({
+          tag: el.tagName.toLowerCase(),
+          type: el.getAttribute("type") ?? el.getAttribute("role") ?? "",
+          label: label.slice(0, 45),
+          value: ("value" in el ? String(el.value) : "").slice(0, 30),
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 30),
+        });
+      }
+      return out;
+    });
+    console.log(JSON.stringify(ctrls, null, 1));
+  } else if (cmd === "pick") {
+    // pick "<current button text>" "<option regex>"
+    // The application panel's labels are not wired to their controls, so the
+    // only reliable handle is the value each combobox is currently showing.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(3000);
+    // A Radix SelectTrigger is a <button> whose ARIA role is "combobox", so
+    // getByRole("button") does not see it — which is why this reported "no
+    // control" for a control plainly listed among the page's buttons.
+    // List them first. Falling back to a plain button lookup matched the
+    // "Application Submitted" STAGE button for /Submitted/i and clicked that
+    // instead — a stage move, not a dropdown.
+    const combos = page.getByRole("combobox");
+    const texts = await combos.allTextContents();
+    console.log("COMBOBOXES:", JSON.stringify(texts.map((t) => t.replace(/\s+/g, " ").trim())));
+    // A bare index can be given as "#2", because several dropdowns legitimately
+    // show the same placeholder "—" and there is no other way to tell them
+    // apart from the outside.
+    const idx = args[0].startsWith("#")
+      ? Number(args[0].slice(1))
+      : texts.findIndex((t) => new RegExp(args[0], "i").test(t));
+    if (idx < 0) {
+      console.log(`NO COMBOBOX SHOWING "${args[0]}"`);
+    } else {
+      const trigger = combos.nth(idx);
+      await trigger.click();
+      await page.waitForTimeout(900);
+      const all = await page.getByRole("option").allTextContents();
+      console.log("OPTIONS:", JSON.stringify(all));
+      const opt = page.getByRole("option").filter({ hasText: new RegExp(args[1], "i") }).first();
+      if (await opt.isVisible().catch(() => false)) {
+        console.log("PICKING:", (await opt.textContent())?.trim());
+        await opt.click();
+      } else {
+        console.log(`NO OPTION MATCHING "${args[1]}"`);
+        await page.keyboard.press("Escape");
+      }
+      await page.waitForTimeout(3000);
+    }
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
+  } else if (cmd === "set-dates") {
+    // Fills every EMPTY date box on the application panel with today, which is
+    // what the remaining gates ask for (last institutional update, expected
+    // decision date, and so on). Saves on blur, same as the text fields.
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(3000);
+    let n = 0;
+    for (const inp of await page.locator('input[type="date"]:visible').all()) {
+      if (await inp.inputValue()) continue;
+      await inp.fill(new Date().toISOString().slice(0, 10));
+      await inp.blur();
+      await page.waitForTimeout(1200);
+      n++;
+    }
+    console.log(`FILLED ${n} empty date field(s)`);
+    await page.waitForTimeout(2500);
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
+  } else if (cmd === "set-enrolment-date") {
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForTimeout(2500);
+    await page.getByRole("button", { name: /edit lead/i }).first().click();
+    await page.waitForTimeout(2500);
+    const d = page.locator('[role="dialog"]').first();
+    const f = d.locator('[name="enrolmentDate"]').first();
+    if (await f.isVisible().catch(() => false)) {
+      await f.fill(new Date().toISOString().slice(0, 10));
+      console.log("filled enrolmentDate");
+    } else {
+      console.log("NO enrolmentDate FIELD ON THE EDIT FORM");
+    }
+    await d.getByRole("button", { name: /save|update/i }).last().click();
+    await page.waitForTimeout(4000);
+    await page.goto(lastUrl, { waitUntil: "networkidle", timeout: 90000 });
+    await dump();
   } else if (cmd === "activity") {
     // activity <schedule|log> "<description>" [typeLabelRegex]
     const [mode, description, typeRe] = args;
