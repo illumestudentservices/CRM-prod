@@ -11,6 +11,7 @@ import { createMagicLink } from "@/lib/magic-link";
 import { generateTempPassword } from "@/lib/password";
 import { displayName, userNameFields } from "@/lib/person-name";
 import { emailIsTaken, normaliseEmail } from "@/lib/email-identity";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -234,6 +235,15 @@ export async function POST(req: NextRequest) {
       // end. Consumption rows are created on first use.
 
       return emp;
+    });
+
+    void logActivity(session.user.id, "CREATE", "Employee", employee.id, {
+      route: "hr/employees",
+      employeeId: employee.employeeId,
+      // The user account is created in the same transaction, so it belongs in
+      // the same row — a new login is the security-relevant half of hiring.
+      createdUserId: employee.user.id,
+      email: data.email,
     });
 
     // Fire-and-forget: generate magic link + send welcome email

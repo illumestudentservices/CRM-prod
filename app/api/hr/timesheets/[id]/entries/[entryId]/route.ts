@@ -9,6 +9,7 @@ import {
   recordEvent,
   WORK_CATEGORIES,
 } from "@/lib/timesheets";
+import { logActivity } from "@/lib/activity-logger";
 
 /** Editing and removing a single timesheet line. */
 
@@ -145,6 +146,7 @@ export async function PATCH(
       department: { select: { id: true, name: true } },
     },
   });
+  void logActivity(session.user.id, "UPDATE", "TimesheetEntry", updated.id, { route: "hr/timesheets/[id]/entries/[entryId]" });
 
   const totals = await recalculateTimesheet(entry.timesheet.id);
   await recordEvent({

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Spec §4B (Recruitment Planning) — Event Participation entries on a
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         institutionRepresented: { select: { id: true, name: true } },
       },
     });
+    void logActivity(session.user.id, "CREATE", "PlannedEventParticipation", created.id, { route: "recruitment-planning/plans/[id]/event-participations" });
 
     return NextResponse.json({ data: created }, { status: 201 });
   } catch (err) {

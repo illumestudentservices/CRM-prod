@@ -19,6 +19,7 @@
  */
 
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity-logger";
 import { displayName } from "@/lib/person-name";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = any;
@@ -295,6 +296,28 @@ export async function trashRecord({ entityType, entityId, userId }: TrashOpts): 
     // Hard-delete: the row snapshot lives in data JSON.
     await d.delete({ where: { id: entityId } });
   }
+
+  // ── Audit ────────────────────────────────────────────────────────────────
+  //
+  // Written HERE rather than at each caller. Every deletion in the application
+  // funnels through this one function — 33 call sites — and not one of them
+  // logged anything. Deleting a client, a contract, a holiday or an asset left
+  // no trace of who did it beyond a recycle-bin row that the purge job
+  // eventually removes, at which point the deletion has vanished entirely.
+  //
+  // Doing it at the source means a new call site is audited the day it is
+  // written, without anyone having to remember. The label and the parent go in
+  // because "DELETE ContractAttachment <uuid>" answers nothing on its own once
+  // the row it names is gone.
+  //
+  // Fire-and-forget, like every other use of logActivity: a failed audit write
+  // must not roll back a deletion the user has already been told succeeded.
+  void logActivity(userId, "DELETE", entityType, entityId, {
+    label,
+    hardDeleted: !def.softDelete,
+    ...(parentCtx ? { parentType: parentCtx.type, parentLabel: parentCtx.label } : {}),
+    deletedRecordId: record.id,
+  });
 
   return record.id;
 }

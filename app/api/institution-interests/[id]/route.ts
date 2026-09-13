@@ -9,6 +9,7 @@ import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { trashRecord } from "@/lib/recycle-bin";
 import { accessibleInterest } from "@/lib/lead-access";
 import { ENROLMENT_STATUS_LABELS } from "@/lib/lead-options";
+import { logActivity } from "@/lib/activity-logger";
 
 /** Derived from the label map so the two lists cannot drift apart. */
 const ENROLMENT_STATUS_VALUES = Object.keys(ENROLMENT_STATUS_LABELS) as [
@@ -120,6 +121,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
 
     const updated = await db.institutionInterest.update({ where: { id }, data: patchData });
+    void logActivity(session.user.id, "UPDATE", "InstitutionInterest", updated.id, { route: "institution-interests/[id]" });
     await syncLeadFromInterests(existing.leadId);
     return NextResponse.json(updated);
   } catch (err) {

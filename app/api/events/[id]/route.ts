@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { type EventStatus } from "@prisma/client";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/events/:id ───────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ export async function PATCH(
         },
       },
     });
+    void logActivity(session.user.id, "UPDATE", "Event", updated.id, { route: "events/[id]" });
 
     // Spec Tasks §10 — event lifecycle triggers. When the status transitions
     // to COMPLETED or CLOSED, fire task templates keyed on

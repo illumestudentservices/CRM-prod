@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canEditContent, canSubmit } from "@/lib/icr-transition";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * The outgoing ICR's final declaration (spec §24).
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         : { declarationConfirmedAt: null, declarationById: null },
       select: { id: true, declarationConfirmedAt: true },
     });
+    void logActivity(session.user.id, "UPDATE", "TransitionReport", updated.id, { route: "transition-reports/[id]/declaration" });
 
     return NextResponse.json({ data: updated });
   } catch (err) {

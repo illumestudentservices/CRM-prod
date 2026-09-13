@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { sendSectionEmail } from "@/lib/email";
 import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   to: z.string().email(),
@@ -48,6 +49,16 @@ export async function POST(req: NextRequest) {
       sectionHtml: parsed.data.sectionHtml,
       message: parsed.data.message,
       senderName,
+    });
+
+    // Not a database write, which is why this had no audit row — but sending
+    // caller-supplied content to an arbitrary external address on Illume's
+    // behalf is exactly the kind of act an audit trail exists for. The
+    // recipient and the subject go in; the HTML body does not, since it can be
+    // any size and may carry student data.
+    void logActivity(session.user.id, "EMAIL_SENT", "Email", parsed.data.to, {
+      route: "email/send-section",
+      sectionTitle: parsed.data.sectionTitle,
     });
 
     return NextResponse.json({ success: true });

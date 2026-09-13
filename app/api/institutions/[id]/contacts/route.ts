@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/institutions/:id/contacts ────────────────────────────────────
 
@@ -80,6 +81,7 @@ export async function POST(
         isPrimary: isPrimary ?? false,
       },
     });
+    void logActivity(session.user.id, "CREATE", "InstitutionContact", contact.id, { route: "institutions/[id]/contacts" });
 
     return NextResponse.json(contact, { status: 201 });
   } catch (error) {

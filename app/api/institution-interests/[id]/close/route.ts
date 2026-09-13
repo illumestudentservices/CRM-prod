@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { accessibleInterest } from "@/lib/lead-access";
 import type { LeadStage } from "@prisma/client";
+import { logActivity } from "@/lib/activity-logger";
 
 const closeSchema = z.discriminatedUnion("outcome", [
   z.object({
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const updated = await db.institutionInterest.update({ where: { id }, data: updateData });
+    void logActivity(session.user.id, "UPDATE", "InstitutionInterest", updated.id, { route: "institution-interests/[id]/close" });
 
     // Cancel any open engagements attached to this interest.
     await db.leadActivity.updateMany({

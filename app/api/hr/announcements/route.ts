@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const ANNOUNCE_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"];
 
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
       expiresAt: data.expiresAt ?? null,
     },
   });
+  void logActivity(session.user.id, "CREATE", "Announcement", announcement.id, { route: "hr/announcements" });
 
   return NextResponse.json({ announcement }, { status: 201 });
 }

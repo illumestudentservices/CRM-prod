@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logActivity } from "@/lib/activity-logger";
 
 const markReadSchema = z.union([
   z.object({ id: z.string().min(1), all: z.undefined() }),
@@ -106,6 +107,7 @@ export async function PATCH(req: NextRequest) {
         data: { isRead: true },
         select: { id: true, isRead: true },
       });
+      void logActivity(userId, "UPDATE", "Notification", updated.id, { route: "notifications" });
 
       return NextResponse.json({ data: updated });
     }

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/hr/succession-plans ─────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+    void logActivity(session.user.id, "CREATE", "SuccessionPlan", plan.id, { route: "hr/succession-plans" });
 
     return NextResponse.json({ plan }, { status: 201 });
   } catch (error) {

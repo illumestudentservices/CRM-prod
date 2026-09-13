@@ -7,6 +7,7 @@ import { trashRecord } from "@/lib/recycle-bin";
 import {
   ASSET_TYPES, ASSET_STATUSES, ASSET_CONDITIONS, PURCHASE_PRECISIONS,
 } from "@/lib/assets";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -200,6 +201,8 @@ export async function PATCH(
 
     await db.iTAsset.update({ where: { id }, data });
   }
+
+  void logActivity(session.user.id, "UPDATE", "ITAsset", id, { route: "hr/assets/[id]" });
 
   const updated = await db.iTAsset.findUnique({
     where: { id },

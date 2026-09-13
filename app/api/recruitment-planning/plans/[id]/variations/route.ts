@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const createSchema = z.object({
   type: z.enum([
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         status: "SUBMITTED",
       },
     });
+    void logActivity(session.user.id, "CREATE", "VariationRequest", variation.id, { route: "recruitment-planning/plans/[id]/variations" });
     return NextResponse.json(variation, { status: 201 });
   } catch (err) {
     console.error("[POST variations]", err);

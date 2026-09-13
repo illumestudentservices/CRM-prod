@@ -8,6 +8,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { TRANSITION_SECTIONS, TYPES_WITH_FINAL_WORKING_DAY } from "@/lib/icr-transition";
 import { notifyStatusChange } from "@/lib/transition-notifications";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * ICR Transition & Handover reports.
@@ -260,6 +261,7 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true, status: true, reportDueDate: true },
     });
+    void logActivity(session.user.id, "CREATE", "TransitionReport", report.id, { route: "transition-reports" });
 
     // Spec 28: the outgoing ICR is told a report has been assigned to them.
     // Without this the assignment is invisible until they happen to look.

@@ -12,6 +12,7 @@ import {
   LEAVE_TYPES,
   checkGenderEligibility,
 } from "@/lib/leave-policy";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -311,6 +312,12 @@ export async function POST(req: NextRequest) {
       }
     }).catch(() => {});
   }
+
+  void logActivity(session.user.id, "CREATE", "LeaveRequest", request.id, {
+    route: "hr/leave",
+    leaveType: request.leaveType,
+    days: request.days,
+  });
 
   return NextResponse.json({ request }, { status: 201 });
 }

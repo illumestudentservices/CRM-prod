@@ -11,6 +11,7 @@ import type {
   PerformanceRow,
   PriorityApplicationRow,
 } from "@/lib/icr-monthly-report";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * The editable surface of the report.
@@ -217,6 +218,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data,
       select: { id: true, updatedAt: true },
     });
+    void logActivity(session.user.id, "UPDATE", "IcrMonthlyReport", updated.id, { route: "icr-reports/[id]" });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[icr-reports/id] PATCH error:", error);

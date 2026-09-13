@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Planned travel on a quarterly plan.
@@ -139,6 +140,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         estimatedCurrency: d.estimatedCurrency ?? gate.plan!.reportingCurrency ?? "USD",
       },
       include: { linkedEvent: { select: { id: true, name: true } } },
+    });
+    void logActivity(session.user.id, "CREATE", "PlannedTravel", created.id, {
+      route: "recruitment-planning/plans/[id]/planned-travel",
+      planId: id,
     });
 
     return NextResponse.json({ data: created }, { status: 201 });

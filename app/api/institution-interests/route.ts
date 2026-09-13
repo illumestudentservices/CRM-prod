@@ -8,6 +8,7 @@ import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { regionScopeVia } from "@/lib/region-scope";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
         assignedICR: { select: { id: true, name: true, email: true } },
       },
     });
+    void logActivity(session.user.id, "CREATE", "InstitutionInterest", interest.id, { route: "institution-interests" });
 
     await syncLeadFromInterests(data.leadId);
 

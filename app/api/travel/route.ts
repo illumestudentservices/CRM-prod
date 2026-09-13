@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/travel ──────────────────────────────────────────────────────────
 
@@ -198,6 +199,7 @@ export async function POST(req: NextRequest) {
       travelMeetings: true,
     },
   });
+  void logActivity(session.user.id, "CREATE", "TravelRequest", travelRequest.id, { route: "travel" });
 
   return NextResponse.json({ travelRequest }, { status: 201 });
 }

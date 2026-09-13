@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/markets/:id/knowledge ───────────────────────────────────────
 
@@ -100,6 +101,7 @@ export async function POST(
         marketId: id,
       },
     });
+    void logActivity(session.user.id, "CREATE", "KnowledgeBase", article.id, { route: "markets/[id]/knowledge" });
 
     return NextResponse.json({ article }, { status: 201 });
   } catch (error) {

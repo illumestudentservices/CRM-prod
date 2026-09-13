@@ -9,6 +9,7 @@ import {
   recordEvent,
   WORK_CATEGORIES,
 } from "@/lib/timesheets";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Timesheet lines.
@@ -137,6 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       department: { select: { id: true, name: true } },
     },
   });
+  void logActivity(session.user.id, "CREATE", "TimesheetEntry", entry.id, { route: "hr/timesheets/[id]/entries" });
 
   const totals = await recalculateTimesheet(sheet.id);
   await recordEvent({

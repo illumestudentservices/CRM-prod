@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
+import { logActivity } from "@/lib/activity-logger";
 
 const noteSchema = z.object({
   content: z.string().min(1, "Note content is required").max(5000),
@@ -147,6 +148,11 @@ export async function POST(
         },
       }),
     ]);
+
+    void logActivity(session.user.id, "CREATE", "LeadNote", note.id, {
+      route: "leads/[id]/notes",
+      leadId: id,
+    });
 
     // Return note with author
     const author = {

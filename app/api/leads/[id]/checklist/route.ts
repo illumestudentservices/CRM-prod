@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { resolveChecklist } from "@/lib/lead-checklists";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const CATEGORIES = ["DOCUMENT", "VISA", "PRE_DEPARTURE", "ACCOMMODATION"] as const;
 
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         order: (max._max.order ?? -1) + 1,
       },
     });
+    void logActivity(ctx.userId, "CREATE", "LeadChecklistItem", item.id, { route: "leads/[id]/checklist" });
     return NextResponse.json({ item }, { status: 201 });
   } catch {
     return NextResponse.json(
@@ -171,6 +173,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
     include: { document: { select: { id: true, name: true, url: true } } },
   });
+  void logActivity(ctx.userId, "UPDATE", "LeadChecklistItem", item.id, { route: "leads/[id]/checklist" });
 
   return NextResponse.json({ item });
 }

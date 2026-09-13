@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
+import { logActivity } from "@/lib/activity-logger";
 
 const createSchema = z.object({
   marketId: z.string().min(1),
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
         status: "PENDING",
       },
     });
+    void logActivity(session.user.id, "CREATE", "MarketUpdateSuggestion", sug.id, { route: "market-intelligence/suggestions" });
 
     // Notify the market's regional manager (best-effort — never blocks the write).
     try {

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/events/:id/expenses ─────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export async function POST(
         category: category || null,
       },
     });
+    void logActivity(session.user.id, "CREATE", "EventExpense", expense.id, { route: "events/[id]/expenses" });
 
     // Recalculate and update event totalCost
     const allExpenses = await db.eventExpense.findMany({

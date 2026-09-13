@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── PATCH /api/hr/succession-plans/[id] ──────────────────────────────────────
 
@@ -46,6 +47,7 @@ export async function PATCH(
         },
       },
     });
+    void logActivity(session.user.id, "UPDATE", "SuccessionPlan", plan.id, { route: "hr/succession-plans/[id]" });
 
     return NextResponse.json({ plan });
   } catch (error) {

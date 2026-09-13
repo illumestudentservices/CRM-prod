@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Spec §9 (Clients) — Issues & Actions module.
@@ -138,6 +139,7 @@ export async function POST(
       owner: { select: { id: true, name: true, email: true } },
     },
   });
+  void logActivity(userId, "CREATE", "ClientIssue", issue.id, { route: "institutions/[id]/issues" });
 
   // Spec §9 automation — notify the owner when the issue is assigned.
   if (issue.ownerId !== userId) {

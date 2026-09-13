@@ -7,6 +7,7 @@ import { generateFollowUpTasks } from "@/lib/auto-tasks";
 import { propagateActivityCompletion } from "@/lib/activity-propagation";
 import type { ActivityType } from "@prisma/client";
 import { ACTIVITY_TYPES } from "@/lib/activity-types";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -289,6 +290,7 @@ export async function POST(req: NextRequest) {
         _count: { select: { attendees: true } },
       },
     });
+    void logActivity(userId, "CREATE", "Activity", activity.id, { route: "activities" });
 
     // Spec §11 (Field Operations) — cross-record propagation. Completing an
     // activity updates its linked partner/school "last engagement" so relationship

@@ -9,6 +9,7 @@ import {
   canSubmit, canFinalise, isLocked, type FinalisationFacts,
 } from "@/lib/icr-transition";
 import { notifyStatusChange } from "@/lib/transition-notifications";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Move a Transition Report through its workflow (spec §5, §26, §27, §33).
@@ -215,6 +216,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         },
       });
       return r;
+    });
+
+    void logActivity(session.user.id, "STATUS_CHANGE", "TransitionReport", id, {
+      route: "transition-reports/[id]/status",
+      to,
     });
 
     // Spec 28. Deliberately after the transaction and deliberately not awaited

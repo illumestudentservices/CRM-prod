@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const createActivityTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -136,6 +137,7 @@ export async function POST(
       },
     },
   });
+  void logActivity(session.user.id, "CREATE", "Task", task.id, { route: "activities/[id]/tasks" });
 
   return NextResponse.json({ task }, { status: 201 });
 }

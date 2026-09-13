@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { fireTaskTemplate, fireEventTriggers } from "@/lib/task-workflow";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   templateId: z.string().optional(),
@@ -48,6 +49,12 @@ export async function POST(req: NextRequest) {
     } else {
       result = await fireEventTriggers(parsed.data.triggerEvent!, opts);
     }
+    void logActivity(session.user.id, "TASKS_FIRED", "Task", parsed.data.templateId ?? parsed.data.triggerEvent!, {
+      route: "tasks/templates/fire",
+      assigneeId: opts.assigneeId,
+      ...(parsed.data.parentType ? { parentType: parsed.data.parentType, parentId: parsed.data.parentId } : {}),
+    });
+
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     console.error("[POST /api/tasks/templates/fire]", err);

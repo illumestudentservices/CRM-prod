@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/hr/performance-reviews ──────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+    void logActivity(session.user.id, "CREATE", "PerformanceReview", review.id, { route: "hr/performance-reviews" });
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (error) {

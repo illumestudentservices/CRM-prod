@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { hasCapability } from "@/lib/granular-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Spec §11 (Clients) — Account Health.
@@ -164,6 +165,14 @@ export async function PATCH(
     }
 
     return { institution: updated, intervention };
+  });
+
+  void logActivity(userId, "HEALTH_CHANGE", "Institution", institutionId, {
+    route: "institutions/[id]/health",
+    health: result.institution.accountHealth,
+    // Spec 11 requires an intervention alongside an AMBER or RED rating, so
+    // whether one was recorded is part of the event, not a detail.
+    interventionId: result.intervention?.id ?? null,
   });
 
   return NextResponse.json({ data: result });

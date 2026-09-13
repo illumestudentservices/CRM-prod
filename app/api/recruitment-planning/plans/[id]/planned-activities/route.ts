@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Planned field activities on a quarterly plan — "how many school visits do we
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         notes: d.notes?.trim() || null,
       },
     });
+    void logActivity(session.user.id, "CREATE", "PlannedFieldActivity", created.id, { route: "recruitment-planning/plans/[id]/planned-activities" });
     return NextResponse.json({ data: created }, { status: 201 });
   } catch (err) {
     console.error("[POST planned-activities]", err);

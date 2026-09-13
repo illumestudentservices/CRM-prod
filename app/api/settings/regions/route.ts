@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 function forbidden() {
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       },
       include: { _count: { select: { users: true, leads: true, institutions: true } } },
     });
+    void logActivity(session.user.id, "CREATE", "Region", region.id, { route: "settings/regions" });
     return NextResponse.json({ region }, { status: 201 });
   } catch (err: unknown) {
     const msg = String(err);

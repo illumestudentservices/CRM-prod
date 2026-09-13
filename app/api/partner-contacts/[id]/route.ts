@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).optional(),
@@ -52,6 +53,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         lastEngagementDate: parsed.data.lastEngagementDate ? new Date(parsed.data.lastEngagementDate) : parsed.data.lastEngagementDate,
       },
     });
+    void logActivity(session.user.id, "UPDATE", "PartnerContact", updated.id, { route: "partner-contacts/[id]" });
     return NextResponse.json(updated);
   } catch (err) {
     console.error("[PATCH /api/partner-contacts/[id]]", err);

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const updateSchema = z.object({
   reportingCurrency: z.string().length(3).optional(),
@@ -95,6 +96,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
 
     const updated = await db.quarterlyRecruitmentPlan.update({ where: { id }, data: patchData });
+    void logActivity(session.user.id, "UPDATE", "QuarterlyRecruitmentPlan", updated.id, { route: "recruitment-planning/plans/[id]" });
     return NextResponse.json(updated);
   } catch (err) {
     console.error("[PATCH /api/recruitment-planning/plans/[id]]", err);

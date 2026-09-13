@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
       notes,
     },
   });
+  void logActivity(session.user.id, "CREATE", "Attendance", record.id, { route: "hr/attendance" });
 
   return NextResponse.json({ record }, { status: 201 });
 }
@@ -202,6 +204,7 @@ export async function PATCH(req: NextRequest) {
       notes: notes ?? existing.notes,
     },
   });
+  void logActivity(session.user.id, "UPDATE", "Attendance", record.id, { route: "hr/attendance" });
 
   return NextResponse.json({ record });
 }
