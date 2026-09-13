@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { PipelineProgressFields } from "./pipeline-progress-fields";
 import { cn } from "@/lib/utils";
 import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
@@ -993,6 +994,12 @@ export function LeadForm({
               </label>
             </div>
           </div>
+
+          {/* Edit only. An application and a journey are separate records that
+              do not exist until the student does, so on the create form this
+              section would have nothing to edit and a row of empty boxes that
+              silently went nowhere. */}
+          {isEdit && lead?.id && <PipelineProgressFields leadId={lead.id} />}
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
