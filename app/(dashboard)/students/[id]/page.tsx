@@ -161,10 +161,29 @@ export default async function LeadDetailPage({
     ? ALL_STAGES.filter(
         (s) => s !== gateLead.stage && !(CLOSED_STAGES as readonly string[]).includes(s)
       ).map((s) => {
-        const result = evaluateStageGate(gateLead, s, gateLead.activities, {
-          application: gateLead.applications[0] ?? null,
-          checklist: gateLead.checklistItems,
-        });
+        const result = evaluateStageGate(
+          {
+            ...gateLead,
+            // The gate reads a BOOLEAN, `hasInstitutionInterest`, while
+            // `loadLeadForGate` returns the journeys as an array. Only the stage
+            // route ever derived the flag, so on this page it was always
+            // undefined — and the panel told every student, however many
+            // journeys they had, that "at least one institution interest is
+            // required".
+            //
+            // The move itself was never blocked, since the route computes the
+            // flag properly. It was the ON-SCREEN list that was wrong, which is
+            // worse in its way: you add a journey, the message does not change,
+            // so you add another.
+            hasInstitutionInterest: gateLead.institutionInterests.length > 0,
+          },
+          s,
+          gateLead.activities,
+          {
+            application: gateLead.applications[0] ?? null,
+            checklist: gateLead.checklistItems,
+          }
+        );
         return { stage: s, canProgress: result.canProgress, blockers: result.blockers };
       })
     : [];
