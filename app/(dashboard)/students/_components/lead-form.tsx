@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -241,11 +242,30 @@ function MatchCheckPanel({
 function FormField({
   label,
   required,
+  /**
+   * Required by the New Lead GATE, but not by this form.
+   *
+   * `intendedDestination` and `sourceId` are hard requirements in
+   * `lead-gate.ts` for leaving New Lead, while this form has always treated
+   * both as optional and shown no marker at all. So somebody could fill in
+   * every starred field, save, and find the student could not be moved on —
+   * with the reason appearing only afterwards, in the amber panel on the
+   * student's page. Confirmed on production: a student created exactly as the
+   * form asked was stuck at New Lead immediately.
+   *
+   * Deliberately NOT a red asterisk. The gate blocks PROGRESS, not creation,
+   * and making these mandatory here would stop an ICR recording a walk-in or an
+   * event lead before the student has decided where they want to go — trading a
+   * visible problem for a worse, invisible one. This says what is coming
+   * instead of pretending the field does not matter.
+   */
+  neededToProgress,
   error,
   children,
 }: {
   label: string;
   required?: boolean;
+  neededToProgress?: boolean;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -256,6 +276,11 @@ function FormField({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
+      {neededToProgress && !error && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Needed before this student can move past New Lead.
+        </p>
+      )}
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
@@ -284,6 +309,7 @@ export function LeadForm({
   icrUsers = [],
   onSaved,
 }: LeadFormProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [isDuplicateWarning, setIsDuplicateWarning] = React.useState(false);
   const isEdit = !!lead;
@@ -470,6 +496,21 @@ export function LeadForm({
 
       onSaved?.();
       onClose();
+
+      // Open the student that was just created.
+      //
+      // Until now the dialog simply closed and left the person on the list,
+      // where a new lead is one card among however many others — so the usual
+      // next steps (fill in what the gate still wants, schedule the first
+      // activity) began with hunting for the student they had only just typed
+      // in. Edits stay put, because there the record is already on screen.
+      //
+      // A duplicate warning suppresses the jump: that banner is the one thing
+      // on this screen the user is meant to read before moving on.
+      const newId = data?.data?.id ?? data?.id;
+      if (!isEdit && newId && !data.warning && !data.data?.isDuplicate) {
+        router.push(`/students/${newId}`);
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -671,7 +712,7 @@ export function LeadForm({
               it needs.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Intended Destination">
+              <FormField label="Intended Destination" neededToProgress>
                 <Input
                   {...register("intendedDestination")}
                   placeholder="e.g. United Kingdom"
@@ -777,8 +818,16 @@ export function LeadForm({
               Assignment & Source
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {sources.length > 0 && (
-                <FormField label="Source" error={errors.sourceId?.message}>
+              {/* Rendered even with nothing to choose from.
+                  It used to be hidden entirely when `sources` was empty, which
+                  produced the worst version of this problem: the New Lead gate
+                  hard-requires a source, but the field it is asked for was not
+                  on screen — so the requirement was invisible AND impossible to
+                  satisfy, with no clue anywhere that the answer was "an admin
+                  must add a source first". Production sat in exactly that state
+                  between the August purge and the agent import. */}
+              <FormField label="Source" neededToProgress error={errors.sourceId?.message}>
+                {sources.length > 0 ? (
                   <Select
                     value={currentSourceId ?? "none"}
                     onValueChange={(v) =>
@@ -797,8 +846,14 @@ export function LeadForm({
                       ))}
                     </SelectContent>
                   </Select>
-                </FormField>
-              )}
+                ) : (
+                  <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                    No lead sources have been set up yet. An administrator needs to add
+                    them under Recruitment Network → Recruitment Partners before a student
+                    can move past New Lead.
+                  </p>
+                )}
+              </FormField>
 
               {institutions.length > 0 && (
                 <FormField label="Institution" error={errors.institutionId?.message}>

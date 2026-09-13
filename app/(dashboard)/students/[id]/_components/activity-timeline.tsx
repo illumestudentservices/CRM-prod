@@ -84,7 +84,7 @@ export function ActivityTimeline({ activities }: ActivityTimelineProps) {
             <div className={cn("flex-1 min-w-0", !isLast && "pb-4")}>
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">{activity.description}</p>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0 mt-0.5">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0 mt-0.5" suppressHydrationWarning>
                   {formatRelative(activity.createdAt)}
                 </span>
               </div>
