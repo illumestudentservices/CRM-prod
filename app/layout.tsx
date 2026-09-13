@@ -42,9 +42,13 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "Illume Student Advisory Services | CRM & ERP Platform",
   description: "Illume Student Advisory Services — Student recruitment, agent & school source tracking, institutional client relationships, event ROI analysis, workforce management, and automated reporting.",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // No `icons` key on purpose. app/favicon.ico and app/apple-icon.png are
+  // picked up by Next's file convention, which emits the link tags with a
+  // content hash for cache-busting. Declaring them here as well does NOT
+  // override that — it emits a SECOND, unhashed <link rel="icon"> alongside
+  // it, which is how the stale scaffold icon could survive a deploy in a
+  // browser cache. Both files are generated from public/logo.png by
+  // scripts/make-favicon.py; rerun it if the brand mark changes.
 };
 
 export default function RootLayout({
