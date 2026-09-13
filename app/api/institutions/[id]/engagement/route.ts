@@ -6,6 +6,7 @@ import { type InteractionType, InteractionType as InteractionTypeEnum } from "@p
 import {
   readJsonBody, handleApiError, assertEnum, assertDate,
 } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/institutions/:id/engagement ──────────────────────────────────
 
@@ -85,6 +86,7 @@ export async function POST(
         user: { select: { id: true, name: true, image: true } },
       },
     });
+    void logActivity(session.user.id, "CREATE", "EngagementLog", log.id, { route: "institutions/[id]/engagement" });
 
     return NextResponse.json(log, { status: 201 });
   } catch (error) {

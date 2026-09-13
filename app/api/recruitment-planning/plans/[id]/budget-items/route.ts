@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const createSchema = z.object({
   category: z.enum([
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         allocation: data.allocation,
       },
     });
+    void logActivity(session.user.id, "CREATE", "RecruitmentPlanBudgetItem", item.id, { route: "recruitment-planning/plans/[id]/budget-items" });
     return NextResponse.json(item, { status: 201 });
   } catch (err) {
     console.error("[POST budget-items]", err);

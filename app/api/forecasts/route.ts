@@ -7,6 +7,7 @@ import type { ForecastStatus } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { FORECAST_SEGMENTS } from "@/lib/forecasting";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Forecasts (spec §3, §11).
@@ -196,6 +197,7 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true, status: true, periodYear: true, periodMonth: true },
     });
+    void logActivity(session.user.id, "CREATE", "Forecast", forecast.id, { route: "forecasts" });
 
     return NextResponse.json({ data: forecast }, { status: 201 });
   } catch (err) {

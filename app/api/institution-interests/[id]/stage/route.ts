@@ -11,6 +11,7 @@ import { evaluateInterestStageGate } from "@/lib/interest-gate";
 import { CHECKLIST_TRIGGERS, resolveChecklist } from "@/lib/lead-checklists";
 import { STAGE_LABELS, stageIndex } from "@/lib/lead-pipeline";
 import type { LeadStage } from "@prisma/client";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Moves one Institution Interest through the eight-stage pipeline.
@@ -183,6 +184,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         { status: 409 }
       );
     }
+
+    void logActivity(userId, overrodeGate ? "STAGE_CHANGE_OVERRIDE" : "STAGE_CHANGE", "InstitutionInterest", id, {
+      route: "institution-interests/[id]/stage",
+      leadId: interest.leadId,
+      from: fromStage,
+      to: toStage,
+      ...(reason ? { reason } : {}),
+      ...(overrodeGate ? { overrideReason } : {}),
+    });
 
     await db.leadActivity.create({
       data: {

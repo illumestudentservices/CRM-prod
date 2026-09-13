@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
       region: { select: { id: true, name: true } },
     },
   });
+  void logActivity(session.user.id, "CREATE", "Holiday", holiday.id, { route: "hr/holidays" });
 
   return NextResponse.json({ holiday }, { status: 201 });
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -91,6 +92,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       newAssigneeId && newAssigneeId !== existing.assigneeId ? newAssigneeId : null;
 
     const updated = await db.task.update({ where: { id }, data: patch });
+    void logActivity(session.user.id, "UPDATE", "Task", updated.id, { route: "tasks/[id]" });
 
     // Spec Tasks §D — recurring materialisation. When a WEEKLY / MONTHLY /
     // QUARTERLY / ANNUAL task is completed or done, spawn the next

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { z } from "zod";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const sendSchema = z.object({
   phone: z.string().min(7),
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       ...(leadId && { leadId }),
     },
   });
+  void logActivity(session.user.id, "UPSERT", "WhatsAppConversation", conversation.id, { route: "whatsapp/send" });
 
   // Send via Twilio
   let twilioSid: string | undefined;
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
       sentById: session.user.id,
     },
   });
+  void logActivity(session.user.id, "CREATE", "WhatsAppMessage", message.id, { route: "whatsapp/send" });
 
   return NextResponse.json({ message, conversation });
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
       },
       include: { partner: { select: { id: true, name: true } } },
     });
+    void logActivity(session.user.id, "CREATE", "PartnerContact", contact.id, { route: "partner-contacts" });
     return NextResponse.json(contact, { status: 201 });
   } catch (err) {
     console.error("[POST /api/partner-contacts]", err);

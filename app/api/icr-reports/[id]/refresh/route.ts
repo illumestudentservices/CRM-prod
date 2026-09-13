@@ -10,6 +10,7 @@ import {
   fromJson,
   type AutoFilledSections,
 } from "@/lib/icr-monthly-report";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Re-read the CRM into the report.
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         refreshedAt: new Date(),
       },
     });
+    void logActivity(session.user.id, "REFRESH", "IcrMonthlyReport", id, { route: "icr-reports/[id]/refresh" });
 
     return NextResponse.json({ refreshed: true, refreshedAt: new Date().toISOString() });
   } catch (error) {

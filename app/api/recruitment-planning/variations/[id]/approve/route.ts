@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { hasCapability } from "@/lib/granular-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   decision: z.enum(["APPROVED", "RETURNED"]),
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         reviewNotes: parsed.data.reviewNotes,
       },
     });
+    void logActivity(session.user.id, "UPDATE", "VariationRequest", updated.id, { route: "recruitment-planning/variations/[id]/approve" });
     return NextResponse.json(updated);
   } catch (err) {
     console.error("[POST variations/[id]/approve]", err);

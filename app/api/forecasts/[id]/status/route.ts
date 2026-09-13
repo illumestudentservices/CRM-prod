@@ -9,6 +9,7 @@ import {
   canSubmit, isLocked, pipelineMaturity,
 } from "@/lib/forecasting";
 import { computePipeline, maturityInput } from "@/lib/forecast-pipeline";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Move a forecast through its workflow (spec §11–§18).
@@ -179,6 +180,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         },
       });
       return f;
+    });
+
+    void logActivity(session.user.id, "STATUS_CHANGE", "Forecast", id, {
+      route: "forecasts/[id]/status",
+      to: updated.status,
     });
 
     return NextResponse.json({ data: updated });

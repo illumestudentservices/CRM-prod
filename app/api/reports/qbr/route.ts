@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { logActivity } from "@/lib/activity-logger";
 
 const MONTH_NAMES = [
   "", "January", "February", "March", "April", "May", "June",
@@ -358,6 +359,7 @@ export async function POST(req: NextRequest) {
         institution: { select: { id: true, name: true, country: true } },
       },
     });
+    void logActivity(session.user.id, "CREATE", "QuarterlyBusinessReview", qbr.id, { route: "reports/qbr" });
 
     return NextResponse.json(qbr, { status: 201 });
   } catch (error) {

@@ -5,6 +5,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { accessibleInterest } from "@/lib/lead-access";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -52,6 +53,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
         lostNotes: null,
       },
     });
+    void logActivity(session.user.id, "UPDATE", "InstitutionInterest", updated.id, { route: "institution-interests/[id]/reopen" });
 
     await db.leadActivity.create({
       data: {

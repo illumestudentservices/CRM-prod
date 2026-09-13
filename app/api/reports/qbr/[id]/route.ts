@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { institutionIdsForUser } from "@/lib/lead-access";
+import { logActivity } from "@/lib/activity-logger";
 
 const updateQBRSchema = z.object({
   executiveSummary: z.string().optional(),
@@ -107,6 +108,7 @@ export async function PATCH(
         institution: { select: { id: true, name: true, country: true } },
       },
     });
+    void logActivity(session.user.id, "UPDATE", "QuarterlyBusinessReview", updated.id, { route: "reports/qbr/[id]" });
 
     return NextResponse.json(updated);
   } catch (error) {

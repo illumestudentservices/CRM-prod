@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { TRANSITION_SECTIONS, canEditContent, sectionTitle } from "@/lib/icr-transition";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Save the outgoing ICR's commentary for one section.
@@ -105,6 +106,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         ...(d.completed === false && { completedAt: null, completedById: null }),
       },
       select: { section: true, narrative: true, completedAt: true, updatedAt: true },
+    });
+    void logActivity(session.user.id, "UPDATE", "TransitionReportSection", id, {
+      route: "transition-reports/[id]/sections",
+      section: updated.section,
     });
 
     // Writing the first section is what actually starts the work, so the report

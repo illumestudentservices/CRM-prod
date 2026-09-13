@@ -8,6 +8,7 @@ import type { Role } from "@/lib/permissions";
 import {
   readJsonBody, assertEnum, assertString, assertDate, assertNumber, handleApiError,
 } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/campaigns ────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
         status: status || "PLANNED",
       },
     });
+    void logActivity(session.user.id, "CREATE", "Campaign", campaign.id, { route: "campaigns" });
 
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { computeAutoFilledSections, asJson } from "@/lib/icr-monthly-report";
+import { logActivity } from "@/lib/activity-logger";
 
 const createSchema = z.object({
   reportingMonth: z.number().int().min(1).max(12),
@@ -171,6 +172,7 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true },
     });
+    void logActivity(session.user.id, "CREATE", "IcrMonthlyReport", report.id, { route: "icr-reports" });
 
     return NextResponse.json(report, { status: 201 });
   } catch (error) {

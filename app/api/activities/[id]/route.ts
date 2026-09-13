@@ -6,6 +6,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import type { ActivityType } from "@prisma/client";
 import { ACTIVITY_TYPES } from "@/lib/activity-types";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -174,6 +175,7 @@ export async function PATCH(
         _count: { select: { attendees: true } },
       },
     });
+    void logActivity(session.user.id, "UPDATE", "Activity", updated.id, { route: "activities/[id]" });
 
     return NextResponse.json({ data: updated });
   } catch (error) {

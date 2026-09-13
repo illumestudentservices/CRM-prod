@@ -11,6 +11,7 @@ import { hasCapability } from "@/lib/granular-permissions";
 import {
   readJsonBody, assertEnum, assertString, assertDate, assertNumber, handleApiError,
 } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/events ───────────────────────────────────────────────────────
 
@@ -191,6 +192,7 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+    void logActivity(session.user.id, "CREATE", "Event", event.id, { route: "events" });
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {

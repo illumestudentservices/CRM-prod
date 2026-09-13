@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -93,6 +94,7 @@ export async function PATCH(
       },
     },
   });
+  void logActivity(session.user.id, "UPDATE", "Task", updated.id, { route: "hr/tasks/[id]" });
 
   return NextResponse.json({ task: updated });
 }

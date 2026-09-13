@@ -8,6 +8,7 @@ import {
   WEEKS_OF_MONTH,
   canViewWeeklyActivities,
 } from "@/lib/weekly-activities";
+import { logActivity } from "@/lib/activity-logger";
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2020).max(2035),
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
         regionId: regionId ?? undefined,
       },
     });
+    void logActivity(session.user.id, "UPSERT", "WeeklyActivity", activity.id, { route: "reports/weekly-activities" });
 
     return NextResponse.json({ activity }, { status: 200 });
   } catch (error) {

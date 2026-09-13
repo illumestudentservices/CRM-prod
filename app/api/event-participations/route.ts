@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
         assignedICR: { select: { id: true, name: true } },
       },
     });
+    void logActivity(session.user.id, "CREATE", "EventParticipation", participation.id, { route: "event-participations" });
 
     // Legacy EventInstitution dual-write removed — /(dashboard)/events and
     // /(dashboard)/events/[id] now read `participations` directly. The flat
@@ -138,6 +140,7 @@ export async function PATCH(req: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: parsed.data as any,
     });
+    void logActivity(session.user.id, "UPDATE", "EventParticipation", updated.id, { route: "event-participations" });
     return NextResponse.json(updated);
   } catch (err) {
     console.error("[PATCH /api/event-participations]", err);

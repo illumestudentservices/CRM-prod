@@ -6,6 +6,7 @@ import { z } from "zod";
 import { guardUserRemoval, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
 import { hasCapability } from "@/lib/granular-permissions";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const patchSchema = z.object({
   id: z.string(),
@@ -149,6 +150,20 @@ export async function PATCH(req: NextRequest) {
         select: USER_SELECT,
       }),
     ]);
+
+    // The alert email was the ONLY trace this left. Mail is not an audit
+    // trail: it is not queryable, it is not retained here, and a send failure
+    // is swallowed. Both sides of the change go in so "who made them an admin"
+    // has an answer.
+    void logActivity(session.user.id, "UPDATE", "USER", id, {
+      route: "settings/users",
+      ...(data.role && previous && data.role !== previous.role
+        ? { roleFrom: previous.role, roleTo: data.role }
+        : {}),
+      ...(data.isActive !== undefined && previous && data.isActive !== previous.isActive
+        ? { isActiveFrom: previous.isActive, isActiveTo: data.isActive }
+        : {}),
+    });
 
     // Fire-and-forget security alerts (no await — don't block the response)
     if (previous) {

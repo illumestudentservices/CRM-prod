@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
         estimatedMinutes: data.estimatedMinutes,
       },
     });
+    void logActivity(session.user.id, "CREATE", "Task", task.id, { route: "tasks" });
 
     // Spec Tasks §11 — notify the assignee when a task is created for someone
     // other than the creator. Silent failure keeps the create response 201.

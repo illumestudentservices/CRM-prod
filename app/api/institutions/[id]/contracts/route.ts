@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { differenceInDays } from "date-fns";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/institutions/:id/contracts ───────────────────────────────────
 
@@ -90,6 +91,7 @@ export async function POST(
         createdById: session.user.id,
       },
     });
+    void logActivity(session.user.id, "CREATE", "Contract", contract.id, { route: "institutions/[id]/contracts" });
 
     // Check for renewal notifications (< 60 days to expiry)
     const daysUntilExpiry = differenceInDays(new Date(endDate), new Date());

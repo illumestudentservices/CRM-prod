@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/travel/[id] ─────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export async function PATCH(
       travelMeetings: { orderBy: { date: "asc" } },
     },
   });
+  void logActivity(session.user.id, "UPDATE", "TravelRequest", updated.id, { route: "travel/[id]" });
 
   return NextResponse.json({ travelRequest: updated });
 }

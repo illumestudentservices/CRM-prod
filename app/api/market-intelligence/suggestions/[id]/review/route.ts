@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   decision: z.enum(["APPROVED", "REJECTED", "EDITED"]),
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         reviewNotes: parsed.data.reviewNotes,
       },
     });
+    void logActivity(session.user.id, "UPDATE", "MarketUpdateSuggestion", updated.id, { route: "market-intelligence/suggestions/[id]/review" });
     return NextResponse.json(updated);
   } catch (err) {
     console.error("[POST market-intelligence/suggestions/[id]/review]", err);

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 // ─── GET /api/hr/performance-reviews/[id] ─────────────────────────────────────
 
@@ -107,6 +108,7 @@ export async function PATCH(
         },
       },
     });
+    void logActivity(session.user.id, "UPDATE", "PerformanceReview", review.id, { route: "hr/performance-reviews/[id]" });
 
     return NextResponse.json({ review });
   } catch (error) {

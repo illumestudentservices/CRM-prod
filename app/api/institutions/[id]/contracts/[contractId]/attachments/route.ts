@@ -6,6 +6,7 @@ import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import type { Role } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 
 type Params = { params: Promise<{ id: string; contractId: string }> };
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
     select: { id: true, name: true, mimeType: true, size: true, createdAt: true },
   });
+  void logActivity(session.user.id, "CREATE", "ContractAttachment", attachment.id, { route: "institutions/[id]/contracts/[contractId]/attachments" });
 
   return NextResponse.json(attachment, { status: 201 });
 }

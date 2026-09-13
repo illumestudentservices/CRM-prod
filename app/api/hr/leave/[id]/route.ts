@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { sendLeaveDecisionEmail } from "@/lib/email";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -129,6 +130,13 @@ export async function PATCH(
         });
       }
     }
+
+    void logActivity(session.user.id, "LEAVE_DECISION", "LeaveRequest", id, {
+      route: "hr/leave/[id]",
+      decision: action,
+      employeeId: leaveRequest.employeeId,
+      ...(rejectionNote ? { rejectionNote } : {}),
+    });
 
     // Send notification to employee
     await tx.notification.create({

@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import {
   ASSET_TYPES, ASSET_STATUSES, ASSET_CONDITIONS, PURCHASE_PRECISIONS,
 } from "@/lib/assets";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -195,6 +196,7 @@ export async function POST(req: NextRequest) {
       notes: data.notes ?? null,
     },
   });
+  void logActivity(session.user.id, "CREATE", "ITAsset", asset.id, { route: "hr/assets" });
 
   return NextResponse.json({ asset }, { status: 201 });
 }

@@ -8,6 +8,7 @@ import { inRegion } from "@/lib/region-scope";
 import { hasCapability } from "@/lib/granular-permissions";
 import { PLAN_TRANSITIONS, canTransition, activatePlan } from "@/lib/plan-workflow";
 import type { RecruitmentPlanStatus } from "@prisma/client";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   toStatus: z.enum([
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     const updated = await db.quarterlyRecruitmentPlan.update({ where: { id }, data: patch });
+    void logActivity(session.user.id, "UPDATE", "QuarterlyRecruitmentPlan", updated.id, { route: "recruitment-planning/plans/[id]/transition" });
 
     if (parsed.data.toStatus === "APPROVED") {
       // Activation is a chain of side effects (raise travel, schedule field

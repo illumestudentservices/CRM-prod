@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -84,6 +85,7 @@ export async function PATCH(
       owner: { select: { id: true, name: true, email: true } },
     },
   });
+  void logActivity(session.user.id, "UPDATE", "ClientIssue", updated.id, { route: "institutions/[id]/issues/[issueId]" });
 
   // Notify new owner on reassignment.
   if (d.ownerId && d.ownerId !== existing.ownerId) {

@@ -9,6 +9,7 @@ import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import {
   FORECAST_SEGMENTS, canEditIcrValues, canReview, isLocked,
 } from "@/lib/forecasting";
+import { logActivity } from "@/lib/activity-logger";
 
 /**
  * Enter or adjust the judgement figures for one segment.
@@ -133,6 +134,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         icrApplications: true, icrDeposits: true, icrEnrolments: true,
         rmApplications: true, rmDeposits: true, rmEnrolments: true,
       },
+    });
+    void logActivity(session.user.id, "UPDATE", "ForecastSegment", id, {
+      route: "forecasts/[id]/segments",
+      // The row has a compound key and the update selects no id, so the
+      // forecast is the entity and the segment names which part of it.
+      segment: updated.segment,
     });
 
     return NextResponse.json({

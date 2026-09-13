@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { regionScope } from "@/lib/region-scope";
+import { logActivity } from "@/lib/activity-logger";
 
 const createReportSchema = z.object({
   institutionId: z.string().min(1),
@@ -249,6 +250,7 @@ export async function POST(req: NextRequest) {
         kpiSummary: kpiSummary as unknown as object,
       },
     });
+    void logActivity(session.user.id, "CREATE", "MonthlyReport", report.id, { route: "reports" });
 
     return NextResponse.json(report, { status: 201 });
   } catch (error) {

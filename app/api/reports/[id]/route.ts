@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
+import { logActivity } from "@/lib/activity-logger";
 
 const updateReportSchema = z.object({
   engagementNotes: z.string().optional(),
@@ -127,6 +128,7 @@ export async function PATCH(
       where: { id },
       data: updateData,
     });
+    void logActivity(session.user.id, "UPDATE", "MonthlyReport", updated.id, { route: "reports/[id]" });
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
+import { logActivity } from "@/lib/activity-logger";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+  void logActivity(session.user.id, "CREATE", "Task", task.id, { route: "hr/tasks" });
 
   return NextResponse.json({ task }, { status: 201 });
 }

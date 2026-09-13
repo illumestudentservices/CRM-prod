@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { regionScopeVia } from "@/lib/region-scope";
+import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
       },
     });
+    void logActivity(session.user.id, "CREATE", "QuarterlyRecruitmentPlan", plan.id, { route: "recruitment-planning/plans" });
     return NextResponse.json(plan, { status: 201 });
   } catch (err) {
     // Unique violation on (icrId, institutionId, quarter, year)

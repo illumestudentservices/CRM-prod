@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createMagicLink } from "@/lib/magic-link";
 import { sendMagicLinkEmail } from "@/lib/email";
 import { findUserByEmail } from "@/lib/email-identity";
+import { logActivity } from "@/lib/activity-logger";
 
 const schema = z.object({
   email: z.string().email(),
@@ -37,6 +38,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (user) {
+      // A password-reset request is a security event and had no audit row at
+      // all. Logged only when the account exists — the endpoint deliberately
+      // answers identically either way to avoid confirming an address, and an
+      // audit row for a non-existent user would record nothing but noise.
+      //
+      // Attributed to the account itself: there is no session here, and the
+      // subject of the event is the account whose password is being reset.
+      void logActivity(user.id, "PASSWORD_RESET_REQUESTED", "USER", user.id, {
+        route: "auth/forgot-password",
+      });
+
       // Fire-and-forget: create the link and send email without blocking the response
       createMagicLink(user.id, 24)
         .then((magicLinkUrl) =>
