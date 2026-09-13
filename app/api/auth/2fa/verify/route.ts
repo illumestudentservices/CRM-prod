@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { totpVerify } from "@/lib/totp";
+import { verifyEmailOtp } from "@/lib/mfa";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity-logger";
@@ -44,19 +45,46 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { twoFactorSecret: true, twoFactorBackupCodes: true },
+    select: { twoFactorSecret: true, twoFactorBackupCodes: true, mfaMethod: true },
   });
-  if (!user?.twoFactorSecret) {
-    return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Try TOTP code first
   const cleanCode = code.replace(/\s/g, "");
-  const isTotpValid = await totpVerify(user.twoFactorSecret, cleanCode);
 
-  if (isTotpValid) {
-    void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
-    return NextResponse.json({ success: true });
+  // Why the emailed code was refused, kept so the final message can be useful.
+  // "Invalid code" on an EXPIRED code sends people round the same loop retyping
+  // digits that were always right.
+  let emailOtpFailure: "no_code" | "expired" | "too_many_attempts" | "mismatch" | null = null;
+
+  // ── The primary factor, whichever one this account is on ─────────────────
+  //
+  // `mfaMethod` decides what is ACCEPTED, not just what is offered. An account
+  // on EMAIL keeps its TOTP secret so it can move back without re-enrolling,
+  // but that secret is NOT honoured here — otherwise both factors would stay
+  // live forever and "which one is actually protecting this account" would have
+  // no answer.
+  if (user.mfaMethod === "EMAIL") {
+    const result = await verifyEmailOtp(session.user.id, cleanCode);
+    if (result.ok) {
+      void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "email_otp" });
+      return NextResponse.json({ success: true });
+    }
+    // A wrong emailed code still falls through to the backup-code check below:
+    // backup codes work under both methods, and they are the escape hatch for
+    // precisely the failure this method is most exposed to — the mailbox being
+    // unreachable. `result` is carried down so the message can be specific if
+    // the backup check also misses.
+    emailOtpFailure = result.reason;
+  } else {
+    if (!user.twoFactorSecret) {
+      return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
+    }
+    if (await totpVerify(user.twoFactorSecret, cleanCode)) {
+      void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
+      return NextResponse.json({ success: true });
+    }
   }
 
   // Try backup codes (format: XXXXX-XXXXX — 11 chars)
@@ -79,6 +107,26 @@ export async function POST(req: NextRequest) {
       codesRemaining: remaining.length,
     });
     return NextResponse.json({ success: true, usedBackupCode: true, codesRemaining: remaining.length });
+  }
+
+  // Nothing matched. The caller is already past the password, so naming the
+  // reason tells them nothing they could not work out by waiting — and saying
+  // "invalid" to someone holding a correct-but-expired code is how people end
+  // up locked out of their own account convinced the system is broken.
+  if (emailOtpFailure === "expired" || emailOtpFailure === "no_code") {
+    return NextResponse.json(
+      { error: "That code has expired. Request a new one.", expired: true },
+      { status: 400 }
+    );
+  }
+  if (emailOtpFailure === "too_many_attempts") {
+    return NextResponse.json(
+      {
+        error: "Too many incorrect attempts. That code is no longer valid — request a new one.",
+        expired: true,
+      },
+      { status: 429 }
+    );
   }
 
   return NextResponse.json({ error: "Invalid code" }, { status: 400 });

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,7 @@ interface UserRow {
   regionId: string | null;
   region: { name: string } | null;
   twoFactorEnabled: boolean;
+  mfaMethod?: "TOTP" | "EMAIL";
   deletedAt?: string | null;
 }
 
@@ -67,6 +69,9 @@ export function UsersSettingsTab() {
   const [saving, setSaving] = useState(false);
   const [resettingMfa, setResettingMfa] = useState(false);
   const [confirmMfaReset, setConfirmMfaReset] = useState(false);
+  const [savingMfaMethod, setSavingMfaMethod] = useState(false);
+  /** Mandatory when moving to email codes — see the mfa-method route. */
+  const [mfaReason, setMfaReason] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
@@ -146,6 +151,40 @@ export function UsersSettingsTab() {
       load();
     } else {
       toast({ title: "Error", description: data.error ?? "Failed to reset MFA", variant: "destructive" });
+    }
+  }
+
+  /**
+   * Moves one account between second factors.
+   *
+   * Kept out of handleSave on purpose. This is a security change with its own
+   * audit row and its own mandatory reason; folding it into a general Save
+   * would make it invisible to whoever pressed the button.
+   */
+  async function handleMfaMethod(method: "TOTP" | "EMAIL") {
+    if (!editing) return;
+    if (method === "EMAIL" && !mfaReason.trim()) return;
+    setSavingMfaMethod(true);
+    const res = await fetch(`/api/settings/users/${editing.id}/mfa-method`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, reason: mfaReason.trim() || undefined }),
+    });
+    const data = await res.json();
+    setSavingMfaMethod(false);
+    if (res.ok) {
+      toast({
+        title: method === "EMAIL" ? "Switched to email codes" : "Switched to authenticator app",
+        description:
+          method === "EMAIL"
+            ? `${editing.name ?? editing.email} will receive a code by email at their next sign-in.`
+            : `${editing.name ?? editing.email} will use their authenticator app at their next sign-in.`,
+      });
+      setMfaReason("");
+      setEditing(null);
+      load();
+    } else {
+      toast({ title: "Error", description: data.error ?? "Failed to change the method", variant: "destructive" });
     }
   }
 
@@ -405,6 +444,57 @@ export function UsersSettingsTab() {
                       Reset MFA
                     </Button>
                   )}
+
+                  {/* ── Second-factor method ─────────────────────────────────
+                      Only shown for an account that has finished enrolment,
+                      matching the route, which refuses otherwise. */}
+                  <div className="pt-2 mt-1 border-t border-amber-200 dark:border-amber-500/30 space-y-2">
+                    <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                      Method:{" "}
+                      {editing.mfaMethod === "EMAIL" ? "Emailed code" : "Authenticator app"}
+                    </p>
+
+                    {editing.mfaMethod === "EMAIL" ? (
+                      <>
+                        {/* Stated plainly on the screen where it can be undone.
+                            The trade-off was accepted deliberately, but an
+                            accepted risk that nobody can see is just a risk. */}
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          Emailed codes are weaker than an authenticator app: password
+                          resets go to the same mailbox, so whoever controls that inbox
+                          can obtain both factors. This relies on the mailbox having its
+                          own MFA.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={savingMfaMethod}
+                          className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/20"
+                          onClick={() => handleMfaMethod("TOTP")}
+                        >
+                          {savingMfaMethod ? "Switching..." : "Switch back to authenticator app"}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Input
+                          value={mfaReason}
+                          onChange={(e) => setMfaReason(e.target.value)}
+                          placeholder="Reason (required) — e.g. CEO does not use an authenticator app"
+                          className="h-8 text-xs"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={savingMfaMethod || !mfaReason.trim()}
+                          className="text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/20"
+                          onClick={() => handleMfaMethod("EMAIL")}
+                        >
+                          {savingMfaMethod ? "Switching..." : "Use emailed codes instead"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/30 p-3 space-y-2">

@@ -8,16 +8,29 @@ const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 // ─── Safe send wrapper (Brevo Transactional API) ──────────────────────────────
 
+/**
+ * Returns whether the mail was accepted by the provider.
+ *
+ * The name is the contract: this never throws, so a failed notification cannot
+ * take down the request that triggered it. Almost every caller wants exactly
+ * that and ignores the return value.
+ *
+ * A caller that is telling the user "we have sent you something" — the MFA code
+ * is the one that matters — MUST check it. Saying "check your email" when
+ * nothing left the building strands someone on a screen waiting for a code that
+ * is never coming, and before this returned anything there was no way to tell.
+ */
 export async function safeSend(opts: {
   to: string | string[];
   subject: string;
   html: string;
   attachments?: Array<{ name: string; content: string }>;
-}) {
+}): Promise<boolean> {
   if (!BREVO_API_KEY) {
     console.log(`[email] Skipped (no BREVO_API_KEY) — to: ${opts.to}, subject: ${opts.subject}`);
-    return;
+    return false;
   }
+  let allAccepted = true;
   try {
     const toArr = Array.isArray(opts.to) ? opts.to : [opts.to];
     for (const recipient of toArr) {
@@ -45,11 +58,14 @@ export async function safeSend(opts: {
       if (!res.ok) {
         const err = await res.text();
         console.error(`[email] Brevo error (${res.status}):`, err);
+        allAccepted = false;
       }
     }
   } catch (err) {
     console.error("[email] Send failed:", err);
+    allAccepted = false;
   }
+  return allAccepted;
 }
 
 // ─── Shared primitives ─────────────────────────────────────────────────────────
@@ -751,6 +767,63 @@ export async function sendMagicLinkEmail(opts: {
       <div style="padding:12px 16px;background:#fef9ec;border-radius:8px;border-left:3px solid #f59e0b;font-size:12px;color:#78350f;line-height:1.6;">
         ⚠️ &nbsp;This link expires in ${expiry} hours and can only be used once. If you did not expect this email, contact your administrator.
       </div>
+    `),
+  });
+}
+
+// ─── MFA CODE ────────────────────────────────────────────────────────────────
+
+/**
+ * The sign-in code for accounts on the EMAIL second factor.
+ *
+ * Returns whether it was actually sent, because the caller tells the user to go
+ * and look for it. Deliberately plainer than the rest of these templates: it is
+ * read in a hurry, often on a phone, and the only thing that matters is the six
+ * digits being big and unmistakable.
+ *
+ * There is NO link and no button, on purpose. Training people to click through
+ * from a "security" email is how phishing lands, and this address receives a
+ * password-reset link too — the two must not look alike.
+ */
+export async function sendMfaCodeEmail(opts: {
+  to: string;
+  name: string;
+  code: string;
+  expiryMinutes: number;
+  ip?: string | null;
+}): Promise<boolean> {
+  const firstName = opts.name.split(" ")[0];
+  return safeSend({
+    to: opts.to,
+    // The code is NOT in the subject: subjects show on a lock screen, and that
+    // would put the second factor on the outside of a locked phone.
+    subject: "Your Illume CRM sign-in code",
+    html: wrapEmail("Sign-in code", `
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        Hi ${firstName}, someone is signing in to Illume CRM with your email address and password. Enter this code to finish:
+      </p>
+
+      <div style="text-align:center;padding:28px 24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:28px;">
+        <div style="font-family:'SFMono-Regular',Consolas,monospace;font-size:38px;font-weight:700;letter-spacing:0.18em;color:#1E3A5F;">
+          ${opts.code}
+        </div>
+        <p style="margin:14px 0 0;font-size:12px;color:#64748b;">
+          Expires in ${opts.expiryMinutes} minutes and can only be used once.
+        </p>
+      </div>
+
+      ${opts.ip ? `<p style="margin:0 0 20px;font-size:12px;color:#64748b;">Requested from IP address ${opts.ip}.</p>` : ""}
+
+      <div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #ef4444;font-size:12px;color:#7f1d1d;line-height:1.6;">
+        ⚠️ &nbsp;<strong>If you are not signing in right now, someone else has your password.</strong>
+        Do not enter this code. Contact IT at
+        <a href="mailto:it@illumestudentservices.ca" style="color:#7f1d1d;">it@illumestudentservices.ca</a>
+        straight away and change your password.
+      </div>
+
+      <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;">
+        Illume will never ask you for this code by phone, email or message. Nobody at Illume needs it.
+      </p>
     `),
   });
 }
