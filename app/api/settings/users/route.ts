@@ -41,6 +41,11 @@ const USER_SELECT = {
   lockedUntil: true,
   deletedAt: true,
   twoFactorEnabled: true,
+  // Which second factor the account is challenged with. Safe to expose here:
+  // this endpoint is already SUPER_ADMIN-only, and the Users tab needs it to
+  // show the method and offer the switch. The secret and the OTP hash are of
+  // course NOT selected.
+  mfaMethod: true,
   region: { select: { id: true, name: true } },
 } as const;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
@@ -20,6 +20,16 @@ export default function Verify2FAPage() {
   // Explicit, because the field has to behave differently: backup codes are
   // hex with a hyphen, so a numeric keypad cannot type them.
   const [backupMode, setBackupMode] = useState(false);
+
+  // Which factor this account is actually on. Null until the server says, and
+  // the screen stays deliberately neutral until then — telling somebody to
+  // "open your authenticator" when they do not have one is the exact confusion
+  // the email method exists to remove.
+  const [method, setMethod] = useState<"TOTP" | "EMAIL" | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
+  const [isSending, setIsSending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +53,50 @@ export default function Verify2FAPage() {
       router.replace("/dashboard");
     }
   }, [session, router, welcomeName]);
+
+  /**
+   * Asks the server which factor this account is on, and — for EMAIL — sends
+   * the code in the same round trip.
+   *
+   * `isResend` exists so the first automatic call cannot show "code sent",
+   * which on a page the user did not ask to load reads as an alarm.
+   */
+  const requestCode = useCallback(async (isResend: boolean) => {
+    setIsSending(true);
+    if (isResend) { setError(null); setNotice(null); }
+    try {
+      const res = await fetch("/api/auth/2fa/email-otp", { method: "POST" });
+      const data = await res.json();
+
+      if (data.method) setMethod(data.method === "NONE" ? null : data.method);
+      if (data.sentTo) setSentTo(data.sentTo);
+
+      if (!res.ok) {
+        if (typeof data.retryAfterSeconds === "number") setResendIn(data.retryAfterSeconds);
+        setError(data.error ?? "Could not send your code.");
+        return;
+      }
+      if (data.method === "EMAIL") {
+        setResendIn(60);
+        if (isResend) setNotice("A new code is on its way.");
+      }
+    } catch {
+      setError("Unable to reach the server. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  }, []);
+
+  // One call on mount. An account on TOTP gets its method back and no email is
+  // sent, so this costs a TOTP user one request and nothing else.
+  useEffect(() => { void requestCode(false); }, [requestCode]);
+
+  // Resend countdown.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -111,8 +165,21 @@ export default function Verify2FAPage() {
         </div>
         <h1 className="text-xl font-semibold text-white mb-1">Two-factor authentication</h1>
         <p className="text-sm text-white/40">
-          Open Microsoft Authenticator and enter the 6-digit code for{" "}
-          <span className="text-white/60">Illume CRM</span>
+          {method === "EMAIL" ? (
+            <>
+              We&apos;ve emailed a 6-digit code to{" "}
+              <span className="text-white/60">{sentTo ?? "your inbox"}</span>
+            </>
+          ) : method === "TOTP" ? (
+            <>
+              Open Microsoft Authenticator and enter the 6-digit code for{" "}
+              <span className="text-white/60">Illume CRM</span>
+            </>
+          ) : (
+            // Neutral until the server answers. Naming the wrong factor here and
+            // correcting it a moment later is worse than saying nothing.
+            <>Enter your 6-digit code to continue</>
+          )}
         </p>
       </div>
 
@@ -126,6 +193,19 @@ export default function Verify2FAPage() {
         >
           <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
           <p className="text-sm text-red-300">{error}</p>
+        </div>
+      )}
+
+      {notice && (
+        <div
+          className="mb-5 flex items-start gap-3 rounded-lg px-4 py-3"
+          style={{
+            background: "rgba(16,185,129,0.12)",
+            border: "1.5px solid rgba(16,185,129,0.30)",
+          }}
+        >
+          <ShieldCheck className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-emerald-300">{notice}</p>
         </div>
       )}
 
@@ -192,12 +272,25 @@ export default function Verify2FAPage() {
                     inputRef.current?.focus();
                   }}
                 >
-                  Use your authenticator instead
+                  {method === "EMAIL" ? "Use the emailed code instead" : "Use your authenticator instead"}
                 </button>
               </>
             ) : (
               <>
-                Can&apos;t access your authenticator?{" "}
+                {method === "EMAIL" ? "Didn't get it?" : "Can't access your authenticator?"}{" "}
+                {method === "EMAIL" && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={resendIn > 0 || isSending}
+                      className="text-blue-400/70 hover:text-blue-300 transition-colors underline underline-offset-2 disabled:no-underline disabled:text-white/25 disabled:cursor-not-allowed"
+                      onClick={() => void requestCode(true)}
+                    >
+                      {resendIn > 0 ? `Resend in ${resendIn}s` : "Send a new code"}
+                    </button>
+                    {" · "}
+                  </>
+                )}
                 <button
                   type="button"
                   className="text-blue-400/70 hover:text-blue-300 transition-colors underline underline-offset-2"

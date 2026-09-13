@@ -281,6 +281,13 @@ enum StudyLevel {
   FOUNDATION
 }
 
+/// Which second factor an account is challenged with. See `User.mfaMethod` for
+/// why EMAIL exists and what it costs.
+enum MfaMethod {
+  TOTP
+  EMAIL
+}
+
 enum SourceType {
   AGENT
   SCHOOL
@@ -864,6 +871,36 @@ model User {
   twoFactorEnabled     Boolean   @default(false)
   twoFactorSecret      String?
   twoFactorBackupCodes String[]
+
+  /// Which second factor this account is challenged with. TOTP for everyone
+  /// unless a SUPER_ADMIN changes it — see `lib/mfa.ts`.
+  ///
+  /// EMAIL exists because some people will not run an authenticator app. It is
+  /// WEAKER than TOTP and the weakness is specific: the forgot-password flow
+  /// emails a reset link to this same mailbox, so whoever holds the inbox can
+  /// reset the password AND collect the code, which collapses two factors into
+  /// one. ACCEPTED KNOWINGLY 2026-09-13 on the basis that the Microsoft 365
+  /// mailbox carries its own MFA. If that stops being true, this stops being
+  /// safe — revisit rather than assume.
+  ///
+  /// `twoFactorSecret` is KEPT when switching to EMAIL so an account can move
+  /// back without re-enrolling, but a TOTP code is NOT accepted while the
+  /// method is EMAIL. The method decides what is accepted, so which factor is
+  /// live is never ambiguous.
+  mfaMethod            MfaMethod @default(TOTP)
+
+  /// The live emailed code, bcrypt-hashed — never stored in the clear, same as
+  /// a password or a backup code.
+  emailOtpHash         String?
+  emailOtpExpiresAt    DateTime?
+  /// Wrong guesses against the CURRENT code. Six digits is a million
+  /// possibilities, which is nothing over HTTP, so the code is burned after
+  /// `EMAIL_OTP_MAX_ATTEMPTS` rather than left open to be walked through.
+  emailOtpAttempts     Int       @default(0)
+  /// Drives the resend cooldown, so the endpoint cannot be used to flood the
+  /// mailbox or the mail provider.
+  emailOtpSentAt       DateTime?
+
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
