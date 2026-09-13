@@ -398,6 +398,100 @@ try {
   expect(afterReset.emailOtpHash === null, "the reset destroys any outstanding emailed code");
 
   // ────────────────────────────────────────────────────────────────────────
+  startSection("enrolling straight onto email codes, with no app at any point");
+
+  // The dead end this closes: the admin switch refuses accounts that have not
+  // finished enrolment, and the only way to enrol was with an authenticator —
+  // so the one person the email method was built for could not be given it.
+  const noApp = await db.user.create({
+    data: {
+      email: `qa-noapp-${Date.now()}@illume.local`,
+      firstName: "QA", lastName: "NoApp", name: "QA NoApp",
+      password: await bcrypt.hash("QaNoApp!2026-longenough", 12),
+      role: "HQ_EXECUTIVE", isActive: true, twoFactorEnabled: false,
+      passwordChangedAt: new Date(),
+    },
+  });
+
+  // Signs in fully: with no second factor on the account there is nothing
+  // pending, which is exactly the state the enrolment route requires.
+  const enrolJar = await loginToPending(noApp.email, "QaNoApp!2026-longenough");
+
+  const sendEnrol = await post(enrolJar, "/api/auth/2fa/enroll-email", { action: "send" });
+  const sendEnrolBody = await sendEnrol.json();
+  expect(
+    sendEnrol.status === 200 || sendEnrol.status === 502,
+    "the enrolment code either sends or admits it could not",
+    `got ${sendEnrol.status} ${JSON.stringify(sendEnrolBody)}`
+  );
+
+  // The send above started the 60s resend cooldown, and issueEmailOtp honours
+  // it — so clear it before asking for a code directly, or this returns
+  // {ok:false} and every assertion below fails on an undefined code.
+  await db.user.update({ where: { id: noApp.id }, data: { emailOtpSentAt: null } });
+  const enrolCode = await issueEmailOtp(noApp.id);
+  expect(enrolCode.ok, "a code is issued for enrolment", JSON.stringify(enrolCode));
+
+  const wrongPw = await post(enrolJar, "/api/auth/2fa/enroll-email", {
+    action: "confirm", code: enrolCode.code, currentPassword: "not-the-password",
+  });
+  expect(
+    wrongPw.status === 400,
+    "the wrong account password is refused even with the right code",
+    `got ${wrongPw.status} — a stolen session could otherwise enrol MFA`
+  );
+
+  await db.user.update({ where: { id: noApp.id }, data: { emailOtpSentAt: null } });
+  const again = await issueEmailOtp(noApp.id);
+  const enrolled = await post(enrolJar, "/api/auth/2fa/enroll-email", {
+    action: "confirm", code: again.code, currentPassword: "QaNoApp!2026-longenough",
+  });
+  const enrolledBody = await enrolled.json();
+  expect(enrolled.status === 200, "enrolment succeeds", `got ${enrolled.status}`);
+  expect(
+    Array.isArray(enrolledBody.backupCodes) && enrolledBody.backupCodes.length === 8,
+    "8 backup codes are returned once",
+    `got ${enrolledBody.backupCodes?.length}`
+  );
+
+  const enrolledRow = await db.user.findUnique({
+    where: { id: noApp.id },
+    select: { twoFactorEnabled: true, mfaMethod: true, twoFactorSecret: true, twoFactorBackupCodes: true },
+  });
+  expect(enrolledRow.twoFactorEnabled === true, "two-factor is on");
+  expect(enrolledRow.mfaMethod === "EMAIL", "the account is on email codes");
+  expect(
+    enrolledRow.twoFactorSecret === null,
+    "NO authenticator secret was created — the point of this path",
+    "an app secret was set anyway"
+  );
+  expect(enrolledRow.twoFactorBackupCodes.length === 8, "the backup codes are stored");
+
+  // Enrolling twice must not silently rotate a live second factor.
+  const twice = await post(enrolJar, "/api/auth/2fa/enroll-email", { action: "send" });
+  expect(twice.status === 409, "enrolling again is refused once MFA exists", `got ${twice.status}`);
+
+  // And the admin route must not strand them by pointing at an app they lack.
+  const toApp = await api(admin.jar, "PATCH", `/api/settings/users/${noApp.id}/mfa-method`, {
+    method: "TOTP",
+  });
+  expect(
+    toApp.status === 400,
+    "an email-only account cannot be switched to an app it never set up",
+    `got ${toApp.status} — that would point the account at a missing factor and lock it out`
+  );
+
+  // They can still sign in: a real emailed code opens the account.
+  const signInJar = await loginToPending(noApp.email, "QaNoApp!2026-longenough");
+  await db.user.update({ where: { id: noApp.id }, data: { emailOtpSentAt: null } });
+  const loginCode = await issueEmailOtp(noApp.id);
+  const signedIn = await post(signInJar, "/api/auth/2fa/verify", { code: loginCode.code });
+  expect(signedIn.status === 200, "the account signs in with an emailed code", `got ${signedIn.status}`);
+
+  await db.auditLog.deleteMany({ where: { userId: noApp.id } });
+  await db.user.delete({ where: { id: noApp.id } });
+
+  // ────────────────────────────────────────────────────────────────────────
   startSection("masking");
 
   expect(maskEmail("jamshid@illumestudentservices.ca").endsWith("@illumestudentservices.ca"),

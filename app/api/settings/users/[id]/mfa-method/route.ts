@@ -67,7 +67,10 @@ export async function PATCH(
 
   const user = await db.user.findUnique({
     where: { id },
-    select: { id: true, email: true, name: true, mfaMethod: true, twoFactorEnabled: true, deletedAt: true },
+    select: {
+      id: true, email: true, name: true, mfaMethod: true,
+      twoFactorEnabled: true, twoFactorSecret: true, deletedAt: true,
+    },
   });
   if (!user || user.deletedAt) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -83,6 +86,21 @@ export async function PATCH(
   }
   if (user.mfaMethod === method) {
     return NextResponse.json({ success: true, unchanged: true, method });
+  }
+
+  // Someone who enrolled straight onto emailed codes has NO authenticator
+  // secret, so moving them to TOTP would point the account at a factor it does
+  // not possess — and since the method decides what is accepted, that is a
+  // lockout. Refuse and name the way forward instead of doing it and letting
+  // them discover it at the login screen.
+  if (method === "TOTP" && !user.twoFactorSecret) {
+    return NextResponse.json(
+      {
+        error:
+          "This account has no authenticator app set up, so it cannot be switched to one. Reset its MFA instead — the user will then be asked to enrol again and can pick either method.",
+      },
+      { status: 400 }
+    );
   }
 
   await db.user.update({ where: { id }, data: { mfaMethod: method } });
