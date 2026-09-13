@@ -53,6 +53,20 @@ export async function POST(
           twoFactorEnabled: false,
           twoFactorSecret: null,
           twoFactorBackupCodes: [],
+          // Back to the default method. Without this, resetting an EMAIL
+          // account leaves `mfaMethod` as EMAIL while /setup-2fa enrols a NEW
+          // authenticator — and the verify route honours the method over the
+          // secret, so it would refuse the very code it just told them to scan.
+          // The reset would report success and lock them out.
+          mfaMethod: "TOTP",
+          emailOtpHash: null,
+          emailOtpExpiresAt: null,
+          emailOtpAttempts: 0,
+          emailOtpSentAt: null,
+          // Clear the lockout too, or a reset issued BECAUSE someone was locked
+          // out still leaves them sitting out the window.
+          mfaAttempts: 0,
+          mfaLockedUntil: null,
           sessionsRevokedAt: now,
         },
       }),

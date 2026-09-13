@@ -24,7 +24,9 @@ import {
 // the named bindings are not visible at link time. Awaiting the module gives
 // the real exports.
 const { totpGenerate } = await import("../lib/totp.ts");
-const { issueEmailOtp, maskEmail, EMAIL_OTP_MAX_ATTEMPTS } = await import("../lib/mfa.ts");
+const {
+  issueEmailOtp, maskEmail, EMAIL_OTP_MAX_ATTEMPTS, MFA_MAX_ATTEMPTS, MFA_LOCKOUT_MS,
+} = await import("../lib/mfa.ts");
 
 const created = [];
 
@@ -301,6 +303,99 @@ try {
   const totpAgain = await totpGenerate(subject.user.twoFactorSecret);
   const totpWorks = await post(backJar, "/api/auth/2fa/verify", { code: totpAgain });
   expect(totpWorks.status === 200, "the original authenticator works again immediately", `got ${totpWorks.status}`);
+
+  // ────────────────────────────────────────────────────────────────────────
+  startSection("EVERY factor has a try limit, not just the emailed code");
+
+  // Before this, /api/auth/2fa/verify counted nothing. An authenticator code
+  // and a backup code could both be guessed forever by anyone with the
+  // password. `plain` is on TOTP, so this exercises the path that had no
+  // ceiling at all.
+  await db.user.update({
+    where: { id: plain.user.id },
+    data: { mfaAttempts: 0, mfaLockedUntil: null },
+  });
+
+  const limitJar = await loginToPending(plain.email, plain.password);
+  let lockedAt = null;
+  for (let i = 1; i <= MFA_MAX_ATTEMPTS + 2; i++) {
+    const r = await post(limitJar, "/api/auth/2fa/verify", { code: String(100000 + i) });
+    if (r.status === 429 && lockedAt === null) lockedAt = i;
+  }
+  expect(
+    lockedAt !== null,
+    "a TOTP account locks after repeated wrong codes",
+    "it never locked — the authenticator path is still unlimited"
+  );
+  expect(
+    lockedAt === MFA_MAX_ATTEMPTS,
+    `it locks on attempt ${MFA_MAX_ATTEMPTS}`,
+    `locked on attempt ${lockedAt}`
+  );
+
+  const lockedRow = await db.user.findUnique({
+    where: { id: plain.user.id },
+    select: { mfaLockedUntil: true },
+  });
+  expect(lockedRow.mfaLockedUntil > new Date(), "the lock has a future expiry");
+  expect(
+    lockedRow.mfaLockedUntil.getTime() - Date.now() <= MFA_LOCKOUT_MS + 5000,
+    "the lock is a WINDOW, not permanent",
+    "a second factor that locks forever is a denial of service for whoever knows the password"
+  );
+
+  // The real code must be refused while locked — otherwise the lock is theatre.
+  const realTotp = await totpGenerate(plain.user.twoFactorSecret);
+  const whileLocked = await post(limitJar, "/api/auth/2fa/verify", { code: realTotp });
+  expect(
+    whileLocked.status === 429,
+    "even the CORRECT code is refused while locked",
+    `got ${whileLocked.status}`
+  );
+
+  // And the lock must lift.
+  await db.user.update({
+    where: { id: plain.user.id },
+    data: { mfaLockedUntil: new Date(Date.now() - 1000) },
+  });
+  const afterWindow = await post(limitJar, "/api/auth/2fa/verify", {
+    code: await totpGenerate(plain.user.twoFactorSecret),
+  });
+  expect(afterWindow.status === 200, "the account works again once the window passes", `got ${afterWindow.status}`);
+  const cleared = await db.user.findUnique({
+    where: { id: plain.user.id },
+    select: { mfaAttempts: true, mfaLockedUntil: true },
+  });
+  expect(cleared.mfaAttempts === 0, "a success resets the counter");
+  expect(cleared.mfaLockedUntil === null, "a success clears the lock");
+
+  // ────────────────────────────────────────────────────────────────────────
+  startSection("an admin MFA reset does not strand an EMAIL account");
+
+  // Found while wiring the limit: reset-2fa wiped the secret but LEFT
+  // mfaMethod as EMAIL, so /setup-2fa would enrol a new authenticator whose
+  // codes the verify route would then refuse. The reset would report success
+  // and lock the person out.
+  const stranded = await createAndLogin({ role: "EMPLOYEE" });
+  created.push(stranded);
+  await db.user.update({
+    where: { id: stranded.user.id },
+    data: { mfaMethod: "EMAIL", mfaAttempts: 3, mfaLockedUntil: new Date(Date.now() + 60000) },
+  });
+  const reset = await api(admin.jar, "POST", `/api/settings/users/${stranded.user.id}/reset-2fa`);
+  expect(reset.status === 200, "the reset succeeds", `got ${reset.status}`);
+  const afterReset = await db.user.findUnique({
+    where: { id: stranded.user.id },
+    select: { mfaMethod: true, mfaAttempts: true, mfaLockedUntil: true, emailOtpHash: true },
+  });
+  expect(
+    afterReset.mfaMethod === "TOTP",
+    "the reset returns the account to the authenticator method",
+    `left on ${afterReset.mfaMethod} — the new QR code would be refused`
+  );
+  expect(afterReset.mfaLockedUntil === null, "the reset clears any lockout");
+  expect(afterReset.mfaAttempts === 0, "the reset clears the attempt counter");
+  expect(afterReset.emailOtpHash === null, "the reset destroys any outstanding emailed code");
 
   // ────────────────────────────────────────────────────────────────────────
   startSection("masking");

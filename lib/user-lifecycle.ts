@@ -206,6 +206,16 @@ export async function purgeExpiredUsers(
           twoFactorEnabled: false,
           twoFactorSecret: null,
           twoFactorBackupCodes: [],
+          // The emailed-code fields are credentials and counters belonging to a
+          // person who is being erased; they go with everything else rather
+          // than lingering on a tombstone row.
+          mfaMethod: "TOTP",
+          emailOtpHash: null,
+          emailOtpExpiresAt: null,
+          emailOtpAttempts: 0,
+          emailOtpSentAt: null,
+          mfaAttempts: 0,
+          mfaLockedUntil: null,
           isActive: false,
           regionId: null,
           mustChangePassword: false,

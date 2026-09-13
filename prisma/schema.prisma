@@ -901,6 +901,23 @@ model User {
   /// mailbox or the mail provider.
   emailOtpSentAt       DateTime?
 
+  /// Failed second-factor attempts, across EVERY method — authenticator code,
+  /// emailed code and backup code alike.
+  ///
+  /// Separate from `loginAttempts`/`lockedUntil`, which guard the PASSWORD, for
+  /// two reasons. The thresholds have to differ: an authenticator code rotates
+  /// every 30 seconds, so a handful of misses is ordinary for someone whose
+  /// phone clock has drifted, and the password's 5-strikes/30-minute rule would
+  /// lock out honest people. And keeping them apart leaves "wrong password" and
+  /// "wrong code" separately countable in the audit trail.
+  ///
+  /// Reset to zero the moment any factor succeeds.
+  mfaAttempts          Int       @default(0)
+  /// Set when `mfaAttempts` reaches the ceiling. A WINDOW, never permanent — a
+  /// second factor that can be locked forever is a denial of service handed to
+  /// anyone who already knows the password.
+  mfaLockedUntil       DateTime?
+
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
