@@ -34,6 +34,28 @@ const updateLeadSchema = z.object({
   studyLevel: z.enum(["UNDERGRADUATE", "POSTGRADUATE", "PATHWAY", "FOUNDATION"]).optional(),
   intakeYear: z.number().int().min(2020).max(2035).optional(),
   intakeMonth: z.number().int().min(1).max(12).optional(),
+
+  /**
+   * Spec §2 dedup keys — and the reason EVERY edit used to fail.
+   *
+   * This schema is `.strict()`, and the edit form sends `passportNumber` on
+   * every save (null when the box is empty) plus `dateOfBirth` whenever it is
+   * filled. Neither was listed, so zod refused the whole request:
+   *
+   *   422 {"error":"Validation failed",
+   *        "details":{"formErrors":["Unrecognized key: \"passportNumber\""]}}
+   *
+   * Not "the passport was ignored" — the entire save was rejected, so nothing
+   * on the form could be changed at all. Seen on production: every attempt to
+   * edit a student returned 422, which is also why filling in the fields the
+   * stage gate asks for appeared to do nothing whatsoever.
+   *
+   * Both are real editable fields with inputs on the form, so they are accepted
+   * rather than stripped out of the payload.
+   */
+  passportNumber: z.string().min(1).optional().nullable(),
+  dateOfBirth: z.string().datetime().optional().nullable(),
+
   notes: z.string().optional().nullable(),
   regionId: z.string().min(1).optional().nullable(),
   assignedICRId: z.string().min(1).optional().nullable(),

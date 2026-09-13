@@ -76,9 +76,43 @@ const createLeadSchema = z.object({
   ),
   enrolmentDate: z.preprocess(blankToUndefined, z.string().datetime().optional()),
 
+  /**
+   * Spec §5 — the categorical outcome the Contacted gate tests.
+   *
+   * The create form has always offered this dropdown and always sent the value,
+   * and PATCH has always accepted it — but it was missing here, so zod stripped
+   * it and creation silently threw it away. Anyone who answered it while adding
+   * the student found the Contacted gate still demanding a counselling outcome,
+   * with no indication that their answer had not been kept.
+   */
+  counsellingOutcomeEnum: z.preprocess(
+    blankToUndefined,
+    z
+      .enum([
+        "PROCEED_TO_ELIGIBILITY", "FURTHER_COUNSELLING_REQUIRED", "NOT_READY_YET",
+        "UNABLE_TO_CONTACT", "NOT_SUITABLE", "LOST", "DEFERRED",
+      ])
+      .optional()
+  ),
+
   // Optional, and left undefined rather than defaulted to false when the form
   // does not send it: an unanswered consent question is not a refusal.
   marketingConsent: z.boolean().optional(),
+
+  /**
+   * Spec §1 — per-channel communication preferences, and the blanket override.
+   *
+   * Same omission as above, and it matters more. The form takes deliberate care
+   * to distinguish "never asked" from "asked and declined", and PATCH honours
+   * that — but creation discarded all four. A student who refused calls at the
+   * moment of capture was stored as never having been asked, so the consent
+   * record did not say what actually happened, which is the one thing a consent
+   * record exists to do.
+   */
+  phoneContactConsent: z.boolean().optional(),
+  smsContactConsent: z.boolean().optional(),
+  whatsappContactConsent: z.boolean().optional(),
+  doNotContact: z.boolean().optional(),
 });
 
 const listLeadsQuerySchema = z.object({
@@ -380,11 +414,20 @@ export async function POST(req: NextRequest) {
         budgetRange: data.budgetRange,
         englishStatus: data.englishStatus,
         enrolmentDate: data.enrolmentDate ? new Date(data.enrolmentDate) : undefined,
+        counsellingOutcomeEnum: data.counsellingOutcomeEnum,
         marketingConsent: data.marketingConsent,
         // Stamped only when an answer was actually given, so the timestamp
         // always means "this is when they were asked" rather than "this is when
         // the row happened to be created".
         marketingConsentAt: data.marketingConsent === undefined ? undefined : new Date(),
+        phoneContactConsent: data.phoneContactConsent,
+        smsContactConsent: data.smsContactConsent,
+        whatsappContactConsent: data.whatsappContactConsent,
+        doNotContact: data.doNotContact,
+        // Same rule as the marketing stamp, and the same reason PATCH does it:
+        // the date is what makes a do-not-contact instruction defensible, so it
+        // is written only when an instruction was actually given.
+        doNotContactAt: data.doNotContact ? new Date() : undefined,
       },
       include: {
         region: { select: { id: true, name: true } },
