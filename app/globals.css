@@ -176,3 +176,46 @@ body {
     color: hsl(var(--foreground));
   }
 }
+
+/**
+ * The flash that lands on a field after clicking a stage requirement.
+ *
+ * Clicking "Budget range" in the pipeline checklist opens the edit form and
+ * scrolls to the field. On a long form, arriving somewhere in the middle with
+ * no marker leaves people hunting the very field they were just sent to, so
+ * the destination announces itself for two seconds and then gets out of the
+ * way. Set as an attribute rather than a class because the marker is applied
+ * from `lib/lead-focus.ts` to whatever element carries `data-field`, which may
+ * be a wrapper this stylesheet knows nothing else about.
+ *
+ * `outline` rather than `box-shadow` or `ring`: it is drawn outside the box, so
+ * a field in a grid cannot be nudged by it, and it follows border-radius.
+ * Respects prefers-reduced-motion — a pulsing ring is exactly the kind of
+ * movement that setting exists to stop.
+ */
+@layer utilities {
+  [data-field-flash="true"] {
+    outline: 2px solid hsl(199 89% 48%);
+    outline-offset: 3px;
+    border-radius: 0.5rem;
+    animation: illume-field-flash 2s ease-out;
+  }
+
+  @keyframes illume-field-flash {
+    0%,
+    100% {
+      outline-color: hsl(199 89% 48% / 0);
+    }
+    10%,
+    70% {
+      outline-color: hsl(199 89% 48%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-field-flash="true"] {
+      animation: none;
+      outline-color: hsl(199 89% 48%);
+    }
+  }
+}

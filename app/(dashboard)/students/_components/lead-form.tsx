@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { PipelineProgressFields } from "./pipeline-progress-fields";
+import { focusFieldWhenReady } from "@/lib/lead-focus";
 import { cn } from "@/lib/utils";
 import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
@@ -262,16 +263,27 @@ function FormField({
    */
   neededToProgress,
   error,
+  name,
   children,
 }: {
   label: string;
   required?: boolean;
   neededToProgress?: boolean;
   error?: string;
+  /**
+   * The gate's field key, published as `data-field`.
+   *
+   * This is how clicking a requirement on the student page lands on the right
+   * control — `lib/lead-focus.ts` looks the wrapper up by this attribute. It is
+   * put on the wrapper rather than the input because several of these fields
+   * are Radix selects with no addressable input of their own, and because the
+   * flash should frame the label as well as the box.
+   */
+  name?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-field={name}>
       <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
@@ -296,6 +308,22 @@ interface LeadFormProps {
   sources?: Pick<RecruitmentPartner, "id" | "name">[];
   institutions?: Pick<Institution, "id" | "name">[];
   icrUsers?: Pick<User, "id" | "name">[];
+  /**
+   * Scroll to this field and flash it once the dialog is up.
+   *
+   * Set when the form was opened by clicking an outstanding stage requirement
+   * rather than the Edit button. The form is long enough that landing at the
+   * top and being told "Budget range" is barely better than not being sent at
+   * all.
+   */
+  focusField?: string;
+  /**
+   * Whether `focusField` belongs to the Pipeline progress section, which is
+   * collapsed by default and fetches its records only once opened. Passed
+   * separately rather than inferred from the key because the two sets of names
+   * are not guaranteed to stay disjoint.
+   */
+  focusInPipelineSection?: boolean;
   onSaved?: () => void;
 }
 
@@ -308,12 +336,24 @@ export function LeadForm({
   sources = [],
   institutions = [],
   icrUsers = [],
+  focusField,
+  focusInPipelineSection,
   onSaved,
 }: LeadFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isDuplicateWarning, setIsDuplicateWarning] = React.useState(false);
   const isEdit = !!lead;
+
+  /**
+   * Runs only for the form's OWN fields. The Pipeline progress section does its
+   * own focusing, because its inputs do not exist until it has expanded and
+   * fetched, and it is the only component that knows when that is.
+   */
+  React.useEffect(() => {
+    if (!open || !focusField || focusInPipelineSection) return;
+    return focusFieldWhenReady(focusField);
+  }, [open, focusField, focusInPipelineSection]);
 
   const {
     register,
@@ -553,26 +593,26 @@ export function LeadForm({
               Personal Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="First Name" required error={errors.firstName?.message}>
+              <FormField name="firstName" label="First Name" required error={errors.firstName?.message}>
                 <Input {...register("firstName")} placeholder="Nkechi" />
               </FormField>
-              <FormField label="Last Name" required error={errors.lastName?.message}>
+              <FormField name="lastName" label="Last Name" required error={errors.lastName?.message}>
                 <Input {...register("lastName")} placeholder="Obi" />
               </FormField>
 
-              <FormField label="Email" required error={errors.email?.message}>
+              <FormField name="email" label="Email" required error={errors.email?.message}>
                 <Input {...register("email")} type="email" placeholder="john@example.com" />
               </FormField>
 
-              <FormField label="Phone" required error={errors.phone?.message}>
+              <FormField name="phone" label="Phone" required error={errors.phone?.message}>
                 <Input {...register("phone")} placeholder="+1 234 567 8900" />
               </FormField>
 
-              <FormField label="Nationality" required error={errors.nationality?.message}>
+              <FormField name="nationality" label="Nationality" required error={errors.nationality?.message}>
                 <Input {...register("nationality")} placeholder="e.g. Nigerian" />
               </FormField>
 
-              <FormField
+              <FormField name="countryOfResidence"
                 label="Country of Residence"
                 required
                 error={errors.countryOfResidence?.message}
@@ -582,16 +622,16 @@ export function LeadForm({
 
               {/* Spec §2 — DOB and passport are the strongest identity signals
                   for duplicate detection. Both are optional at capture. */}
-              <FormField label="Date of Birth" error={errors.dateOfBirth?.message}>
+              <FormField name="dateOfBirth" label="Date of Birth" error={errors.dateOfBirth?.message}>
                 <Input {...register("dateOfBirth")} type="date" />
               </FormField>
 
-              <FormField label="Passport Number" error={errors.passportNumber?.message}>
+              <FormField name="passportNumber" label="Passport Number" error={errors.passportNumber?.message}>
                 <Input {...register("passportNumber")} placeholder="Optional" />
               </FormField>
 
               {/* Spec Recruitment Network — how the lead reached us. */}
-              <FormField label="Lead Channel" error={errors.channel?.message}>
+              <FormField name="channel" label="Lead Channel" error={errors.channel?.message}>
                 <Select
                   value={watch("channel") || ""}
                   onValueChange={(v) => setValue("channel", v, { shouldValidate: true })}
@@ -634,7 +674,7 @@ export function LeadForm({
               Academic Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
+              <FormField name="interestedProgram"
                 label="Interested Program"
                 required
                 error={errors.interestedProgram?.message}
@@ -645,11 +685,11 @@ export function LeadForm({
                 />
               </FormField>
 
-              <FormField label="Faculty" error={errors.faculty?.message}>
+              <FormField name="faculty" label="Faculty" error={errors.faculty?.message}>
                 <Input {...register("faculty")} placeholder="e.g. Business & Management" />
               </FormField>
 
-              <FormField label="Study Level" required error={errors.studyLevel?.message}>
+              <FormField name="studyLevel" label="Study Level" required error={errors.studyLevel?.message}>
                 <Select
                   value={currentStudyLevel}
                   onValueChange={(v) =>
@@ -671,7 +711,7 @@ export function LeadForm({
                 </Select>
               </FormField>
 
-              <FormField label="Intake Month" required error={errors.intakeMonth?.message}>
+              <FormField name="intakeMonth" label="Intake Month" required error={errors.intakeMonth?.message}>
                 <Select
                   value={String(currentIntakeMonth)}
                   onValueChange={(v) =>
@@ -691,7 +731,7 @@ export function LeadForm({
                 </Select>
               </FormField>
 
-              <FormField label="Intake Year" required error={errors.intakeYear?.message}>
+              <FormField name="intakeYear" label="Intake Year" required error={errors.intakeYear?.message}>
                 <Input
                   {...register("intakeYear", { valueAsNumber: true })}
                   type="number"
@@ -713,21 +753,21 @@ export function LeadForm({
               it needs.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Intended Destination" neededToProgress>
+              <FormField name="intendedDestination" label="Intended Destination" neededToProgress>
                 <Input
                   {...register("intendedDestination")}
                   placeholder="e.g. United Kingdom"
                 />
               </FormField>
 
-              <FormField label="Preferred Country">
+              <FormField name="preferredCountry" label="Preferred Country">
                 <Input
                   {...register("preferredCountry")}
                   placeholder="Confirmed after counselling"
                 />
               </FormField>
 
-              <FormField label="Budget Range">
+              <FormField name="budgetRange" label="Budget Range">
                 <Select
                   value={watch("budgetRange") ?? "none"}
                   onValueChange={(v) =>
@@ -744,21 +784,21 @@ export function LeadForm({
                 </Select>
               </FormField>
 
-              <FormField label="Current Qualification">
+              <FormField name="currentQualification" label="Current Qualification">
                 <Input
                   {...register("currentQualification")}
                   placeholder="e.g. BSc Computer Science"
                 />
               </FormField>
 
-              <FormField label="Highest Academic Qualification">
+              <FormField name="academicQualification" label="Highest Academic Qualification">
                 <Input
                   {...register("academicQualification")}
                   placeholder="e.g. BSc 2:1"
                 />
               </FormField>
 
-              <FormField label="English Proficiency">
+              <FormField name="englishStatus" label="English Proficiency">
                 <Select
                   value={watch("englishStatus") ?? "none"}
                   onValueChange={(v) =>
@@ -775,7 +815,7 @@ export function LeadForm({
                 </Select>
               </FormField>
 
-              <FormField label="Enrolment Date">
+              <FormField name="enrolmentDate" label="Enrolment Date">
                 <Input type="date" {...register("enrolmentDate")} />
               </FormField>
 
@@ -784,7 +824,7 @@ export function LeadForm({
                   on this categorical answer, so it cannot be left to prose.
                   "none" rather than "" as the cleared sentinel: Radix reserves
                   the empty string and throws when it is used as an item value. */}
-              <FormField label="Counselling Outcome">
+              <FormField name="counsellingOutcomeEnum" label="Counselling Outcome">
                 <Select
                   value={watch("counsellingOutcomeEnum") ?? "none"}
                   onValueChange={(v) =>
@@ -802,7 +842,7 @@ export function LeadForm({
               </FormField>
 
               <div className="sm:col-span-2">
-                <FormField label="Counselling Notes">
+                <FormField name="counsellingOutcome" label="Counselling Notes">
                   <Textarea
                     rows={2}
                     {...register("counsellingOutcome")}
@@ -827,7 +867,7 @@ export function LeadForm({
                   satisfy, with no clue anywhere that the answer was "an admin
                   must add a source first". Production sat in exactly that state
                   between the August purge and the agent import. */}
-              <FormField label="Source" neededToProgress error={errors.sourceId?.message}>
+              <FormField name="sourceId" label="Source" neededToProgress error={errors.sourceId?.message}>
                 {sources.length > 0 ? (
                   <Select
                     value={currentSourceId ?? "none"}
@@ -857,7 +897,7 @@ export function LeadForm({
               </FormField>
 
               {institutions.length > 0 && (
-                <FormField label="Institution" error={errors.institutionId?.message}>
+                <FormField name="institutionId" label="Institution" error={errors.institutionId?.message}>
                   <Select
                     value={currentInstitutionId ?? "none"}
                     onValueChange={(v) =>
@@ -880,7 +920,7 @@ export function LeadForm({
               )}
 
               {icrUsers.length > 0 && (
-                <FormField label="Assigned ICR" error={errors.assignedICRId?.message}>
+                <FormField name="assignedICRId" label="Assigned ICR" error={errors.assignedICRId?.message}>
                   <Select
                     value={currentAssignedICRId ?? "none"}
                     onValueChange={(v) =>
@@ -905,7 +945,7 @@ export function LeadForm({
           </div>
 
           {/* Notes */}
-          <FormField label="Notes" error={errors.notes?.message}>
+          <FormField name="notes" label="Notes" error={errors.notes?.message}>
             <Textarea
               {...register("notes")}
               placeholder="Any additional notes about this lead..."
@@ -999,7 +1039,12 @@ export function LeadForm({
               do not exist until the student does, so on the create form this
               section would have nothing to edit and a row of empty boxes that
               silently went nowhere. */}
-          {isEdit && lead?.id && <PipelineProgressFields leadId={lead.id} />}
+          {isEdit && lead?.id && (
+            <PipelineProgressFields
+              leadId={lead.id}
+              focusField={focusInPipelineSection ? focusField : undefined}
+            />
+          )}
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

@@ -4,7 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
+  ChevronDown,
   ChevronRight,
+  Circle,
+  CircleCheck,
   Lock,
   AlertTriangle,
   Loader2,
@@ -33,6 +36,8 @@ import {
   stageIndex,
   daysSince,
 } from "@/lib/lead-pipeline";
+import type { Requirement, RequirementTarget } from "@/lib/lead-gate";
+import { requestLeadFocus } from "@/lib/lead-focus";
 import { CloseOutcomeDialog } from "./close-outcome-dialog";
 
 interface Blocker {
@@ -45,7 +50,27 @@ interface GateEntry {
   stage: LeadStage;
   canProgress: boolean;
   blockers: Blocker[];
+  /** Every rule for this move, met and unmet. Drives the checklist below. */
+  requirements: Requirement[];
 }
+
+/**
+ * What the button on a pending requirement says.
+ *
+ * Naming the destination rather than saying "Fix" everywhere is the point of
+ * the exercise: the complaint this replaced was that the blocker list named a
+ * field and left you to find it, and the fields live in four different places.
+ */
+const TARGET_LABELS: Record<RequirementTarget["where"], string> = {
+  lead: "Open",
+  application: "Open",
+  interest: "Open",
+  interestCreate: "Add interest",
+  activityLog: "Log it",
+  activitySchedule: "Book it",
+  checklist: "Open checklist",
+  none: "",
+};
 
 interface StageSelectorProps {
   leadId: string;
@@ -74,6 +99,169 @@ const CLOSED_STYLES: Record<string, string> = {
   WITHDRAWN: "border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-500/30 dark:text-zinc-300 dark:hover:bg-zinc-500/10",
   VISA_REFUSED: "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10",
 };
+
+/**
+ * "What this stage still needs", as a checklist you can act on.
+ *
+ * ── WHAT THIS REPLACED, AND WHY ─────────────────────────────────────────────
+ *
+ * A bulleted list of failure messages — "Budget range is required", "Initial
+ * counselling must be completed in this stage" — and nothing else. Three
+ * problems with it, all reported from real use:
+ *
+ *  1. It named a field without saying where the field was. The fields for a
+ *     single stage are spread across the edit form, the journey panel, the
+ *     application panel and an activity dialog, so every line was the start of
+ *     a hunt. Each row is now a button that opens the right one.
+ *  2. It showed only what was wrong. With seven rules and five met, you could
+ *     not tell whether you were nearly there or had barely started, and work
+ *     already done was invisible. Met rules are now listed too, ticked.
+ *  3. It appeared only while blocked and vanished at the moment it became
+ *     useful, taking the "you may now move on" moment with it. It now stays,
+ *     and turns into the move button.
+ */
+function StageRequirements({
+  nextStage,
+  gate,
+  onMove,
+  moving,
+}: {
+  nextStage: LeadStage;
+  gate: GateEntry;
+  onMove: () => void;
+  moving: boolean;
+}) {
+  const [showDone, setShowDone] = React.useState(false);
+
+  const reqs = gate.requirements ?? [];
+  const pending = reqs.filter((r) => !r.done);
+  const done = reqs.filter((r) => r.done);
+
+  // An illegal transition is not a to-do list — there is nothing to tick off,
+  // and offering "Open" against it would be offering to fix the unfixable.
+  const impossible = pending.some((r) => r.target.where === "none");
+
+  if (gate.canProgress) {
+    return (
+      <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-500/30 dark:bg-green-500/10 p-3 flex items-center gap-3">
+        <CircleCheck className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-green-900 dark:text-green-200">
+            Everything {STAGE_LABELS[nextStage]} needs is done.
+          </p>
+          {done.length > 0 && (
+            <p className="text-xs text-green-700 dark:text-green-300/80 mt-0.5">
+              {done.length} requirement{done.length === 1 ? "" : "s"} met.
+            </p>
+          )}
+        </div>
+        <Button
+          size="sm"
+          disabled={moving}
+          onClick={onMove}
+          className="bg-green-600 hover:bg-green-700 text-white shrink-0 gap-1.5"
+        >
+          {moving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Move to {STAGE_LABELS[nextStage]}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+              To move to {STAGE_LABELS[nextStage]}:
+            </p>
+            {reqs.length > 0 && !impossible && (
+              <p className="text-xs text-amber-700 dark:text-amber-300/80">
+                {done.length} of {reqs.length} done
+              </p>
+            )}
+          </div>
+
+          <ul className="mt-2 space-y-1">
+            {pending.map((r) => (
+              <RequirementRow key={r.id} req={r} />
+            ))}
+          </ul>
+
+          {done.length > 0 && (
+            <>
+              <button
+                onClick={() => setShowDone((s) => !s)}
+                className="mt-2 inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300/80 hover:text-amber-900 dark:hover:text-amber-200"
+              >
+                {showDone ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+                {showDone ? "Hide" : "Show"} the {done.length} already done
+              </button>
+              {showDone && (
+                <ul className="mt-1 space-y-1">
+                  {done.map((r) => (
+                    <RequirementRow key={r.id} req={r} />
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One rule. Clickable while it is outstanding, a ticked line once it is not. */
+function RequirementRow({ req }: { req: Requirement }) {
+  if (req.done) {
+    return (
+      <li className="flex items-start gap-1.5 text-xs text-amber-700/70 dark:text-amber-300/60">
+        <CircleCheck className="h-3.5 w-3.5 shrink-0 mt-px text-green-600 dark:text-green-400" />
+        <span className="line-through decoration-amber-700/30">{req.label}</span>
+        {req.doneNote && <span className="not-italic">· {req.doneNote}</span>}
+      </li>
+    );
+  }
+
+  const actionable = req.target.where !== "none";
+
+  return (
+    <li>
+      <button
+        type="button"
+        disabled={!actionable}
+        onClick={() => requestLeadFocus(req.target)}
+        className={cn(
+          "w-full flex items-start gap-1.5 text-left rounded-md px-1.5 py-1 -mx-1.5 transition-colors",
+          actionable
+            ? "hover:bg-amber-100/70 dark:hover:bg-amber-500/15 cursor-pointer"
+            : "cursor-default"
+        )}
+      >
+        <Circle className="h-3.5 w-3.5 shrink-0 mt-px text-amber-500 dark:text-amber-400" />
+        <span className="min-w-0 flex-1 text-xs text-amber-900 dark:text-amber-200">
+          <span className="font-medium">{req.label}</span>
+          {req.detail && (
+            <span className="text-amber-700 dark:text-amber-300/80"> — {req.detail}</span>
+          )}
+        </span>
+        {actionable && (
+          <span className="shrink-0 inline-flex items-center gap-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            {TARGET_LABELS[req.target.where]}
+            <ChevronRight className="h-3 w-3" />
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
 
 export function StageSelector({
   leadId,
@@ -260,25 +448,13 @@ export function StageSelector({
             })}
           </div>
 
-          {nextStage && nextGate && !nextGate.canProgress && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-                    To move to {STAGE_LABELS[nextStage]}:
-                  </p>
-                  <ul className="mt-1 space-y-0.5">
-                    {nextGate.blockers.map((b, i) => (
-                      <li key={i} className="text-xs text-amber-800 dark:text-amber-300 flex gap-1.5">
-                        <span className="text-amber-400 dark:text-amber-500">•</span>
-                        <span>{b.message}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
+          {nextStage && nextGate && (
+            <StageRequirements
+              nextStage={nextStage}
+              gate={nextGate}
+              onMove={() => move(nextStage)}
+              moving={loading && pending === nextStage}
+            />
           )}
 
           {/* Closed outcomes — reachable from any stage */}

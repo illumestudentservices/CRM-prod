@@ -168,8 +168,14 @@ export default async function LeadDetailPage({
         const result = evaluateStageGate(gateLead, s, gateLead.activities, {
           application: gateLead.applications[0] ?? null,
           checklist: gateLead.checklistItems,
+          pipelineRestartedAt: gateLead.pipelineRestartedAt,
         });
-        return { stage: s, canProgress: result.canProgress, blockers: result.blockers };
+        return {
+          stage: s,
+          canProgress: result.canProgress,
+          blockers: result.blockers,
+          requirements: result.requirements,
+        };
       })
     : [];
 

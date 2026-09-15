@@ -56,9 +56,60 @@ export interface Blocker {
   field?: string;
 }
 
+/**
+ * Where the user has to go to satisfy a requirement.
+ *
+ * The blocker list used to name a field and stop there — "Budget range is
+ * required" with no indication that it lives on the edit form, while
+ * "Eligibility outcome is required" meant a different record entirely and
+ * "Initial counselling must be completed" meant a dialog three cards down the
+ * page. Naming the destination here, next to the rule itself, is what lets the
+ * UI turn each line into a button; computed in the UI instead it would be a
+ * second copy of the rules, which is the two-map drift this codebase keeps
+ * being bitten by.
+ */
+export type RequirementTarget =
+  /** A column on the student — the edit form. */
+  | { where: "lead"; field: string }
+  /** A column on the active application — the Pipeline progress section. */
+  | { where: "application"; field: string }
+  /** A column on the institution interest (journey). */
+  | { where: "interest"; field: string }
+  /** No journey exists yet; one must be created. */
+  | { where: "interestCreate" }
+  /** A typed engagement that must be logged as done. */
+  | { where: "activityLog"; engagementType: LeadEngagementType }
+  /** Any engagement, booked in the future. */
+  | { where: "activitySchedule" }
+  | { where: "checklist" }
+  /** Nothing to act on — an illegal transition. */
+  | { where: "none" };
+
+/**
+ * One rule for leaving a stage, satisfied or not.
+ *
+ * `blockers` answers "why can't I move on"; this answers "what does this stage
+ * want of me", which is the question people actually arrive with. Both are
+ * produced by the same pass so they cannot disagree.
+ */
+export interface Requirement {
+  /** Stable within a stage — safe as a React key. */
+  id: string;
+  /** Short noun phrase: "Budget range", "Initial counselling". */
+  label: string;
+  done: boolean;
+  /** Present only when not done, and only when it adds to the label. */
+  detail?: string;
+  /** Present only when done, e.g. "done 12 Sep, at New Lead". */
+  doneNote?: string;
+  target: RequirementTarget;
+}
+
 export interface GateResult {
   canProgress: boolean;
   blockers: Blocker[];
+  /** Every rule for this transition, in the order they are worth doing. */
+  requirements: Requirement[];
 }
 
 /** The minimum shape the gate needs. Deliberately not the full Prisma model. */
@@ -178,7 +229,20 @@ type Source = "lead" | "application";
  */
 type Applies = (source: Record<string, unknown>) => boolean;
 
-type FieldReqBase = { label: string; source?: Source; when?: Applies };
+type FieldReqBase = {
+  label: string;
+  source?: Source;
+  when?: Applies;
+  /**
+   * Overrides the destination derived from `source`.
+   *
+   * Two requirements are read off the lead but are not editable there:
+   * `hasInstitutionInterest` is satisfied by creating a journey, and
+   * `eligibilityOutcome` is a column on one. Sending people to the edit form
+   * for either would be sending them somewhere the field does not exist.
+   */
+  target?: RequirementTarget;
+};
 
 type FieldReq =
   /** A single value that must be present. */
@@ -274,6 +338,7 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
         kind: "field",
         key: "hasInstitutionInterest",
         label: "At least one institution interest",
+        target: { where: "interestCreate" },
       },
     ],
     requiredCompletedTypes: ["COUNSELLING"],
@@ -297,6 +362,7 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
         key: "eligibilityOutcome",
         label: "Eligibility outcome",
         allowed: PROGRESSING_ELIGIBILITY_OUTCOMES,
+        target: { where: "interest", field: "eligibilityOutcome" },
       },
     ],
     requiredCompletedTypes: ["ELIGIBILITY_REVIEW"],
@@ -556,13 +622,52 @@ export function evaluateStageGate(
     application?: GateApplication | null;
     checklist?: GateChecklistItem[];
     now?: Date;
+    /**
+     * When the student was last put back into the pipeline from a closed
+     * outcome. Work finished before it belongs to the previous attempt and is
+     * not allowed to satisfy this one — see `typedTaskDone`.
+     */
+    pipelineRestartedAt?: Date | string | null;
   } = {}
 ): GateResult {
-  const { application: rawApplication = null, checklist = [], now = new Date() } = options;
+  const {
+    application: rawApplication = null,
+    checklist = [],
+    now = new Date(),
+    pipelineRestartedAt = null,
+  } = options;
   const application = normaliseApplication(rawApplication);
-  const blockers: Blocker[] = [];
   const from = lead.stage;
   const config = STAGE_CONFIG[from];
+
+  /** Carries what a Blocker needs alongside what a Requirement needs. */
+  type Internal = Requirement & {
+    blockerKind: BlockerKind;
+    /** The long form, used when the rule is reported as a failure. */
+    message: string;
+    field?: string;
+  };
+
+  const requirements: Internal[] = [];
+  const add = (r: Internal) => requirements.push(r);
+
+  /** Blockers are the unmet requirements — derived, never accumulated twice. */
+  const finish = (): GateResult => {
+    const blockers: Blocker[] = requirements
+      .filter((r) => !r.done)
+      .map((r) => ({
+        kind: r.blockerKind,
+        message: r.message,
+        ...(r.field ? { field: r.field } : {}),
+      }));
+    return {
+      canProgress: blockers.length === 0,
+      blockers,
+      requirements: requirements.map(
+        ({ blockerKind: _kind, message: _message, field: _field, ...rest }) => rest
+      ),
+    };
+  };
 
   // ── Transition legality ────────────────────────────────────────────────
   const isClosing = (CLOSED_STAGES as readonly string[]).includes(targetStage);
@@ -571,26 +676,40 @@ export function evaluateStageGate(
       const allowed = config.allowedNext.length
         ? config.allowedNext.map((s) => STAGE_LABELS[s]).join(" or ")
         : "no further stage";
-      blockers.push({
-        kind: "TRANSITION",
+      add({
+        id: "transition",
+        label: "This move is not allowed",
+        done: false,
+        target: { where: "none" },
+        blockerKind: "TRANSITION",
         message: `${STAGE_LABELS[from]} can only move to ${allowed}.`,
+        detail: `${STAGE_LABELS[from]} can only move to ${allowed}.`,
       });
       // A disallowed transition makes the remaining checks meaningless.
-      return { canProgress: false, blockers };
+      return finish();
     }
     // Guard against skipping ahead even if config were ever mis-edited.
     const fi = stageIndex(from);
     const ti = stageIndex(targetStage);
     if (fi >= 0 && ti >= 0 && ti - fi > 1) {
-      blockers.push({
-        kind: "TRANSITION",
+      add({
+        id: "transition",
+        label: "Stages must be done in order",
+        done: false,
+        target: { where: "none" },
+        blockerKind: "TRANSITION",
         message: "Stages must be completed in order — you cannot skip ahead.",
+        detail: "You cannot skip ahead.",
       });
-      return { canProgress: false, blockers };
+      return finish();
     }
   }
 
   // ── Required fields ────────────────────────────────────────────────────
+  /** Where the user must go to supply this field, absent an explicit target. */
+  const targetFor = (req: FieldReq, key: string): RequirementTarget =>
+    req.target ?? { where: req.source === "application" ? "application" : "lead", field: key };
+
   const checkFields = (reqs: FieldReq[]) => {
     for (const req of reqs) {
       // "Where applicable" — skip requirements whose precondition is unmet.
@@ -599,42 +718,50 @@ export function evaluateStageGate(
         if (!src || !req.when(src)) continue;
       }
 
+      const src = pick(req, lead, application);
+      const key = req.kind === "anyOf" ? req.keys[0] : req.key;
+      const base = {
+        id: `field:${key}`,
+        label: req.label,
+        target: targetFor(req, key),
+        blockerKind: "FIELD" as const,
+        field: key,
+      };
+
       if (req.kind === "field") {
-        const src = pick(req, lead, application);
-        if (!src || !hasValue(src[req.key])) {
-          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.key });
-        }
+        const done = !!src && hasValue(src[req.key]);
+        add({ ...base, done, message: `${req.label} is required.` });
       } else if (req.kind === "anyOf") {
-        const src = pick(req, lead, application);
-        if (!src || !req.keys.some((k) => hasValue(src[k]))) {
-          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.keys[0] });
-        }
+        const done = !!src && req.keys.some((k) => hasValue(src[k]));
+        add({ ...base, done, message: `${req.label} is required.` });
       } else if (req.kind === "enumIn") {
-        const src = pick(req, lead, application);
         const value = src?.[req.key];
         if (!hasValue(value)) {
-          blockers.push({ kind: "FIELD", message: `${req.label} is required.`, field: req.key });
+          add({ ...base, done: false, message: `${req.label} is required.` });
         } else if (!req.allowed.includes(String(value))) {
           // Naming the offending value matters: "Student decision is required"
           // is baffling when a decision is plainly recorded on screen.
-          blockers.push({
-            kind: "FIELD",
-            message: `${req.label} is "${humanise(String(value))}", which does not allow moving on.`,
-            field: req.key,
+          const message = `${req.label} is "${humanise(String(value))}", which does not allow moving on.`;
+          add({
+            ...base,
+            done: false,
+            message,
+            detail: `Currently "${humanise(String(value))}", which does not allow moving on.`,
           });
+        } else {
+          add({ ...base, done: true, message: `${req.label} is required.` });
         }
       } else {
-        const src = pick(req, lead, application);
         const dismissed = req.naKey ? src?.[req.naKey] === true : false;
-        if (!dismissed && (!src || !hasValue(src[req.key]))) {
-          blockers.push({
-            kind: "FIELD",
-            message: req.naKey
-              ? `${req.label} is required, or mark it not applicable.`
-              : `${req.label} is required — record it, or note that it is not yet known.`,
-            field: req.key,
-          });
-        }
+        const done = dismissed || (!!src && hasValue(src[req.key]));
+        add({
+          ...base,
+          done,
+          message: req.naKey
+            ? `${req.label} is required, or mark it not applicable.`
+            : `${req.label} is required — record it, or note that it is not yet known.`,
+          ...(done ? {} : { detail: req.naKey ? "Or mark it not applicable." : "Or note that it is not yet known." }),
+        });
       }
     }
   };
@@ -648,19 +775,64 @@ export function evaluateStageGate(
 
   // ── Activities ─────────────────────────────────────────────────────────
   const stageEnteredAt = toTime(lead.stageEnteredAt) ?? 0;
+  const restartedAt = toTime(pipelineRestartedAt);
   const nowMs = now.getTime();
 
   const live = activities.filter((a) => a.kind === "ENGAGEMENT" && !a.cancelledAt);
 
   /**
    * Only work done since the lead entered its current stage counts. Without
-   * this, a lead that moved backwards, re-entered a stage, or was reopened
-   * from Deferred would satisfy the gate instantly using historical activity.
+   * this, a lead that moved backwards or re-entered a stage would satisfy the
+   * gate instantly using historical activity.
+   *
+   * This still governs the GENERIC "at least one activity" rule. The typed
+   * Required Tasks are deliberately looser — see `typedTaskDone`.
    */
   const completedThisStage = live.filter((a) => {
     const c = toTime(a.completedAt);
     return c !== null && c >= stageEnteredAt && a.stageAtCompletion === from;
   });
+
+  /**
+   * A typed Required Task counts when it was completed at this stage OR at an
+   * earlier one, provided it belongs to the current run through the pipeline.
+   *
+   * ── WHY IT IS NOT STAGE-EXACT ───────────────────────────────────────────
+   *
+   * It used to be, and the result read as a contradiction on screen: an ICR
+   * who did the initial counselling before marking the student Contacted saw
+   * the activity sitting in the panel with a green tick and "Completed", and
+   * the amber panel directly above it saying "Initial counselling must be
+   * completed in this stage". Both were true — the work was done, but stamped
+   * against New Lead — and the only way out was to log the same conversation a
+   * second time, which puts a duplicate in the student's history to satisfy a
+   * rule nobody could see. The stage a task was stamped against is an accident
+   * of when someone pressed a button; the work either happened or it did not.
+   *
+   * ── WHAT STILL GUARDS IT ────────────────────────────────────────────────
+   *
+   * Two things, so this is a loosening and not a removal:
+   *  - LATER stages do not count. Index order is enforced, so a task stamped
+   *    against Qualified cannot reach back and satisfy Contacted.
+   *  - Work from before a close-and-reopen does not count. Reopening restores
+   *    the stage but the student has been through a full outcome since; letting
+   *    a counselling from eight months ago clear the gate on the day they are
+   *    reopened would make the restart meaningless. `pipelineRestartedAt` is
+   *    the reopen marker.
+   * Rows predating the `stageAtCompletion` column (null) are trusted, as they
+   * were before — the alternative is calling old work undone.
+   */
+  const fromIndex = stageIndex(from);
+  const typedMatches = (type: LeadEngagementType) =>
+    live.filter((a) => {
+      if (a.engagementType !== type) return false;
+      const c = toTime(a.completedAt);
+      if (c === null) return false;
+      if (restartedAt !== null && c < restartedAt) return false;
+      if (a.stageAtCompletion == null) return true;
+      const si = stageIndex(a.stageAtCompletion);
+      return si < 0 || fromIndex < 0 || si <= fromIndex;
+    });
 
   const futureScheduled = live.filter((a) => {
     const s = toTime(a.scheduledFor);
@@ -678,49 +850,85 @@ export function evaluateStageGate(
     ...(targetConfig?.validateOnEntry ? targetConfig.requiredCompletedTypes : []),
   ];
   for (const type of new Set(requiredTypes)) {
-    if (!completedThisStage.some((a) => a.engagementType === type)) {
-      blockers.push({
-        kind: "ACTIVITY_COMPLETED",
-        message: `${ENGAGEMENT_LABELS[type]} must be completed in this stage.`,
-      });
-    }
+    const matches = typedMatches(type);
+    const hit = matches[0];
+    add({
+      id: `activity:${type}`,
+      label: ENGAGEMENT_LABELS[type],
+      done: matches.length > 0,
+      target: { where: "activityLog", engagementType: type },
+      blockerKind: "ACTIVITY_COMPLETED",
+      message: `${ENGAGEMENT_LABELS[type]} must be completed.`,
+      ...(hit ? { doneNote: describeCompletion(hit, from) } : { detail: "Log it once it has been done." }),
+    });
   }
 
   if (requireCompleted && config.requiredCompletedTypes.length === 0) {
-    if (completedThisStage.length === 0) {
-      blockers.push({
-        kind: "ACTIVITY_COMPLETED",
-        message: "At least one activity must be completed in this stage.",
-      });
-    }
+    add({
+      id: "activity:any",
+      label: "An activity completed in this stage",
+      done: completedThisStage.length > 0,
+      target: { where: "activityLog", engagementType: "FOLLOW_UP" },
+      blockerKind: "ACTIVITY_COMPLETED",
+      message: "At least one activity must be completed in this stage.",
+      ...(completedThisStage.length > 0
+        ? {}
+        : { detail: "Log a call, meeting or email you have already had." }),
+    });
   }
 
-  if (requireFuture && futureScheduled.length === 0) {
+  if (requireFuture) {
     // Distinguish "nothing booked" from "booked but overdue" — the fix differs.
     const overdue = live.some((a) => {
       const s = toTime(a.scheduledFor);
       return s !== null && s <= nowMs && !a.completedAt;
     });
-    blockers.push({
-      kind: "ACTIVITY_SCHEDULED",
+    const done = futureScheduled.length > 0;
+    add({
+      id: "activity:scheduled",
+      label: "A next step booked",
+      done,
+      target: { where: "activitySchedule" },
+      blockerKind: "ACTIVITY_SCHEDULED",
       message: overdue
         ? "A scheduled activity is overdue — complete it or move it to a future date."
         : "A future activity must be scheduled before moving on.",
+      ...(done
+        ? {}
+        : {
+            detail: overdue
+              ? "One is booked but overdue — complete it, or move it to a future date."
+              : "Schedule the next contact.",
+          }),
     });
   }
 
   // ── Checklist ──────────────────────────────────────────────────────────
   if (config.requiresChecklist) {
-    const has = checklist.some((c) => c.category === config.requiresChecklist);
-    if (!has) {
-      blockers.push({
-        kind: "CHECKLIST",
-        message: "The document checklist must be started before moving on.",
-      });
-    }
+    add({
+      id: "checklist",
+      label: "Document checklist started",
+      done: checklist.some((c) => c.category === config.requiresChecklist),
+      target: { where: "checklist" },
+      blockerKind: "CHECKLIST",
+      message: "The document checklist must be started before moving on.",
+    });
   }
 
-  return { canProgress: blockers.length === 0, blockers };
+  return finish();
+}
+
+/** "done 12 Sep, at New Lead" — says which stage the credit came from. */
+function describeCompletion(a: GateActivity, currentStage: LeadStage): string {
+  const when = toTime(a.completedAt);
+  const date = when
+    ? new Date(when).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : null;
+  const stamped = a.stageAtCompletion;
+  const elsewhere = stamped && stamped !== currentStage ? STAGE_LABELS[stamped] : null;
+  if (date && elsewhere) return `done ${date}, at ${elsewhere}`;
+  if (date) return `done ${date}`;
+  return "done";
 }
 
 /** The next stage in the funnel, or null at the end / for closed outcomes. */

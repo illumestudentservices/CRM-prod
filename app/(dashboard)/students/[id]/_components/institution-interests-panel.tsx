@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { ELIGIBILITY_OUTCOMES, ENROLMENT_STATUSES } from "@/lib/lead-options";
+import { useLeadFocus } from "@/lib/lead-focus";
 import { InterestStageControl } from "./interest-stage-control";
 
 interface Interest {
@@ -50,6 +51,7 @@ export function InstitutionInterestsPanel({
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const addRef = useRef<HTMLDivElement | null>(null);
   const [form, setForm] = useState({
     institutionId: institutions[0]?.id ?? "",
     program: "",
@@ -57,6 +59,19 @@ export function InstitutionInterestsPanel({
     intakeMonth: defaultIntakeMonth,
     studyLevel: defaultStudyLevel,
     assignedICRId: "",
+  });
+
+  /**
+   * "At least one institution interest" is a requirement on the Contacted
+   * gate, and creating one is the only way to satisfy it. The panel is several
+   * cards down the page, so the click both scrolls here and opens the form —
+   * scrolling alone would leave the user in front of a collapsed "+ Add
+   * interest" button with nothing saying it was the thing they were sent for.
+   */
+  useLeadFocus((target) => {
+    if (target.where !== "interestCreate") return;
+    setShowAdd(true);
+    addRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
   useEffect(() => {
@@ -164,7 +179,7 @@ export function InstitutionInterestsPanel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={addRef}>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-muted-foreground">{interests.length} institution journeys for this student</div>

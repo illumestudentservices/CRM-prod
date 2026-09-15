@@ -15,12 +15,19 @@ import {
 import { LeadForm } from "../../_components/lead-form";
 import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
+import { useLeadFocus } from "@/lib/lead-focus";
 
 interface LeadDetailClientProps {
   lead: Lead;
   sources: Pick<RecruitmentPartner, "id" | "name">[];
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
+}
+
+/** `pipeline` distinguishes the form's own fields from the section's. */
+interface FocusRequest {
+  field: string;
+  pipeline: boolean;
 }
 
 function WhatsAppButton({ lead }: { lead: Lead }) {
@@ -108,6 +115,28 @@ export function LeadDetailClient({
 }: LeadDetailClientProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
+  /** The field a stage requirement asked for, cleared once the form has it. */
+  const [focus, setFocus] = React.useState<FocusRequest | null>(null);
+
+  /**
+   * Three of the requirement destinations are fields on this form.
+   *
+   * `lead` fields are its own; `application` and `interest` fields belong to
+   * other records and are reached through the Pipeline progress section at the
+   * foot of it, which is why they arrive here rather than at the panels that
+   * own those records. Sending someone to the panel instead would be correct
+   * but slower — the form is one dialog, and the section already exists to
+   * spare exactly this journey.
+   */
+  useLeadFocus((target) => {
+    if (target.where === "lead") {
+      setFocus({ field: target.field, pipeline: false });
+      setEditOpen(true);
+    } else if (target.where === "application" || target.where === "interest") {
+      setFocus({ field: target.field, pipeline: true });
+      setEditOpen(true);
+    }
+  });
 
   return (
     <>
@@ -116,7 +145,10 @@ export function LeadDetailClient({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setEditOpen(true)}
+        onClick={() => {
+          setFocus(null);
+          setEditOpen(true);
+        }}
         className="gap-2 shrink-0"
       >
         <Edit className="h-3.5 w-3.5" />
@@ -125,11 +157,16 @@ export function LeadDetailClient({
 
       <LeadForm
         open={editOpen}
-        onClose={() => setEditOpen(false)}
+        onClose={() => {
+          setEditOpen(false);
+          setFocus(null);
+        }}
         lead={lead}
         sources={sources}
         institutions={institutions}
         icrUsers={icrUsers}
+        focusField={focus?.field}
+        focusInPipelineSection={focus?.pipeline}
         onSaved={() => router.refresh()}
       />
     </>

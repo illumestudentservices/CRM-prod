@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLeadFocus } from "@/lib/lead-focus";
 
 /**
  * Scheduling and completing engagements.
@@ -83,6 +84,30 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
   const [mode, setMode] = React.useState<"schedule" | "log">("schedule");
   const [when, setWhen] = React.useState("");
   const [outcome, setOutcome] = React.useState("");
+
+  /**
+   * Opened from a stage requirement, with the two choices already made.
+   *
+   * "Initial counselling must be completed" used to mean: find this card,
+   * press Add activity, switch the mode from Schedule to Log, then find the
+   * right one of eleven types. All three were guessable only if you already
+   * knew the rule. The type is preset for a typed Required Task; for the
+   * generic "any activity" rule the gate sends FOLLOW_UP, which is a sensible
+   * default and still changeable.
+   */
+  useLeadFocus((target) => {
+    if (target.where === "activityLog") {
+      setMode("log");
+      setType(target.engagementType);
+      setOpen(true);
+    } else if (target.where === "activitySchedule") {
+      setMode("schedule");
+      // Deliberately NOT preset — the gate asks only that something is booked,
+      // and guessing the kind of the next contact is guessing the work.
+      setType("");
+      setOpen(true);
+    }
+  });
 
   const load = React.useCallback(async () => {
     const res = await fetch(`/api/leads/${leadId}/activities`);
