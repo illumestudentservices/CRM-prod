@@ -130,7 +130,31 @@ export async function loadLeadForGate(id: string) {
     ...lead,
     hasInstitutionInterest: lead.institutionInterests.length > 0,
     eligibilityOutcome: bestEligibilityOutcome(lead.institutionInterests),
+    pipelineRestartedAt: await lastPipelineRestart(id),
   };
+}
+
+/**
+ * When the student was last reopened from a closed outcome, or null.
+ *
+ * The gate lets a typed Required Task completed at an EARLIER stage satisfy a
+ * later one — otherwise doing the initial counselling before marking someone
+ * Contacted meant logging the same conversation twice. That leniency has to
+ * stop at a close-and-reopen: the student has been through a full outcome
+ * since, and work from the previous run should not clear the gate on the day
+ * they come back.
+ *
+ * Read from the `LEAD_REOPENED` system activity the reopen endpoint already
+ * writes, rather than a new column. The row is written in the same transaction
+ * as the stage restore, so it cannot drift from it.
+ */
+async function lastPipelineRestart(leadId: string): Promise<Date | null> {
+  const row = await db.leadActivity.findFirst({
+    where: { leadId, kind: "SYSTEM", type: "LEAD_REOPENED" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return row?.createdAt ?? null;
 }
 
 async function loadLeadRow(id: string) {

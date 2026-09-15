@@ -104,6 +104,7 @@ export async function PATCH(
       {
         application: lead.applications[0] ?? null,
         checklist: lead.checklistItems,
+        pipelineRestartedAt: lead.pipelineRestartedAt,
       }
     );
 
@@ -346,6 +347,7 @@ export async function GET(
       ...evaluateStageGate(lead, s, lead.activities, {
         application: lead.applications[0] ?? null,
         checklist: lead.checklistItems,
+        pipelineRestartedAt: lead.pipelineRestartedAt,
       }),
     }));
 

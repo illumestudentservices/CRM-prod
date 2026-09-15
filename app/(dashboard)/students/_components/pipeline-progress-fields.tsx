@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { focusFieldWhenReady } from "@/lib/lead-focus";
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_OUTCOMES } from "@/lib/lead-options";
 import {
@@ -78,9 +79,18 @@ const dayValue = (v: string | null) => (v ? v.slice(0, 10) : "");
 /** ...and back to the ISO datetime the API expects. Empty clears the column. */
 const toIso = (v: string) => (v ? new Date(`${v}T00:00:00.000Z`).toISOString() : null);
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  name,
+  children,
+}: {
+  label: string;
+  /** The gate's field key — see the note on `FormField` in lead-form.tsx. */
+  name?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-field={name}>
       <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">{label}</Label>
       {children}
     </div>
@@ -114,9 +124,22 @@ function Choice({
   );
 }
 
-export function PipelineProgressFields({ leadId }: { leadId: string }) {
+export function PipelineProgressFields({
+  leadId,
+  focusField,
+}: {
+  leadId: string;
+  /**
+   * A field in here that the user was sent to from a stage requirement.
+   *
+   * Its presence is what opens the section: arriving with it still collapsed
+   * would mean the click landed the user on a form where the field they asked
+   * for is not rendered at all, which is worse than not moving them.
+   */
+  focusField?: string;
+}) {
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(!!focusField);
   const [loading, setLoading] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
   const [apps, setApps] = React.useState<ApplicationRow[]>([]);
@@ -148,6 +171,20 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
       }
     })();
   }, [open, loaded, leadId, toast]);
+
+  /**
+   * Deliberately waits for `loaded`.
+   *
+   * The controls are rendered from the fetched application and interest, so
+   * before that resolves there is nothing for the lookup to find. Keying the
+   * effect on `loaded` rather than letting `focusFieldWhenReady` poll through
+   * the whole request means a slow response cannot exhaust its timeout and
+   * leave the section open at the top with no indication of where to look.
+   */
+  React.useEffect(() => {
+    if (!focusField || !loaded) return;
+    return focusFieldWhenReady(focusField);
+  }, [focusField, loaded]);
 
   async function saveApp(field: string, value: unknown) {
     const app = apps[0];
@@ -236,7 +273,7 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
                     edit them on the student&apos;s page, under Institution Interests.
                   </p>
                 ) : (
-                  <Field label={`Eligibility outcome — ${interest?.institution?.name ?? "journey"}`}>
+                  <Field name="eligibilityOutcome" label={`Eligibility outcome — ${interest?.institution?.name ?? "journey"}`}>
                     <Choice
                       value={interest?.eligibilityOutcome ?? null}
                       options={ELIGIBILITY_OUTCOMES}
@@ -258,7 +295,7 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Application number">
+                    <Field name="applicationNumber" label="Application number">
                       <Input
                         defaultValue={app.applicationNumber ?? ""}
                         placeholder="Reference from the institution"
@@ -268,7 +305,7 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
                         }
                       />
                     </Field>
-                    <Field label="Evidence of submission">
+                    <Field name="submissionEvidence" label="Evidence of submission">
                       <Input
                         defaultValue={app.submissionEvidence ?? ""}
                         placeholder="Used when there is no reference number"
@@ -278,42 +315,42 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
                         }
                       />
                     </Field>
-                    <Field label="Submitted on">
+                    <Field name="submissionDate" label="Submitted on">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.submissionDate)}
                         onChange={(e) => saveApp("submissionDate", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Submission method">
+                    <Field name="submissionMethod" label="Submission method">
                       <Choice
                         value={app.submissionMethod}
                         options={SUBMISSION_METHOD_OPTIONS}
                         onChange={(v) => saveApp("submissionMethod", v)}
                       />
                     </Field>
-                    <Field label="Application status">
+                    <Field name="status" label="Application status">
                       <Choice
                         value={app.status}
                         options={APPLICATION_STATUS_OPTIONS}
                         onChange={(v) => saveApp("status", v)}
                       />
                     </Field>
-                    <Field label="Last institutional update">
+                    <Field name="lastInstitutionUpdateAt" label="Last institutional update">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.lastInstitutionUpdateAt)}
                         onChange={(e) => saveApp("lastInstitutionUpdateAt", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Expected decision date">
+                    <Field name="expectedDecisionDate" label="Expected decision date">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.expectedDecisionDate)}
                         onChange={(e) => saveApp("expectedDecisionDate", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Outstanding requirement">
+                    <Field name="outstandingRequirement" label="Outstanding requirement">
                       <Input
                         defaultValue={app.outstandingRequirement ?? ""}
                         placeholder="What the institution is still waiting for"
@@ -323,56 +360,56 @@ export function PipelineProgressFields({ leadId }: { leadId: string }) {
                         }
                       />
                     </Field>
-                    <Field label="Offer type">
+                    <Field name="offerType" label="Offer type">
                       <Choice
                         value={app.offerType}
                         options={OFFER_TYPE_OPTIONS}
                         onChange={(v) => saveApp("offerType", v)}
                       />
                     </Field>
-                    <Field label="Offer received on">
+                    <Field name="offerReceivedAt" label="Offer received on">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.offerReceivedAt)}
                         onChange={(e) => saveApp("offerReceivedAt", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Student decision">
+                    <Field name="studentDecision" label="Student decision">
                       <Choice
                         value={app.studentDecision}
                         options={STUDENT_DECISION_OPTIONS}
                         onChange={(v) => saveApp("studentDecision", v)}
                       />
                     </Field>
-                    <Field label="Deposit status">
+                    <Field name="depositStatus" label="Deposit status">
                       <Choice
                         value={app.depositStatus}
                         options={DEPOSIT_STATUS_OPTIONS}
                         onChange={(v) => saveApp("depositStatus", v)}
                       />
                     </Field>
-                    <Field label="Deposit paid on">
+                    <Field name="depositDate" label="Deposit paid on">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.depositDate)}
                         onChange={(e) => saveApp("depositDate", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Deposit deadline">
+                    <Field name="depositDeadline" label="Deposit deadline">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.depositDeadline)}
                         onChange={(e) => saveApp("depositDeadline", toIso(e.target.value))}
                       />
                     </Field>
-                    <Field label="Acceptance status">
+                    <Field name="acceptanceStatus" label="Acceptance status">
                       <Choice
                         value={app.acceptanceStatus}
                         options={ACCEPTANCE_STATUS_OPTIONS}
                         onChange={(v) => saveApp("acceptanceStatus", v)}
                       />
                     </Field>
-                    <Field label="Acceptance date">
+                    <Field name="acceptanceDate" label="Acceptance date">
                       <Input
                         type="date"
                         defaultValue={dayValue(app.acceptanceDate)}
