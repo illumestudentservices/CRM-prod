@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { ListSearch } from "@/components/shared/list-search";
 
 export const dynamic = "force-dynamic";
 
@@ -86,11 +87,23 @@ export default async function EventsPage({ searchParams }: Props) {
         </Link>
       </div>
 
+      {/* The `q` parameter was honoured by the query below long before
+          anything rendered a box for it. This is the missing half. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <ListSearch label="Search events" placeholder="Search by name, city or country…" />
+      </div>
+
       <div className="flex flex-wrap items-center gap-1 border-b pb-2">
         {STATUS_TABS.map((t) => {
           const active = (statusFilter ?? "all") === t.key;
           const count = t.key === "all" ? total : (counts[t.key] ?? 0);
-          const href = t.key === "all" ? "/recruitment-planning/events" : `/recruitment-planning/events?status=${t.key}`;
+          // Carries the search term across. Without this, choosing a
+          // status tab silently throws away what was typed.
+          const tabParams = new URLSearchParams();
+          if (q) tabParams.set("q", q);
+          if (t.key !== "all") tabParams.set("status", t.key);
+          const tabQs = tabParams.toString();
+          const href = tabQs ? `/recruitment-planning/events?${tabQs}` : "/recruitment-planning/events";
           return (
             <Link
               key={t.key}

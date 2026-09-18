@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
+import { ListSearch } from "@/components/shared/list-search";
 import { auth } from "@/lib/auth";
 import { CampaignAttachmentsButton } from "./_components/campaign-attachments-button";
 import { CampaignForm } from "./_components/campaign-form";
@@ -105,11 +106,23 @@ export default async function CampaignsPage({ searchParams }: Props) {
         />
       </div>
 
+      {/* The `q` parameter was honoured by the query below long before
+          anything rendered a box for it. This is the missing half. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <ListSearch label="Search campaigns" placeholder="Search by name, channel, city or country…" />
+      </div>
+
       <div className="flex flex-wrap items-center gap-1 border-b pb-2">
         {STATUS_TABS.map((t) => {
           const active = (statusFilter ?? "all") === t.key;
           const count = t.key === "all" ? total : (counts[t.key] ?? 0);
-          const href = t.key === "all" ? "/recruitment-planning/campaigns" : `/recruitment-planning/campaigns?status=${t.key}`;
+          // Carries the search term across. Without this, choosing a
+          // status tab silently throws away what was typed.
+          const tabParams = new URLSearchParams();
+          if (q) tabParams.set("q", q);
+          if (t.key !== "all") tabParams.set("status", t.key);
+          const tabQs = tabParams.toString();
+          const href = tabQs ? `/recruitment-planning/campaigns?${tabQs}` : "/recruitment-planning/campaigns";
           return (
             <Link
               key={t.key}
