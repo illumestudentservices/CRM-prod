@@ -104,6 +104,18 @@ export default auth((req) => {
  * shorter prefix by accident.
  */
 const PATH_TO_MODULE: ReadonlyArray<readonly [string, string]> = [
+  // Events and Campaigns moved from Recruitment Network to Recruitment
+  // Planning on 2026-09-18. These two entries keep them gated by the module
+  // they came FROM, and they must stay above "/recruitment-planning" because
+  // moduleForPath returns on the first matching prefix.
+  //
+  // Without them the move would silently widen access: HR_MANAGER can read
+  // recruitment_planning but NOT recruitment_network, so relocating the URLs
+  // would have handed HR event and campaign data it cannot see today. Moving a
+  // page between modules is a permission change whenever this file gates by
+  // prefix — the pages themselves run no check of their own.
+  ["/recruitment-planning/events", "recruitment_network"],
+  ["/recruitment-planning/campaigns", "recruitment_network"],
   ["/recruitment-network", "recruitment_network"],
   ["/recruitment-planning", "recruitment_planning"],
   ["/market-intelligence", "market_intelligence"],

@@ -228,9 +228,9 @@ export const FEATURE_CATALOGUE: readonly CatalogueEntry[] = [
     summary: "Where student enquiries originate — agencies, referrers and campaigns. Now part of Recruitment Network.",
   },
   {
-    key: "events", name: "Recruitment Events", route: "/recruitment-network/events", resource: "events",
+    key: "events", name: "Recruitment Events", route: "/recruitment-planning/events", resource: "events",
     aliases: ["fairs", "education fair", "exhibitions", "event", "conferences", "open day"],
-    summary: "Recruitment fairs and events, who attended and what they cost. Now part of Recruitment Network.",
+    summary: "Recruitment fairs and events, who attended and what they cost. Now part of Recruitment Planning.",
   },
   {
     key: "activity_log", name: "Activity Log", route: "/activity-log", resource: "settings",
