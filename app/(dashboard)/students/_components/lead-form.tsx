@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ import {
   STUDY_LEVELS,
   MONTHS,
 } from "@/lib/lead-options";
+import { COUNTRY_NAME_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/countries";
 
 /**
  * Three-valued consent, both directions.
@@ -608,8 +610,25 @@ export function LeadForm({
                 <Input {...register("phone")} placeholder="+1 234 567 8900" />
               </FormField>
 
+              {/* Both were free text until 2026-09-18, which is why the same
+                  country reached the database as "UAE", "U.A.E.", "United Arab
+                  Emirates" and "UAE National". The lists come from the ISO
+                  3166-1 table in lib/countries.ts, the same source the flags
+                  resolve against, so anything picked here is guaranteed to
+                  render a flag. Note the two fields hold different shapes —
+                  a nationality here, a country name below. */}
               <FormField name="nationality" label="Nationality" required error={errors.nationality?.message}>
-                <Input {...register("nationality")} placeholder="e.g. Nigerian" />
+                <Combobox
+                  options={NATIONALITY_OPTIONS}
+                  value={watch("nationality")}
+                  onChange={(v) =>
+                    setValue("nationality", v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  placeholder="Select nationality..."
+                  searchPlaceholder="Search nationality..."
+                  emptyText="No nationality matches that."
+                  invalid={!!errors.nationality}
+                />
               </FormField>
 
               <FormField name="countryOfResidence"
@@ -617,7 +636,17 @@ export function LeadForm({
                 required
                 error={errors.countryOfResidence?.message}
               >
-                <Input {...register("countryOfResidence")} placeholder="e.g. Nigeria" />
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={watch("countryOfResidence")}
+                  onChange={(v) =>
+                    setValue("countryOfResidence", v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  placeholder="Select country..."
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
+                  invalid={!!errors.countryOfResidence}
+                />
               </FormField>
 
               {/* Spec §2 — DOB and passport are the strongest identity signals

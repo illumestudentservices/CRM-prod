@@ -1,13 +1,13 @@
 /**
  * Country → ISO 3166-1 alpha-2 → flag emoji.
  *
- * Flags were previously produced by a local map of ~30 demonyms inside
+ * Flags were once produced by a local ~30-entry demonym map inside
  * students/_components/lead-card.tsx, described in its own comment as "common
  * ones". Ten of the twenty-two nationalities actually present in the data —
  * Turkish, Iranian, Japanese, Spanish, Omani, Senegalese, Qatari, Saudi Arabian,
  * Korean and "UAE National" — were absent, so those leads simply had no flag.
  * activity-log-view.tsx carried a second, different implementation that accepted
- * only two-letter codes.
+ * only two-letter codes. Both now call this module.
  *
  * The two fields hold different shapes, which is why one lookup table cannot work:
  *   Lead.nationality        → a demonym: "Indian", "Saudi Arabian", "UAE National"
@@ -17,124 +17,59 @@
  * resolveCountryCode() accepts any of those. Unknown input returns null and
  * countryFlag() then renders nothing, which is the correct outcome — a wrong flag
  * against a student's name is worse than no flag.
+ *
+ * WHERE THE DATA COMES FROM
+ * -------------------------
+ * The three lookup tables below used to be hand-written here and covered about
+ * 130 countries. They are now DERIVED from `lib/countries.ts`, which carries all
+ * 249 ISO 3166-1 entries and is also what fills the Nationality and Country of
+ * Residence dropdowns on the lead form.
+ *
+ * That direction matters. Two hand-maintained `Record<string, string>` tables
+ * that must agree is a bug this codebase has already paid for three times, and
+ * TypeScript cannot catch it because both sides accept any key. Deriving means a
+ * country added to the list gets its dropdown entry, its flag and its resolver
+ * entry in one edit, and a country in the dropdown can never be one the resolver
+ * has never heard of.
+ *
+ * `scripts/qa-country-resolver.mjs` pins the behaviour: it replays 517 inputs
+ * recorded from the previous hand-written implementation and fails on any
+ * changed answer.
  */
 
-/** Demonym → ISO alpha-2. Keys are matched case- and separator-insensitively. */
-const DEMONYM_TO_ISO2: Record<string, string> = {
-  // ── Africa ──
-  nigerian: "NG", ghanaian: "GH", kenyan: "KE", southafrican: "ZA", egyptian: "EG",
-  moroccan: "MA", tanzanian: "TZ", ugandan: "UG", ethiopian: "ET", zimbabwean: "ZW",
-  zambian: "ZM", senegalese: "SN", ivorian: "CI", cameroonian: "CM", rwandan: "RW",
-  botswanan: "BW", namibian: "NA", malawian: "MW", mauritian: "MU", tunisian: "TN",
-  algerian: "DZ", sudanese: "SD", somali: "SO", angolan: "AO", mozambican: "MZ",
-  // ── South & Central Asia ──
-  indian: "IN", pakistani: "PK", bangladeshi: "BD", srilankan: "LK", nepali: "NP",
-  nepalese: "NP", bhutanese: "BT", maldivian: "MV", afghan: "AF", uzbek: "UZ",
-  uzbekistani: "UZ", kazakh: "KZ", kazakhstani: "KZ", kyrgyz: "KG", tajik: "TJ",
-  turkmen: "TM", mongolian: "MN",
-  // ── East & Southeast Asia ──
-  chinese: "CN", japanese: "JP", korean: "KR", southkorean: "KR", northkorean: "KP",
-  taiwanese: "TW", hongkonger: "HK", malaysian: "MY", indonesian: "ID",
-  vietnamese: "VN", filipino: "PH", filipina: "PH", thai: "TH", singaporean: "SG",
-  burmese: "MM", myanmarese: "MM", cambodian: "KH", laotian: "LA", bruneian: "BN",
-  // ── Middle East ──
-  emirati: "AE", uaenational: "AE", saudi: "SA", saudiarabian: "SA", qatari: "QA",
-  kuwaiti: "KW", bahraini: "BH", omani: "OM", jordanian: "JO", lebanese: "LB",
-  syrian: "SY", iraqi: "IQ", iranian: "IR", israeli: "IL", palestinian: "PS",
-  yemeni: "YE", turkish: "TR",
-  // ── Europe ──
-  british: "GB", english: "GB", scottish: "GB", welsh: "GB", irish: "IE",
-  french: "FR", german: "DE", spanish: "ES", italian: "IT", portuguese: "PT",
-  dutch: "NL", belgian: "BE", swiss: "CH", austrian: "AT", swedish: "SE",
-  norwegian: "NO", danish: "DK", finnish: "FI", polish: "PL", czech: "CZ",
-  slovak: "SK", hungarian: "HU", romanian: "RO", bulgarian: "BG", greek: "GR",
-  croatian: "HR", serbian: "RS", ukrainian: "UA", russian: "RU", albanian: "AL",
-  cypriot: "CY", maltese: "MT", icelandic: "IS", lithuanian: "LT", latvian: "LV",
-  estonian: "EE", slovenian: "SI", bosnian: "BA", georgian: "GE", armenian: "AM",
-  azerbaijani: "AZ", belarusian: "BY", moldovan: "MD",
-  // ── Americas ──
-  american: "US", canadian: "CA", mexican: "MX", brazilian: "BR", colombian: "CO",
-  argentine: "AR", argentinian: "AR", chilean: "CL", peruvian: "PE",
-  venezuelan: "VE", ecuadorian: "EC", bolivian: "BO", uruguayan: "UY",
-  paraguayan: "PY", jamaican: "JM", trinidadian: "TT", cuban: "CU",
-  dominican: "DO", haitian: "HT", panamanian: "PA", costarican: "CR",
-  guatemalan: "GT", honduran: "HN", salvadoran: "SV", nicaraguan: "NI",
-  // ── Oceania ──
-  australian: "AU", newzealander: "NZ", kiwi: "NZ", fijian: "FJ",
-  papuanewguinean: "PG",
+import { ALIASES, COUNTRIES, normaliseCountryKey } from "./countries";
+
+/**
+ * Country name → ISO alpha-2, including the shorthands and former names the data
+ * actually uses ("UK", "Holland", "Burma"), which arrive via ALIASES.
+ *
+ * Aliases are applied last so a deliberate override always beats a derived
+ * entry rather than depending on table order.
+ */
+const NAME_TO_ISO2: Record<string, string> = {
+  ...Object.fromEntries(COUNTRIES.map((c) => [normaliseCountryKey(c.name), c.code])),
+  ...ALIASES,
 };
 
-/** Country name → ISO alpha-2, including the short forms the data actually uses. */
-const NAME_TO_ISO2: Record<string, string> = {
-  nigeria: "NG", ghana: "GH", kenya: "KE", southafrica: "ZA", egypt: "EG",
-  morocco: "MA", tanzania: "TZ", uganda: "UG", ethiopia: "ET", zimbabwe: "ZW",
-  zambia: "ZM", senegal: "SN", cotedivoire: "CI", ivorycoast: "CI",
-  cameroon: "CM", rwanda: "RW", botswana: "BW", namibia: "NA", malawi: "MW",
-  mauritius: "MU", tunisia: "TN", algeria: "DZ", sudan: "SD", somalia: "SO",
-  angola: "AO", mozambique: "MZ",
-  india: "IN", pakistan: "PK", bangladesh: "BD", srilanka: "LK", nepal: "NP",
-  bhutan: "BT", maldives: "MV", afghanistan: "AF", uzbekistan: "UZ",
-  kazakhstan: "KZ", kyrgyzstan: "KG", tajikistan: "TJ", turkmenistan: "TM",
-  mongolia: "MN",
-  china: "CN", japan: "JP", southkorea: "KR", korea: "KR",
-  republicofkorea: "KR", northkorea: "KP", taiwan: "TW", hongkong: "HK",
-  macau: "MO", malaysia: "MY", indonesia: "ID", vietnam: "VN",
-  philippines: "PH", thailand: "TH", singapore: "SG", myanmar: "MM",
-  burma: "MM", cambodia: "KH", laos: "LA", brunei: "BN",
-  uae: "AE", unitedarabemirates: "AE", saudiarabia: "SA", ksa: "SA",
-  qatar: "QA", kuwait: "KW", bahrain: "BH", oman: "OM", jordan: "JO",
-  lebanon: "LB", syria: "SY", iraq: "IQ", iran: "IR", israel: "IL",
-  palestine: "PS", yemen: "YE", turkey: "TR", turkiye: "TR",
-  unitedkingdom: "GB", uk: "GB", greatbritain: "GB", england: "GB",
-  scotland: "GB", wales: "GB", ireland: "IE", france: "FR", germany: "DE",
-  spain: "ES", italy: "IT", portugal: "PT", netherlands: "NL",
-  thenetherlands: "NL", holland: "NL", belgium: "BE", switzerland: "CH",
-  austria: "AT", sweden: "SE", norway: "NO", denmark: "DK", finland: "FI",
-  poland: "PL", czechia: "CZ", czechrepublic: "CZ", slovakia: "SK",
-  hungary: "HU", romania: "RO", bulgaria: "BG", greece: "GR", croatia: "HR",
-  serbia: "RS", ukraine: "UA", russia: "RU", albania: "AL", cyprus: "CY",
-  malta: "MT", iceland: "IS", lithuania: "LT", latvia: "LV", estonia: "EE",
-  slovenia: "SI", bosniaandherzegovina: "BA", georgia: "GE", armenia: "AM",
-  azerbaijan: "AZ", belarus: "BY", moldova: "MD",
-  unitedstates: "US", usa: "US", us: "US", unitedstatesofamerica: "US",
-  canada: "CA", mexico: "MX", brazil: "BR", colombia: "CO", argentina: "AR",
-  chile: "CL", peru: "PE", venezuela: "VE", ecuador: "EC", bolivia: "BO",
-  uruguay: "UY", paraguay: "PY", jamaica: "JM", trinidadandtobago: "TT",
-  cuba: "CU", dominicanrepublic: "DO", haiti: "HT", panama: "PA",
-  costarica: "CR", guatemala: "GT", honduras: "HN", elsalvador: "SV",
-  nicaragua: "NI",
-  australia: "AU", newzealand: "NZ", fiji: "FJ", papuanewguinea: "PG",
-};
+/**
+ * Demonym → ISO alpha-2.
+ *
+ * Built by assignment rather than a fresh object so that the LAST entry wins for
+ * the two demonyms shared by two countries: "Dominican" resolves to the Dominican
+ * Republic rather than Dominica, and "Congolese" to the larger DR Congo. Both are
+ * genuinely ambiguous; these are the readings the previous implementation used
+ * and the ones the data means in practice.
+ */
+const DEMONYM_TO_ISO2: Record<string, string> = {};
+for (const c of COUNTRIES) {
+  if (c.demonym) DEMONYM_TO_ISO2[normaliseCountryKey(c.demonym)] = c.code;
+}
+Object.assign(DEMONYM_TO_ISO2, ALIASES);
 
 /** ISO alpha-3 → alpha-2, for the codes the API stores ("IND"). */
-const ISO3_TO_ISO2: Record<string, string> = {
-  NGA: "NG", GHA: "GH", KEN: "KE", ZAF: "ZA", EGY: "EG", MAR: "MA", TZA: "TZ",
-  UGA: "UG", ETH: "ET", ZWE: "ZW", ZMB: "ZM", SEN: "SN", CIV: "CI", CMR: "CM",
-  RWA: "RW", BWA: "BW", NAM: "NA", MWI: "MW", MUS: "MU", TUN: "TN", DZA: "DZ",
-  SDN: "SD", SOM: "SO", AGO: "AO", MOZ: "MZ",
-  IND: "IN", PAK: "PK", BGD: "BD", LKA: "LK", NPL: "NP", BTN: "BT", MDV: "MV",
-  AFG: "AF", UZB: "UZ", KAZ: "KZ", KGZ: "KG", TJK: "TJ", TKM: "TM", MNG: "MN",
-  CHN: "CN", JPN: "JP", KOR: "KR", PRK: "KP", TWN: "TW", HKG: "HK", MAC: "MO",
-  MYS: "MY", IDN: "ID", VNM: "VN", PHL: "PH", THA: "TH", SGP: "SG", MMR: "MM",
-  KHM: "KH", LAO: "LA", BRN: "BN",
-  ARE: "AE", SAU: "SA", QAT: "QA", KWT: "KW", BHR: "BH", OMN: "OM", JOR: "JO",
-  LBN: "LB", SYR: "SY", IRQ: "IQ", IRN: "IR", ISR: "IL", PSE: "PS", YEM: "YE",
-  TUR: "TR",
-  GBR: "GB", IRL: "IE", FRA: "FR", DEU: "DE", ESP: "ES", ITA: "IT", PRT: "PT",
-  NLD: "NL", BEL: "BE", CHE: "CH", AUT: "AT", SWE: "SE", NOR: "NO", DNK: "DK",
-  FIN: "FI", POL: "PL", CZE: "CZ", SVK: "SK", HUN: "HU", ROU: "RO", BGR: "BG",
-  GRC: "GR", HRV: "HR", SRB: "RS", UKR: "UA", RUS: "RU", ALB: "AL", CYP: "CY",
-  MLT: "MT", ISL: "IS", LTU: "LT", LVA: "LV", EST: "EE", SVN: "SI", BIH: "BA",
-  GEO: "GE", ARM: "AM", AZE: "AZ", BLR: "BY", MDA: "MD",
-  USA: "US", CAN: "CA", MEX: "MX", BRA: "BR", COL: "CO", ARG: "AR", CHL: "CL",
-  PER: "PE", VEN: "VE", ECU: "EC", BOL: "BO", URY: "UY", PRY: "PY", JAM: "JM",
-  TTO: "TT", CUB: "CU", DOM: "DO", HTI: "HT", PAN: "PA", CRI: "CR", GTM: "GT",
-  HND: "HN", SLV: "SV", NIC: "NI",
-  AUS: "AU", NZL: "NZ", FJI: "FJ", PNG: "PG",
-};
-
-/** Strip case, spaces, hyphens and underscores so "South_Africa" == "south africa". */
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+const ISO3_TO_ISO2: Record<string, string> = Object.fromEntries(
+  COUNTRIES.map((c) => [c.code3, c.code])
+);
 
 /**
  * Resolve a demonym, country name, alpha-3 or alpha-2 value to an ISO alpha-2
@@ -144,7 +79,7 @@ export function resolveCountryCode(input: string | null | undefined): string | n
   if (!input) return null;
   const raw = input.trim();
   if (!raw) return null;
-  const k = norm(raw);
+  const k = normaliseCountryKey(raw);
   if (!k) return null;
 
   // Alpha-2 first: shortest and unambiguous. Guarded by the name table above so
