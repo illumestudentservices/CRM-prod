@@ -44,14 +44,11 @@ export default async function RecruitmentPlanningPage() {
   });
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Recruitment Planning</h1>
-          <p className="text-sm text-muted-foreground">
-            Quarterly plans, budget approval and variation requests.
-          </p>
-        </div>
+    // The p-6 wrapper, the title and the subtitle now live in layout.tsx, which
+    // also draws the Plans / Events / Campaigns tabs. Leaving them here as well
+    // would render the heading twice.
+    <div>
+      <div className="flex items-center justify-end mb-4">
         <NewPlanButton defaultIcrId={session.user.id} />
       </div>
 

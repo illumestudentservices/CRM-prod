@@ -2,8 +2,8 @@ import Link from "next/link";
 
 const TABS: Array<{ href: string; label: string }> = [
   { href: "/recruitment-network/partners", label: "Recruitment Partners" },
-  { href: "/recruitment-network/events", label: "Events" },
-  { href: "/recruitment-network/campaigns", label: "Campaigns" },
+  // Events and Campaigns moved to Recruitment Planning on 2026-09-18. The old
+  // URLs still resolve — they redirect — so existing links and bookmarks work.
   { href: "/recruitment-network/performance", label: "Network Performance" },
 ];
 
@@ -12,7 +12,7 @@ export default function RecruitmentNetworkLayout({ children }: { children: React
     <div className="p-6">
       <h1 className="text-2xl font-semibold">Recruitment Network</h1>
       <p className="text-sm text-muted-foreground mb-4">
-        Partners, events, campaigns and network performance in one place.
+        Partners and network performance. Events and campaigns moved to Recruitment Planning.
       </p>
       <nav className="flex gap-2 border-b mb-4">
         {TABS.map((t) => (
