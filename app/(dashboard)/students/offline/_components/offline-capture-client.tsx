@@ -612,10 +612,25 @@ export function OfflineCaptureClient({
                 <Input type="number" inputMode="numeric" value={form.intakeYear} onChange={(e) => set("intakeYear", e.target.value)} />
               </Field>
               <Field label="Intended destination" error={errors.intendedDestination}>
-                <Input value={form.intendedDestination} onChange={(e) => set("intendedDestination", e.target.value)} placeholder="Canada" />
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={form.intendedDestination}
+                  onChange={(v) => set("intendedDestination", v)}
+                  placeholder="Select destination..."
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
+                  invalid={!!errors.intendedDestination}
+                />
               </Field>
               <Field label="Preferred country">
-                <Input value={form.preferredCountry} onChange={(e) => set("preferredCountry", e.target.value)} />
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={form.preferredCountry}
+                  onChange={(v) => set("preferredCountry", v)}
+                  placeholder="Confirmed after counselling"
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
+                />
               </Field>
 
               <Field label="Lead source">

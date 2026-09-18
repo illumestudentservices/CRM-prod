@@ -782,17 +782,34 @@ export function LeadForm({
               it needs.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Both are study destinations and both are gate requirements —
+                  intendedDestination to leave New Lead, preferredCountry to
+                  leave Contacted. They use the same 249-country list as Country
+                  of Residence rather than a shortlist of popular destinations,
+                  so nothing a student actually wants can fail to be recorded. */}
               <FormField name="intendedDestination" label="Intended Destination" neededToProgress>
-                <Input
-                  {...register("intendedDestination")}
-                  placeholder="e.g. United Kingdom"
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={watch("intendedDestination")}
+                  onChange={(v) =>
+                    setValue("intendedDestination", v, { shouldValidate: true, shouldDirty: true })
+                  }
+                  placeholder="Select destination..."
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
                 />
               </FormField>
 
               <FormField name="preferredCountry" label="Preferred Country">
-                <Input
-                  {...register("preferredCountry")}
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={watch("preferredCountry")}
+                  onChange={(v) =>
+                    setValue("preferredCountry", v, { shouldValidate: true, shouldDirty: true })
+                  }
                   placeholder="Confirmed after counselling"
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
                 />
               </FormField>
 
