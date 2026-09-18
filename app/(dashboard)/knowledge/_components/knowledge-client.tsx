@@ -38,7 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { checkUploadSize } from "@/lib/uploads";
+import { checkUploadSize, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/uploads";
 import { ExportButton } from "@/components/shared/export-button";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -386,6 +386,7 @@ function CreateArticleDialog({
     content: string;
     category: string;
     tags: string[];
+    files: File[];
   }) => Promise<void>;
   categories: string[];
   title: string;
@@ -394,7 +395,27 @@ function CreateArticleDialog({
   const [content, setContent] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [tagsInput, setTagsInput] = React.useState("");
+  const [files, setFiles] = React.useState<File[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  /**
+   * Oversized files are refused here as well as by the server.
+   *
+   * Not belt and braces: the upload happens AFTER the article has been
+   * created, so a file the server rejects would leave the article saved and the
+   * attachment missing, with the failure arriving after the dialog had closed.
+   * Catching it while the form is still open keeps the two together.
+   */
+  const addFiles = (picked: FileList | null) => {
+    if (!picked) return;
+    const next = [...files];
+    for (const f of Array.from(picked)) {
+      if (f.size > MAX_UPLOAD_BYTES) continue;
+      if (!next.some((e) => e.name === f.name && e.size === f.size)) next.push(f);
+    }
+    setFiles(next);
+  };
 
   const handleSubmit = async () => {
     if (!formTitle || !content || !category) return;
@@ -408,11 +429,13 @@ function CreateArticleDialog({
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
+        files,
       });
       setFormTitle("");
       setContent("");
       setCategory("");
       setTagsInput("");
+      setFiles([]);
       onClose();
     } finally {
       setSubmitting(false);
@@ -468,6 +491,59 @@ function CreateArticleDialog({
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="e.g. admissions, scholarships, 2024"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="article-files">
+              Attachments{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                (optional, max {MAX_UPLOAD_MB} MB each)
+              </span>
+            </Label>
+            <input
+              ref={fileRef}
+              id="article-files"
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                // Cleared so picking the same file twice still fires onChange.
+                e.target.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Add file
+            </Button>
+            {files.length > 0 && (
+              <ul className="space-y-1 pt-1">
+                {files.map((f, i) => (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-2.5 py-1.5 dark:border-slate-800"
+                  >
+                    <span className="truncate text-xs">{f.name}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-[11px] text-slate-400">{fileSize(f.size)}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${f.name}`}
+                        onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                        className="text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
@@ -625,6 +701,7 @@ export function KnowledgeClient({
   proposalArticles: initialProposals,
 }: KnowledgeClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   // State
   const [viewArticle, setViewArticle] = React.useState<Article | null>(null);
@@ -709,13 +786,15 @@ export function KnowledgeClient({
     content: string;
     category: string;
     tags: string[];
-  }) => {
-    await fetch("/api/hr/knowledge-base", {
+  }): Promise<string | null> => {
+    const res = await fetch("/api/hr/knowledge-base", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...data, knowledgeType: "GENERAL" }),
     });
+    const created = res.ok ? await res.json().catch(() => null) : null;
     router.refresh();
+    return created?.article?.id ?? null;
   };
 
   const handleCreateInstitution = async (data: {
@@ -723,18 +802,20 @@ export function KnowledgeClient({
     content: string;
     category: string;
     tags: string[];
-  }) => {
-    if (!selectedInstitution) return;
-    await fetch(`/api/institutions/${selectedInstitution}/knowledge`, {
+  }): Promise<string | null> => {
+    if (!selectedInstitution) return null;
+    const created = await fetch(`/api/institutions/${selectedInstitution}/knowledge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    const body = created.ok ? await created.json().catch(() => null) : null;
     // Refetch
     const res = await fetch(`/api/institutions/${selectedInstitution}/knowledge`);
     const result = await res.json();
     setInstitutionArticles(result.articles ?? []);
     router.refresh();
+    return body?.article?.id ?? null;
   };
 
   const handleCreateMarket = async (data: {
@@ -742,17 +823,19 @@ export function KnowledgeClient({
     content: string;
     category: string;
     tags: string[];
-  }) => {
-    if (!selectedMarket) return;
-    await fetch(`/api/markets/${selectedMarket}/knowledge`, {
+  }): Promise<string | null> => {
+    if (!selectedMarket) return null;
+    const created = await fetch(`/api/markets/${selectedMarket}/knowledge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    const body = created.ok ? await created.json().catch(() => null) : null;
     const res = await fetch(`/api/markets/${selectedMarket}/knowledge`);
     const result = await res.json();
     setMarketArticles(result.articles ?? []);
     router.refresh();
+    return body?.article?.id ?? null;
   };
 
   const handleCreateProposal = async (data: {
@@ -760,14 +843,16 @@ export function KnowledgeClient({
     content: string;
     category: string;
     tags: string[];
-  }) => {
-    await fetch("/api/knowledge/proposals", {
+  }): Promise<string | null> => {
+    const res = await fetch("/api/knowledge/proposals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    const created = res.ok ? await res.json().catch(() => null) : null;
     fetchProposals();
     router.refresh();
+    return created?.article?.id ?? null;
   };
 
   const openCreate = (
@@ -779,22 +864,90 @@ export function KnowledgeClient({
     setCreateOpen(true);
   };
 
+  /**
+   * Creates the article, then uploads any files chosen on the form.
+   *
+   * ── WHY TWO STEPS ───────────────────────────────────────────────────────
+   *
+   * An attachment hangs off an article id, so there is nothing to attach to
+   * until the article exists. All four create endpoints return the new record,
+   * which is what makes this possible without a new API.
+   *
+   * ── WHY FAILURES ARE REPORTED, NOT SWALLOWED ────────────────────────────
+   *
+   * The article is already saved by the time a file is rejected. Staying quiet
+   * would leave someone believing their policy document was attached when only
+   * the text had been kept — and they would not find out until somebody went
+   * looking for the file. Each failure is named.
+   */
   const handleCreateSubmit = async (data: {
     title: string;
     content: string;
     category: string;
     tags: string[];
+    files: File[];
   }) => {
+    const { files, ...article } = data;
+
+    let articleId: string | null = null;
     switch (createContext.tab) {
       case "general":
-        return handleCreateGeneral(data);
+        articleId = await handleCreateGeneral(article);
+        break;
       case "institution":
-        return handleCreateInstitution(data);
+        articleId = await handleCreateInstitution(article);
+        break;
       case "market":
-        return handleCreateMarket(data);
+        articleId = await handleCreateMarket(article);
+        break;
       case "proposal":
-        return handleCreateProposal(data);
+        articleId = await handleCreateProposal(article);
+        break;
     }
+
+    if (!files.length) return;
+
+    if (!articleId) {
+      toast({
+        title: "Files not attached",
+        description:
+          "The article was saved but the server did not return its id, so the files could not be uploaded. Open the article and add them there.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const failed: string[] = [];
+    for (const file of files) {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch(
+          `/api/hr/knowledge-base/attachments?articleId=${articleId}`,
+          { method: "POST", body: form }
+        );
+        if (!res.ok) failed.push(file.name);
+      } catch {
+        failed.push(file.name);
+      }
+    }
+
+    if (failed.length) {
+      toast({
+        title: `${failed.length} file${failed.length === 1 ? "" : "s"} not attached`,
+        description: `${failed.join(", ")} — the article was saved. Open it to try again.`,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Article created",
+        description: `${files.length} file${files.length === 1 ? "" : "s"} attached.`,
+      });
+    }
+
+    // Reload so the new attachments show without a manual refresh.
+    if (createContext.tab === "proposal") fetchProposals();
+    router.refresh();
   };
 
   return (
