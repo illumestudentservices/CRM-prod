@@ -16,6 +16,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { COUNTRY_NAME_OPTIONS } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -244,7 +246,18 @@ export function CampaignForm({
 
             <div className="space-y-1.5">
               <Label htmlFor="camp-country">Country</Label>
-              <Input id="camp-country" placeholder="Country" {...register("country")} />
+              <Combobox
+                id="camp-country"
+                options={COUNTRY_NAME_OPTIONS}
+                value={watch("country")}
+                onChange={(v) =>
+                  setValue("country", v, { shouldValidate: true, shouldDirty: true })
+                }
+                placeholder="Select country..."
+                searchPlaceholder="Search country..."
+                emptyText="No country matches that."
+                invalid={!!errors.country}
+              />
             </div>
 
             <div className="space-y-1.5">

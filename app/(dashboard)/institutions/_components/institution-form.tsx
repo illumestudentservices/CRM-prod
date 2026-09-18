@@ -15,6 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { COUNTRY_NAME_OPTIONS } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -117,6 +119,7 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
     register,
     handleSubmit,
     setValue,
+    watch,
     reset,
     formState: { errors },
   } = useForm<InstitutionFormValues>({
@@ -229,7 +232,18 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
               <Label htmlFor="country">
                 Country <span className="text-red-500">*</span>
               </Label>
-              <Input id="country" {...register("country")} placeholder="e.g. United Kingdom" />
+              <Combobox
+                id="country"
+                options={COUNTRY_NAME_OPTIONS}
+                value={watch("country")}
+                onChange={(v) =>
+                  setValue("country", v, { shouldValidate: true, shouldDirty: true })
+                }
+                placeholder="Select country..."
+                searchPlaceholder="Search country..."
+                emptyText="No country matches that."
+                invalid={!!errors.country}
+              />
               {errors.country && (
                 <p className="text-xs text-red-500">{errors.country.message}</p>
               )}
