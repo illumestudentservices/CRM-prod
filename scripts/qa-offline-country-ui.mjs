@@ -74,6 +74,8 @@ const CITIZENSHIP = 0;
 const RESIDENCE = 1;
 const STUDY_LEVEL = 2;
 const INTAKE_MONTH = 3;
+const DESTINATION = 4;
+const PREFERRED = 5;
 
 try {
   ctx = await createAndLogin({ role: "SUPER_ADMIN" });
@@ -114,6 +116,16 @@ try {
     "combobox 1 is Country of residence",
     `reads ${JSON.stringify(order[RESIDENCE])}`
   );
+  expect(
+    /Select destination/i.test(order[DESTINATION]),
+    "combobox 4 is Intended destination",
+    `reads ${JSON.stringify(order[DESTINATION])}`
+  );
+  expect(
+    /Confirmed after counselling/i.test(order[PREFERRED]),
+    "combobox 5 is Preferred country",
+    `reads ${JSON.stringify(order[PREFERRED])}`
+  );
 
   const citizenship = await pick(page, CITIZENSHIP, "niger", "Nigerian");
   expect(
@@ -136,6 +148,20 @@ try {
     "a rarely used country is in the offline list too"
   );
   await pick(page, RESIDENCE, "nigeria", "Nigeria");
+
+  // The two destination fields, also offline. Both are stage-gate
+  // requirements, so a value that does not survive to the queue blocks the
+  // student later, back at the office, with the reason far from the cause.
+  const dest = await pick(page, DESTINATION, "canada", "Canada");
+  expect(
+    (await dest.innerText()).trim() === "Canada",
+    "intended destination can be picked while offline"
+  );
+  const pref = await pick(page, PREFERRED, "ireland", "Ireland");
+  expect(
+    (await pref.innerText()).trim() === "Ireland",
+    "preferred country can be picked while offline"
+  );
 
   // ── 2. The queued record carries the picked strings ──────────────────────
   startSection("what is queued on the device matches what was picked");
@@ -183,6 +209,16 @@ try {
       d.countryOfResidence === "Nigeria",
       "the queued country of residence is the picked string",
       `queued ${JSON.stringify(d.countryOfResidence)}`
+    );
+    expect(
+      d.intendedDestination === "Canada",
+      "the queued intended destination is the picked string",
+      `queued ${JSON.stringify(d.intendedDestination)}`
+    );
+    expect(
+      d.preferredCountry === "Ireland",
+      "the queued preferred country is the picked string",
+      `queued ${JSON.stringify(d.preferredCountry)}`
     );
   }
 

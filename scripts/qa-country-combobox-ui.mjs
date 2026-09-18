@@ -66,7 +66,10 @@ async function waitForLead(id, predicate, timeoutMs = 20000) {
   for (;;) {
     row = await db.lead.findUnique({
       where: { id },
-      select: { nationality: true, countryOfResidence: true, phone: true },
+      select: {
+        nationality: true, countryOfResidence: true, phone: true,
+        intendedDestination: true, preferredCountry: true,
+      },
     });
     if (predicate(row) || Date.now() - started > timeoutMs) return row;
     await new Promise((r) => setTimeout(r, 400));
@@ -196,6 +199,55 @@ try {
     saved.countryOfResidence === "Nigeria",
     "the database holds the country exactly as listed",
     `stored ${JSON.stringify(saved.countryOfResidence)}`
+  );
+
+  // ── 2b. The two destination fields ───────────────────────────────────────
+  // Both are gate requirements — intendedDestination to leave New Lead and
+  // preferredCountry to leave Contacted — so a box that looks filled but stores
+  // nothing would block a student with no visible reason why.
+  startSection("intended destination and preferred country save too");
+
+  await page.goto(`${BROWSER_BASE}/students/${leadId}`, { waitUntil: "networkidle", timeout: 60000 });
+  await page.waitForTimeout(2000);
+  dlg = await openEdit(page);
+
+  const destTrigger = trigger(dlg, "intendedDestination");
+  expect(await destTrigger.count() === 1, "Intended Destination renders a combobox");
+  await destTrigger.scrollIntoViewIfNeeded();
+  await destTrigger.click();
+  await page.waitForTimeout(500);
+  // NOT "Canada": the fixture already creates the lead with that, so waiting
+  // for it below would be satisfied instantly and prove nothing.
+  await page.keyboard.type("germany");
+  await page.waitForTimeout(500);
+  await page.locator('[role="option"]', { hasText: /^Germany$/ }).first().click();
+  await page.waitForTimeout(400);
+
+  const prefTrigger = trigger(dlg, "preferredCountry");
+  expect(await prefTrigger.count() === 1, "Preferred Country renders a combobox");
+  await prefTrigger.click();
+  await page.waitForTimeout(500);
+  await page.keyboard.type("ireland");
+  await page.waitForTimeout(500);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(400);
+  expect(
+    (await prefTrigger.innerText()).trim() === "Ireland",
+    "preferred country can be picked by keyboard",
+    `trigger read ${JSON.stringify((await prefTrigger.innerText()).trim())}`
+  );
+
+  await dlg.getByRole("button", { name: /save|update/i }).first().click();
+  const dest = await waitForLead(leadId, (r) => r?.intendedDestination === "Germany");
+  expect(
+    dest.intendedDestination === "Germany",
+    "the intended destination is stored",
+    `stored ${JSON.stringify(dest.intendedDestination)}`
+  );
+  expect(
+    dest.preferredCountry === "Ireland",
+    "the preferred country is stored",
+    `stored ${JSON.stringify(dest.preferredCountry)}`
   );
 
   // ── 3. A value not in the list is preserved, not silently dropped ────────
