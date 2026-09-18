@@ -106,6 +106,50 @@ const leadSchema = z.object({
 
 type LeadFormValues = z.infer<typeof leadSchema>;
 
+/** The four consent questions that must be answered when capturing a student. */
+const CONSENT_KEYS = [
+  "marketingConsent",
+  "phoneContactConsent",
+  "smsContactConsent",
+  "whatsappContactConsent",
+] as const;
+
+/**
+ * Creating a student requires an answer on every channel; editing one does not.
+ *
+ * ── WHY THE TWO DIFFER ──────────────────────────────────────────────────────
+ *
+ * Consent is three-valued on purpose: NULL means nobody asked, false means they
+ * were asked and declined. Every student captured before this became mandatory
+ * has NULL on all four channels.
+ *
+ * If editing enforced the same rule, someone changing a phone number on a
+ * two-year-old record would be made to answer four questions they were never
+ * present for. The only options on offer would be "yes" and "no", so the form
+ * would push them into recording a refusal that never happened — which under
+ * anti-spam law is a false record of a legal fact, and worse than the blank it
+ * replaced.
+ *
+ * So the rule binds at capture, where the student is actually in front of you,
+ * and the "Didn't ask" button survives on the edit form for records that
+ * already carry a blank.
+ *
+ * `superRefine` on the same object rather than a narrowed `.extend()`, so both
+ * schemas infer to exactly the same LeadFormValues and the form's generic does
+ * not have to change.
+ */
+const leadCreateSchema = leadSchema.superRefine((values, ctx) => {
+  for (const key of CONSENT_KEYS) {
+    if (!values[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: "Please record their answer",
+      });
+    }
+  }
+});
+
 // ─── Match check panel ───────────────────────────────────────────────────────
 // Spec §2 — before creating a new Student Profile, search existing profiles.
 // The panel debounces the current form values, calls /api/leads/find-matches,
@@ -365,7 +409,8 @@ export function LeadForm({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<LeadFormValues>({
-    resolver: zodResolver(leadSchema) as never,
+    // Consent is only compulsory at capture — see the note on leadCreateSchema.
+    resolver: zodResolver(isEdit ? leadSchema : leadCreateSchema) as never,
     defaultValues: {
       firstName: lead?.firstName ?? "",
       lastName: lead?.lastName ?? "",
@@ -697,6 +742,105 @@ export function LeadForm({
             />
           </div>
 
+          {/* Anti-spam consent. Present here as well as on the offline form —
+              a consent record that only covers event leads is worse than none,
+              because it looks like coverage while office-created leads sit
+              unrecorded. Three states: unanswered is not a refusal. */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
+            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              May we email them?
+              {!isEdit && <span className="text-red-500 ml-0.5">*</span>}
+            </Label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Canadian anti-spam law requires permission before sending marketing email.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-0.5">
+              {([
+                { v: "yes", label: "Yes, they agreed" },
+                { v: "no", label: "No, they declined" },
+                // Withheld while capturing: the student is in front of you, so
+                // there is no honest "didn't ask". Kept on the edit form for the
+                // records that were created before this was compulsory.
+                ...(isEdit ? [{ v: "" as const, label: "Didn't ask" }] : []),
+              ] as const).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setValue("marketingConsent", o.v)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                    (watch("marketingConsent") ?? "") === o.v
+                      ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                  )}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {errors.marketingConsent && (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                {errors.marketingConsent.message}
+              </p>
+            )}
+
+            {/* Spec §1 asks for communication preferenceS. Email consent alone
+                looked like coverage while the other channels sat unrecorded. */}
+            <div className="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800">
+              {([
+                { key: "phoneContactConsent", label: "Telephone calls" },
+                { key: "smsContactConsent", label: "SMS" },
+                { key: "whatsappContactConsent", label: "WhatsApp" },
+              ] as const).map((ch) => (
+                <div key={ch.key} className="flex items-center justify-between gap-3">
+                  <Label className="text-[11px] font-normal text-slate-600 dark:text-slate-400">
+                    {ch.label}
+                    {!isEdit && <span className="text-red-500 ml-0.5">*</span>}
+                    {!isEdit && errors[ch.key] && (
+                      <span className="block text-[11px] text-red-600 dark:text-red-400">
+                        {errors[ch.key]?.message}
+                      </span>
+                    )}
+                  </Label>
+                  <div className="flex gap-1.5">
+                    {([
+                      { v: "yes", label: "Yes" },
+                      { v: "no", label: "No" },
+                      ...(isEdit ? [{ v: "" as const, label: "Didn't ask" }] : []),
+                    ] as const).map((o) => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => setValue(ch.key, o.v)}
+                        className={cn(
+                          "px-2 py-1 rounded text-[11px] font-medium border transition-colors",
+                          (watch(ch.key) ?? "") === o.v
+                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <label className="flex items-start gap-2 pt-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={watch("doNotContact") === true}
+                  onChange={(e) => setValue("doNotContact", e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <span className="font-medium">Do not contact</span> — the student has asked
+                  us to stop entirely. Overrides every channel above, whatever they say.
+                </span>
+              </label>
+            </div>
+          </div>
+
           {/* Academic information */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
@@ -998,88 +1142,6 @@ export function LeadForm({
               rows={3}
             />
           </FormField>
-
-          {/* Anti-spam consent. Present here as well as on the offline form —
-              a consent record that only covers event leads is worse than none,
-              because it looks like coverage while office-created leads sit
-              unrecorded. Three states: unanswered is not a refusal. */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
-            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">May we email them?</Label>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Canadian anti-spam law requires permission before sending marketing email.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-0.5">
-              {([
-                { v: "yes", label: "Yes, they agreed" },
-                { v: "no", label: "No, they declined" },
-                { v: "", label: "Didn't ask" },
-              ] as const).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => setValue("marketingConsent", o.v)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                    (watch("marketingConsent") ?? "") === o.v
-                      ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Spec §1 asks for communication preferenceS. Email consent alone
-                looked like coverage while the other channels sat unrecorded. */}
-            <div className="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800">
-              {([
-                { key: "phoneContactConsent", label: "Telephone calls" },
-                { key: "smsContactConsent", label: "SMS" },
-                { key: "whatsappContactConsent", label: "WhatsApp" },
-              ] as const).map((ch) => (
-                <div key={ch.key} className="flex items-center justify-between gap-3">
-                  <Label className="text-[11px] font-normal text-slate-600 dark:text-slate-400">
-                    {ch.label}
-                  </Label>
-                  <div className="flex gap-1.5">
-                    {([
-                      { v: "yes", label: "Yes" },
-                      { v: "no", label: "No" },
-                      { v: "", label: "Didn't ask" },
-                    ] as const).map((o) => (
-                      <button
-                        key={o.v}
-                        type="button"
-                        onClick={() => setValue(ch.key, o.v)}
-                        className={cn(
-                          "px-2 py-1 rounded text-[11px] font-medium border transition-colors",
-                          (watch(ch.key) ?? "") === o.v
-                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
-                        )}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <label className="flex items-start gap-2 pt-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={watch("doNotContact") === true}
-                  onChange={(e) => setValue("doNotContact", e.target.checked)}
-                  className="mt-0.5"
-                />
-                <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <span className="font-medium">Do not contact</span> — the student has asked
-                  us to stop entirely. Overrides every channel above, whatever they say.
-                </span>
-              </label>
-            </div>
-          </div>
 
           {/* Edit only. An application and a journey are separate records that
               do not exist until the student does, so on the create form this

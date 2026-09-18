@@ -60,6 +60,18 @@ const capturedLeadSchema = z.object({
   /// Whether the student agreed to commercial email, asked at the booth.
   /// Undefined means the question was not put to them — not a refusal.
   marketingConsent: z.boolean().optional(),
+
+  /// The other three channels, same rule. These MUST be listed here: this
+  /// schema is not `.strict()`, so an unlisted key is silently stripped and the
+  /// route still answers 201 — the capture page would show four consent
+  /// questions and quietly upload only one. That exact failure has already been
+  /// paid for once on the online create route (PR #112).
+  phoneContactConsent: z.boolean().optional(),
+  smsContactConsent: z.boolean().optional(),
+  whatsappContactConsent: z.boolean().optional(),
+  /// Blanket override. Absent means no instruction was given, so it defaults
+  /// to false at the column rather than being treated as a refusal.
+  doNotContact: z.boolean().optional(),
 });
 
 const syncSchema = z.object({
@@ -193,6 +205,18 @@ export async function POST(req: NextRequest) {
                 : lead.capturedAt
                   ? new Date(lead.capturedAt)
                   : new Date(),
+            phoneContactConsent: lead.phoneContactConsent,
+            smsContactConsent: lead.smsContactConsent,
+            whatsappContactConsent: lead.whatsappContactConsent,
+            doNotContact: lead.doNotContact ?? false,
+            // Same reasoning as marketingConsentAt: stamp when they were asked
+            // at the booth, not when the batch happened to reach the server.
+            doNotContactAt:
+              lead.doNotContact === true
+                ? lead.capturedAt
+                  ? new Date(lead.capturedAt)
+                  : new Date()
+                : undefined,
           },
           select: { id: true },
         });
