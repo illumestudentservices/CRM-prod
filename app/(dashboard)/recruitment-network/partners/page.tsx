@@ -3,11 +3,20 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PartnerForm } from "./_components/partner-form";
+import { PartnerFilters } from "./_components/partner-filters";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams?: Promise<{ type?: string; q?: string }>;
+  searchParams?: Promise<{
+    type?: string;
+    q?: string;
+    country?: string;
+    agreement?: string;
+    region?: string;
+    tier?: string;
+    status?: string;
+  }>;
 }
 
 /**
@@ -70,22 +79,45 @@ export default async function PartnersPage({ searchParams }: Props) {
       ? TYPE_GROUPS[activeTab].types[0]
       : { in: TYPE_GROUPS[activeTab].types as never };
 
+  // "all" is the filter bar's not-set sentinel; treat it as absent.
+  const pick = (v?: string) => (v && v !== "all" ? v : undefined);
+  const country = pick(sp.country);
+  const agreement = pick(sp.agreement);
+  const regionId = pick(sp.region);
+  const tier = pick(sp.tier);
+
+  // Active-only unless asked otherwise. Deactivated partners used to be
+  // unreachable: the query hard-coded isActive true with nothing to override
+  // it, so a partner switched off simply vanished with no way to find it again.
+  const statusParam = sp.status ?? "active";
+  const isActive =
+    statusParam === "inactive" ? false : statusParam === "all" ? undefined : true;
+
+  const baseWhere = {
+    deletedAt: null,
+    ...(isActive === undefined ? {} : { isActive }),
+    ...(country ? { country } : {}),
+    ...(agreement ? { agreementStatus: agreement } : {}),
+    ...(regionId ? { regionId } : {}),
+    // Tier lives on the 1-1 agent profile, so this necessarily excludes every
+    // partner that is not an agent — which is why the control says "Agent tier".
+    ...(tier ? { agentProfile: { tier: tier as never } } : {}),
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { country: { contains: q, mode: "insensitive" as const } },
+            { city: { contains: q, mode: "insensitive" as const } },
+            { contactPerson: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const where = { ...baseWhere, type: typeFilter as never };
+
   const partners = await db.recruitmentPartner.findMany({
-    where: {
-      deletedAt: null,
-      isActive: true,
-      type: typeFilter as never,
-      ...(q
-        ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" } },
-              { country: { contains: q, mode: "insensitive" } },
-              { city: { contains: q, mode: "insensitive" } },
-              { contactPerson: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
+    where,
     orderBy: { name: "asc" },
     include: {
       _count: { select: { leads: true, partnerContacts: true } },
@@ -101,6 +133,49 @@ export default async function PartnersPage({ searchParams }: Props) {
     orderBy: { name: "asc" },
   });
 
+  /**
+   * How many partners match, ignoring the 300-row display cap.
+   *
+   * `partners.length` alone cannot answer this: once a filter matches more than
+   * 300, the list silently stops there and the header would claim the cap was
+   * the total. Saying "showing 300 of 412" is the difference between a page
+   * that is paging and a page that is lying.
+   */
+  const matching = await db.recruitmentPartner.count({ where });
+
+  /**
+   * Filter options come from the data, not from a hand-written list.
+   *
+   * `agreementStatus` is a free-text column, so a curated list would miss any
+   * legacy or mistyped value — and a filter that cannot select a value which
+   * exists makes those rows unreachable. Scoped to partner types and to
+   * whichever active/inactive set is being looked at, so the dropdowns never
+   * offer a choice that yields nothing.
+   */
+  const optionScope = {
+    deletedAt: null,
+    ...(isActive === undefined ? {} : { isActive }),
+    type: { in: PARTNER_TAB_TYPES as never },
+  };
+  const [countryRows, agreementRows] = await Promise.all([
+    db.recruitmentPartner.findMany({
+      where: optionScope,
+      select: { country: true },
+      distinct: ["country"],
+      orderBy: { country: "asc" },
+    }),
+    db.recruitmentPartner.findMany({
+      where: { ...optionScope, agreementStatus: { not: null } },
+      select: { agreementStatus: true },
+      distinct: ["agreementStatus"],
+      orderBy: { agreementStatus: "asc" },
+    }),
+  ]);
+  const countries = countryRows.map((r) => r.country).filter(Boolean);
+  const agreements = agreementRows
+    .map((r) => r.agreementStatus)
+    .filter((v): v is string => !!v);
+
   // Pre-select the type based on the current tab so "Add" from the Agents
   // tab defaults to type=AGENT etc.
   const tabTypeMap: Record<string, "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER" | "EDUCATION_PARTNER" | undefined> = {
@@ -113,13 +188,12 @@ export default async function PartnersPage({ searchParams }: Props) {
   const defaultType = tabTypeMap[activeTab];
 
   // Group counts for the tab bar. One groupBy query, five buckets.
+  // Counted with every filter EXCEPT the tab itself, so the numbers describe
+  // what each tab would actually show. Counting them unfiltered would offer
+  // "Agents 40" and then deliver three once a country filter was on.
   const grouped = await db.recruitmentPartner.groupBy({
     by: ["type"],
-    where: {
-      deletedAt: null,
-      isActive: true,
-      type: { in: PARTNER_TAB_TYPES as never },
-    },
+    where: { ...baseWhere, type: { in: PARTNER_TAB_TYPES as never } },
     _count: { _all: true },
   });
   const rawCounts = Object.fromEntries(grouped.map((g) => [g.type, g._count._all]));
@@ -135,18 +209,31 @@ export default async function PartnersPage({ searchParams }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          {partners.length} of {counts.all} partners
-          {q && <span> · filtered by &quot;{q}&quot;</span>}
+          {partners.length < matching ? (
+            <>Showing {partners.length} of {matching} matching partners</>
+          ) : (
+            <>{matching} of {counts.all} partners</>
+          )}
         </div>
         <PartnerForm regions={regions} defaultType={defaultType} />
       </div>
+
+      <PartnerFilters countries={countries} agreements={agreements} regions={regions} />
 
       {/* Spec §1 hierarchy — tab bar */}
       <div className="flex flex-wrap items-center gap-1 border-b pb-2">
         {Object.entries(TYPE_GROUPS).map(([key, group]) => {
           const active = activeTab === key;
           const count = counts[key] ?? 0;
-          const href = key === "all" ? "/recruitment-network/partners" : `/recruitment-network/partners?type=${key}`;
+          const next = new URLSearchParams();
+          for (const [k, v] of Object.entries(sp)) {
+            if (k !== "type" && typeof v === "string" && v) next.set(k, v);
+          }
+          if (key !== "all") next.set("type", key);
+          const qs = next.toString();
+          const href = qs
+            ? `/recruitment-network/partners?${qs}`
+            : "/recruitment-network/partners";
           return (
             <Link
               key={key}
