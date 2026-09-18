@@ -184,6 +184,18 @@ try {
   await page.getByRole("option", { name: /september/i }).first().click();
   await page.waitForTimeout(300);
 
+  // Consent became compulsory on this page, so a capture cannot be queued
+  // until all four channels are answered. Answering them here is not incidental
+  // setup: if the rule ever regressed, the queue count below would still pass
+  // and only this block would look redundant.
+  await page.getByRole("button", { name: /^Yes, they agreed$/ }).first().click();
+  await page.waitForTimeout(200);
+  for (const label of ["Telephone calls", "SMS", "WhatsApp"]) {
+    const row = page.locator("div").filter({ hasText: new RegExp(`^${label}`) }).last();
+    await row.getByRole("button", { name: /^No$/ }).first().click();
+    await page.waitForTimeout(200);
+  }
+
   const before = (await readQueue(page)).length;
 
   await page.getByRole("button", { name: /save to device|save lead|save/i }).first().click();
@@ -219,6 +231,20 @@ try {
       d.preferredCountry === "Ireland",
       "the queued preferred country is the picked string",
       `queued ${JSON.stringify(d.preferredCountry)}`
+    );
+    // All four consent answers must reach the device queue, not just email —
+    // the three channel questions were added to this page at the same time.
+    expect(
+      d.marketingConsent === true,
+      "the queued email consent is stored",
+      `queued ${JSON.stringify(d.marketingConsent)}`
+    );
+    expect(
+      d.phoneContactConsent === false &&
+        d.smsContactConsent === false &&
+        d.whatsappContactConsent === false,
+      "the three declined channels are stored as false, not left blank",
+      `queued phone=${d.phoneContactConsent} sms=${d.smsContactConsent} wa=${d.whatsappContactConsent}`
     );
   }
 

@@ -76,6 +76,18 @@ interface FormState {
   notes: string;
   /** "" = not asked, "yes"/"no" = an answer was actually given. */
   marketingConsent: "" | "yes" | "no";
+  /**
+   * The other three channels, same tri-state.
+   *
+   * The office form has asked for all four since spec §1; this page asked only
+   * about email, so a lead captured at an event arrived with three channels
+   * blank and nobody could tell whether that meant "declined" or "never asked".
+   */
+  phoneContactConsent: "" | "yes" | "no";
+  smsContactConsent: "" | "yes" | "no";
+  whatsappContactConsent: "" | "yes" | "no";
+  /** Blanket override. A plain boolean: absent genuinely means no instruction. */
+  doNotContact: boolean;
 }
 
 function emptyForm(): FormState {
@@ -99,6 +111,10 @@ function emptyForm(): FormState {
     englishStatus: NONE,
     notes: "",
     marketingConsent: "",
+    phoneContactConsent: "",
+    smsContactConsent: "",
+    whatsappContactConsent: "",
+    doNotContact: false,
   };
 }
 
@@ -117,6 +133,13 @@ function validate(f: FormState): Partial<Record<keyof FormState, string>> {
   if (f.nationality.trim().length < 2) e.nationality = "Required";
   if (f.countryOfResidence.trim().length < 2) e.countryOfResidence = "Required";
   if (f.interestedProgram.trim().length < 2) e.interestedProgram = "Required";
+  // Consent is compulsory at capture: the student is standing in front of you,
+  // so there is no honest "didn't ask". Checked here as well as on screen so a
+  // lead cannot be queued unanswered and fail hours later back at the office.
+  if (!f.marketingConsent) e.marketingConsent = "Please record their answer";
+  if (!f.phoneContactConsent) e.phoneContactConsent = "Please record their answer";
+  if (!f.smsContactConsent) e.smsContactConsent = "Please record their answer";
+  if (!f.whatsappContactConsent) e.whatsappContactConsent = "Please record their answer";
   if (!f.studyLevel) e.studyLevel = "Required";
   if (!f.intakeMonth) e.intakeMonth = "Required";
   const year = Number(f.intakeYear);
@@ -150,8 +173,16 @@ function toPayload(f: FormState): Record<string, unknown> {
     // nobody gave, and under CASL that is the difference between someone you
     // may still ask and someone you must not contact.
     marketingConsent: f.marketingConsent === "" ? undefined : f.marketingConsent === "yes",
+    phoneContactConsent: triBool(f.phoneContactConsent),
+    smsContactConsent: triBool(f.smsContactConsent),
+    whatsappContactConsent: triBool(f.whatsappContactConsent),
+    doNotContact: f.doNotContact,
   };
 }
+
+/** Same rule as marketingConsent above: unanswered stays unanswered. */
+const triBool = (v: "" | "yes" | "no"): boolean | undefined =>
+  v === "" ? undefined : v === "yes";
 
 /** Fills only what the badge actually carried; anything absent is left alone. */
 function applyBadge(form: FormState, b: ScannedBadge): FormState {
@@ -170,6 +201,9 @@ function applyBadge(form: FormState, b: ScannedBadge): FormState {
 /** Rebuilds the form from a queued lead so a rejected one can be corrected. */
 function formFromCapture(data: Record<string, unknown>): FormState {
   const s = (v: unknown) => (v == null ? "" : String(v));
+  /** Back to the tri-state the buttons use. Anything not true/false is "not asked". */
+  const triState = (v: unknown): "" | "yes" | "no" =>
+    v === true ? "yes" : v === false ? "no" : "";
   const sel = (v: unknown) => (v == null || v === "" ? NONE : String(v));
   return {
     firstName: s(data.firstName),
@@ -190,8 +224,11 @@ function formFromCapture(data: Record<string, unknown>): FormState {
     budgetRange: sel(data.budgetRange),
     englishStatus: sel(data.englishStatus),
     notes: s(data.notes),
-    marketingConsent:
-      data.marketingConsent === true ? "yes" : data.marketingConsent === false ? "no" : "",
+    marketingConsent: triState(data.marketingConsent),
+    phoneContactConsent: triState(data.phoneContactConsent),
+    smsContactConsent: triState(data.smsContactConsent),
+    whatsappContactConsent: triState(data.whatsappContactConsent),
+    doNotContact: data.doNotContact === true,
   };
 }
 
@@ -611,6 +648,103 @@ export function OfflineCaptureClient({
               <Field label="Intake year" required error={errors.intakeYear}>
                 <Input type="number" inputMode="numeric" value={form.intakeYear} onChange={(e) => set("intakeYear", e.target.value)} />
               </Field>
+            </div>
+
+            {/* Anti-spam consent. Three states, not a checkbox: a checkbox left
+                unticked cannot be told apart from one they were never shown,
+                and that distinction is what makes the record defensible. */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
+              <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                May we email them? <span className="text-red-500">*</span>
+              </Label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Canadian anti-spam law requires permission before sending marketing email.
+                Ask the student directly — leaving this unanswered means we cannot email them.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {([
+                  { v: "yes", label: "Yes, they agreed" },
+                  { v: "no", label: "No, they declined" },
+                  // No "Didn't ask" here: this page is only ever used with the
+                  // student in front of you, so the honest answer is yes or no.
+                ] as const).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => set("marketingConsent", o.v)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      form.marketingConsent === o.v
+                        ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {errors.marketingConsent && (
+                <p className="text-xs text-red-600 dark:text-red-400">{errors.marketingConsent}</p>
+              )}
+
+              {/* The other three channels. The office form has asked for all
+                  four since spec §1; this page asked only about email, so an
+                  event lead arrived with three channels blank and no way to
+                  tell "declined" from "never asked". */}
+              <div className="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800">
+                {([
+                  { key: "phoneContactConsent", label: "Telephone calls" },
+                  { key: "smsContactConsent", label: "SMS" },
+                  { key: "whatsappContactConsent", label: "WhatsApp" },
+                ] as const).map((ch) => (
+                  <div key={ch.key} className="flex items-center justify-between gap-3">
+                    <Label className="text-[11px] font-normal text-slate-600 dark:text-slate-400">
+                      {ch.label} <span className="text-red-500">*</span>
+                      {errors[ch.key] && (
+                        <span className="block text-[11px] text-red-600 dark:text-red-400">
+                          {errors[ch.key]}
+                        </span>
+                      )}
+                    </Label>
+                    <div className="flex gap-1.5">
+                      {([
+                        { v: "yes", label: "Yes" },
+                        { v: "no", label: "No" },
+                      ] as const).map((o) => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => set(ch.key, o.v)}
+                          className={cn(
+                            "px-2 py-1 rounded text-[11px] font-medium border transition-colors",
+                            form[ch.key] === o.v
+                              ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <label className="flex items-start gap-2 pt-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.doNotContact}
+                    onChange={(e) => set("doNotContact", e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    <span className="font-medium">Do not contact</span> — the student has asked
+                    us to stop entirely. Overrides every channel above, whatever they say.
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Intended destination" error={errors.intendedDestination}>
                 <Combobox
                   options={COUNTRY_NAME_OPTIONS}
@@ -695,40 +829,6 @@ export function OfflineCaptureClient({
             <Field label="Notes">
               <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Anything worth remembering about this conversation" />
             </Field>
-
-            {/* Anti-spam consent. Three states, not a checkbox: a checkbox left
-                unticked cannot be told apart from one they were never shown,
-                and that distinction is what makes the record defensible. */}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
-              <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                May we email them? <span className="text-red-500">*</span>
-              </Label>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Canadian anti-spam law requires permission before sending marketing email.
-                Ask the student directly — leaving this unanswered means we cannot email them.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-0.5">
-                {([
-                  { v: "yes", label: "Yes, they agreed" },
-                  { v: "no", label: "No, they declined" },
-                  { v: "", label: "Didn't ask" },
-                ] as const).map((o) => (
-                  <button
-                    key={o.v}
-                    type="button"
-                    onClick={() => set("marketingConsent", o.v)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                      form.marketingConsent === o.v
-                        ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700 dark:hover:bg-slate-800/60"
-                    )}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <div className="flex justify-end">
               {/* The full-device block does not apply while correcting: fixing
