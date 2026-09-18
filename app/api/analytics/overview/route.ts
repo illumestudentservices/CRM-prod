@@ -80,6 +80,25 @@ export async function GET(req: NextRequest) {
     if (institutionIdParam) {
       (baseScope as Record<string, unknown>).institutionId = institutionIdParam;
     }
+    // Narrow to one ICR. NEVER honoured for an ICR themselves: their scope
+    // already pins `assignedICRId` to their own id, and letting the parameter
+    // through would overwrite it and hand them a colleague's numbers. For a
+    // Regional Manager it ANDs with the region, so naming an ICR outside their
+    // region returns nothing rather than reaching across.
+    const icrIdParam = searchParams.get("icrId");
+    if (icrIdParam && role !== "ICR") {
+      (baseScope as Record<string, unknown>).assignedICRId = icrIdParam;
+    }
+
+    // The year the selected range refers to, used for enrolment targets. Taken
+    // from the END of the range, so "Last Year" lines up with last year's
+    // targets instead of this year's.
+    //
+    // getUTCFullYear, NOT getFullYear: parseBoundary builds the end of the
+    // range as "<date>T23:59:59.999Z", so in any timezone ahead of UTC the
+    // local year of 31 December is already the NEXT year. Reading it locally
+    // asked for 2026's targets when 2025 was selected and returned none.
+    const targetYear = endDate.getUTCFullYear();
 
     const dateFilter = { createdAt: { gte: startDate, lte: endDate } };
     const lastYearDateFilter = { createdAt: { gte: lastYearStart, lte: lastYearEnd } };
@@ -101,14 +120,24 @@ export async function GET(req: NextRequest) {
       db.lead.findMany({ where: { ...baseScope, ...dateFilter, deletedAt: null }, select: { createdAt: true, stage: true } }),
       // All leads last year for monthly breakdown
       db.lead.findMany({ where: { ...baseScope, ...lastYearDateFilter, deletedAt: null }, select: { createdAt: true, stage: true } }),
-      // Stage breakdown
-      db.lead.groupBy({ by: ["stage"], where: { ...baseScope, deletedAt: null }, _count: { stage: true } }),
+      // Stage breakdown.
+      //
+      // `dateFilter` was missing here while every other block had it, so the
+      // funnel silently ignored the date picker: narrowing the range to two
+      // days took Total Leads from 53 to 0 while the funnel still read 53, with
+      // nothing on screen to explain the contradiction.
+      db.lead.groupBy({ by: ["stage"], where: { ...baseScope, ...dateFilter, deletedAt: null }, _count: { stage: true } }),
       // Top markets (by countryOfResidence)
       db.lead.groupBy({ by: ["countryOfResidence"], where: { ...baseScope, ...dateFilter, deletedAt: null }, _count: { countryOfResidence: true }, orderBy: { _count: { countryOfResidence: "desc" } }, take: 10 }),
       // Top sources
       db.lead.groupBy({ by: ["sourceId"], where: { ...baseScope, ...dateFilter, deletedAt: null, sourceId: { not: null } }, _count: { sourceId: true }, orderBy: { _count: { sourceId: "desc" } }, take: 5 }),
-      // Institution enrollment targets for current year
-      db.enrollmentTarget.findMany({ where: { year: now.getFullYear() }, include: { institution: { select: { id: true, name: true } } }, orderBy: { target: "desc" }, take: 15 }),
+      // Institution enrollment targets for the YEAR BEING VIEWED.
+      //
+      // This was hard-coded to the current year, so selecting "Last Year"
+      // compared last year's enrolments against this year's targets — or, as on
+      // the mirror where the only targets are 2024/2025, against nothing at all
+      // while the card claimed none were configured.
+      db.enrollmentTarget.findMany({ where: { year: targetYear, ...(institutionIdParam ? { institutionId: institutionIdParam } : {}) }, include: { institution: { select: { id: true, name: true } } }, orderBy: { target: "desc" }, take: 15 }),
     ]);
 
     const totalLeadsYTD = results[0] as number;

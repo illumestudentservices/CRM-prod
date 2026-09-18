@@ -12,6 +12,12 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AnalyticsFilters,
+  EMPTY_FILTERS,
+  type AnalyticsFilterState,
+  type Option,
+} from "./analytics-filters";
 import { StatCard } from "@/components/shared/stat-card";
 import { ExportButton } from "@/components/shared/export-button";
 import { LeadsTrendChart } from "./leads-trend-chart";
@@ -44,20 +50,31 @@ interface AnalyticsOverview {
   institutionTargets: Array<{ institutionId: string; name: string; target: number; actual: number; attainment: number }>;
 }
 
-const DATE_RANGES = [
-  { label: "Last 30 Days", value: "30d" },
-  { label: "Last 3 Months", value: "3m" },
-  { label: "Last 6 Months", value: "6m" },
-  { label: "Year to Date", value: "ytd" },
-  { label: "Last Year", value: "1y" },
-];
+const iso = (d: Date) => d.toISOString().split("T")[0];
 
-function getDateRange(range: string): { startDate: string; endDate: string } {
+/**
+ * Turn the chosen range into the two dates the API wants.
+ *
+ * "Last Year" used to run from 1 January of last year to TODAY — about
+ * twenty-one months, sitting in a menu directly below "Year to Date". It now
+ * ends on 31 December of last year, so the label is true and so that enrolment
+ * targets (which the API picks from the END of the range) line up with the year
+ * being looked at rather than the current one.
+ */
+function getDateRange(
+  range: string,
+  from?: string,
+  to?: string
+): { startDate: string; endDate: string } {
   const now = new Date();
-  const endDate = now.toISOString().split("T")[0];
   let startDate: Date;
 
   switch (range) {
+    case "custom": {
+      // Half-filled is treated as open-ended rather than ignored, so the chart
+      // reacts as soon as one end is set.
+      return { startDate: from || iso(new Date(now.getFullYear(), 0, 1)), endDate: to || iso(now) };
+    }
     case "30d":
       startDate = new Date(now);
       startDate.setDate(now.getDate() - 30);
@@ -71,14 +88,16 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
       startDate.setMonth(now.getMonth() - 6);
       break;
     case "1y":
-      startDate = new Date(now.getFullYear() - 1, 0, 1);
-      break;
+      return {
+        startDate: iso(new Date(now.getFullYear() - 1, 0, 1)),
+        endDate: iso(new Date(now.getFullYear() - 1, 11, 31)),
+      };
     case "ytd":
     default:
       startDate = new Date(now.getFullYear(), 0, 1);
   }
 
-  return { startDate: startDate.toISOString().split("T")[0], endDate };
+  return { startDate: iso(startDate), endDate: iso(now) };
 }
 
 const MARKET_COLORS = ["#1E3A5F", "#0E4F8A", "#0369A1", "#0EA5E9", "#38BDF8", "#7DD3FC", "#BAE6FD", "#0EA5E9", "#0369A1", "#1E3A5F"];
@@ -138,10 +157,21 @@ interface DrillDown {
 
 const CLOSED_DRILL: DrillDown = { open: false, title: "", filters: {} };
 
-export function ExecutiveDashboard() {
+export function ExecutiveDashboard({
+  regions = [],
+  institutions = [],
+  icrs = [],
+  canFilterRegion = true,
+}: {
+  regions?: Option[];
+  institutions?: Option[];
+  icrs?: Option[];
+  canFilterRegion?: boolean;
+} = {}) {
   const chart = useChartTheme();
   const router = useRouter();
-  const [dateRange, setDateRange] = useState("ytd");
+  const [filters, setFilters] = useState<AnalyticsFilterState>(EMPTY_FILTERS);
+  const { dateRange } = filters;
   const [data, setData] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,8 +203,14 @@ export function ExecutiveDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const { startDate, endDate } = getDateRange(dateRange);
-        const res = await fetch(`/api/analytics/overview?startDate=${startDate}&endDate=${endDate}`);
+        const { startDate, endDate } = getDateRange(filters.dateRange, filters.from, filters.to);
+        const qs = new URLSearchParams({ startDate, endDate });
+        // "all" is the not-set sentinel; the API treats an absent parameter as
+        // no filter, so it must not be sent at all.
+        if (filters.regionId !== "all") qs.set("regionId", filters.regionId);
+        if (filters.institutionId !== "all") qs.set("institutionId", filters.institutionId);
+        if (filters.icrId !== "all") qs.set("icrId", filters.icrId);
+        const res = await fetch(`/api/analytics/overview?${qs.toString()}`);
         if (!res.ok) throw new Error("Failed to load analytics");
         const json = await res.json();
         setData(json);
@@ -186,7 +222,7 @@ export function ExecutiveDashboard() {
       }
     }
     fetchData();
-  }, [dateRange]);
+  }, [filters]);
 
   const ytdChange =
     data && data.totalLeadsLastYear > 0
@@ -275,18 +311,14 @@ export function ExecutiveDashboard() {
             },
           ]}
         />
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DATE_RANGES.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AnalyticsFilters
+          value={filters}
+          onChange={setFilters}
+          regions={regions}
+          institutions={institutions}
+          icrs={icrs}
+          canFilterRegion={canFilterRegion}
+        />
       </div>
 
       {/* KPI Row */}
