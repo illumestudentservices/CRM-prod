@@ -28,6 +28,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { COUNTRY_NAME_OPTIONS } from "@/lib/countries";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -680,7 +682,14 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
               </div>
               <div className="space-y-1.5">
                 <Label>Country</Label>
-                <Input value={form.country} onChange={(e) => set("country", e.target.value)} placeholder="Nigeria" />
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={form.country}
+                  onChange={(v) => set("country", v)}
+                  placeholder="Select country..."
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
+                />
               </div>
             </div>
 
