@@ -374,6 +374,7 @@ export const ALIASES: Readonly<Record<string, string>> = {
   palestine: "PS",
   brunei: "BN",
   drcongo: "CD",
+  drc: "CD", // Partner names use it; prod holds "Access Education DRC".
   democraticrepublicofthecongo: "CD",
   republicofthecongo: "CG",
   // Alternative demonyms.
