@@ -21,15 +21,47 @@ const BROWSER_BASE = BASE.replace("127.0.0.1", "localhost");
 const stamp = Date.now().toString().slice(-6);
 let ctx, browser, leadId;
 
-/** Opens Edit Lead and expands the section. */
+/**
+ * Opens Edit Lead and expands the section, waiting until it has actually
+ * loaded.
+ *
+ * ── WHY THIS POLLS INSTEAD OF SLEEPING ──────────────────────────────────────
+ *
+ * The section fetches the journey and the application only once expanded, and
+ * renders its fields behind `!loading && loaded`. This used to wait a flat
+ * 3000ms, which is enough on a warm dev server and not enough on a cold one —
+ * Turbopack compiles the route on the first request. The result was a suite
+ * that passed or failed depending on how recently the server had been started,
+ * and when it failed it reported all seventeen fields as missing from the form.
+ * That reads exactly like the feature being broken, and it cost a real
+ * investigation before being pinned as a test artefact.
+ *
+ * The header text is NOT a usable signal: it renders immediately, above the
+ * spinner. That is why "it says these save immediately" kept passing in the
+ * very same run that reported every field absent.
+ */
 async function openSection(page) {
   await page.getByRole("button", { name: /edit lead|edit/i }).first().click();
-  await page.waitForTimeout(2000);
   const toggle = page.getByRole("button", { name: /pipeline progress/i }).first();
-  await toggle.waitFor({ state: "visible", timeout: 10000 });
+  await toggle.waitFor({ state: "visible", timeout: 15000 });
   await toggle.click();
-  await page.waitForTimeout(3000);
-  return page.locator('[role="dialog"]').first();
+
+  const dlg = page.locator('[role="dialog"]').first();
+  const started = Date.now();
+  for (;;) {
+    const text = await dlg.innerText();
+    // "Journey" alone on a line is the first heading the loaded branch renders,
+    // in all three cases (no journey, one, several). Anchoring it stops the
+    // prose "No institution journey yet" from satisfying the check early.
+    if (!/Loading/.test(text) && /^Journey$/m.test(text)) return dlg;
+    if (Date.now() - started > 30000) {
+      throw new Error(
+        "Pipeline progress section never finished loading within 30s. " +
+          `Dialog text was: ${text.slice(0, 300)}`
+      );
+    }
+    await page.waitForTimeout(200);
+  }
 }
 
 try {

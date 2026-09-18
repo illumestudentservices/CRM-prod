@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -32,6 +33,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { BUDGET_RANGES, ENGLISH_STATUSES, STUDY_LEVELS, MONTHS } from "@/lib/lead-options";
+import { COUNTRY_NAME_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/countries";
 import { OFFLINE_CAPTURE_LIMIT, OFFLINE_CAPTURE_WARNING } from "@/lib/offline-capture";
 import {
   addCapture,
@@ -556,11 +558,32 @@ export function OfflineCaptureClient({
               <Field label="Phone" required error={errors.phone}>
                 <Input type="tel" inputMode="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
               </Field>
+              {/* Both lists are bundled with the page, so they work at a booth
+                  with no signal — the same ISO 3166-1 table the online form
+                  uses. A value a badge scan put here that is not in the list is
+                  kept rather than dropped, which matters most offline: whoever
+                  captured it is not around to retype it. */}
               <Field label="Citizenship" required error={errors.nationality}>
-                <Input value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Nigerian" />
+                <Combobox
+                  options={NATIONALITY_OPTIONS}
+                  value={form.nationality}
+                  onChange={(v) => set("nationality", v)}
+                  placeholder="Select citizenship..."
+                  searchPlaceholder="Search citizenship..."
+                  emptyText="No citizenship matches that."
+                  invalid={!!errors.nationality}
+                />
               </Field>
               <Field label="Country of residence" required error={errors.countryOfResidence}>
-                <Input value={form.countryOfResidence} onChange={(e) => set("countryOfResidence", e.target.value)} placeholder="Nigeria" />
+                <Combobox
+                  options={COUNTRY_NAME_OPTIONS}
+                  value={form.countryOfResidence}
+                  onChange={(v) => set("countryOfResidence", v)}
+                  placeholder="Select country..."
+                  searchPlaceholder="Search country..."
+                  emptyText="No country matches that."
+                  invalid={!!errors.countryOfResidence}
+                />
               </Field>
               <Field label="Intended programme" required error={errors.interestedProgram}>
                 <Input value={form.interestedProgram} onChange={(e) => set("interestedProgram", e.target.value)} placeholder="BSc Computer Science" />
