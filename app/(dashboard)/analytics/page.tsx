@@ -41,11 +41,31 @@ export default async function AnalyticsPage() {
           select: { id: true, name: true },
           orderBy: { name: "asc" },
         }),
-        db.user.findMany({
-          where: { role: "ICR", deletedAt: null, isActive: true },
-          select: { id: true, name: true, email: true },
-          orderBy: { name: "asc" },
-        }),
+        // ★ Derived from the LEADS, not from `role: "ICR"`.
+        //
+        // This filter narrows analytics by who owns the students, so the right
+        // source is who actually owns them. PRODUCTION HAS NO ICR-ROLE USERS —
+        // it runs on SUPER_ADMIN, HQ_EXECUTIVE and REGIONAL_MANAGER — so the
+        // role query returned nothing and the dropdown, which is hidden when
+        // empty, simply did not appear on live. Leads there are owned by
+        // non-ICR accounts, so "role = ICR" is not a way to enumerate owners.
+        // Same fix as the Students filter in PR #130.
+        db.lead
+          .findMany({
+            where: { deletedAt: null, assignedICRId: { not: null } },
+            select: { assignedICRId: true },
+            distinct: ["assignedICRId"],
+          })
+          .then((rows) =>
+            db.user.findMany({
+              where: {
+                id: { in: rows.map((r) => r.assignedICRId!) },
+                deletedAt: null,
+              },
+              select: { id: true, name: true, email: true },
+              orderBy: { name: "asc" },
+            })
+          ),
       ])
     : [[], [], []];
 

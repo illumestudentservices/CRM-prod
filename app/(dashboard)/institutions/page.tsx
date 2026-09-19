@@ -126,13 +126,18 @@ async function getInstitutions() {
               ],
             },
           },
-          // Only ICR-role users count for the "ICRs" label on the card. Other
-          // roles (Regional Manager, Account Manager) are counted separately
-          // when needed.
+          // Everyone actively assigned to the client, whatever their role.
+          //
+          // This counted `user: { role: "ICR" }`, and PRODUCTION HAS NO
+          // ICR-ROLE USERS — it runs on SUPER_ADMIN, HQ_EXECUTIVE and
+          // REGIONAL_MANAGER — so the figure on every client card read 0 while
+          // the client plainly had people assigned. The assignment record is
+          // the fact being counted; the assignee's role is not part of it.
+          // External contacts are excluded, since they are not staff.
           users: {
             where: {
               assignmentStatus: "ACTIVE",
-              user: { role: "ICR" },
+              user: { role: { not: "INSTITUTION_CLIENT" } },
             },
           },
         },
