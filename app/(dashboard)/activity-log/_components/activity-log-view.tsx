@@ -156,6 +156,30 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
+  /**
+   * Search as you type, 400ms, matching components/shared/list-search.tsx.
+   *
+   * This used to fire ONLY on form submit: `search` (which the fetch keys off)
+   * was set from `searchInput` by the button, so typing a term and waiting did
+   * nothing at all. It was the only list in the app that behaved that way —
+   * and the entity and action filters SITTING BESIDE IT already applied on
+   * change, so the same row of controls disagreed with itself about whether
+   * you had to confirm a choice.
+   *
+   * The early return matters: submitting flushes `search` immediately, and
+   * without it this effect would then queue a second identical update.
+   */
+  useEffect(() => {
+    if (searchInput === search) return;
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput, search]);
+
+  /** Enter flushes the debounce rather than waiting it out. The form is kept
+   *  (rather than dropped with the button) so Enter cannot reload the page. */
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     setPage(1);
@@ -212,7 +236,9 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
-              <Button type="submit" size="sm">Search</Button>
+              {/* No Search button: the box filters as you type, like every
+                  other list in the app. A button here would imply the typing
+                  had not already taken effect. */}
             </form>
 
             {/* Entity filter */}

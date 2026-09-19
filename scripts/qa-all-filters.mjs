@@ -428,23 +428,27 @@ try {
     const total = await db.auditLog.count();
     expect(shown > 0, `renders ${shown} of ${total} audit rows`);
     expect(shown <= total, "does not render more rows than exist");
-    // ★ This search is NOT live. `handleSearch` is a FORM SUBMIT handler —
-    // `setSearch(searchInput)` only runs on submit, and the fetch keys off
-    // `search`, not `searchInput`. Filling the box and waiting does nothing, so
-    // a test that only types reports "the filter is broken" against working
-    // code. Every other list in the app filters as you type; this one needs
-    // Enter, which is a real inconsistency but not a defect.
+    // This search USED to fire only on form submit, so typing and waiting did
+    // nothing — it was the only list in the app that behaved that way, while
+    // the entity and action filters beside it applied on change. It is now
+    // debounced at 400ms like components/shared/list-search.tsx.
     const box = page.locator('input[placeholder*="Search user, entity, action" i]').first();
     await box.fill("zzz-impossible-zzz");
-    await page.waitForTimeout(400);
-    expect(await resultCount() === shown,
-      "typing alone does NOT filter — this search submits, it is not live",
-      `still ${await resultCount()} rows`);
-    await box.press("Enter");
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(2500);          // 400ms debounce + the refetch
     expect(await resultCount() === 0,
-      `after Enter, an impossible term empties the list (was ${shown}/${total})`,
+      `typing alone filters the list — no button press needed (was ${shown}/${total})`,
       `saw ${await resultCount()}`);
+
+    // The Search button is gone; Enter must still work and must NOT reload.
+    await box.fill("");
+    await page.waitForTimeout(2000);
+    expect(await resultCount() === shown, `clearing restores all ${shown} rows`);
+    await box.fill("zzz-impossible-zzz");
+    await box.press("Enter");
+    await page.waitForTimeout(2000);
+    expect(await resultCount() === 0, "Enter flushes the debounce rather than reloading the page");
+    expect(new URL(page.url()).pathname === "/activity-log",
+      "…and the form did not navigate away", page.url());
   }
 
   // ═══ STAKEHOLDERS ══════════════════════════════════════════════════════════
