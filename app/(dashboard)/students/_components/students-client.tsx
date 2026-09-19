@@ -50,6 +50,10 @@ const STAGE_OPTIONS: { value: LeadStage | "ALL"; label: string }[] = [
   ...ALL_STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] })),
 ]
 
+// Sentinel for "no ICR assigned". Never "" — Radix reserves the empty string for
+// the cleared state and throws when it is used as an item value.
+const UNASSIGNED = "UNASSIGNED";
+
 type Tab = "kanban" | "list";
 
 interface StudentsClientPageProps {
@@ -75,6 +79,32 @@ export function StudentsClientPage({
   const [icrFilter, setIcrFilter] = React.useState<string>("ALL");
   const [addModalOpen, setAddModalOpen] = React.useState(false);
 
+  // Owners to offer in the ICR filter, derived from the leads themselves rather
+  // than from `icrUsers` (which is only active users whose role is literally
+  // ICR). A lead assigned to a deactivated/offboarded ICR, or to someone whose
+  // role is not ICR, is otherwise impossible to filter for — and the dropdown
+  // disappears entirely whenever no ICR-role user exists, even though every
+  // lead on screen has an owner.
+  const { icrOptions, hasUnassigned } = React.useMemo(() => {
+    const byId = new Map<string, string>();
+    let unassigned = false;
+    for (const lead of initialLeads) {
+      if (!lead.assignedICRId) {
+        unassigned = true;
+        continue;
+      }
+      if (!byId.has(lead.assignedICRId)) {
+        byId.set(lead.assignedICRId, lead.assignedICR?.name ?? "Unknown user");
+      }
+    }
+    return {
+      icrOptions: [...byId.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      hasUnassigned: unassigned,
+    };
+  }, [initialLeads]);
+
   // Filtered leads
   const filteredLeads = React.useMemo(() => {
     return initialLeads.filter((lead) => {
@@ -91,7 +121,11 @@ export function StudentsClientPage({
       }
       if (stageFilter !== "ALL" && lead.stage !== stageFilter) return false;
       if (institutionFilter !== "ALL" && lead.institutionId !== institutionFilter) return false;
-      if (icrFilter !== "ALL" && lead.assignedICRId !== icrFilter) return false;
+      if (icrFilter === UNASSIGNED) {
+        if (lead.assignedICRId) return false;
+      } else if (icrFilter !== "ALL" && lead.assignedICRId !== icrFilter) {
+        return false;
+      }
       return true;
     });
   }, [initialLeads, search, stageFilter, institutionFilter, icrFilter]);
@@ -240,19 +274,24 @@ export function StudentsClientPage({
           </Select>
         )}
 
-        {/* ICR filter (managers only) */}
-        {isManager && icrUsers.length > 0 && (
+        {/* ICR filter (managers only — an ICR is already scoped to their own
+            leads, so the dropdown would have exactly one entry for them) */}
+        {isManager && (icrOptions.length > 0 || hasUnassigned) && (
           <Select value={icrFilter} onValueChange={setIcrFilter}>
-            <SelectTrigger className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900">
+            <SelectTrigger
+              aria-label="Filter by assigned ICR"
+              className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900"
+            >
               <SelectValue placeholder="All ICRs" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All ICRs</SelectItem>
-              {icrUsers.map((u) => (
+              {icrOptions.map((u) => (
                 <SelectItem key={u.id} value={u.id}>
                   {u.name}
                 </SelectItem>
               ))}
+              {hasUnassigned && <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>}
             </SelectContent>
           </Select>
         )}
