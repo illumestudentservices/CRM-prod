@@ -216,25 +216,51 @@ export async function GET(req: NextRequest) {
 
     const scopeFilter = await buildScopeFilter(role as Role, userId, regionId);
 
+    // ★ THE SCOPE IS MERGED WITH `AND`, NEVER BY SPREADING IT.
+    //
+    // This was `{ ...scopeFilter, ...filters }`, and THREE of the user-supplied
+    // filters share a key with a scope this route builds:
+    //
+    //   assignedICRId  vs  ICR                 -> { assignedICRId: userId }
+    //   regionId       vs  REGIONAL_MANAGER    -> regionScope() = { regionId }
+    //   institutionId  vs  INSTITUTION_CLIENT  -> { institutionId: { in: … } }
+    //
+    // A later key wins in an object spread, so each of those REPLACED the row
+    // scope instead of narrowing inside it. Proven over HTTP on the mirror: an
+    // ICR owning 2 leads got a colleague's 23 back from
+    // `?assignedICRId=<colleague>`, and a Regional Manager got 9 out-of-region
+    // students from `?regionId=<other>`. The client case is the same shape —
+    // a bare string replaces the `in: [allowed]` allowlist.
+    //
+    // `AND` cannot be overwritten by a duplicate key, so the scope always
+    // applies no matter what the caller sends, and the query need not know the
+    // scope's shape. Same fix as the plans list in PR #127.
+    //
+    // ANY FILTER SHARING A KEY WITH A SCOPE IS A BYPASS WAITING TO HAPPEN —
+    // do not "simplify" this back into a spread.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
-      ...scopeFilter,
-      deletedAt: null,
-      ...(stage && { stage: stage as never }),
-      ...(institutionId && { institutionId }),
-      ...(assignedICRId && { assignedICRId }),
-      ...(filterRegionId && { regionId: filterRegionId }),
-      ...(sourceId && { sourceId }),
-      ...(country && { countryOfResidence: { equals: country, mode: "insensitive" } }),
-      ...(nationality && { nationality: { equals: nationality, mode: "insensitive" } }),
-      ...(search && {
-        OR: [
-          ...(nameSearchFilter(search) ? [nameSearchFilter(search)!] : []),
-          { email: { contains: search, mode: "insensitive" } },
-          { phone: { contains: search, mode: "insensitive" } },
-          { interestedProgram: { contains: search, mode: "insensitive" } },
-        ],
-      }),
+      AND: [
+        scopeFilter,
+        {
+          deletedAt: null,
+          ...(stage && { stage: stage as never }),
+          ...(institutionId && { institutionId }),
+          ...(assignedICRId && { assignedICRId }),
+          ...(filterRegionId && { regionId: filterRegionId }),
+          ...(sourceId && { sourceId }),
+          ...(country && { countryOfResidence: { equals: country, mode: "insensitive" } }),
+          ...(nationality && { nationality: { equals: nationality, mode: "insensitive" } }),
+          ...(search && {
+            OR: [
+              ...(nameSearchFilter(search) ? [nameSearchFilter(search)!] : []),
+              { email: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+              { interestedProgram: { contains: search, mode: "insensitive" } },
+            ],
+          }),
+        },
+      ],
     };
 
     const [leads, total] = await Promise.all([

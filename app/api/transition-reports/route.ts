@@ -4,6 +4,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import type { TransitionStatus } from "@prisma/client";
+// Imported as a VALUE (not `import type`) so `z.nativeEnum` can validate
+// `?status=` at runtime — see the GET handler.
+import { TransitionStatus as TransitionStatusEnum } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { TRANSITION_SECTIONS, TYPES_WITH_FINAL_WORKING_DAY } from "@/lib/icr-transition";
@@ -81,14 +84,47 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = req.nextUrl;
-    const status = searchParams.get("status");
+
+    // `status` used to be cast with `as never` straight into `where.status`.
+    // Prisma answers 500 for anything outside the enum, so a hand-edited URL
+    // (`?status=DRAFT` — plausible, but NOT a TransitionStatus) crashed the
+    // endpoint instead of returning 400. Same bug, same fix as `stage` on
+    // /api/leads. Validate here and let the caller see what went wrong.
+    const rawStatus = searchParams.get("status");
+    const statusResult = rawStatus
+      ? z.nativeEnum(TransitionStatusEnum).safeParse(rawStatus)
+      : null;
+    if (statusResult && !statusResult.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid status",
+          allowed: Object.values(TransitionStatusEnum),
+        },
+        { status: 400 }
+      );
+    }
+    const status = statusResult?.data ?? null;
     const institutionId = searchParams.get("institutionId");
 
+    // ★ Scope merged with `AND`, never spread — `status` is in BOTH.
+    //
+    // VP_GLOBAL_SALES and ACCOUNT_MANAGER are scoped to
+    // `{ status: { in: ["FINAL", "ARCHIVED"] } }` because spec §32 says they
+    // have "no business seeing drafts in progress". Spreading the filters over
+    // that scope let `?status=DRAFT` REPLACE it outright, handing both roles
+    // exactly the in-progress handover reports the scope exists to withhold.
+    //
+    // With `AND` the caller's status intersects the scope instead of replacing
+    // it, so asking for DRAFT as a VP correctly returns nothing.
     const reports = await db.transitionReport.findMany({
       where: {
-        ...scopeFilter(role, session.user.id),
-        ...(status && { status: status as never }),
-        ...(institutionId && { institutionId }),
+        AND: [
+          scopeFilter(role, session.user.id),
+          {
+            ...(status && { status: status as never }),
+            ...(institutionId && { institutionId }),
+          },
+        ],
       },
       orderBy: [{ status: "asc" }, { reportDueDate: "asc" }],
       select: {

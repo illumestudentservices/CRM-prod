@@ -57,10 +57,18 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
 
+    // Scope merged with `AND`, never spread. No key collides TODAY (the scope
+    // uses icrId/regionId, the filter uses status), but the spread form is one
+    // added filter away from a bypass — that is exactly how `/api/leads` and
+    // `/api/transition-reports` broke. `AND` removes the hazard permanently.
     const where = {
-      ...scopeFilter(role, userId, regionId),
-      ...(status ? { status: status as never } : {}),
-      deletedAt: null,
+      AND: [
+        scopeFilter(role, userId, regionId),
+        {
+          deletedAt: null,
+          ...(status ? { status: status as never } : {}),
+        },
+      ],
     };
 
     const [reports, total] = await Promise.all([
