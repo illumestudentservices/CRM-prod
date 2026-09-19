@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
+import { regionScope } from "@/lib/region-scope";
 
 /**
  * Spec §13 (Field Operations) — role-scoped dashboards.
@@ -79,27 +80,46 @@ async function renderICRDashboard(userId: string, now: Date, weekAgo: Date, week
 
 async function renderRegionalManagerDashboard(regionId: string | null, now: Date) {
   // Group by user. Prisma's groupBy on a filtered set + a joined user name
-  // isn't natively supported; do it manually with two queries: pull the ICR
-  // roster in the region, then count activities per ICR.
-  const icrs = await db.user.findMany({
+  // isn't natively supported; do it manually with two queries: pull the team
+  // roster in the region, then count activities per person.
+  //
+  // ★ TWO BUGS FIXED HERE.
+  //
+  // 1. The roster was `role: "ICR"`. PRODUCTION HAS NO ICR-ROLE USERS — it runs
+  //    on SUPER_ADMIN, HQ_EXECUTIVE and REGIONAL_MANAGER — so this table read
+  //    "No ICRs in your region yet" on live no matter how much field work the
+  //    team had logged. The roster is now "people in my region", which is what
+  //    the heading has always claimed. Ownership is not a role (same lesson as
+  //    lib/assignable-users.ts); INSTITUTION_CLIENT is excluded because an
+  //    external contact is not a colleague.
+  //
+  // 2. `...(regionId ? { regionId } : {})` FAILED OPEN. `{}` is not "no
+  //    access", it is "no filter" — a Regional Manager with no region set saw
+  //    every ICR in every region, which is the precise failure lib/region-scope
+  //    .ts exists to prevent. `regionScope()` matches nothing instead, so the
+  //    mistake is visible rather than silent.
+  const team = await db.user.findMany({
     where: {
-      role: "ICR",
+      ...regionScope(regionId),
       isActive: true,
       deletedAt: null,
-      ...(regionId ? { regionId } : {}),
+      role: { not: "INSTITUTION_CLIENT" },
     },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
     take: 20,
   });
 
-  if (icrs.length === 0) {
+  if (team.length === 0) {
     return (
       <div className="mb-4 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3 text-sm text-slate-500 dark:text-slate-400">
-        No ICRs in your region yet.
+        {regionId
+          ? "No colleagues assigned to your region yet."
+          : "You have no region set, so there is no team to show. Ask an administrator to assign one."}
       </div>
     );
   }
+  const icrs = team;
 
   const stats = await Promise.all(
     icrs.map(async (icr) => {
@@ -128,7 +148,9 @@ async function renderRegionalManagerDashboard(regionId: string | null, now: Date
   return (
     <div className="mb-4 rounded border border-slate-200 dark:border-slate-800 overflow-hidden">
       <div className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-        Team activity — {icrs.length} ICR{icrs.length === 1 ? "" : "s"} in your region
+        {/* "colleague", not "ICR" — the roster is everyone in the region, because
+            on production nobody holds the ICR role. */}
+        Team activity — {icrs.length} colleague{icrs.length === 1 ? "" : "s"} in your region
       </div>
       <table className="w-full text-sm">
         <thead className="bg-slate-50/60 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 text-xs">

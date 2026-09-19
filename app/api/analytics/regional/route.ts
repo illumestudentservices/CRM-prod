@@ -52,7 +52,23 @@ export async function GET(req: NextRequest) {
 
     const regionalResults = await Promise.all([
       db.lead.groupBy({ by: ["stage"], where: { ...regionFilter, deletedAt: null }, _count: { stage: true } }),
-      db.user.findMany({ where: { role: "ICR", isActive: true, ...(regionId ? { regionId } : {}) }, select: { id: true, name: true, email: true } }),
+      // Who owns students here, derived from the LEADS rather than from
+      // `role: "ICR"`. Production has no ICR-role users, so the role query
+      // returned nothing and `icrPerformance` came back empty on live — a
+      // per-person performance table with no people in it. Leads are owned by
+      // non-ICR accounts, so the role is not a way to enumerate owners.
+      db.lead
+        .findMany({
+          where: { ...regionFilter, deletedAt: null, assignedICRId: { not: null } },
+          select: { assignedICRId: true },
+          distinct: ["assignedICRId"],
+        })
+        .then((rows) =>
+          db.user.findMany({
+            where: { id: { in: rows.map((r) => r.assignedICRId!) }, deletedAt: null },
+            select: { id: true, name: true, email: true },
+          })
+        ),
       db.lead.groupBy({ by: ["sourceId"], where: { ...regionFilter, deletedAt: null, sourceId: { not: null } }, _count: { sourceId: true }, orderBy: { _count: { sourceId: "desc" } }, take: 10 }),
       db.event.findMany({ where: { ...regionFilter, deletedAt: null, date: { gte: now }, status: { in: ["PLANNED", "CONFIRMED"] } }, orderBy: { date: "asc" }, take: 10, select: { id: true, name: true, type: true, date: true, city: true, country: true, status: true } }),
       db.monthlyReport.findMany({ where: { ...(regionId ? { regionId } : {}), status: { in: ["PENDING_REVIEW", "REGIONAL_APPROVED"] }, deletedAt: null }, orderBy: { submittedAt: "asc" }, take: 20, include: { icr: { select: { id: true, name: true } }, institution: { select: { id: true, name: true } } } }),

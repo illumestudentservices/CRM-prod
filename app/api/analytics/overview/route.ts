@@ -258,10 +258,22 @@ export async function GET(req: NextRequest) {
     });
 
     // ── Events this year ───────────────────────────────────────────────────
+    //
+    // The WHOLE calendar year, upcoming events INCLUDED. This was `lte: now`,
+    // so it counted only events that had already happened — the card read
+    // "Events This Year 0" in a year with a full schedule ahead, and the number
+    // disagreed with the /events page it links to.
+    //
+    // Deliberately NOT year-to-date, unlike "Total Leads YTD" and "Enrollments
+    // YTD" beside it: those are labelled YTD and they accumulate, whereas
+    // events are SCHEDULED IN ADVANCE and this card is labelled "This Year". A
+    // recruitment calendar that hides everything still to come is the opposite
+    // of useful for planning.
+    const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
     const eventsThisYear = await db.event.count({
       where: {
         deletedAt: null,
-        date: { gte: ytdStart, lte: now },
+        date: { gte: ytdStart, lt: yearEnd },
         ...(role === "REGIONAL_MANAGER" && userRegionId ? { regionId: userRegionId } : {}),
         ...(role === "ICR" ? { assignedICRId: userId } : {}),
       },
