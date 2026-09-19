@@ -66,9 +66,17 @@ export async function GET(req: NextRequest) {
 
     const forecasts = await db.forecast.findMany({
       where: {
-        ...scopeFilter(role, session.user.id),
-        ...(status && { status: status as ForecastStatus }),
-        ...(institutionId && { institutionId }),
+        // Scope merged with `AND`, never spread. No key collides TODAY, but the
+        // spread form is one added filter away from a bypass — that is exactly
+        // how `/api/leads` and `/api/transition-reports` broke. `AND` removes
+        // the hazard permanently and costs nothing.
+        AND: [
+          scopeFilter(role, session.user.id),
+          {
+            ...(status && { status: status as ForecastStatus }),
+            ...(institutionId && { institutionId }),
+          },
+        ],
       },
       orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }],
       select: {
