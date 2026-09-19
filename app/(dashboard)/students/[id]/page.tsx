@@ -28,6 +28,7 @@ import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
 import { InstitutionInterestsPanel } from "./_components/institution-interests-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { leadOwnerOptions } from "@/lib/assignable-users";
 
 
 // ─── Stage display helpers ─────────────────────────────────────────────────────
@@ -142,11 +143,10 @@ export default async function LeadDetailPage({
       select: { id: true, name: true, country: true },
       orderBy: { name: "asc" },
     }),
-    db.user.findMany({
-      where: { isActive: true, role: "ICR" },
-      select: { id: true, name: true, image: true },
-      orderBy: { name: "asc" },
-    }),
+    // The current owner is passed in so the edit form can always render its own
+    // value — this lead may already belong to someone the picker would not
+    // otherwise offer (on production one does: an HQ_EXECUTIVE).
+    leadOwnerOptions([lead.assignedICRId]),
   ]);
 
   // Stage gates, evaluated here rather than fetched by the client.

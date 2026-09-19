@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EventList } from "./_components/event-list";
 import { EventForm } from "./_components/event-form";
 import { ExportButton } from "@/components/shared/export-button";
+import { eventOwnerOptions } from "@/lib/assignable-users";
 
 const EVENT_EXPORT_COLUMNS = [
   { key: "name",             header: "Event Name" },
@@ -80,13 +81,10 @@ async function getRegions() {
   return db.region.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }
 
-async function getICRs() {
-  return db.user.findMany({
-    where: { role: "ICR", isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
+// Feeds the "Assigned ICR" picker in the Add Event form. That picker is the
+// only thing in the app that writes Event.assignedICRId, so an empty list meant
+// an event could never be given an owner at all.
+const getICRs = () => eventOwnerOptions();
 
 async function getInstitutions() {
   return db.institution.findMany({
