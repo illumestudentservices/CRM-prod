@@ -17,6 +17,7 @@ import {
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { EventForm } from "../_components/event-form";
 import { ROICard } from "./_components/roi-card";
+import { eventOwnerOptions } from "@/lib/assignable-users";
 import { ExpenseForm } from "./_components/expense-form";
 import { ParticipationPanel } from "./_components/participation-panel";
 import type { Role } from "@/lib/permissions";
@@ -77,13 +78,8 @@ async function getRegions() {
   return db.region.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }
 
-async function getICRs() {
-  return db.user.findMany({
-    where: { role: "ICR", isActive: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-}
+const getICRs = (alsoInclude: readonly (string | null)[]) =>
+  eventOwnerOptions(alsoInclude);
 
 async function getInstitutions() {
   return db.institution.findMany({
@@ -109,14 +105,18 @@ export default async function EventDetailPage({
 
   const { id } = await params;
 
-  const [event, regions, icrs, institutions] = await Promise.all([
-    getEvent(id),
+  // The event is awaited first so its current owner can be fed to the picker
+  // below: the edit form renders `defaultValue={event.assignedICRId}`, so an
+  // owner missing from the options list makes an assigned event read
+  // "Select ICR" while the header beside it names that same person.
+  const event = await getEvent(id);
+  if (!event) notFound();
+
+  const [regions, icrs, institutions] = await Promise.all([
     getRegions(),
-    getICRs(),
+    getICRs([event.assignedICRId]),
     getInstitutions(),
   ]);
-
-  if (!event) notFound();
 
   const enrolledLeads = event.leads.filter((l) => l.stage === "ENROLLED");
   const totalExpenses = event.expenses.reduce((sum, e) => sum + e.amount, 0);

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { db } from "@/lib/db";
 import { regionScope } from "@/lib/region-scope";
+import { leadOwnerOptions } from "@/lib/assignable-users";
 import { PageHeader } from "@/components/shared/page-header";
 import { NoRegionBanner } from "@/components/shared/no-region-banner";
 import type { Role } from "@/lib/permissions";
@@ -46,13 +47,11 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
-    isManager
-      ? db.user.findMany({
-          where: { isActive: true, role: "ICR" },
-          select: { id: true, name: true, image: true },
-          orderBy: { name: "asc" },
-        })
-      : Promise.resolve([]),
+    // Feeds the bulk "Assign ICR" modal and the Add Lead form — NOT the filter
+    // dropdown, which derives its options from the leads themselves. Still
+    // gated on isManager so a staff list is not handed to someone who only
+    // sees their own caseload; an ICR creating a lead self-assigns anyway.
+    isManager ? leadOwnerOptions() : Promise.resolve([]),
   ]);
 
   return { leads: leads as LeadWithRelations[], sources, institutions, icrUsers, isManager };
