@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ReminderDigest } from "@/lib/reminder-digest";
 import type { TransitionStatus } from "@prisma/client";
 
 /**
@@ -128,6 +129,18 @@ export async function notifyStatusChange(
 export async function sendDueDateReminders(now = new Date()): Promise<{
   approaching: number; dueToday: number; overdue: number;
 }> {
+  // Digested: an RM overseeing several handovers should get one list, not one
+  // email per report. `notifyStatusChange` above is deliberately NOT digested —
+  // a workflow move is a single event someone is waiting on, and batching it
+  // until the next morning would make the handover chain slower than the app.
+  const digest = new ReminderDigest();
+  const queue = (ids: (string | null | undefined)[], type: string, title: string,
+                 message: string, link: string, urgent = false) =>
+    Promise.all(
+      [...new Set(ids.filter((x): x is string => !!x))].map((userId) =>
+        digest.add({ userId, type, title, message, link, urgent })
+      )
+    );
   const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const endOfDay = new Date(startOfDay.getTime() + 86400000);
   const inThreeDays = new Date(startOfDay.getTime() + 3 * 86400000);
@@ -151,22 +164,22 @@ export async function sendDueDateReminders(now = new Date()): Promise<{
 
     if (r.reportDueDate < startOfDay) {
       const days = Math.round((startOfDay.getTime() - r.reportDueDate.getTime()) / 86400000);
-      await send([r.outgoingIcrId], "TRANSITION_OVERDUE",
+      await queue([r.outgoingIcrId], "TRANSITION_OVERDUE",
         "Handover report overdue",
-        `Your handover report for ${inst} is ${days} day(s) overdue.`, link);
+        `Your handover report for ${inst} is ${days} day(s) overdue.`, link, true);
       // §28 tells the Regional Manager about overdue reports too — an overdue
       // handover is their problem as much as the ICR's.
-      await send([r.regionalManagerId], "TRANSITION_OVERDUE_RM",
+      await queue([r.regionalManagerId], "TRANSITION_OVERDUE_RM",
         "Handover report overdue",
-        `${who}'s handover report for ${inst} is ${days} day(s) overdue.`, link);
+        `${who}'s handover report for ${inst} is ${days} day(s) overdue.`, link, true);
       overdue++;
     } else if (r.reportDueDate < endOfDay) {
-      await send([r.outgoingIcrId], "TRANSITION_DUE_TODAY",
+      await queue([r.outgoingIcrId], "TRANSITION_DUE_TODAY",
         "Handover report due today",
-        `Your handover report for ${inst} is due today.`, link);
+        `Your handover report for ${inst} is due today.`, link, true);
       dueToday++;
     } else if (r.reportDueDate < inThreeDays) {
-      await send([r.outgoingIcrId], "TRANSITION_DUE_SOON",
+      await queue([r.outgoingIcrId], "TRANSITION_DUE_SOON",
         "Handover report due soon",
         `Your handover report for ${inst} is due on ${r.reportDueDate.toDateString()}.`, link);
       approaching++;
@@ -175,12 +188,17 @@ export async function sendDueDateReminders(now = new Date()): Promise<{
     // §28: "Report not started" is its own signal to the RM — an untouched
     // report close to its due date is a different problem from a late one.
     if (r.status === "ASSIGNED" && r.reportDueDate < inThreeDays && r.reportDueDate >= startOfDay) {
-      await send([r.regionalManagerId], "TRANSITION_NOT_STARTED",
+      await queue([r.regionalManagerId], "TRANSITION_NOT_STARTED",
         "Handover report not started",
         `${who} has not started the handover report for ${inst}, due ${r.reportDueDate.toDateString()}.`,
         link);
     }
   }
+
+  await digest.flush({
+    heading: "Handovers",
+    intro: "these handover reports are due or overdue.",
+  });
 
   return { approaching, dueToday, overdue };
 }

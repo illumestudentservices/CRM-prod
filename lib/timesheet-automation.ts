@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ReminderDigest } from "@/lib/reminder-digest";
 import {
   generateTimesheetPeriods,
   periodFor,
@@ -53,6 +54,8 @@ export async function runTimesheetAutomation(
 ): Promise<TimesheetAutomationSummary> {
   const dryRun = !!opts.dryRun;
   const now = opts.on ?? new Date();
+  // One email per person at the end of the run.
+  const digest = new ReminderDigest({ dryRun });
 
   const summary: TimesheetAutomationSummary = {
     ranAt: now.toISOString(),
@@ -107,17 +110,16 @@ export async function runTimesheetAutomation(
     if (already) continue;
 
     if (!dryRun) {
-      await db.notification.create({
-        data: {
-          userId: s.employee.userId,
-          title: "Timesheet due",
-          message:
-            daysLeft === 0
-              ? `Your timesheet for the period ending today is still a draft.`
-              : `Your timesheet for the period ending ${s.periodEnd.toISOString().slice(0, 10)} is due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
-          type: "TIMESHEET",
-          link: "/hr?tab=timesheets",
-        },
+      await digest.add({
+        userId: s.employee.userId,
+        title: "Timesheet due",
+        message:
+          daysLeft === 0
+            ? `Your timesheet for the period ending today is still a draft.`
+            : `Your timesheet for the period ending ${s.periodEnd.toISOString().slice(0, 10)} is due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`,
+        type: "TIMESHEET",
+        link: "/hr?tab=timesheets",
+        urgent: daysLeft === 0,
       });
       await db.timesheetEvent.create({
         data: { timesheetId: s.id, action: "REMINDER_SENT", notes: `${daysLeft} day(s) before period end` },
@@ -173,14 +175,14 @@ export async function runTimesheetAutomation(
 
     const who = s.employee.user.name?.trim() || s.employee.user.email;
     if (!dryRun) {
-      await db.notification.create({
-        data: {
-          userId: approver.userId,
-          title: "Timesheet overdue",
-          message: `${who} has not submitted their timesheet for the period ending ${s.periodEnd.toISOString().slice(0, 10)} (${daysPast} days ago).`,
-          type: "TIMESHEET",
-          link: "/hr?tab=timesheets",
-        },
+      // An approver chasing several people gets one list naming all of them.
+      await digest.add({
+        userId: approver.userId,
+        title: "Timesheet overdue",
+        message: `${who} has not submitted their timesheet for the period ending ${s.periodEnd.toISOString().slice(0, 10)} (${daysPast} days ago).`,
+        type: "TIMESHEET",
+        link: "/hr?tab=timesheets",
+        urgent: true,
       });
       await db.timesheetEvent.create({
         data: { timesheetId: s.id, action: "OVERDUE_ESCALATED", notes: `${daysPast} days past period end` },
@@ -188,6 +190,11 @@ export async function runTimesheetAutomation(
     }
     summary.overdueNotified++;
   }
+
+  await digest.flush({
+    heading: "Timesheets",
+    intro: "these timesheets need submitting or chasing.",
+  });
 
   return summary;
 }

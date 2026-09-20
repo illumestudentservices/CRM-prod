@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ReminderDigest } from "@/lib/reminder-digest";
 import type { AgentTier, RelationshipStatus } from "@prisma/client";
 
 /// Automation jobs for the Recruitment Network layer:
@@ -138,6 +139,9 @@ export interface RenewalReminderSummary {
 }
 
 export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Promise<RenewalReminderSummary> {
+  // An Account Manager holding several expiring contracts gets one list, not
+  // one email per contract.
+  const digest = new ReminderDigest({ dryRun: opts.dryRun ?? false });
   const dryRun = !!opts.dryRun;
   const summary: RenewalReminderSummary = { ranAt: new Date().toISOString(), dryRun, remindersSent: 0, contractsExpiringSoon: 0 };
 
@@ -173,14 +177,15 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
     if (!c.institution.accountManagerId) continue;
     if (dryRun) { summary.remindersSent++; continue; }
 
-    await db.notification.create({
-      data: {
-        userId: c.institution.accountManagerId,
-        type: "CONTRACT_RENEWAL_DUE",
-        title: `Contract expires in ${daysLeft} days: ${c.institution.name}`,
-        message: `Contract "${c.title}" expires ${c.endDate.toISOString().slice(0, 10)}. Time to plan the renewal.`,
-        link: `/institutions/${c.institution.id}#contracts`,
-      },
+    // Urgent inside 60 days: past that point a renewal needs a conversation,
+    // not a reminder, and the lead time to have one is running out.
+    await digest.add({
+      userId: c.institution.accountManagerId,
+      type: "CONTRACT_RENEWAL_DUE",
+      title: `Contract expires in ${daysLeft} days: ${c.institution.name}`,
+      message: `Contract "${c.title}" expires ${c.endDate.toISOString().slice(0, 10)}. Time to plan the renewal.`,
+      link: `/institutions/${c.institution.id}#contracts`,
+      urgent: daysLeft <= 60,
     });
     summary.remindersSent++;
 
@@ -207,6 +212,11 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
       console.error("[sendRenewalReminders] fireEventTriggers failed", err);
     }
   }
+
+  await digest.flush({
+    heading: "Clients",
+    intro: "these contracts are coming up for renewal.",
+  });
 
   return summary;
 }

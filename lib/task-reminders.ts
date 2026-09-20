@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ReminderDigest } from "@/lib/reminder-digest";
 
 /**
  * Spec Tasks §8 — task reminders + escalation.
@@ -27,6 +28,9 @@ export interface TaskRemindersSummary {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export async function runTaskReminders(opts: { dryRun?: boolean } = {}): Promise<TaskRemindersSummary> {
+  // One list per person. Someone holding eight overdue tasks needs one email
+  // about eight tasks, not eight emails.
+  const digest = new ReminderDigest({ dryRun: opts.dryRun ?? false });
   const dryRun = !!opts.dryRun;
   const summary: TaskRemindersSummary = {
     ranAt: new Date().toISOString(),
@@ -62,14 +66,12 @@ export async function runTaskReminders(opts: { dryRun?: boolean } = {}): Promise
     try {
       if (!t.assignee?.userId) continue;
       if (!dryRun) {
-        await db.notification.create({
-          data: {
-            userId: t.assignee.userId,
-            title: "Task reminder",
-            message: `${t.title}${t.dueDate ? ` (due ${t.dueDate.toISOString().slice(0, 10)})` : ""}`,
-            type: "TASK_REMINDER",
-            link: `/tasks?taskId=${t.id}`,
-          },
+        await digest.add({
+          userId: t.assignee.userId,
+          title: "Task reminder",
+          message: `${t.title}${t.dueDate ? ` (due ${t.dueDate.toISOString().slice(0, 10)})` : ""}`,
+          type: "TASK_REMINDER",
+          link: `/tasks?taskId=${t.id}`,
         });
         await db.task.update({
           where: { id: t.id },
@@ -110,14 +112,13 @@ export async function runTaskReminders(opts: { dryRun?: boolean } = {}): Promise
     try {
       if (!t.assignee?.userId) continue;
       if (!dryRun) {
-        await db.notification.create({
-          data: {
-            userId: t.assignee.userId,
-            title: "Task due soon",
-            message: `${t.title}${t.dueDate ? ` (due ${t.dueDate.toISOString().slice(0, 10)})` : ""}`,
-            type: "TASK_DUE_SOON",
-            link: `/tasks?taskId=${t.id}`,
-          },
+        await digest.add({
+          userId: t.assignee.userId,
+          title: "Task due soon",
+          message: `${t.title}${t.dueDate ? ` (due ${t.dueDate.toISOString().slice(0, 10)})` : ""}`,
+          type: "TASK_DUE_SOON",
+          link: `/tasks?taskId=${t.id}`,
+          urgent: true,
         });
         await db.task.update({
           where: { id: t.id },
@@ -177,14 +178,14 @@ export async function runTaskReminders(opts: { dryRun?: boolean } = {}): Promise
       }
       if (!escalateTo) continue;
       if (!dryRun) {
-        await db.notification.create({
-          data: {
-            userId: escalateTo.id,
-            title: "Overdue task escalated",
-            message: `${assignee.name ?? "A team member"} has an overdue task: ${t.title}`,
-            type: "TASK_ESCALATED",
-            link: `/tasks?taskId=${t.id}`,
-          },
+        // Urgent: this is already past due and has reached a manager.
+        await digest.add({
+          userId: escalateTo.id,
+          title: "Overdue task escalated",
+          message: `${assignee.name ?? "A team member"} has an overdue task: ${t.title}`,
+          type: "TASK_ESCALATED",
+          link: `/tasks?taskId=${t.id}`,
+          urgent: true,
         });
         await db.task.update({
           where: { id: t.id },
@@ -196,6 +197,11 @@ export async function runTaskReminders(opts: { dryRun?: boolean } = {}): Promise
       summary.errors++;
     }
   }
+
+  await digest.flush({
+    heading: "Tasks",
+    intro: "these tasks need you today.",
+  });
 
   return summary;
 }
