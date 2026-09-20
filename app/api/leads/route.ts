@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
+import { notifyNewLeads } from "@/lib/lead-notifications";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
@@ -506,6 +507,15 @@ export async function POST(req: NextRequest) {
         /* non-fatal */
       }
     }
+
+    // Email the capturer and their manager. Deliberately NOT awaited: the
+    // student is already saved and a 201 must not wait on an email provider,
+    // nor fail because of one. notifyNewLeads swallows everything itself.
+    //
+    // Goes to the lead's ASSIGNED ICR and that ICR's manager — not to whoever
+    // happened to type it in. When an administrator captures on an ICR's
+    // behalf, it is the ICR who has work to do.
+    void notifyNewLeads({ leadIds: [lead.id], capturedByUserId: userId });
 
     return NextResponse.json(
       {

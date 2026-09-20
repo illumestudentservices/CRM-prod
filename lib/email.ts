@@ -1140,6 +1140,94 @@ export async function sendOffboardingRequestDecisionEmail(opts: {
   });
 }
 
+// ─── NEW STUDENT CAPTURED ─────────────────────────────────────────────────────
+
+/**
+ * Sent when an ICR captures a student, to the ICR and to their manager.
+ *
+ * ONE email covers the whole batch. A booth upload of forty students sends one
+ * message listing forty, not forty messages — the useful signal is "work has
+ * arrived", and repeating it forty times only teaches people to filter it.
+ *
+ * `isManagerCopy` changes only the greeting and the subject, so neither
+ * recipient receives an email that reads as though it were written for the
+ * other one.
+ */
+export async function sendNewLeadEmail(opts: {
+  to: string;
+  recipientName: string;
+  icrName: string;
+  isManagerCopy: boolean;
+  /// Pre-formatted rows, so this template does no date or name logic itself.
+  leads: Array<{
+    name: string;
+    detail: [string, string][];
+    url: string;
+    possibleDuplicate: boolean;
+  }>;
+  /// Present only for a booth upload, where individual rows can fail.
+  batch?: { submitted: number; created: number; failed: number };
+  listUrl: string;
+}) {
+  const n = opts.leads.length;
+  if (n === 0) return;
+
+  const single = n === 1;
+  const who = opts.isManagerCopy ? `${opts.icrName} has` : "You have";
+  const subject = single
+    ? (opts.isManagerCopy
+        ? `New student added by ${opts.icrName}: ${opts.leads[0].name}`
+        : `New student added: ${opts.leads[0].name}`)
+    : (opts.isManagerCopy
+        ? `${n} new students added by ${opts.icrName}`
+        : `${n} new students added`);
+
+  // One student gets the full detail table. A batch gets a compact list —
+  // forty stacked tables is not something anyone reads on a phone.
+  const body = single
+    ? `
+      ${infoTable(opts.leads[0].detail)}
+      ${opts.leads[0].possibleDuplicate
+        ? `<p style="color:#966a0b;font-size:14px;margin:0 0 8px;">${badge("Possible duplicate", "#966a0b")} This student looks like one already on the system. Worth checking before any follow-up.</p>`
+        : ""}
+      ${ctaButton("View Student", opts.leads[0].url)}
+    `
+    : `
+      ${opts.batch && opts.batch.failed > 0
+        ? `<p style="color:#966a0b;font-size:14px;line-height:1.6;margin:0 0 16px;">${opts.batch.created} of ${opts.batch.submitted} students were saved. ${opts.batch.failed} could not be saved and are still on the device to send again.</p>`
+        : ""}
+      <table cellpadding="0" cellspacing="0" style="width:100%;margin:8px 0 20px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+        <tbody>
+          ${opts.leads.map((l, i) => `
+            <tr style="background:${i % 2 ? "#ffffff" : "#f8fafc"};">
+              <td style="padding:10px 14px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">
+                <a href="${l.url}" style="color:#1E3A5F;text-decoration:none;font-weight:600;">${l.name}</a>
+                ${l.possibleDuplicate ? ` ${badge("Possible duplicate", "#966a0b")}` : ""}
+                <div style="color:#64748b;font-size:12.5px;margin-top:3px;">
+                  ${l.detail.slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(" &nbsp;·&nbsp; ")}
+                </div>
+              </td>
+            </tr>`).join("")}
+        </tbody>
+      </table>
+      ${ctaButton("View All Students", opts.listUrl)}
+    `;
+
+  await safeSend({
+    to: opts.to,
+    subject,
+    html: wrapEmail("New Student Captured", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">
+        ${single ? "New student captured" : `${n} new students captured`}
+      </h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Hi ${opts.recipientName}, ${who} added ${single ? "a new student" : `${n} new students`} to the pipeline.
+      </p>
+      ${body}
+    `),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {
