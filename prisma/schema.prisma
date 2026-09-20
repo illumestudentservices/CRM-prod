@@ -3217,6 +3217,9 @@ model Holiday {
   name        String
   date        DateTime @db.Date
   description String?
+  /// Null together with isGlobal=false means the holiday reaches NOBODY. The
+  /// reminder job reports those rather than failing quietly — see
+  /// lib/holiday-reminders.ts.
   regionId    String?
   region      Region?  @relation(fields: [regionId], references: [id])
   isGlobal    Boolean  @default(false)
@@ -3224,7 +3227,36 @@ model Holiday {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  reminders   HolidayReminder[]
+
+  /// The reminder job scans by date every morning.
+  @@index([date])
   @@map("holidays")
+}
+
+/// One row per holiday per advance-notice send.
+///
+/// This exists so a second run of the cron on the same day CANNOT email
+/// everybody twice. The reminder goes to a whole region at once, so a duplicate
+/// is not a small annoyance — it is the same broadcast landing again in a dozen
+/// inboxes, and it is the kind of thing people set up filters over.
+///
+/// Keyed on the date the notice was FOR, not on the holiday alone: if someone
+/// corrects a holiday's date after the notice has gone out, the new date is a
+/// different row and is allowed to send again.
+model HolidayReminder {
+  id         String   @id @default(uuid())
+  holidayId  String
+  holiday    Holiday  @relation(fields: [holidayId], references: [id], onDelete: Cascade)
+  /// The holiday date this notice announced, as stored on the holiday at send time.
+  forDate    DateTime @db.Date
+  /// How many people the notice actually reached. Zero is a real, recordable
+  /// outcome — it means the region has no members.
+  sentCount  Int      @default(0)
+  sentAt     DateTime @default(now())
+
+  @@unique([holidayId, forDate])
+  @@map("holiday_reminders")
 }
 
 // ─── WHATSAPP MESSAGING ────────────────────────────────────────────────────

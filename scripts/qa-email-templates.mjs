@@ -125,6 +125,12 @@ const TEMPLATES = [
     requestedByEmail: "priya@illumestudentservices.ca",
     reviewUrl: "https://illumestudentservices.cloud/hr",
   })],
+  ["holiday-reminder", () => email.sendHolidayReminderEmail({
+    to: "a@example.com", recipientName: "Priya",
+    holidayName: "Deepavali", holidayDate: "Friday, 20 November 2026",
+    daysAway: 3, scope: "South Asia",
+    description: "All offices closed. Normal hours resume the next working day.",
+  })],
   ["offboarding-request", () => email.sendOffboardingRequestEmail({
     to: "it@example.com", employeeName: "Amara Okafor", employeeCode: "ILL-0042",
     workEmail: "amara@illumestudentservices.ca",
