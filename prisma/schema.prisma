@@ -1818,6 +1818,13 @@ model Institution {
   // Phase 1: Client Management fields
   contractValue       Float?
   renewalDate         DateTime?
+  /// The last renewal-countdown window announced for `renewalDate`, in days
+  /// (180/120/90/60/30, or 0 once it has lapsed). Null means nothing announced
+  /// yet. Makes each notice fire exactly once as the date approaches, and lets
+  /// a run that was missed catch up the next morning instead of losing the
+  /// window for good. Reset upward by the job when the renewal date is pushed
+  /// out, so the countdown starts again for the new date.
+  renewalNoticeStage  Int?
   /// DEPRECATED per spec §2 (Clients): "Remove the Budget card unless a clear
   /// and consistently maintained budget process is introduced." Kept in the
   /// schema for one release so existing rows don't fail; UI has stopped

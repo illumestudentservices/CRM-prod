@@ -34,8 +34,14 @@ const dryRun = process.argv.includes("--dry-run");
     const renewals = await sendRenewalReminders({ dryRun });
     console.log(
       `[network-automation] contract-renewals ${renewals.ranAt}${renewals.dryRun ? " (dry run)" : ""} — ` +
-        `expiringSoon=${renewals.contractsExpiringSoon} sent=${renewals.remindersSent}`,
+        `expiringSoon=${renewals.contractsExpiringSoon} sent=${renewals.remindersSent} ` +
+        `renewalsNoticed=${renewals.renewalsNoticed} lapsed=${renewals.renewalsOverdue}`,
     );
+    // Its own line: a renewal nobody was told about is the failure this job
+    // exists to prevent, so it must not be buried in a count.
+    for (const n of renewals.noRecipient) {
+      console.warn(`[network-automation] NOBODY TOLD — ${n.name}: ${n.reason}`);
+    }
     process.exit(0);
   } catch (err) {
     console.error("[network-automation] failed", err);
