@@ -512,9 +512,9 @@ export async function POST(req: NextRequest) {
     // student is already saved and a 201 must not wait on an email provider,
     // nor fail because of one. notifyNewLeads swallows everything itself.
     //
-    // The recipient is the person who CAPTURED the student, which is what was
-    // asked for. When someone captures on another ICR's behalf, that assignee
-    // still gets the in-app notification created just above.
+    // Goes to the lead's ASSIGNED ICR and that ICR's manager — not to whoever
+    // happened to type it in. When an administrator captures on an ICR's
+    // behalf, it is the ICR who has work to do.
     void notifyNewLeads({ leadIds: [lead.id], capturedByUserId: userId });
 
     return NextResponse.json(

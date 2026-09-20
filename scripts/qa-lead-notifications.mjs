@@ -110,8 +110,15 @@ function dbFields(i) {
   };
 }
 
+/** Counts taken before anything is created, compared again at the end. */
+let baseline = { users: 0, leads: 0 };
+
 try {
   startSection("Fixtures, and proof the log can be read");
+  baseline = {
+    users: await db.user.count(),
+    leads: await db.lead.count(),
+  };
   template = await db.lead.findFirst({ where: { deletedAt: null } });
   expect(!!template, "found a lead to copy the required fields from");
   expect(fs.existsSync(DEV_LOG),
@@ -170,6 +177,88 @@ try {
     sent.length = 0;
     await notifyNewLeads({ leadIds: [], capturedByUserId: icrCtx.user.id });
     expect(sent.length === 0, "an empty batch sends nothing");
+  }
+
+  // ── The owner is the recipient, not the person who typed it in ────────────
+  startSection("The ASSIGNED ICR is emailed, not whoever captured the record");
+  {
+    const { notifyNewLeads } = await import("@/lib/lead-notifications");
+
+    // An administrator captures a student on the ICR's behalf.
+    const admin = await createAndLogin({ role: "SUPER_ADMIN" });
+    let onBehalfId = null;
+    try {
+      const l = await db.lead.create({
+        data: {
+          ...dbFields("onbehalf"),
+          assignedICRId: icrCtx.user.id,   // belongs to the ICR
+          createdById: admin.user.id,      // typed in by the admin
+        },
+      });
+      onBehalfId = l.id;
+      madeLeadIds.push(l.id);
+
+      sent.length = 0;
+      await notifyNewLeads({ leadIds: [l.id], capturedByUserId: admin.user.id });
+
+      expect(sent.length === 2, `2 emails, saw ${sent.length}`, sent.map((s) => s.to).join(", "));
+      expect(sent.some((s) => s.to === icrCtx.user.email),
+        "the ASSIGNED ICR was emailed, though the admin captured it");
+      expect(sent.some((s) => s.to === mgrCtx.user.email),
+        "…and the ICR's manager, not the admin's");
+      expect(!sent.some((s) => s.to === admin.user.email),
+        "the admin who typed it in was NOT emailed",
+        "they know — they just did it");
+    } finally {
+      // ★ The lead MUST go before its creator. `Lead.createdById` is a foreign
+      // key, so destroyUser fails on it — and destroyUser is best-effort, so it
+      // fails SILENTLY and the account is simply left behind. That is how a
+      // stale QA user gets created by a test that otherwise reports all green.
+      if (onBehalfId) {
+        await db.leadActivity.deleteMany({ where: { leadId: onBehalfId } }).catch(() => {});
+        await db.lead.delete({ where: { id: onBehalfId } }).catch(() => {});
+      }
+      await destroyUser(admin);
+    }
+  }
+
+  // ── A mixed batch must not cross-post ─────────────────────────────────────
+  startSection("A batch owned by two ICRs sends each only their own students");
+  {
+    const { notifyNewLeads } = await import("@/lib/lead-notifications");
+    const other = await createAndLogin({ role: "ICR", withEmployee: true });
+    try {
+      const mine = [], theirs = [];
+      for (let i = 0; i < 3; i++) {
+        const a = await db.lead.create({
+          data: { ...dbFields(`mix-a${i}`), assignedICRId: icrCtx.user.id, createdById: icrCtx.user.id },
+        });
+        const b = await db.lead.create({
+          data: { ...dbFields(`mix-b${i}`), assignedICRId: other.user.id, createdById: icrCtx.user.id },
+        });
+        mine.push(a.id); theirs.push(b.id);
+        madeLeadIds.push(a.id, b.id);
+      }
+
+      sent.length = 0;
+      await notifyNewLeads({
+        leadIds: [...mine, ...theirs],
+        capturedByUserId: icrCtx.user.id,
+      });
+
+      const toIcr = sent.find((s) => s.to === icrCtx.user.email);
+      const toOther = sent.find((s) => s.to === other.user.email);
+      expect(!!toIcr && !!toOther, "both owners were emailed",
+        sent.map((s) => s.to).join(", "));
+      expect(toIcr?.subject.includes("3") && toOther?.subject.includes("3"),
+        "★ each is told about 3 students, not all 6 — no cross-posting",
+        `${toIcr?.subject} | ${toOther?.subject}`);
+      expect(!sent.some((s) => s.subject.includes("6")),
+        "nobody is told the whole batch size",
+        sent.map((s) => s.subject).join(" | "));
+    } finally {
+      await destroyUser(other);
+    }
   }
 
   // ── In-process: manager resolution ─────────────────────────────────────────
@@ -291,8 +380,18 @@ try {
   }
   await db.lead.deleteMany({ where: { firstName: "ZZNotify" } }).catch(() => {});
   for (const c of [icrCtx, mgrCtx, outsiderCtx]) if (c) await destroyUser(c);
-  const left = await db.lead.count({ where: { firstName: "ZZNotify" } });
-  console.log(`cleanup: ${madeLeadIds.length} leads handled, ${left} ZZNotify rows remain`);
+
+  // ★ Footprint check. destroyUser is best-effort and fails SILENTLY when a
+  // foreign key still points at the account, so "no errors" is not evidence
+  // that anything was cleaned up. Compare the counts instead.
+  const after = { users: await db.user.count(), leads: await db.lead.count() };
+  startSection("Footprint");
+  expect(after.users === baseline.users,
+    `users back to ${baseline.users}`, `now ${after.users}`);
+  expect(after.leads === baseline.leads,
+    `leads back to ${baseline.leads}`, `now ${after.leads}`);
+  expect(await db.lead.count({ where: { firstName: "ZZNotify" } }) === 0,
+    "no ZZNotify rows left behind");
   summary();
   await db.$disconnect();
 }

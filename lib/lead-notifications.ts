@@ -27,6 +27,9 @@ export type CapturedLead = {
   intakeMonth: number | null;
   institutionName: string | null;
   possibleDuplicate?: boolean;
+  /// Who the student belongs to. Null when nobody was assigned — see
+  /// `ownerOf` for why that is a real state on this system.
+  assignedICRId: string | null;
 };
 
 export type Recipient = { email: string; name: string };
@@ -131,6 +134,7 @@ export async function loadLeadsForNotification(leadIds: string[]): Promise<Captu
       intakeYear: true,
       intakeMonth: true,
       isDuplicate: true,
+      assignedICRId: true,
       institution: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -148,6 +152,7 @@ export async function loadLeadsForNotification(leadIds: string[]): Promise<Captu
     intakeMonth: r.intakeMonth,
     institutionName: r.institution?.name ?? null,
     possibleDuplicate: r.isDuplicate,
+    assignedICRId: r.assignedICRId,
   }));
 }
 
@@ -157,21 +162,46 @@ export function leadDisplayName(lead: CapturedLead): string {
 }
 
 /**
- * Tells the ICR and their manager that students have been captured.
+ * Who a student's email is about.
  *
- * ONE email each, however many students are in the batch.
+ * ★ THE ASSIGNED ICR, falling back to whoever captured the record.
+ *
+ * The owner is the point: "if an ICR is added as ICR then they should get an
+ * email, plus their manager". When an administrator captures on an ICR's
+ * behalf, it is the ICR who has work to do, not the administrator.
+ *
+ * The fallback is not defensive padding — it is reachable today.
+ * `offline-sync` sets `assignedICRId` only when the capturer's role is
+ * literally ICR, and PRODUCTION HAS NO ICR-ROLE USERS, so every booth upload
+ * there lands unassigned. Without the fallback those batches would notify
+ * nobody at all, which is the silent-nothing failure this whole module exists
+ * to avoid. (The assignment gap itself is a separate bug, noted in the PR.)
+ */
+function ownerOf(lead: CapturedLead, capturedByUserId: string): string {
+  return lead.assignedICRId ?? capturedByUserId;
+}
+
+/**
+ * Tells each student's owner, and that owner's manager, what has arrived.
+ *
+ * ONE email per person, however many students are in the batch.
+ *
+ * Leads are GROUPED BY OWNER rather than assumed to share one. A batch today
+ * always does — both routes assign uniformly — but a bulk import that assigned
+ * per row would otherwise send every ICR the whole batch, including students
+ * belonging to colleagues they may not be allowed to see. Grouping costs a few
+ * lines and removes that possibility permanently.
  *
  * Call it WITHOUT awaiting. It swallows everything: a notification must never
- * be able to fail a request that has already written a student to the database.
- * The two creation routes both do `void notifyNewLeads(...)`.
+ * fail a request that has already written a student to the database.
  *
- * `leadIds` should contain only rows that were actually created. The offline
- * route also reports "already synced" rows, and re-announcing a student the ICR
- * captured last week because their phone finally found signal would be wrong.
+ * `leadIds` should contain only rows created on this attempt. The offline
+ * route also reports "already synced" rows, and re-announcing a student
+ * because a phone finally found signal would report old work as new.
  */
 export async function notifyNewLeads(opts: {
   leadIds: string[];
-  /// The user who captured them, which is not always the assignee.
+  /// Fallback owner, used for any lead that was left unassigned.
   capturedByUserId: string;
   batch?: { submitted: number; created: number; failed: number };
 }): Promise<void> {
@@ -179,93 +209,112 @@ export async function notifyNewLeads(opts: {
     if (opts.leadIds.length === 0) return;
 
     // Imported here rather than at module scope: lib/email.ts pulls in the
-    // Brevo client, and this module is imported by routes that must stay
-    // cheap when no notification is due.
+    // mail client, and this module is imported by routes that must stay cheap
+    // when no notification is due.
     const { sendNewLeadEmail } = await import("@/lib/email");
 
-    const [icr, leads] = await Promise.all([
-      db.user.findUnique({
-        where: { id: opts.capturedByUserId },
-        select: { email: true, name: true },
-      }),
-      loadLeadsForNotification(opts.leadIds),
-    ]);
+    const leads = await loadLeadsForNotification(opts.leadIds);
     if (leads.length === 0) return;
 
-    const icrName = icr?.name ?? "Your colleague";
     const base = process.env.NEXTAUTH_URL ?? "";
     const listUrl = `${base}/students`;
 
-    const rows = leads.map((l) => ({
-      name: leadDisplayName(l),
-      url: `${base}/students/${l.id}`,
-      possibleDuplicate: !!l.possibleDuplicate,
-      // Order matters: the batch email shows only the first three of these.
-      detail: [
-        ["Programme", l.interestedProgram || "—"],
-        ["Intake", intakeLabel(l.intakeYear, l.intakeMonth)],
-        ["Nationality", l.nationality || "—"],
-        ["Living in", l.countryOfResidence || "—"],
-        ["Email", l.email || "—"],
-        ["Phone", l.phone || "—"],
-        ["Institution", l.institutionName || "Not chosen yet"],
-      ] as [string, string][],
-    }));
-
-    const manager = await resolveManager(opts.capturedByUserId);
-
-    // Sent in parallel, and independently: `safeSend` never throws, so one
-    // address failing cannot stop the other being tried.
-    await Promise.all([
-      icr?.email
-        ? sendNewLeadEmail({
-            to: icr.email,
-            recipientName: icr.name ?? "there",
-            icrName,
-            isManagerCopy: false,
-            leads: rows,
-            batch: opts.batch,
-            listUrl,
-          })
-        : Promise.resolve(),
-      // Guarded against a manager who is somehow also the capturer — they would
-      // otherwise get the same event twice, once addressed to someone else.
-      manager && manager.email !== icr?.email
-        ? sendNewLeadEmail({
-            to: manager.email,
-            recipientName: manager.name,
-            icrName,
-            isManagerCopy: true,
-            leads: rows,
-            batch: opts.batch,
-            listUrl,
-          })
-        : Promise.resolve(),
-    ]);
-
-    // In-app notification for the manager only. The ICR just did this, so
-    // telling them about it in the bell menu is noise; the email is a record
-    // they can forward, which is a different job.
-    if (manager) {
-      const managerUser = await db.user.findFirst({
-        where: { email: manager.email },
-        select: { id: true },
-      });
-      if (managerUser && managerUser.id !== opts.capturedByUserId) {
-        await db.notification.create({
-          data: {
-            userId: managerUser.id,
-            title: leads.length === 1 ? "New student captured" : `${leads.length} new students captured`,
-            message:
-              leads.length === 1
-                ? `${icrName} added ${leadDisplayName(leads[0])}`
-                : `${icrName} added ${leads.length} students`,
-            type: "LEAD_CAPTURED",
-            link: leads.length === 1 ? `/students/${leads[0].id}` : "/students",
-          },
-        });
-      }
+    const byOwner = new Map<string, CapturedLead[]>();
+    for (const lead of leads) {
+      const owner = ownerOf(lead, opts.capturedByUserId);
+      const bucket = byOwner.get(owner);
+      if (bucket) bucket.push(lead);
+      else byOwner.set(owner, [lead]);
     }
+
+    await Promise.all(
+      [...byOwner.entries()].map(async ([ownerId, ownerLeads]) => {
+        const [owner, manager] = await Promise.all([
+          db.user.findUnique({
+            where: { id: ownerId },
+            select: { email: true, name: true },
+          }),
+          resolveManager(ownerId),
+        ]);
+
+        const icrName = owner?.name ?? "Your colleague";
+        const rows = ownerLeads.map((l) => ({
+          name: leadDisplayName(l),
+          url: `${base}/students/${l.id}`,
+          possibleDuplicate: !!l.possibleDuplicate,
+          // Order matters: the batch email shows only the first three.
+          detail: [
+            ["Programme", l.interestedProgram || "—"],
+            ["Intake", intakeLabel(l.intakeYear, l.intakeMonth)],
+            ["Nationality", l.nationality || "—"],
+            ["Living in", l.countryOfResidence || "—"],
+            ["Email", l.email || "—"],
+            ["Phone", l.phone || "—"],
+            ["Institution", l.institutionName || "Not chosen yet"],
+          ] as [string, string][],
+        }));
+
+        // The per-owner batch figures. A mixed batch must not tell one ICR
+        // that forty students arrived when three of them are theirs.
+        const batch = opts.batch
+          ? { ...opts.batch, created: ownerLeads.length }
+          : undefined;
+
+        // Sent independently: safeSend never throws, so one address failing
+        // cannot stop the other being tried.
+        await Promise.all([
+          owner?.email
+            ? sendNewLeadEmail({
+                to: owner.email,
+                recipientName: owner.name ?? "there",
+                icrName,
+                isManagerCopy: false,
+                leads: rows,
+                batch,
+                listUrl,
+              })
+            : Promise.resolve(),
+          // Guarded against a manager who is also the owner — they would
+          // otherwise get the same event twice, once addressed to someone else.
+          manager && manager.email !== owner?.email
+            ? sendNewLeadEmail({
+                to: manager.email,
+                recipientName: manager.name,
+                icrName,
+                isManagerCopy: true,
+                leads: rows,
+                batch,
+                listUrl,
+              })
+            : Promise.resolve(),
+        ]);
+
+        // In-app notification for the manager only. The owner has either just
+        // done this themselves, or already gets a "new lead assigned" bell
+        // entry from the create route; a second one would be noise. The email
+        // is a record they can forward, which is a different job.
+        if (manager) {
+          const managerUser = await db.user.findFirst({
+            where: { email: manager.email },
+            select: { id: true },
+          });
+          if (managerUser && managerUser.id !== ownerId) {
+            const one = ownerLeads.length === 1;
+            await db.notification.create({
+              data: {
+                userId: managerUser.id,
+                title: one ? "New student captured" : `${ownerLeads.length} new students captured`,
+                message: one
+                  ? `${icrName} added ${leadDisplayName(ownerLeads[0])}`
+                  : `${icrName} added ${ownerLeads.length} students`,
+                type: "LEAD_CAPTURED",
+                link: one ? `/students/${ownerLeads[0].id}` : "/students",
+              },
+            });
+          }
+        }
+      })
+    );
   } catch (err) {
     // Never rethrow. The students are already saved; this is an announcement.
     console.error("[lead-notifications] Failed to notify:", err);
