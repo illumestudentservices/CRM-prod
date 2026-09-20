@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { getDashboardActions } from "@/lib/dashboard-actions";
+import { ActionItemsCard, MyTasksCard } from "./_components/action-items";
 import { NoRegionBanner } from "@/components/shared/no-region-banner";
 import { NO_REGION } from "@/lib/region-scope";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
@@ -1146,9 +1148,12 @@ async function ExecutiveDashboard({
 // ─── ICR Dashboard UI ──────────────────────────────────────────────────────────
 
 async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: string | null }) {
-  const [data, personal] = await Promise.all([
+  const [data, personal, actions] = await Promise.all([
     getICRDashboardData(userId),
     getPersonalData(userId, regionId),
+    // Same signals the morning email digest is built from, so the screen and
+    // the inbox cannot disagree about what needs this person today.
+    getDashboardActions(userId),
   ]);
   const { stats, pipeline, recentLeads, pendingReports } = data;
   const { leaveBalances, leaveRequests, holidays, assets } = personal;
@@ -1195,6 +1200,48 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           iconBg="bg-emerald-50"
           href="/students?stage=ENROLLED"
         />
+      </div>
+
+      {/* Second KPI row — what needs doing, rather than what exists. The row
+          above counts the caseload; these four count the work in it. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Needs Attention"
+          value={actions.items.length.toLocaleString()}
+          icon="AlertCircle"
+          iconColor="text-amber-600"
+          iconBg="bg-amber-50"
+        />
+        <StatCard
+          title="Deadlines This Week"
+          value={actions.counts.deadlines.toLocaleString()}
+          icon="CalendarDays"
+          iconColor="text-rose-600"
+          iconBg="bg-rose-50"
+        />
+        <StatCard
+          title="Stalled Students"
+          value={actions.counts.stale.toLocaleString()}
+          icon="Clock"
+          iconColor="text-orange-600"
+          iconBg="bg-orange-50"
+          href="/students"
+        />
+        <StatCard
+          title="Open Tasks"
+          value={actions.counts.openTasks.toLocaleString()}
+          icon="ClipboardList"
+          iconColor="text-[#0EA5E9]"
+          iconBg="bg-[#0EA5E9]/10"
+          href="/tasks"
+        />
+      </div>
+
+      {/* The two new cards lead the page: a dashboard should open with what
+          needs you, not with a list of what you already have. */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ActionItemsCard items={actions.items} />
+        <MyTasksCard tasks={actions.tasks} />
       </div>
 
       {/* Pending reports alert */}
@@ -1282,7 +1329,12 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
 // ─── ERP (HR / EMPLOYEE) Dashboard UI ─────────────────────────────────────────
 
 async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: string | null }) {
-  const data = await getERPDashboardData(userId, regionId);
+  // Fetched together: the workspace showed an Open Tasks COUNT and no list, so
+  // a colleague could be overdue on three tasks with nothing naming them.
+  const [data, actions] = await Promise.all([
+    getERPDashboardData(userId, regionId),
+    getDashboardActions(userId),
+  ]);
   const { employee, stats, leaveBalances, leaveRequests, holidays, assets } = data;
 
   const annualLeave = leaveBalances.find((lb) => lb.leaveType === "VACATION_PAID");
@@ -1336,6 +1388,11 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           iconBg="bg-violet-50"
           href="/travel"
         />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ActionItemsCard items={actions.items} />
+        <MyTasksCard tasks={actions.tasks} />
       </div>
 
       {/* Pending leaves alert */}
