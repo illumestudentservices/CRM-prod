@@ -125,6 +125,18 @@ const TEMPLATES = [
     requestedByEmail: "priya@illumestudentservices.ca",
     reviewUrl: "https://illumestudentservices.cloud/hr",
   })],
+  ["reminder-digest", () => email.sendReminderDigestEmail({
+    to: "a@example.com", recipientName: "Priya",
+    heading: "Student pipeline", intro: "these students need something from you today.",
+    items: [
+      { title: "Deadline approaching", detail: '"Mei Ling Tan" — offer expires in 3 days.',
+        url: "/students/a", urgent: true },
+      { title: "Student needs attention", detail: '"Amara Okafor" has had no activity for 15 days.',
+        url: "/students/b", urgent: false },
+      { title: "Deferred student reopened", detail: '"Wei Chen" is back in the pipeline.',
+        url: "/students/c", urgent: false },
+    ],
+  })],
   ["holiday-reminder", () => email.sendHolidayReminderEmail({
     to: "a@example.com", recipientName: "Priya",
     holidayName: "Deepavali", holidayDate: "Friday, 20 November 2026",

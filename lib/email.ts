@@ -1352,6 +1352,78 @@ export async function sendHolidayReminderEmail(opts: {
   });
 }
 
+// ─── DAILY REMINDER DIGEST ────────────────────────────────────────────────────
+
+/**
+ * One morning email listing everything in an area that needs a person.
+ *
+ * Deliberately a LIST, not one email per item. See lib/reminder-digest.ts for
+ * why: the alternative delivers an ICR's entire backlog one message at a time
+ * on the first run, and teaches them to filter the sender.
+ *
+ * The subject carries the count, so the inbox line is useful unopened —
+ * "Student pipeline: 6 need attention" tells you whether to open it now.
+ */
+export async function sendReminderDigestEmail(opts: {
+  to: string;
+  recipientName: string;
+  /// The area: "Student pipeline", "Tasks", "Clients".
+  heading: string;
+  /// One sentence explaining why this arrived.
+  intro: string;
+  items: Array<{ title: string; detail: string; url: string; urgent: boolean }>;
+}) {
+  const n = opts.items.length;
+  if (n === 0) return;
+
+  const urgent = opts.items.filter((i) => i.urgent).length;
+  const subject =
+    n === 1
+      ? `${opts.heading}: 1 item needs attention`
+      : `${opts.heading}: ${n} items need attention`;
+
+  await safeSend({
+    to: opts.to,
+    subject,
+    html: wrapEmail(
+      opts.heading,
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:23px;font-weight:700;color:${INK};line-height:1.3;">
+        ${opts.heading}
+      </h1>
+      <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.recipientName}, ${opts.intro}
+      </p>
+      ${urgent > 0
+        ? `<p style="margin:0 0 4px;font-family:${FONT};font-size:14px;line-height:1.6;color:#B45309;">
+             <strong>${urgent} of these ${urgent === 1 ? "is" : "are"} time-critical</strong> and ${urgent === 1 ? "is" : "are"} listed first.
+           </p>`
+        : ""}
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 8px;border:1px solid ${HAIRLINE};border-radius:10px;">
+        <tbody>
+          ${opts.items.map((i, idx) => `
+          <tr>
+            <td bgcolor="${idx % 2 ? "#FFFFFF" : PANEL}" style="background:${idx % 2 ? "#FFFFFF" : PANEL};padding:12px 16px;border-bottom:1px solid ${HAIRLINE};font-family:${FONT};">
+              <a href="${BASE_URL}${i.url}" style="color:${i.urgent ? "#B45309" : NAVY};text-decoration:none;font-size:14px;font-weight:600;">
+                ${i.urgent ? "&#9679; " : ""}${i.title}
+              </a>
+              <div style="color:${MUTED};font-size:13px;line-height:1.5;margin-top:3px;">${i.detail}</div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+
+      <p style="margin:14px 0 0;font-family:${FONT};font-size:12px;color:${MUTED};">
+        Each line links straight to the record. This summary is sent once a day,
+        and only when there is something on it.
+      </p>
+      `,
+      `${n} item${n === 1 ? "" : "s"} in ${opts.heading.toLowerCase()} need${n === 1 ? "s" : ""} attention.`
+    ),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {

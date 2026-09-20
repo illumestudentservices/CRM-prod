@@ -6,6 +6,7 @@ import {
 } from "@/lib/lead-pipeline";
 import type { Prisma } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
+import { ReminderDigest } from "@/lib/reminder-digest";
 
 /**
  * Scheduled pipeline automation.
@@ -46,6 +47,7 @@ export interface AutomationSummary {
   offerExpiryWarnings: number;
   depositDeadlineWarnings: number;
   deferredReopened: number;
+  deferredFollowUps: number;
   unassigned: string[];
 }
 
@@ -94,6 +96,9 @@ export async function runLeadAutomation(
   { dryRun = false }: { dryRun?: boolean } = {}
 ): Promise<AutomationSummary> {
   const now = new Date();
+  // One email per person at the end of the run, not one per student. An ICR
+  // with twenty stale records should get one list, not twenty messages.
+  const digest = new ReminderDigest({ dryRun });
   const summary: AutomationSummary = {
     dryRun,
     ranAt: now.toISOString(),
@@ -102,6 +107,7 @@ export async function runLeadAutomation(
     offerExpiryWarnings: 0,
     depositDeadlineWarnings: 0,
     deferredReopened: 0,
+    deferredFollowUps: 0,
     unassigned: [],
   };
 
@@ -155,19 +161,6 @@ export async function runLeadAutomation(
       if (dryRun) continue;
 
       await db.$transaction([
-        ...(lead.assignedICRId
-          ? [
-              db.notification.create({
-                data: {
-                  userId: lead.assignedICRId,
-                  title: "Student needs attention",
-                  message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
-                  type: "LEAD_INACTIVITY",
-                  link: `/students/${lead.id}`,
-                },
-              }),
-            ]
-          : []),
         db.lead.update({
           where: { id: lead.id },
           data: { inactivity14NotifiedAt: now },
@@ -182,6 +175,19 @@ export async function runLeadAutomation(
           },
         }),
       ]);
+
+      // AFTER the commit, not inside it. The flag write is the thing that must
+      // not be repeated; a notification is cheap to retry and must never be
+      // able to roll back the record of having chased this student.
+      if (lead.assignedICRId) {
+        await digest.add({
+          userId: lead.assignedICRId,
+          title: "Student needs attention",
+          message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+          type: "LEAD_INACTIVITY",
+          link: `/students/${lead.id}`,
+        });
+      }
       continue;
     }
 
@@ -192,17 +198,6 @@ export async function runLeadAutomation(
     if (dryRun) continue;
 
     await db.$transaction([
-      ...targets.map((userId) =>
-        db.notification.create({
-          data: {
-            userId,
-            title: "Stalled student",
-            message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
-            type: "LEAD_ESCALATION",
-            link: `/students/${lead.id}`,
-          },
-        })
-      ),
       db.lead.update({
         where: { id: lead.id },
         // Both flags set: a student escalated to a manager should not then
@@ -219,6 +214,19 @@ export async function runLeadAutomation(
         },
       }),
     ]);
+
+    // Urgent: this one has already been chased once and ignored, which is the
+    // point at which a manager is meant to step in.
+    for (const userId of targets) {
+      await digest.add({
+        userId,
+        title: "Stalled student",
+        message: `"${displayName(lead)}" has had no activity for ${idleDays} days in ${STAGE_LABELS[lead.stage]}.`,
+        type: "LEAD_ESCALATION",
+        link: `/students/${lead.id}`,
+        urgent: true,
+      });
+    }
   }
 
   // ── Offer expiry and deposit deadlines ─────────────────────────────────
@@ -259,14 +267,15 @@ export async function runLeadAutomation(
     }
     if (!notes.length || dryRun) continue;
 
-    await db.notification.create({
-      data: {
-        userId: app.lead.assignedICRId,
-        title: "Deadline approaching",
-        message: `"${displayName(app.lead)}" — ${notes.join(", ")}.`,
-        type: "LEAD_DEADLINE",
-        link: `/students/${app.lead.id}`,
-      },
+    // Urgent: an offer or deposit window closing is the one thing on this run
+    // that cannot be caught up on afterwards.
+    await digest.add({
+      userId: app.lead.assignedICRId,
+      title: "Deadline approaching",
+      message: `"${displayName(app.lead)}" — ${notes.join(", ")}.`,
+      type: "LEAD_DEADLINE",
+      link: `/students/${app.lead.id}`,
+      urgent: true,
     });
   }
 
@@ -317,21 +326,85 @@ export async function runLeadAutomation(
           stageAtCreation: "DEFERRED",
         },
       }),
-      ...(lead.assignedICRId
-        ? [
-            db.notification.create({
-              data: {
-                userId: lead.assignedICRId,
-                title: "Deferred student reopened",
-                message: `"${displayName(lead)}" is back in the pipeline ahead of their ${lead.deferredIntakeMonth}/${lead.deferredIntakeYear} intake.`,
-                type: "LEAD_REOPENED",
-                link: `/students/${lead.id}`,
-              },
-            }),
-          ]
-        : []),
+    ]);
+
+    if (lead.assignedICRId) {
+      await digest.add({
+        userId: lead.assignedICRId,
+        title: "Deferred student reopened",
+        message: `"${displayName(lead)}" is back in the pipeline ahead of their ${lead.deferredIntakeMonth}/${lead.deferredIntakeYear} intake.`,
+        type: "LEAD_REOPENED",
+        link: `/students/${lead.id}`,
+      });
+    }
+  }
+
+  // ── Deferred follow-ups falling due ────────────────────────────────────
+  //
+  // `deferredFollowUpAt` is written by both close routes (students and
+  // journeys) and, until now, READ BY NOTHING. The system was recording
+  // exactly when to re-contact a deferred student and then never acting on it.
+  //
+  // Distinct from `deferredReopenAt` above: reopening puts the record back in
+  // the pipeline near the intake, whereas this is the human check-in someone
+  // deliberately scheduled. A student can need the call well before the
+  // record needs reopening.
+  const followUpsDue = await db.lead.findMany({
+    where: {
+      deletedAt: null,
+      deferredFollowUpAt: { lte: now },
+      // Only while still deferred. Once they are moving again the follow-up
+      // has been overtaken by events.
+      stage: "DEFERRED",
+    },
+    select: {
+      id: true, firstName: true, lastName: true, assignedICRId: true,
+      deferredFollowUpAt: true, deferredReason: true,
+    },
+    take: BATCH_LIMIT,
+  });
+
+  for (const lead of followUpsDue) {
+    summary.deferredFollowUps++;
+    if (!lead.assignedICRId) {
+      summary.unassigned.push(lead.id);
+      continue;
+    }
+    if (dryRun) continue;
+
+    await digest.add({
+      userId: lead.assignedICRId,
+      title: "Deferred student — follow-up due",
+      message:
+        `"${displayName(lead)}" was scheduled for a check-in` +
+        (lead.deferredReason ? ` (deferred: ${lead.deferredReason})` : "") + ".",
+      type: "LEAD_DEFERRED_FOLLOWUP",
+      link: `/students/${lead.id}`,
+    });
+
+    // Cleared so the same follow-up is not raised again tomorrow. The activity
+    // row is what preserves the fact that it was raised at all.
+    await db.$transaction([
+      db.lead.update({
+        where: { id: lead.id },
+        data: { deferredFollowUpAt: null },
+      }),
+      db.leadActivity.create({
+        data: {
+          leadId: lead.id,
+          kind: "SYSTEM",
+          type: "DEFERRED_FOLLOWUP_DUE",
+          description: "Scheduled follow-up for a deferred student fell due.",
+          stageAtCreation: "DEFERRED",
+        },
+      }),
     ]);
   }
+
+  await digest.flush({
+    heading: "Student pipeline",
+    intro: "these students need something from you today.",
+  });
 
   return summary;
 }

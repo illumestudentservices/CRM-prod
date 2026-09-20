@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ReminderDigest } from "@/lib/reminder-digest";
 import { INACTIVITY_REMINDER_DAYS, INACTIVITY_ESCALATION_DAYS } from "@/lib/lead-pipeline";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import type { LeadStage } from "@prisma/client";
@@ -32,6 +33,10 @@ function daysAgo(n: number): Date {
 }
 
 export async function runInterestAutomation(opts: { dryRun?: boolean } = {}): Promise<InterestAutomationSummary> {
+  // One email per person at the end, not one per journey. An ICR carrying
+  // several institutions for the same student would otherwise get a separate
+  // message for each of them on the same morning.
+  const digest = new ReminderDigest({ dryRun: opts.dryRun ?? false });
   const dryRun = !!opts.dryRun;
   const summary: InterestAutomationSummary = {
     ranAt: new Date().toISOString(),
@@ -62,14 +67,12 @@ export async function runInterestAutomation(opts: { dryRun?: boolean } = {}): Pr
   for (const interest of reminderCandidates) {
     if (dryRun) { summary.inactivityReminders++; continue; }
     if (interest.assignedICRId) {
-      await db.notification.create({
-        data: {
-          userId: interest.assignedICRId,
-          type: "INTEREST_INACTIVITY_REMINDER",
-          title: `Follow up: ${interest.lead.firstName} ${interest.lead.lastName} - ${interest.institution.name}`,
-          message: `No engagement in ${INACTIVITY_REMINDER_DAYS} days on this Institution Interest.`,
-          link: `/institution-interests/${interest.id}`,
-        },
+      await digest.add({
+        userId: interest.assignedICRId,
+        type: "INTEREST_INACTIVITY_REMINDER",
+        title: `Follow up: ${interest.lead.firstName} ${interest.lead.lastName} - ${interest.institution.name}`,
+        message: `No engagement in ${INACTIVITY_REMINDER_DAYS} days on this Institution Interest.`,
+        link: `/institution-interests/${interest.id}`,
       });
     }
     await db.institutionInterest.update({
@@ -106,14 +109,14 @@ export async function runInterestAutomation(opts: { dryRun?: boolean } = {}): Pr
         select: { id: true },
       });
       for (const rm of rms) {
-        await db.notification.create({
-          data: {
-            userId: rm.id,
-            type: "INTEREST_INACTIVITY_ESCALATION",
-            title: `Overdue: ${interest.lead.firstName} ${interest.lead.lastName} - ${interest.institution.name}`,
-            message: `Institution Interest has been inactive for ${INACTIVITY_ESCALATION_DAYS}+ days.`,
-            link: `/institution-interests/${interest.id}`,
-          },
+        // Urgent: already chased once at the reminder threshold and still cold.
+        await digest.add({
+          userId: rm.id,
+          type: "INTEREST_INACTIVITY_ESCALATION",
+          title: `Overdue: ${interest.lead.firstName} ${interest.lead.lastName} - ${interest.institution.name}`,
+          message: `Institution Interest has been inactive for ${INACTIVITY_ESCALATION_DAYS}+ days.`,
+          link: `/institution-interests/${interest.id}`,
+          urgent: true,
         });
       }
     }
@@ -147,19 +150,22 @@ export async function runInterestAutomation(opts: { dryRun?: boolean } = {}): Pr
       },
     });
     if (interest.assignedICRId) {
-      await db.notification.create({
-        data: {
-          userId: interest.assignedICRId,
-          type: "INTEREST_DEFERRED_REOPENED",
-          title: `Deferred interest reopened for ${interest.deferredIntakeMonth}/${interest.deferredIntakeYear} intake`,
-          message: `Follow up with the student — their deferred intake is approaching.`,
-          link: `/institution-interests/${interest.id}`,
-        },
+      await digest.add({
+        userId: interest.assignedICRId,
+        type: "INTEREST_DEFERRED_REOPENED",
+        title: `Deferred interest reopened for ${interest.deferredIntakeMonth}/${interest.deferredIntakeYear} intake`,
+        message: `Follow up with the student — their deferred intake is approaching.`,
+        link: `/institution-interests/${interest.id}`,
       });
     }
     await syncLeadFromInterests(interest.lead.id);
     summary.deferredReopened++;
   }
+
+  await digest.flush({
+    heading: "Student journeys",
+    intro: "these institution journeys have gone quiet.",
+  });
 
   return summary;
 }

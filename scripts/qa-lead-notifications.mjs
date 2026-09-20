@@ -253,7 +253,11 @@ try {
       expect(toIcr?.subject.includes("3") && toOther?.subject.includes("3"),
         "★ each is told about 3 students, not all 6 — no cross-posting",
         `${toIcr?.subject} | ${toOther?.subject}`);
-      expect(!sent.some((s) => s.subject.includes("6")),
+      // ★ Matches the COUNT PHRASE, not a bare digit. `subject.includes("6")`
+      // passed for months of runs and then failed on a disposable user whose
+      // random tag happened to be "QA49A326" — the 6 was in the name, not the
+      // count. Never assert a lone digit against a string carrying an id.
+      expect(!sent.some((s) => /6 new students/.test(s.subject)),
         "nobody is told the whole batch size",
         sent.map((s) => s.subject).join(" | "));
     } finally {
