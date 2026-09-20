@@ -136,6 +136,12 @@ export interface RenewalReminderSummary {
   dryRun: boolean;
   remindersSent: number;
   contractsExpiringSoon: number;
+  /// Clients whose renewal reached nobody, and why. Silence here used to be
+  /// invisible: an unassigned client simply never produced a reminder.
+  noRecipient: Array<{ name: string; reason: string }>;
+  /// Institution-level renewals (the column the business actually fills in).
+  renewalsNoticed: number;
+  renewalsOverdue: number;
 }
 
 export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Promise<RenewalReminderSummary> {
@@ -143,7 +149,11 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
   // one email per contract.
   const digest = new ReminderDigest({ dryRun: opts.dryRun ?? false });
   const dryRun = !!opts.dryRun;
-  const summary: RenewalReminderSummary = { ranAt: new Date().toISOString(), dryRun, remindersSent: 0, contractsExpiringSoon: 0 };
+  const summary: RenewalReminderSummary = {
+    ranAt: new Date().toISOString(), dryRun,
+    remindersSent: 0, contractsExpiringSoon: 0,
+    noRecipient: [], renewalsNoticed: 0, renewalsOverdue: 0,
+  };
 
   const now = new Date();
   const futureWindow = new Date(now.getTime() + 200 * DAY_MS);
@@ -170,11 +180,22 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
     if (!c.endDate) continue;
     summary.contractsExpiringSoon++;
     const daysLeft = Math.floor((c.endDate.getTime() - now.getTime()) / DAY_MS);
-    // Send only when we cross into a window (+/- 1 day tolerance)
-    const inWindow = RENEWAL_WINDOWS.some(w => Math.abs(daysLeft - w) <= 0);
+    // ★ `Math.abs(daysLeft - w) <= 0` is an EXACT day match, despite the
+    // comment beside it claiming a tolerance. If the run was skipped on the
+    // one day a contract sat exactly 180 days out — a deploy, a reboot, a
+    // clock drift — that notice was lost for good, because tomorrow it is 179
+    // and matches nothing. Contract rows reuse the institution countdown
+    // below, which uses `<=` and therefore catches up.
+    const inWindow = RENEWAL_WINDOWS.some((w) => daysLeft === w);
     if (!inWindow) continue;
 
-    if (!c.institution.accountManagerId) continue;
+    if (!c.institution.accountManagerId) {
+      summary.noRecipient.push({
+        name: c.institution.name,
+        reason: "no account manager is set on the client",
+      });
+      continue;
+    }
     if (dryRun) { summary.remindersSent++; continue; }
 
     // Urgent inside 60 days: past that point a renewal needs a conversation,
@@ -211,6 +232,102 @@ export async function sendRenewalReminders(opts: { dryRun?: boolean } = {}): Pro
     } catch (err) {
       console.error("[sendRenewalReminders] fireEventTriggers failed", err);
     }
+  }
+
+  // ── Institution renewal dates ──────────────────────────────────────────
+  //
+  // ★ THIS IS WHERE THE BUSINESS ACTUALLY RECORDS RENEWALS.
+  //
+  // The contract loop above watches `Contract.endDate`. Measured on production
+  // there are ZERO contract rows, while 22 clients have `Institution.renewalDate`
+  // filled in — including six already lapsed, four of them still ACTIVE, and one
+  // ten days out. So the renewal reminder covered nothing at all in practice.
+  //
+  // Unlike the contract path this uses `daysLeft <= w` with a stored stage, not
+  // an exact-day match, so a run missed on the exact boundary day is caught the
+  // following morning instead of losing the notice for good.
+  const clients = await db.institution.findMany({
+    where: {
+      deletedAt: null,
+      renewalDate: { not: null },
+      // A client we have stopped working with does not need chasing. PROSPECT
+      // is kept: a renewal date on a prospect is a live commercial date.
+      accountStatus: { notIn: ["CHURNED", "SUSPENDED"] },
+    },
+    select: {
+      id: true, name: true, renewalDate: true, accountManagerId: true,
+      renewalNoticeStage: true, accountStatus: true,
+    },
+  });
+
+  const startOfToday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+
+  for (const client of clients) {
+    const daysLeft = Math.floor(
+      (client.renewalDate!.getTime() - startOfToday.getTime()) / DAY_MS
+    );
+
+    // The tightest window this client has reached. 0 means the date has passed,
+    // which is its own stage — a lapsed renewal on an ACTIVE client is worth
+    // more attention than one still months away, not less.
+    const stage =
+      daysLeft < 0 ? 0 : RENEWAL_WINDOWS.filter((w) => daysLeft <= w).pop() ?? null;
+    if (stage === null) continue; // further out than the widest window
+
+    const stored = client.renewalNoticeStage;
+
+    // Pushed further out than we last announced: the renewal was done, or the
+    // date corrected. Rewind the marker so the countdown runs again for the new
+    // date, but say nothing — nobody needs telling that a deadline receded.
+    if (stored !== null && stage > stored) {
+      if (!dryRun) {
+        await db.institution.update({
+          where: { id: client.id },
+          data: { renewalNoticeStage: stage },
+        });
+      }
+      continue;
+    }
+    // Already announced at this stage or tighter.
+    if (stored !== null && stage >= stored) continue;
+
+    if (daysLeft < 0) summary.renewalsOverdue++;
+    summary.renewalsNoticed++;
+
+    if (!client.accountManagerId) {
+      summary.noRecipient.push({
+        name: client.name,
+        reason: "no account manager is set on the client",
+      });
+      continue;
+    }
+    if (dryRun) continue;
+
+    const when = client.renewalDate!.toISOString().slice(0, 10);
+    await digest.add({
+      userId: client.accountManagerId,
+      type: "CONTRACT_RENEWAL_DUE",
+      title:
+        daysLeft < 0
+          ? `Renewal LAPSED ${Math.abs(daysLeft)} days ago: ${client.name}`
+          : `Renewal in ${daysLeft} days: ${client.name}`,
+      message:
+        daysLeft < 0
+          ? `${client.name} was due to renew on ${when} and the date has passed while the account is still ${client.accountStatus}.`
+          : `${client.name} is due to renew on ${when}. Time to plan the conversation.`,
+      link: `/institutions/${client.id}`,
+      // A lapsed renewal, or one inside 60 days, needs a conversation rather
+      // than a reminder — and the time to have one is running out.
+      urgent: daysLeft < 0 || daysLeft <= 60,
+    });
+    summary.remindersSent++;
+
+    await db.institution.update({
+      where: { id: client.id },
+      data: { renewalNoticeStage: stage },
+    });
   }
 
   await digest.flush({
