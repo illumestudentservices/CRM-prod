@@ -1298,6 +1298,60 @@ export async function sendNewLeadEmail(opts: {
   });
 }
 
+// ─── PUBLIC HOLIDAY REMINDER ──────────────────────────────────────────────────
+
+/**
+ * Advance notice that the office is closed.
+ *
+ * The date is spelled out in full rather than shown as a number. This goes to
+ * India, Malaysia, Nigeria, China and the UK among others, where 12/07 reads as
+ * two different days, and a closure notice is the worst place for that.
+ */
+export async function sendHolidayReminderEmail(opts: {
+  to: string;
+  recipientName: string;
+  holidayName: string;
+  /// Already formatted by lib/holiday-reminders.ts, so this template does no
+  /// date logic of its own.
+  holidayDate: string;
+  daysAway: number;
+  /// "Company-wide", or the region's name.
+  scope: string;
+  description?: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `${opts.holidayName} — office closed on ${opts.holidayDate.replace(/^\w+,\s*/, "")}`,
+    html: wrapEmail(
+      "Upcoming Public Holiday",
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:23px;font-weight:700;color:${INK};line-height:1.3;">
+        ${opts.holidayName}
+      </h1>
+      <p style="margin:0 0 6px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.recipientName}, this is a reminder that
+        <strong style="color:${INK};">${opts.holidayDate}</strong> is a public holiday
+        — ${opts.daysAway} days from today.
+      </p>
+
+      ${infoTable([
+        ["Holiday", opts.holidayName],
+        ["Date", opts.holidayDate],
+        ["Applies to", opts.scope],
+        ...(opts.description ? [["Details", opts.description] as [string, string]] : []),
+      ])}
+
+      <p style="margin:0 0 6px;font-family:${FONT};font-size:14px;line-height:1.65;color:${BODY_TEXT};">
+        If you have anything due that day, please plan around it now — deadlines,
+        student follow-ups and interviews will all need moving.
+      </p>
+      ${ctaButton("View the Holiday Calendar", `${BASE_URL}/hr`)}
+      `,
+      `${opts.holidayName} is ${opts.daysAway} days away — plan any deadlines around it.`
+    ),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {
