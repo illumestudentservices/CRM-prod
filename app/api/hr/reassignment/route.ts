@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -214,6 +215,28 @@ export async function POST(req: NextRequest) {
     moved: outcome.moved,
     total: outcome.total,
     ...(outcome.skipped.length ? { skipped: outcome.skipped } : {}),
+  });
+
+  // A caseload changing hands in one operation is exactly the kind of thing
+  // that should be findable in an inbox the morning after, not only in an
+  // audit log someone has to think to open.
+  void notifyAdmins({
+    action: "WORKLOAD_REASSIGNED",
+    actorName: session.user.name ?? session.user.email ?? "An administrator",
+    actorEmail: session.user.email ?? "unknown",
+    summary: `${outcome.total} record${outcome.total === 1 ? "" : "s"} moved from ${fromName} to ${toName}.`,
+    detail: [
+      ["From", fromName],
+      ["To", toName],
+      ["Records moved", String(outcome.total)],
+      ...Object.entries(outcome.moved).map(
+        ([k, v]) => [k, String(v)] as [string, string]
+      ),
+      ...(outcome.skipped.length
+        ? [["Skipped", outcome.skipped.join(", ")] as [string, string]]
+        : []),
+    ],
+    link: "/hr",
   });
 
   return NextResponse.json({

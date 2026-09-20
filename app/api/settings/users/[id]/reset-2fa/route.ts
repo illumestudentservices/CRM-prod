@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hasCapability } from "@/lib/granular-permissions";
@@ -97,6 +98,22 @@ export async function POST(
         ipAddress: ip,
         userAgent: req.headers.get("user-agent") ?? null,
       },
+    });
+
+    // Resetting someone else's second factor lets that account enrol a new
+    // device, so it is an account-takeover vector as much as a support action.
+    // Not awaited: the reset has already happened.
+    void notifyAdmins({
+      action: "MFA_RESET_FOR_USER",
+      actorName: session.user.name ?? session.user.email ?? "An administrator",
+      actorEmail: session.user.email ?? "unknown",
+      summary: `two-factor authentication was reset for ${user.email}, and their sessions were revoked.`,
+      detail: [
+        ["Account affected", user.email],
+        ["Sessions revoked", "Yes — they must sign in again"],
+      ],
+      link: "/settings",
+      ip,
     });
 
     return NextResponse.json({ success: true });

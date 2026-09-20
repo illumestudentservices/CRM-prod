@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { db } from "@/lib/db";
 import { logActivity } from "@/lib/activity-logger";
 import { NextRequest, NextResponse } from "next/server";
@@ -106,6 +107,21 @@ export async function PUT(req: NextRequest) {
     upserted: toUpsert.map((o) => `${o.role}:${o.resource}:${o.action}=${o.granted}`),
     restoredToDefault: toDelete.map((d) => `${d.role}:${d.resource}:${d.action}`),
   }, req);
+
+  // Who can see and do what across the whole system just changed. That is
+  // worth an inbox entry even when the person doing it is a super admin —
+  // especially then, since the alert is how a stolen session gets noticed.
+  void notifyAdmins({
+    action: "PERMISSIONS_CHANGED",
+    actorName: session.user.name ?? session.user.email ?? "An administrator",
+    actorEmail: session.user.email ?? "unknown",
+    summary: `${toUpsert.length} permission override${toUpsert.length === 1 ? "" : "s"} saved and ${toDelete.length} restored to default.`,
+    detail: [
+      ["Overrides saved", String(toUpsert.length)],
+      ["Restored to default", String(toDelete.length)],
+    ],
+    link: "/settings",
+  });
 
   return NextResponse.json({ ok: true, saved: toUpsert.length, restored: toDelete.length });
 }

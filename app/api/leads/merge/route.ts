@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -140,6 +141,20 @@ export async function POST(req: NextRequest) {
     });
 
     await syncLeadFromInterests(keepId);
+
+    // Two student records became one. The losing record's history now lives
+    // on the survivor, which is not something an ICR can undo themselves.
+    void notifyAdmins({
+      action: "LEADS_MERGED",
+      actorName: session.user.name ?? session.user.email ?? "A user",
+      actorEmail: session.user.email ?? "unknown",
+      summary: "two student records were merged into one.",
+      detail: [
+        ["Record kept", keepId],
+        ["Record merged in", mergeFromId],
+      ],
+      link: `/students/${keepId}`,
+    });
 
     return NextResponse.json({ ok: true, keepId, mergedFromId: mergeFromId });
   } catch (err) {

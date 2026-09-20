@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { restoreRecord, purgeRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { hasCapability } from "@/lib/granular-permissions";
@@ -30,8 +32,30 @@ export async function DELETE(
   }
   const { id } = await params;
   try {
+    // Read BEFORE the purge: afterwards there is nothing left to describe,
+    // and an alert saying "a record was destroyed" without saying which one is
+    // not worth sending.
+    const doomed = await db.deletedRecord
+      .findUnique({ where: { id }, select: { entityType: true, entityLabel: true } })
+      .catch(() => null);
+
     await purgeRecord(id);
     void logActivity(session.user.id, "PURGE", "RECYCLE_BIN", id, {}, req);
+
+    void notifyAdmins({
+      action: "RECYCLE_BIN_PURGED",
+      actorName: session.user.name ?? session.user.email ?? "An administrator",
+      actorEmail: session.user.email ?? "unknown",
+      summary: doomed
+        ? `a ${doomed.entityType} record was destroyed permanently and can no longer be restored from the app.`
+        : "a record was destroyed permanently and can no longer be restored from the app.",
+      detail: [
+        ["Record type", doomed?.entityType ?? "Unknown"],
+        ["Record", doomed?.entityLabel ?? "(label not recorded)"],
+      ],
+      link: "/recycle-bin",
+    });
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof RecycleBinNotFound) {

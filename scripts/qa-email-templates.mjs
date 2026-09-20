@@ -137,6 +137,15 @@ const TEMPLATES = [
         url: "/students/c", urgent: false },
     ],
   })],
+  ["admin-alert", () => email.sendAdminAlertEmail({
+    to: "admin@example.com", recipientName: "IT Admin",
+    title: "Recycle bin purged",
+    why: "Deleted records were destroyed permanently and cannot be restored from the app.",
+    summary: "a Lead record was destroyed permanently and can no longer be restored from the app.",
+    actorName: "Priya Sharma", actorEmail: "priya@illumestudentservices.ca",
+    detail: [["Record type", "Lead"], ["Record", "Mei Ling Tan"]],
+    link: "/recycle-bin", ip: "203.0.113.4",
+  })],
   ["holiday-reminder", () => email.sendHolidayReminderEmail({
     to: "a@example.com", recipientName: "Priya",
     holidayName: "Deepavali", holidayDate: "Friday, 20 November 2026",
