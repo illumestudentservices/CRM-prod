@@ -70,74 +70,184 @@ export async function safeSend(opts: {
 
 // ─── Shared primitives ─────────────────────────────────────────────────────────
 
+/**
+ * ─── HOUSE RULES FOR EVERY TEMPLATE BELOW ───────────────────────────────────
+ *
+ * Email is not the web. Outlook on Windows renders with the WORD engine, and
+ * Gmail strips much of what a browser accepts. Everything here obeys:
+ *
+ *   NO <svg>            — Gmail strips it outright; Outlook cannot draw it.
+ *   NO linear-gradient  — unsupported in Outlook; a gradient behind white text
+ *                         collapses to a white background and the text vanishes.
+ *   NO box-shadow       — silently dropped, so it must never carry meaning.
+ *   NO 8-digit hex      — "#1E3A5F20" is invalid in Outlook and several others.
+ *   NO opacity fades    — rgba() on a background is unreliable; a "faded" logo
+ *                         is exactly what that produces.
+ *   bgcolor ALONGSIDE   — Outlook honours the HTML attribute more reliably than
+ *   the CSS background    the CSS property, so colour-critical cells carry both.
+ *   Absolute image URLs — a relative /logo.png resolves against the mail client,
+ *                         not the app, and renders as a broken image.
+ *
+ * Fonts are a stack ending in a generic family: Outlook falls back to Times if
+ * the list has no serif/sans-serif terminator, which is where "unprofessional"
+ * usually comes from.
+ */
+const FONT =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+
+const NAVY = "#1E3A5F";
+const INK = "#0F172A";
+const BODY_TEXT = "#475569";
+const MUTED = "#64748B";
+const HAIRLINE = "#E2E8F0";
+const PANEL = "#F8FAFC";
+
+/**
+ * A status pill.
+ *
+ * `background:${color}20` used to append an alpha pair to the hex. That is a
+ * CSS Color 4 notation Outlook does not implement, so the declaration was
+ * dropped and the pill lost its fill. A solid panel with a coloured border and
+ * coloured text reads the same everywhere and cannot fail that way.
+ */
 export function badge(text: string, color: string) {
-  return `<span style="display:inline-block;background:${color}20;color:${color};font-size:12px;font-weight:600;padding:3px 10px;border-radius:100px;border:1px solid ${color}40;">${text}</span>`;
+  return `<span style="display:inline-block;background:${PANEL};color:${color};font-family:${FONT};font-size:12px;font-weight:600;line-height:1;padding:5px 11px;border-radius:100px;border:1px solid ${color};mso-line-height-rule:exactly;">${text}</span>`;
 }
 
 export function infoRow(label: string, value: string) {
   return `<tr>
-    <td style="padding:10px 14px;font-size:13px;color:#64748b;font-weight:500;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${label}</td>
-    <td style="padding:10px 14px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;">${value}</td>
+    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${MUTED};font-weight:600;white-space:nowrap;border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${label}</td>
+    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${INK};border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${value}</td>
   </tr>`;
 }
 
 export function infoTable(rows: [string, string][]) {
-  return `<table cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px;width:100%;margin:16px 0 24px;border:1px solid #e2e8f0;overflow:hidden;">
+  // `overflow:hidden` to clip the corner radius does nothing in most clients,
+  // so the border is put on the table itself rather than relying on the clip.
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${PANEL}" style="background:${PANEL};border-radius:10px;width:100%;margin:18px 0 26px;border:1px solid ${HAIRLINE};border-collapse:separate;">
     <tbody>${rows.map(([l, v]) => infoRow(l, v)).join("")}</tbody>
   </table>`;
 }
 
-export function ctaButton(text: string, href: string, color = "#1E3A5F") {
-  return `<div style="margin:28px 0 8px;">
-    <a href="${href}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 32px;border-radius:9px;letter-spacing:0.01em;">${text}</a>
-  </div>`;
+/**
+ * A bulletproof call-to-action.
+ *
+ * Built as a table with `bgcolor` on the cell, not a styled <a>. Outlook
+ * ignores padding and background on an inline anchor, which turned the button
+ * into a bare blue link — the single most common way a transactional email
+ * looks amateurish.
+ */
+export function ctaButton(text: string, href: string, color = NAVY) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 6px;">
+    <tr>
+      <td align="center" bgcolor="${color}" style="background:${color};border-radius:8px;">
+        <a href="${href}" style="display:inline-block;padding:14px 34px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;mso-padding-alt:14px 34px;">${text}</a>
+      </td>
+    </tr>
+  </table>`;
 }
 
 // ─── Standard branded wrapper ──────────────────────────────────────────────────
 
-export function wrapEmail(title: string, body: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
+/**
+ * The shared frame every email in this file is built on.
+ *
+ * ★ WHY THE LOGO LOOKED FADED, AND WHY THE HEADER IS NOW WHITE.
+ *
+ * The old header stacked four separate problems:
+ *
+ *   1. It was NOT the Illume logo. It was a generic shield-and-tick drawn
+ *      inline, so nothing recognisably Illume ever reached the recipient.
+ *   2. That shield carried `fill-opacity="0.9"`, sitting on an
+ *      `rgba(255,255,255,0.18)` tile, beside a tagline at 60% white. Literally
+ *      faded, three times over.
+ *   3. It was an inline <svg>. GMAIL STRIPS SVG ENTIRELY and Outlook cannot
+ *      render it, so for most recipients the mark was simply absent — an empty
+ *      translucent square where a logo should be.
+ *   4. The band behind it was a `linear-gradient`, which OUTLOOK DOES NOT
+ *      SUPPORT. The declaration is dropped, the cell falls back to white, and
+ *      the white wordmark on top becomes invisible.
+ *
+ * The fix is to stop fighting the constraint. `public/logo.png` is dark navy
+ * on transparent — it is drawn for a LIGHT background, which is also why the
+ * app rebuilt it as SVG for its dark sidebar. So the header band is now white
+ * and carries the real asset as a hosted PNG with explicit width and height.
+ * Brand presence comes from a navy rule beneath it, which every client can draw.
+ *
+ * The URL must be absolute: a relative path resolves against the mail client,
+ * not the app. It is publicly reachable — proxy.ts's matcher excludes image
+ * extensions, so an anonymous fetch from an inbox returns 200.
+ */
+export function wrapEmail(title: string, body: string, preheader?: string): string {
+  const logoUrl = `${BASE_URL}/logo.png`;
+  const year = new Date().getFullYear();
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
   <title>${title}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <style type="text/css">
+    /* Stops iOS turning dates and phone numbers into unstyled blue links. */
+    a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
+    @media only screen and (max-width:620px) {
+      .wrap { width:100% !important; }
+      .pad  { padding:24px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-        <tr>
-          <td style="background:linear-gradient(135deg,#1E3A5F 0%,#0369A1 100%);border-radius:12px 12px 0 0;padding:24px 36px;">
-            <table cellpadding="0" cellspacing="0"><tr>
-              <td style="vertical-align:middle;padding-right:10px;">
-                <div style="width:34px;height:34px;background:rgba(255,255,255,0.18);border-radius:8px;text-align:center;line-height:34px;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="white" fill-opacity="0.9"/>
-                    <path d="M9 12l2 2 4-4" stroke="#7DD3FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-              </td>
-              <td style="vertical-align:middle;">
-                <div style="color:white;font-size:18px;font-weight:700;letter-spacing:-0.3px;">Illume</div>
-                <div style="color:rgba(255,255,255,0.6);font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:500;">Student Advisory Services</div>
-              </td>
-            </tr></table>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#ffffff;padding:36px;border-radius:0 0 12px 12px;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-            ${body}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 0 0;text-align:center;">
-            <p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} Illume Student Advisory Services. All rights reserved.</p>
-            <p style="color:#cbd5e1;font-size:10px;margin:5px 0 0;">This is an automated message — please do not reply directly to this email.</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:${FONT};-webkit-font-smoothing:antialiased;">
+  <!-- Inbox preview line. Hidden in the body, shown beside the subject. Without
+       it, clients pull the first words of the content, which is usually "Hi". -->
+  <div style="display:none;font-size:1px;color:#F1F5F9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader ?? title}</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F1F5F9" style="background:#F1F5F9;">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+        <table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+          <!-- Header: white, so the navy wordmark is legible everywhere. -->
+          <tr>
+            <td bgcolor="#FFFFFF" style="background:#FFFFFF;border-radius:12px 12px 0 0;padding:26px 36px 20px;border:1px solid ${HAIRLINE};border-bottom:none;">
+              <img src="${logoUrl}" width="150" height="44" alt="Illume Student Advisory Services"
+                   style="display:block;border:0;outline:none;text-decoration:none;height:44px;width:150px;max-width:150px;" />
+            </td>
+          </tr>
+          <!-- Brand rule. A solid cell, not a gradient, so Outlook draws it. -->
+          <tr>
+            <td bgcolor="${NAVY}" style="background:${NAVY};height:3px;line-height:3px;font-size:0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td class="pad" bgcolor="#FFFFFF" style="background:#FFFFFF;padding:32px 36px 36px;border:1px solid ${HAIRLINE};border-top:none;border-radius:0 0 12px 12px;color:${BODY_TEXT};font-family:${FONT};font-size:15px;line-height:1.65;">
+              ${body}
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:22px 16px 0;font-family:${FONT};">
+              <p style="color:${MUTED};font-size:12px;line-height:1.6;margin:0;">
+                &copy; ${year} Illume Student Advisory Services
+              </p>
+              <p style="color:#94A3B8;font-size:11px;line-height:1.6;margin:6px 0 0;">
+                This is an automated message — please do not reply to this address.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
@@ -154,137 +264,83 @@ export async function sendWelcomeEmail(opts: {
 }) {
   const firstName = opts.name.split(" ")[0];
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Illume</title>
-</head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  /**
+   * Built on wrapEmail like every other template.
+   *
+   * This used to be a SECOND bespoke document, repeating the gradient header,
+   * the inline-SVG logo and the rgba fades — so a fix to the shared frame left
+   * the onboarding email, the first thing a new joiner ever sees, still broken.
+   * It also used `${color}15` step markers: an 8-digit hex Outlook drops, which
+   * left the numbers unreadable on white.
+   */
+  const steps: [string, string, string][] = [
+    ["1", "Set your password", "Use the secure link above to create your own password."],
+    ["2", "Sign in to your account", "Use your email address and new password to sign in."],
+    ["3", "Complete your profile", "Add your photo and fill in any missing details."],
+    ["4", "Explore the platform", "Check your dashboard and tasks, and get familiar with your workspace."],
+  ];
 
-        <!-- HERO HEADER -->
+  const html = wrapEmail(
+    "Welcome to Illume",
+    `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:24px;font-weight:700;color:${INK};line-height:1.3;">
+        Welcome to Illume, ${firstName}
+      </h1>
+      <p style="margin:0 0 24px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Your account has been created. Set a password below and you can sign in straight away.
+      </p>
+
+      ${infoTable([
+        ["Employee ID", opts.employeeId],
+        ["Job title", opts.jobTitle],
+        ["Email", opts.to],
+      ])}
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F0F9FF" style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;margin:0 0 28px;">
         <tr>
-          <td style="border-radius:14px 14px 0 0;overflow:hidden;background:linear-gradient(135deg,#0f2647 0%,#1E3A5F 40%,#0369A1 100%);padding:48px 40px 40px;">
-            <table cellpadding="0" cellspacing="0" width="100%">
-              <tr>
-                <td>
-                  <!-- Logo -->
-                  <table cellpadding="0" cellspacing="0"><tr>
-                    <td style="vertical-align:middle;padding-right:10px;">
-                      <div style="width:38px;height:38px;background:rgba(255,255,255,0.15);border-radius:10px;text-align:center;line-height:38px;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;">
-                          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="white" fill-opacity="0.9"/>
-                          <path d="M9 12l2 2 4-4" stroke="#7DD3FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </div>
-                    </td>
-                    <td style="vertical-align:middle;">
-                      <div style="color:white;font-size:18px;font-weight:700;">Illume</div>
-                      <div style="color:rgba(255,255,255,0.55);font-size:9px;letter-spacing:2.5px;text-transform:uppercase;">Student Advisory Services</div>
-                    </td>
-                  </tr></table>
+          <td align="center" style="padding:26px 24px;font-family:${FONT};">
+            <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#0C4A6E;">Set your password</p>
+            <p style="margin:0 0 4px;font-size:13px;line-height:1.6;color:#0369A1;">
+              This link expires in 72 hours.
+            </p>
+            ${ctaButton("Set My Password", opts.magicLinkUrl)}
+          </td>
+        </tr>
+      </table>
 
-                  <!-- Welcome text -->
-                  <div style="margin-top:32px;">
-                    <div style="display:inline-block;background:rgba(14,165,233,0.25);color:#7DD3FC;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:100px;border:1px solid rgba(125,211,252,0.3);margin-bottom:16px;">
-                      You're officially onboard
-                    </div>
-                    <h1 style="margin:0 0 10px;color:#ffffff;font-size:30px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;">
-                      Welcome, ${firstName}! 👋
-                    </h1>
-                    <p style="margin:0;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;max-width:420px;">
-                      Your account has been created. Set your password to get started on the Illume platform.
-                    </p>
-                  </div>
-                </td>
+      <p style="margin:0 0 14px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:${MUTED};">
+        Getting started
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 26px;">
+        ${steps.map(([num, title, desc]) => `
+        <tr>
+          <td width="32" valign="top" style="padding:0 0 16px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td width="26" height="26" align="center" valign="middle" bgcolor="${NAVY}"
+                    style="background:${NAVY};border-radius:13px;font-family:${FONT};font-size:12px;font-weight:700;color:#ffffff;line-height:26px;mso-line-height-rule:exactly;">${num}</td>
               </tr>
             </table>
           </td>
-        </tr>
-
-        <!-- MAIN BODY -->
-        <tr>
-          <td style="background:#ffffff;padding:40px;border-radius:0 0 14px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.08);">
-
-            <!-- ACCOUNT INFO CARD -->
-            <div style="background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:32px;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:16px;">Your Account Details</div>
-              <table cellpadding="0" cellspacing="0" width="100%">
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#64748b;width:140px;">Employee ID</td>
-                  <td style="padding:6px 0;font-size:13px;font-weight:600;color:#1e293b;">${opts.employeeId}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#64748b;">Job Title</td>
-                  <td style="padding:6px 0;font-size:13px;font-weight:600;color:#1e293b;">${opts.jobTitle}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#64748b;">Email</td>
-                  <td style="padding:6px 0;font-size:13px;font-weight:600;color:#0369A1;">${opts.to}</td>
-                </tr>
-              </table>
-            </div>
-
-            <!-- SET PASSWORD CTA -->
-            <div style="text-align:center;padding:28px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;margin-bottom:28px;">
-              <div style="font-size:32px;margin-bottom:12px;">🔐</div>
-              <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0c4a6e;">Set Your Password</p>
-              <p style="margin:0 0 20px;font-size:13px;color:#0369A1;line-height:1.5;">Click the button below to create your secure password. This link expires in 72 hours.</p>
-              <a href="${opts.magicLinkUrl}" style="display:inline-block;background:linear-gradient(135deg,#1E3A5F,#0369A1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:15px 40px;border-radius:10px;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(30,58,95,0.35);">
-                Set My Password &rarr;
-              </a>
-            </div>
-
-            <!-- GETTING STARTED -->
-            <div style="margin-bottom:24px;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:18px;">Getting Started</div>
-              <table cellpadding="0" cellspacing="0" width="100%">
-                ${[
-                  ["1", "#0EA5E9", "Set your password", "Use the secure link above to create your own password."],
-                  ["2", "#22C55E", "Sign in to your account", "Use your email and new password to access the platform."],
-                  ["3", "#8B5CF6", "Complete your profile", "Add your photo and fill in any missing details."],
-                  ["4", "#F59E0B", "Explore the platform", "Check your dashboard, tasks, and get familiar with your workspace."],
-                ].map(([num, color, title, desc]) => `
-                <tr>
-                  <td style="padding:0 0 16px;vertical-align:top;width:36px;">
-                    <div style="width:28px;height:28px;background:${color}15;border:2px solid ${color}30;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:${color};">${num}</div>
-                  </td>
-                  <td style="padding:0 0 16px 12px;vertical-align:top;">
-                    <div style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:2px;">${title}</div>
-                    <div style="font-size:13px;color:#64748b;line-height:1.5;">${desc}</div>
-                  </td>
-                </tr>`).join("")}
-              </table>
-            </div>
-
-            <p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">
-              Having trouble? Contact your HR manager for assistance.
-            </p>
-
+          <td valign="top" style="padding:0 0 16px 12px;font-family:${FONT};">
+            <div style="font-size:14px;font-weight:600;color:${INK};margin-bottom:2px;">${title}</div>
+            <div style="font-size:13px;line-height:1.55;color:${MUTED};">${desc}</div>
           </td>
-        </tr>
-
-        <!-- FOOTER -->
-        <tr>
-          <td style="padding:24px 0 0;text-align:center;">
-            <p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} Illume Student Advisory Services. All rights reserved.</p>
-            <p style="color:#cbd5e1;font-size:10px;margin:5px 0 0;">This is an automated message — please do not reply directly to this email.</p>
-          </td>
-        </tr>
-
+        </tr>`).join("")}
       </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+
+      <p style="margin:0;font-family:${FONT};font-size:12px;color:${MUTED};">
+        Having trouble? Contact your HR manager for assistance.
+      </p>
+    `,
+    `Set your password and sign in — your Illume account is ready.`
+  );
 
   await safeSend({
     to: opts.to,
-    subject: `🎉 Welcome to Illume, ${firstName}! Set your password to get started`,
+    // No emoji in the subject: it reads as marketing, and several corporate
+    // filters score it accordingly. This is an account-credentials email.
+    subject: `Welcome to Illume — set your password, ${firstName}`,
     html,
   });
 }
@@ -370,24 +426,28 @@ export async function sendSecurityAlertEmail(opts: {
     hour: "2-digit", minute: "2-digit", timeZoneName: "short",
   });
 
-  const detailRows = opts.details
-    ? Object.entries(opts.details).map(([k, v]) => infoRow(k, v))
-    : [];
-
   await safeSend({
     to: opts.to,
     subject: cfg.subject,
     html: wrapEmail(
       cfg.title,
       `
-      <!-- Alert banner -->
-      <div style="background:${cfg.color}10;border:1.5px solid ${cfg.color}30;border-radius:10px;padding:16px 20px;margin-bottom:28px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:24px;line-height:1;">${cfg.icon}</span>
-        <div>
-          <div style="font-size:15px;font-weight:700;color:${cfg.color};margin-bottom:2px;">${cfg.title}</div>
-          <div style="font-size:13px;color:#64748b;">${cfg.description}</div>
-        </div>
-      </div>
+      <!-- Alert banner.
+           The fill and border were written as an 8-digit hex (colour plus two
+           alpha digits). Outlook does not parse that, so the banner lost both
+           and the alert stopped looking like an alert. It also used
+           display:flex, which Outlook ignores entirely, dropping the icon and
+           the text onto separate lines. A two-cell table does the same job
+           everywhere, with a solid tint and a full-strength border. -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid ${cfg.color};border-radius:10px;margin:0 0 28px;">
+        <tr>
+          <td width="34" valign="top" style="padding:16px 0 16px 18px;font-size:22px;line-height:1.1;">${cfg.icon}</td>
+          <td valign="top" style="padding:16px 20px 16px 10px;font-family:${FONT};">
+            <div style="font-size:15px;font-weight:700;color:${cfg.color};margin-bottom:3px;">${cfg.title}</div>
+            <div style="font-size:13px;line-height:1.55;color:${MUTED};">${cfg.description}</div>
+          </td>
+        </tr>
+      </table>
 
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
         The following security event was recorded on the Illume platform. Please review and take action if this was not authorised.
@@ -398,7 +458,9 @@ export async function sendSecurityAlertEmail(opts: {
         ["Email", opts.targetEmail],
         ["Action By", opts.changedBy],
         ["Timestamp", timestamp],
-        ...detailRows.map((): [string, string] => ["", ""]).slice(0),
+        // A blank row per detail used to be spread in here from a leftover
+        // `detailRows.map(() => ["", ""])`, directly above the real details —
+        // so every alert rendered an empty stripe for each field it reported.
         ...(opts.details ? (Object.entries(opts.details) as [string, string][]) : []),
       ])}
 
@@ -755,10 +817,10 @@ export async function sendMagicLinkEmail(opts: {
 
       <div style="text-align:center;padding:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:28px;">
         <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Click the button to set your password securely:</p>
-        <a href="${opts.magicLinkUrl}"
-           style="display:inline-block;background:linear-gradient(135deg,#1E3A5F,#0369A1);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:10px;letter-spacing:0.02em;box-shadow:0 4px 14px rgba(30,58,95,0.3);">
-          Set My Password &rarr;
-        </a>
+        <!-- Was a styled <a> with a gradient: Outlook ignores both the
+             background and the padding on an inline anchor, so the one action
+             in a password email rendered as a bare blue link. -->
+        ${ctaButton("Set My Password", opts.magicLinkUrl)}
         <p style="margin:14px 0 0;font-size:11px;color:#94a3b8;">
           Or copy this link: <span style="font-family:monospace;font-size:10px;word-break:break-all;">${opts.magicLinkUrl}</span>
         </p>
@@ -935,11 +997,19 @@ export async function sendFullReportEmail(opts: {
     to: opts.to,
     subject: `Monthly Report — ${opts.institutionName} — ${opts.period}`,
     html: wrapEmail(`Monthly Report — ${opts.period}`, `
-      <div style="background:linear-gradient(135deg,#1E3A5F 0%,#0369A1 100%);border-radius:12px;padding:28px 32px;margin-bottom:28px;">
-        <h1 style="margin:0 0 4px;color:#ffffff;font-size:22px;font-weight:800;">${opts.institutionName}</h1>
-        <p style="margin:0;color:rgba(255,255,255,0.7);font-size:14px;">${opts.period} Monthly Report</p>
-        <p style="margin:8px 0 0;color:rgba(255,255,255,0.5);font-size:12px;">ICR: ${opts.icrName} &middot; Region: ${opts.regionName}</p>
-      </div>
+      <!-- SOLID navy with a bgcolor attribute, not a gradient. This block is
+           partner-facing, and in Outlook an unsupported gradient falls back to
+           white — which left the client's own name in white text on white.
+           The rgba() greys are now solid tints for the same reason. -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${NAVY}" style="background:${NAVY};border-radius:12px;margin:0 0 28px;">
+        <tr>
+          <td style="padding:26px 30px;font-family:${FONT};">
+            <h1 style="margin:0 0 5px;color:#ffffff;font-size:21px;font-weight:700;line-height:1.3;">${opts.institutionName}</h1>
+            <p style="margin:0;color:#CBD5E1;font-size:14px;">${opts.period} Monthly Report</p>
+            <p style="margin:9px 0 0;color:#94A3B8;font-size:12px;">ICR: ${opts.icrName} &middot; Region: ${opts.regionName}</p>
+          </td>
+        </tr>
+      </table>
 
       ${messageBlock}
 
