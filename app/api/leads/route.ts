@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
+import { notifyNewLeads } from "@/lib/lead-notifications";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
@@ -506,6 +507,15 @@ export async function POST(req: NextRequest) {
         /* non-fatal */
       }
     }
+
+    // Email the capturer and their manager. Deliberately NOT awaited: the
+    // student is already saved and a 201 must not wait on an email provider,
+    // nor fail because of one. notifyNewLeads swallows everything itself.
+    //
+    // The recipient is the person who CAPTURED the student, which is what was
+    // asked for. When someone captures on another ICR's behalf, that assignee
+    // still gets the in-app notification created just above.
+    void notifyNewLeads({ leadIds: [lead.id], capturedByUserId: userId });
 
     return NextResponse.json(
       {

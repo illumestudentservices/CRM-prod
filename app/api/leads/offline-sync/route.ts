@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { notifyNewLeads } from "@/lib/lead-notifications";
 import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -268,6 +269,26 @@ export async function POST(req: NextRequest) {
         ...(await auditOrigin()),
       },
     });
+
+    // ONE email for the whole batch, not one per student.
+    //
+    // Only rows created on THIS attempt are announced. `already_synced` is
+    // deliberately excluded: those students were captured on a previous
+    // attempt, so re-announcing them because a phone finally found signal
+    // would report old work as new — and would repeat on every retry.
+    //
+    // Not awaited. The students are saved; the response must not wait on an
+    // email provider, and notifyNewLeads swallows its own failures.
+    const createdIds = results
+      .filter((r) => r.status === "created" && r.leadId)
+      .map((r) => r.leadId as string);
+    if (createdIds.length > 0) {
+      void notifyNewLeads({
+        leadIds: createdIds,
+        capturedByUserId: userId,
+        batch: { submitted: leads.length, created, failed },
+      });
+    }
 
     return NextResponse.json({
       summary: { submitted: leads.length, created, alreadySynced, failed },
