@@ -1424,6 +1424,75 @@ export async function sendReminderDigestEmail(opts: {
   });
 }
 
+// ─── ADMIN ALERT (serious, hard-to-undo actions) ──────────────────────────────
+
+/**
+ * Sent to every super admin when something consequential happens.
+ *
+ * Distinct from `sendSecurityAlertEmail`, which covers account and identity
+ * events. This one covers data being destroyed, moved in bulk, or
+ * re-permissioned — see lib/admin-alerts.ts for why that list is short.
+ *
+ * The wording leads with WHAT HAPPENED and WHY IT MATTERS, because the useful
+ * question on receiving one of these at 21:00 is "do I need to act tonight",
+ * and a bare action name does not answer it.
+ */
+export async function sendAdminAlertEmail(opts: {
+  to: string;
+  recipientName: string;
+  title: string;
+  why: string;
+  summary: string;
+  actorName: string;
+  actorEmail: string;
+  detail: [string, string][];
+  link?: string;
+  ip?: string | null;
+}) {
+  const when = new Date().toLocaleString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
+
+  await safeSend({
+    to: opts.to,
+    subject: `[Admin] ${opts.title} — by ${opts.actorName}`,
+    html: wrapEmail(
+      opts.title,
+      `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid #B45309;border-radius:10px;margin:0 0 24px;">
+        <tr>
+          <td style="padding:16px 20px;font-family:${FONT};">
+            <div style="font-size:15px;font-weight:700;color:#B45309;margin-bottom:4px;">${opts.title}</div>
+            <div style="font-size:13px;line-height:1.55;color:${MUTED};">${opts.why}</div>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.recipientName}, ${opts.summary}
+      </p>
+
+      ${infoTable([
+        ["Performed by", `${opts.actorName} (${opts.actorEmail})`],
+        ["When", when],
+        ...(opts.ip ? [["From", opts.ip] as [string, string]] : []),
+        ...opts.detail,
+      ])}
+
+      ${opts.link ? ctaButton("Review in the app", `${BASE_URL}${opts.link}`) : ""}
+
+      <p style="margin:18px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
+        You are receiving this because you are a super administrator. If this
+        was not expected, check the activity log and consider suspending the
+        account that performed it.
+      </p>
+      `,
+      `${opts.title} by ${opts.actorName} — ${opts.summary}`
+    ),
+  });
+}
+
 // ─── Helper: fetch all super admin emails ─────────────────────────────────────
 
 export async function getSuperAdminEmails(): Promise<string[]> {

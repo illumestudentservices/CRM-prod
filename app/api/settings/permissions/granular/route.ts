@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { notifyAdmins } from "@/lib/admin-alerts";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
@@ -154,6 +155,20 @@ export async function PUT(req: NextRequest) {
       ...(await auditOrigin()),
     },
   }).catch(() => {});
+
+  void notifyAdmins({
+    action: "GRANULAR_PERMISSIONS_CHANGED",
+    actorName: session.user.name ?? session.user.email ?? "An administrator",
+    actorEmail: session.user.email ?? "unknown",
+    summary: `${changes.length} field or capability permission${changes.length === 1 ? "" : "s"} changed.`,
+    detail: [
+      ["Changes applied", String(changes.length)],
+      // Named rather than counted: "3 changes" says nothing about whether
+      // someone just granted themselves passport numbers.
+      ["Targets", changes.slice(0, 6).map((c) => `${c.role}/${c.resource}/${c.target}`).join(", ")],
+    ],
+    link: "/settings",
+  });
 
   return NextResponse.json({ ok: true, applied: changes.length });
 }
