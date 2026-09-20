@@ -247,11 +247,20 @@ export async function POST(req: NextRequest) {
       : "";
 
     const emailHtml = wrapEmail(`Monthly Report — ${report.institution.name} — ${period}`, `
-      <div style="background:linear-gradient(135deg,#1E3A5F 0%,#0369A1 100%);border-radius:12px;padding:24px 28px;margin-bottom:24px;">
-        <h1 style="margin:0 0 4px;color:#ffffff;font-size:20px;font-weight:800;">${esc(report.institution.name)}</h1>
-        <p style="margin:0;color:rgba(255,255,255,0.7);font-size:13px;">${period} — Monthly Report</p>
-        <p style="margin:6px 0 0;color:rgba(255,255,255,0.4);font-size:11px;">ICR: ${esc(icrName)} &middot; Region: ${esc(report.region?.name ?? "N/A")}</p>
-      </div>
+      <!-- EMAIL, not the PDF. Solid navy with a bgcolor attribute: Outlook has
+           no gradient support, so this block previously fell back to white and
+           took the client's own name — in white text — with it. The PDF cover
+           further up this file KEEPS its gradient, because that is rendered by
+           a headless browser where gradients and SVG work fine. -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1E3A5F" style="background:#1E3A5F;border-radius:12px;margin:0 0 24px;">
+        <tr>
+          <td style="padding:24px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+            <h1 style="margin:0 0 5px;color:#ffffff;font-size:20px;font-weight:700;line-height:1.3;">${esc(report.institution.name)}</h1>
+            <p style="margin:0;color:#CBD5E1;font-size:13px;">${period} — Monthly Report</p>
+            <p style="margin:7px 0 0;color:#94A3B8;font-size:11px;">ICR: ${esc(icrName)} &middot; Region: ${esc(report.region?.name ?? "N/A")}</p>
+          </td>
+        </tr>
+      </table>
 
       ${messageBlock}
 
