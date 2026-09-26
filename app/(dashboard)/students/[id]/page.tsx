@@ -28,6 +28,7 @@ import { AddNoteForm } from "./_components/add-note-form";
 import { LeadDetailClient } from "./_components/lead-detail-client";
 import { InstitutionInterestsPanel } from "./_components/institution-interests-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { EmailStudentButton } from "./_components/email-student-button";
 import { leadOwnerOptions } from "@/lib/assignable-users";
 
 
@@ -401,6 +402,20 @@ export default async function LeadDetailPage({
             </CardHeader>
             <CardContent className="space-y-4">
               <DetailRow icon={Mail} label="Email" value={lead.email} />
+
+              {/* Opens the rep's OWN mail client rather than sending from the
+                  app: the student then replies to a person, the thread is in
+                  that rep's Sent folder, and Illume's transactional domain is
+                  not used for one-to-one conversation. The consent gate lives
+                  in the component. */}
+              <EmailStudentButton
+                email={lead.email}
+                studentName={displayName(lead)}
+                doNotContact={lead.doNotContact}
+                marketingConsent={lead.marketingConsent}
+                reference={lead.interestedProgram}
+              />
+
               <DetailRow icon={Phone} label="Phone" value={lead.phone} />
               <DetailRow icon={Globe} label="Nationality" value={lead.nationality} />
               <DetailRow

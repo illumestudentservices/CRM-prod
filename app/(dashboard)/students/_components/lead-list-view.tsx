@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { EmailStudentLink } from "../[id]/_components/email-student-button";
 import { useRouter } from "next/navigation";
 import { type ColumnDef } from "@tanstack/react-table";
 import { UserCheck, Clock } from "lucide-react";
@@ -186,8 +187,14 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
     {
       accessorKey: "email",
       header: "Email",
-      cell: ({ getValue }) => (
-        <span className="text-sm text-slate-600 dark:text-slate-400 truncate">{getValue() as string}</span>
+      // The address IS the affordance — clicking it opens the rep's own mail
+      // client, gated on the same consent rules as the detail page.
+      cell: ({ row }) => (
+        <EmailStudentLink
+          email={row.original.email}
+          doNotContact={row.original.doNotContact}
+          marketingConsent={row.original.marketingConsent}
+        />
       ),
       size: 200,
     },
