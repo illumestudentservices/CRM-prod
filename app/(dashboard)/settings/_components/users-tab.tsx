@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EmailLink } from "@/components/shared/email-link";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -228,7 +229,9 @@ export function UsersSettingsTab() {
           </Avatar>
           <div>
             <p className="font-medium text-sm">{row.original.name}</p>
-            <p className="text-xs text-muted-foreground">{row.original.email}</p>
+            <p className="text-xs text-muted-foreground">
+            <EmailLink email={row.original.email} kind="colleague" />
+          </p>
           </div>
         </div>
       ),
@@ -337,7 +340,9 @@ export function UsersSettingsTab() {
                   <div key={u.id} className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{u.name ?? u.email}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                  <EmailLink email={u.email} kind="colleague" />
+                </p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span

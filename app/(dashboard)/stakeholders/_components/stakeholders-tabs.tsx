@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { EmailLink } from "@/components/shared/email-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
 import { School as SchoolIcon, Users as UsersIcon } from "lucide-react";
@@ -150,7 +151,9 @@ export function StakeholdersTabs({
                     <td className="p-2 font-medium">{c.name}</td>
                     <td className="p-2 text-muted-foreground">{c.school.name}</td>
                     <td className="p-2">{c.position ?? "—"}</td>
-                    <td className="p-2 text-muted-foreground">{c.email ?? "—"}</td>
+                    <td className="p-2 text-muted-foreground">
+                    <EmailLink email={c.email} kind="business" />
+                  </td>
                     <td className="p-2 text-muted-foreground">{c.phone ?? "—"}</td>
                     <td className="p-2 text-right">{c.influenceScore ?? "—"}</td>
                   </tr>

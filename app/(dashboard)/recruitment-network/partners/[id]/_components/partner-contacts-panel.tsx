@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { EmailLink } from "@/components/shared/email-link";
 import { useRouter } from "next/navigation";
 
 interface Contact {
@@ -90,7 +91,7 @@ export function PartnerContactsPanel({
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {c.role}{c.position ? ` · ${c.position}` : ""}
-                  {c.email && <> · {c.email}</>}
+                  {c.email && <> · <EmailLink email={c.email} kind="business" /></>}
                   {c.phone && <> · {c.phone}</>}
                 </div>
               </div>

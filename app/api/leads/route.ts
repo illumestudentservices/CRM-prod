@@ -283,6 +283,15 @@ export async function GET(req: NextRequest) {
           intakeMonth: true,
           stage: true,
           isDuplicate: true,
+          // Returned so every screen that shows a student's ADDRESS can also
+          // show whether they may be contacted. Without these the analytics
+          // drill-down renders a do-not-contact student's email looking exactly
+          // like anyone else's — the rule would hold on /students and not here,
+          // which is the same as not holding. No disclosure risk: a caller that
+          // is already receiving the address is entitled to the consent flag
+          // attached to it.
+          doNotContact: true,
+          marketingConsent: true,
           createdAt: true,
           updatedAt: true,
           lastContactedAt: true,

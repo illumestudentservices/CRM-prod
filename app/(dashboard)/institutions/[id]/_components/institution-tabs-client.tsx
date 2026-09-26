@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { EmailLink } from "@/components/shared/email-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -256,7 +257,9 @@ export function InstitutionTabsClient({
                     <TableRow key={contact.id}>
                       <TableCell className="font-medium">{contact.name}</TableCell>
                       <TableCell className="text-slate-600 dark:text-slate-400">{contact.title ?? "—"}</TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.email ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600 dark:text-slate-400">
+                      <EmailLink email={contact.email} kind="business" />
+                    </TableCell>
                       <TableCell className="text-slate-600 dark:text-slate-400">{contact.phone ?? "—"}</TableCell>
                       <TableCell>
                         {contact.isPrimary && (

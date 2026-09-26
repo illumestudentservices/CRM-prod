@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EmailLink } from "@/components/shared/email-link";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +132,9 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
             </Avatar>
             <div>
               <p className="font-medium text-sm">{e.user.name}</p>
-              <p className="text-xs text-muted-foreground">{e.user.email}</p>
+              <p className="text-xs text-muted-foreground">
+                  <EmailLink email={e.user.email} kind="colleague" />
+                </p>
             </div>
           </div>
         );
