@@ -36,22 +36,50 @@ interface ExportButtonProps {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Excel and Sheets execute a cell whose text begins with one of these, even
+ * when the CSV field is quoted — quoting protects the DELIMITER, not the
+ * formula parser.
+ *
+ * ★ THE EVERYDAY CASE IS NOT AN ATTACK, IT IS A PHONE NUMBER. `+1-555-0100`
+ * begins with `+`, so Excel evaluates it and the cell shows a broken formula
+ * or a negative number. Emergency contacts and international dialling codes
+ * hit this constantly. `=cmd|…` is the security case, and one fix covers both.
+ *
+ * A leading apostrophe is Excel's "this is text" marker and is not displayed,
+ * so the value reads back as stored. Sheets shows it literally on some import
+ * paths — that is the accepted trade for not executing the cell.
+ */
+const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
+
+export function csvCell(val: unknown): string {
+  if (val === null || val === undefined) return '""';
+  let s = String(val);
+  if (FORMULA_TRIGGERS.test(s)) s = `'${s}`;
+  // RFC 4180: quote every field, double any quote inside it.
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 function toCSV(data: Record<string, unknown>[], columns: ExportColumn[]): string {
-  const header = columns.map((c) => `"${c.header}"`).join(",");
+  const header = columns.map((c) => csvCell(c.header)).join(",");
   const rows = data.map((row) =>
-    columns
-      .map((c) => {
-        const val = row[c.key];
-        if (val === null || val === undefined) return '""';
-        return `"${String(val).replace(/"/g, '""')}"`;
-      })
-      .join(",")
+    columns.map((c) => csvCell(row[c.key])).join(",")
   );
   return [header, ...rows].join("\r\n");
 }
 
 function triggerDownload(content: string, filename: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
+  // ★ The BOM is what makes Excel read this as UTF-8.
+  //
+  // `charset=utf-8` in the MIME type is ignored for a file opened from disk:
+  // Excel on Windows falls back to the system codepage, so "José Ramírez" and
+  // "陈伟" arrive as mojibake. This business recruits from India, Nigeria,
+  // China and Malaysia — non-ASCII names are the norm here, not an edge case.
+  // Written as an escape, not a literal BOM: an invisible character in source
+  // is one "tidy up whitespace" commit away from silently disappearing, and
+  // the symptom would be mojibake in someone else's spreadsheet weeks later.
+  const body = mime.includes("csv") ? `\uFEFF${content}` : content;
+  const blob = new Blob([body], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
