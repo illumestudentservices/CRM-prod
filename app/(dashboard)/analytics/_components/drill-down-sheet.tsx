@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EmailStudentLink } from "@/app/(dashboard)/students/[id]/_components/email-student-button";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -23,6 +24,10 @@ interface LeadRow {
   nationality: string;
   countryOfResidence: string;
   interestedProgram: string;
+  /// Returned by /api/leads so this list can apply the same consent rules as
+  /// /students. Three-valued on marketingConsent: null means nobody asked.
+  doNotContact: boolean;
+  marketingConsent: boolean | null;
   institution?: { name: string } | null;
   assignedICR?: { name: string | null } | null;
   createdAt: string;
@@ -108,7 +113,13 @@ export function DrillDownSheet({
                         <ExternalLink className="h-3 w-3 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 shrink-0 transition-colors" />
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                        {lead.email} · {lead.interestedProgram}
+                        <EmailStudentLink
+                          email={lead.email}
+                          doNotContact={lead.doNotContact}
+                          marketingConsent={lead.marketingConsent}
+                        />
+                        {" · "}
+                        {lead.interestedProgram}
                       </p>
                       <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                         {lead.countryOfResidence}

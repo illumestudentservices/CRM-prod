@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { EmailStudentLink } from "@/app/(dashboard)/students/[id]/_components/email-student-button";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -111,7 +112,17 @@ export default async function SearchPage({
                   <CardContent className="p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium truncate">{displayName(lead)}</p>
-                      <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                      {/* Gated, not plain text. Search shows the same students
+                          as /students, so a do-not-contact student must look
+                          the same here — otherwise the rule holds on one screen
+                          and not the other, which is the same as not holding. */}
+                      <p className="text-xs text-muted-foreground truncate">
+                        <EmailStudentLink
+                          email={lead.email}
+                          doNotContact={lead.doNotContact}
+                          marketingConsent={lead.marketingConsent}
+                        />
+                      </p>
                       {lead.nationality && (
                         <p className="text-xs text-muted-foreground">{lead.nationality}</p>
                       )}
