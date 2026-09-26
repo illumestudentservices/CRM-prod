@@ -47,7 +47,9 @@ export type AdminAlertAction =
   /** Two student records merged into one. */
   | "LEADS_MERGED"
   /** The "work is still owned" block on revoking access was overridden. */
-  | "OFFBOARDING_REVOKE_OVERRIDE";
+  | "OFFBOARDING_REVOKE_OVERRIDE"
+  /** The entire staff directory left the system as a file. */
+  | "STAFF_DIRECTORY_EXPORTED";
 
 const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   RECYCLE_BIN_PURGED: {
@@ -77,6 +79,10 @@ const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   LEADS_MERGED: {
     title: "Student records merged",
     why: "Two records became one. The merged record's own history is now on the survivor.",
+  },
+  STAFF_DIRECTORY_EXPORTED: {
+    title: "Staff directory exported",
+    why: "Every employee record, including home addresses and next of kin, has left the system as a file. Confirm who asked for it and where it is being stored.",
   },
   OFFBOARDING_REVOKE_OVERRIDE: {
     title: "Access revocation override",

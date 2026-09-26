@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmployeeForm } from "./employee-form";
 import { getInitials } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle, Download } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -242,6 +242,18 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
           filename="employees"
           title="Employee Directory"
         />
+        {/* Super admin only, and a separate control from the list export
+            above. That one serialises what the page has loaded and carries
+            eight columns; this one reads the database and carries everything,
+            including home addresses and next of kin. Different blast radius,
+            so a different button and a different permission. */}
+        {isSuperAdmin && (
+          <Button asChild variant="outline" size="sm">
+            <a href="/api/hr/employees/export?inactive=true" download>
+              <Download className="h-4 w-4 mr-1" /> Export All (Full)
+            </a>
+          </Button>
+        )}
         {isHR && (
           <Button onClick={() => setShowForm(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Add Employee
