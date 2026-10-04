@@ -126,6 +126,8 @@ export interface GateLead {
   intakeYear?: number | null;
   intakeMonth?: number | null;
   intendedDestination?: string | null;
+  /** Hot / Warm / Cold. Required to leave New Lead — see STAGE_CONFIG. */
+  leadTemperature?: string | null;
   preferredCountry?: string | null;
   interestedProgram?: string | null;
   budgetRange?: string | null;
@@ -307,6 +309,12 @@ export const STAGE_CONFIG: Record<LeadStage, StageConfig> = {
       { kind: "field", key: "sourceId", label: "Lead source" },
       { kind: "field", key: "intakeYear", label: "Intended intake" },
       { kind: "field", key: "intendedDestination", label: "Intended destination" },
+      // Deliberately gated HERE and not asked at capture. An ICR logging a
+      // walk-in or an event lead has not spoken to them yet, so any value would
+      // be a guess — and a guessed temperature is worse than none, because the
+      // whole point is that someone judged it. Leaving New Lead is the first
+      // moment a real judgement exists.
+      { kind: "field", key: "leadTemperature", label: "Lead temperature" },
     ],
     requiredCompletedTypes: [],
     // You have not spoken to them yet — that is what the next stage means.

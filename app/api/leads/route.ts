@@ -12,6 +12,7 @@ import { redactFields } from "@/lib/granular-permissions";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { regionScope } from "@/lib/region-scope";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
+import { LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -67,6 +68,12 @@ const createLeadSchema = z.object({
   currentQualification: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   counsellingOutcome: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   academicQualification: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  // Accepted at creation but never required here. The New Lead gate asks for
+  // it before the student can move to Contacted; see lib/lead-gate.ts.
+  leadTemperature: z.preprocess(
+    blankToUndefined,
+    z.enum(LEAD_TEMPERATURE_VALUES).optional()
+  ),
   budgetRange: z.preprocess(
     blankToUndefined,
     z.enum(["UNDER_10K", "FROM_10K_TO_20K", "FROM_20K_TO_35K", "FROM_35K_TO_50K", "OVER_50K", "UNDECIDED"]).optional()
@@ -447,6 +454,7 @@ export async function POST(req: NextRequest) {
         currentQualification: data.currentQualification,
         counsellingOutcome: data.counsellingOutcome,
         academicQualification: data.academicQualification,
+        leadTemperature: data.leadTemperature,
         budgetRange: data.budgetRange,
         englishStatus: data.englishStatus,
         enrolmentDate: data.enrolmentDate ? new Date(data.enrolmentDate) : undefined,

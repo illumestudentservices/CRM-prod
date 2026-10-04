@@ -9,7 +9,7 @@ import { trashRecord } from "@/lib/recycle-bin";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { inRegion } from "@/lib/region-scope";
 import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
-import { COUNSELLING_OUTCOME_LABELS } from "@/lib/lead-options";
+import { COUNSELLING_OUTCOME_LABELS, LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
 
 /** Derived from the label map so the two lists cannot drift apart. */
 const COUNSELLING_OUTCOME_VALUES = Object.keys(COUNSELLING_OUTCOME_LABELS) as [
@@ -70,6 +70,12 @@ const updateLeadSchema = z.object({
   // them — the caller believed the data was saved and the gate kept blocking.
   intendedDestination: z.string().min(1).optional().nullable(),
   preferredCountry: z.string().min(1).optional().nullable(),
+  /**
+   * Hot / Warm / Cold. Nullable so a judgement can be taken back off a record
+   * that was set by mistake, which drops the student back behind the New Lead
+   * gate rather than leaving a wrong answer standing.
+   */
+  leadTemperature: z.enum(LEAD_TEMPERATURE_VALUES).optional().nullable(),
   budgetRange: z
     .enum(["UNDER_10K", "FROM_10K_TO_20K", "FROM_20K_TO_35K", "FROM_35K_TO_50K", "OVER_50K", "UNDECIDED"])
     .optional()
