@@ -26,7 +26,7 @@
 import { chromium } from "playwright";
 import {
   BASE, db, createAndLogin, destroyUser,
-  startSection, expect, summary,
+  startSection, expect, fail, summary,
 } from "./qa-lib.mjs";
 
 const BROWSER_BASE = BASE.replace("127.0.0.1", "localhost");
@@ -133,7 +133,7 @@ try {
   // Each field is now addressed by name, so a field moving or being inserted
   // cannot repoint these at a different control.
   for (const [key, want, label] of [
-    [CITIZENSHIP, /Select citizenship/i, "Citizenship"],
+    [CITIZENSHIP, /Select nationality/i, "Nationality"],
     [RESIDENCE, /Select country/i, "Country of residence"],
     [DESTINATION, /Select destination/i, "Intended destination"],
     [PREFERRED, /Confirmed after counselling/i, "Preferred country"],
@@ -182,11 +182,16 @@ try {
   startSection("what is queued on the device matches what was picked");
 
   const email = `zz.offline.${stamp}@example.invalid`;
-  await page.getByPlaceholder("Nkechi").fill("ZZOffline");
-  await page.getByPlaceholder("Obi").fill(`Test${stamp}`);
+  // By field name, not by placeholder. "BSc Computer Science" stopped being
+  // unique the moment Current Qualification arrived with the placeholder
+  // "e.g. BSc Computer Science", and Playwright's strict mode threw — which
+  // this script then swallowed and still summarised as all-green. Names
+  // cannot collide that way.
+  await page.locator('[data-field="firstName"] input').fill("ZZOffline");
+  await page.locator('[data-field="lastName"] input').fill(`Test${stamp}`);
   await page.locator('input[type="email"]').first().fill(email);
   await page.locator('input[type="tel"]').first().fill(`+15562${stamp}`);
-  await page.getByPlaceholder("BSc Computer Science").fill("Business Administration");
+  await page.locator('[data-field="interestedProgram"] input').fill("Business Administration");
 
   // Study level and intake are plain Radix selects, addressed by name for the
   // same reason as the comboboxes above.
@@ -281,6 +286,12 @@ try {
     pageErrors.slice(0, 3).join(" | ")
   );
 } catch (e) {
+  // ★ Registered as a FAILURE, not merely logged. This block used to print
+  // the error and leave the counters alone, so a throw halfway through gave
+  // "12 pass / 0 fail" and a green summary while a whole section had never
+  // run. A suite that reports success for work it did not do is worse than
+  // no suite at all.
+  fail(`suite threw before finishing: ${e.message}`);
   console.error("\nSCRIPT ERROR:", e);
   process.exitCode = 1;
 } finally {

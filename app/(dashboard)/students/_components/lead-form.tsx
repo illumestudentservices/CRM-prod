@@ -34,6 +34,7 @@ import { displayName } from "@/lib/person-name";
 import {
   BUDGET_RANGES,
   COUNSELLING_OUTCOMES,
+  LEAD_CHANNELS,
   LEAD_TEMPERATURES,
   ENGLISH_STATUSES,
   STUDY_LEVELS,
@@ -771,17 +772,11 @@ export function LeadForm({
                     <SelectValue placeholder="Select channel..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="AGENT_REFERRAL">Agent Referral</SelectItem>
-                    <SelectItem value="SCHOOL_REFERRAL">School Referral</SelectItem>
-                    <SelectItem value="WEBSITE">Website</SelectItem>
-                    <SelectItem value="WALK_IN">Walk-in</SelectItem>
-                    <SelectItem value="STUDENT_REFERRAL">Student Referral</SelectItem>
-                    <SelectItem value="STAFF_REFERRAL">Staff Referral</SelectItem>
-                    <SelectItem value="GOOGLE_ADS">Google Ads</SelectItem>
-                    <SelectItem value="META_ADS">Meta Ads</SelectItem>
-                    <SelectItem value="ORGANIC_SOCIAL">Organic Social</SelectItem>
-                    <SelectItem value="QR_CODE">QR Code</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    {/* Shared with the offline sheet so the two lists cannot
+                        drift apart — see LEAD_CHANNELS in lib/lead-options.ts. */}
+                    {LEAD_CHANNELS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>
