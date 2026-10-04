@@ -7,7 +7,11 @@ import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { OFFLINE_CAPTURE_LIMIT } from "@/lib/offline-capture";
-import { LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
+import {
+  COUNSELLING_OUTCOMES,
+  LEAD_CHANNEL_VALUES,
+  LEAD_TEMPERATURE_VALUES,
+} from "@/lib/lead-options";
 
 /**
  * Uploads a batch of leads captured on a device with no connection.
@@ -18,6 +22,17 @@ import { LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
  * lead is attempted on its own and reported on individually, so the device can
  * delete what landed and keep only what needs fixing.
  */
+
+/**
+ * Derived, so it cannot drift from the list the two forms render. Typed as the
+ * literal union rather than `string[]`, or `z.enum` yields plain `string` and
+ * Prisma refuses it.
+ */
+type CounsellingOutcomeValue = (typeof COUNSELLING_OUTCOMES)[number]["value"];
+const COUNSELLING_OUTCOME_VALUES = COUNSELLING_OUTCOMES.map((c) => c.value) as unknown as [
+  CounsellingOutcomeValue,
+  ...CounsellingOutcomeValue[]
+];
 
 const capturedLeadSchema = z.object({
   /// Generated on the device at capture time. The unique index on this column
@@ -40,6 +55,21 @@ const capturedLeadSchema = z.object({
   studyLevel: z.enum(["UNDERGRADUATE", "POSTGRADUATE", "PATHWAY", "FOUNDATION"]),
   intakeYear: z.number().int().min(2020).max(2035),
   intakeMonth: z.number().int().min(1).max(12),
+
+  /**
+   * The rest of what the office form asks for. Every one of these MUST be
+   * listed: `capturedLeadSchema` is not `.strict()`, so a key it does not name
+   * is stripped in silence and the batch still answers 201 — the ICR fills the
+   * field at the booth, the upload reports success, and the answer is simply
+   * gone. The four consent fields and `leadTemperature` each got here the hard
+   * way; these are listed up front instead.
+   */
+  dateOfBirth: z.string().datetime().optional(),
+  passportNumber: z.string().min(1).optional(),
+  channel: z.enum(LEAD_CHANNEL_VALUES).optional(),
+  enrolmentDate: z.string().datetime().optional(),
+  counsellingOutcomeEnum: z.enum(COUNSELLING_OUTCOME_VALUES).optional(),
+  assignedICRId: z.string().min(1).optional(),
 
   faculty: z.string().optional(),
   notes: z.string().optional(),
@@ -193,7 +223,17 @@ export async function POST(req: NextRequest) {
             stage: "NEW_LEAD",
             createdById: userId,
             regionId: effectiveRegionId,
-            assignedICRId: role === "ICR" ? userId : undefined,
+            /**
+             * An explicit choice at the booth wins; otherwise fall back to the
+             * uploading ICR, which is what this route has always done.
+             *
+             * The fallback is kept rather than replaced: it is what stops a
+             * capture arriving unowned, and the Assigned ICR picker is
+             * optional. Dropping it would quietly orphan every lead whose
+             * capturer left the field alone.
+             */
+            assignedICRId:
+              lead.assignedICRId ?? (role === "ICR" ? userId : undefined),
             institutionId: lead.institutionId,
             sourceId: lead.sourceId,
             eventId: lead.eventId,
@@ -207,6 +247,11 @@ export async function POST(req: NextRequest) {
             leadTemperature: lead.leadTemperature,
             budgetRange: lead.budgetRange,
             englishStatus: lead.englishStatus,
+            dateOfBirth: lead.dateOfBirth ? new Date(lead.dateOfBirth) : undefined,
+            passportNumber: lead.passportNumber,
+            channel: lead.channel,
+            enrolmentDate: lead.enrolmentDate ? new Date(lead.enrolmentDate) : undefined,
+            counsellingOutcomeEnum: lead.counsellingOutcomeEnum,
             marketingConsent: lead.marketingConsent,
             // The moment they were asked at the booth, not the moment the batch
             // reached the server — those can be days apart.

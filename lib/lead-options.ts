@@ -26,6 +26,43 @@ import type {
  * Values must match the LeadTemperature enum exactly; a mismatch is rejected by
  * zod and reads to the user as the field simply not saving.
  */
+/**
+ * How the lead first reached us.
+ *
+ * Lifted out of the office form, where all eleven were spelled out inline. The
+ * offline sheet needs the identical list, and two hand-written copies of an
+ * enum drift: the values must match the Prisma `LeadChannel` enum exactly or
+ * zod strips the answer, the route still answers 201, and the field reads back
+ * empty — which the user experiences as "it didn't save".
+ */
+export const LEAD_CHANNELS = [
+  { value: "AGENT_REFERRAL", label: "Agent Referral" },
+  { value: "SCHOOL_REFERRAL", label: "School Referral" },
+  { value: "WEBSITE", label: "Website" },
+  { value: "WALK_IN", label: "Walk-in" },
+  { value: "STUDENT_REFERRAL", label: "Student Referral" },
+  { value: "STAFF_REFERRAL", label: "Staff Referral" },
+  { value: "GOOGLE_ADS", label: "Google Ads" },
+  { value: "META_ADS", label: "Meta Ads" },
+  { value: "ORGANIC_SOCIAL", label: "Organic Social" },
+  { value: "QR_CODE", label: "QR Code" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+/**
+ * Typed as the literal union, not `string[]`.
+ *
+ * `as [string, ...string[]]` would compile and then widen `z.enum(...)` output
+ * to plain `string`, so Prisma rejects the value at the call site with a type
+ * error that looks like it is about the database. Keeping the literals means
+ * the enum stays checked end to end.
+ */
+type LeadChannelValue = (typeof LEAD_CHANNELS)[number]["value"];
+export const LEAD_CHANNEL_VALUES = LEAD_CHANNELS.map((c) => c.value) as unknown as [
+  LeadChannelValue,
+  ...LeadChannelValue[]
+];
+
 export const LEAD_TEMPERATURES = [
   { value: "HOT", label: "Hot — ready to move now" },
   { value: "WARM", label: "Warm — interested, needs work" },

@@ -1,7 +1,11 @@
 /**
- * Lead temperature on the OFFLINE capture page, from booth to database.
+ * The OFFLINE capture page, from booth to database.
  *
  *   npx tsx --env-file=.env scripts/qa-offline-lead-temperature.mjs
+ *
+ * Covers lead temperature and every other field the sheet took over from the
+ * office form. qa-form-parity.mjs proves the two forms ASK the same questions;
+ * this proves the answers survive the device queue and the sync route.
  *
  * The office form's version of this is covered by demo-lead-temperature.mjs.
  * This is the offline path, which has two extra places to lose the value and
@@ -123,6 +127,12 @@ try {
     await page.locator('[role="option"]', { hasText: /^Hot/i }).first().click();
     await page.waitForTimeout(300);
 
+    await page.locator('[data-field="currentQualification"] input').fill("BSc Computer Science");
+    await page.locator('[data-field="academicQualification"] input').fill("BSc 2:1");
+    await page.locator('[data-field="enrolmentDate"] input').fill("2027-09-06");
+    await page.locator('[data-field="counsellingOutcome"] textarea').fill("Agreed to apply.");
+    await choose(page, "counsellingOutcomeEnum", /eligibility/i);
+
     // The rest of the form, as a booth capture.
     await page.locator('[data-field="firstName"] input').fill("ZZOtemp");
     await page.locator('[data-field="lastName"] input').fill(`Test${stamp}`);
@@ -130,9 +140,18 @@ try {
     await page.locator('[data-field="phone"] input').fill(`+15563${stamp}`);
     await page.locator('[data-field="interestedProgram"] input').fill("Business Administration");
     await choose(page, "nationality", /^Indian$/);
+
+    // ★ The fields brought over from the office form, filled here so the
+    // assertions in section 4 are about a real round trip rather than a schema
+    // read. Each is a separate chance for the sync route to drop a value and
+    // still answer 201.
+    await page.locator('[data-field="dateOfBirth"] input').fill("2004-03-17");
+    await page.locator('[data-field="passportNumber"] input').fill(`P${stamp}`);
+    await page.locator('[data-field="faculty"] input').fill("Business & Management");
     await choose(page, "countryOfResidence", /^India$/);
     await choose(page, "studyLevel", /undergraduate/i);
     await choose(page, "intakeMonth", /september/i);
+    await choose(page, "channel", /^Walk-in$/);
 
     // Consent is compulsory on this page — all four channels.
     await page.getByRole("button", { name: /^Yes, they agreed$/ }).first().click();
@@ -191,6 +210,48 @@ try {
       `stored ${JSON.stringify(row?.leadTemperature)} — if null, offline-sync stripped it`);
     expect(row?.stage === "NEW_LEAD", "and the student starts at New Lead",
       `stage ${row?.stage}`);
+  }
+
+  // ── 4b. …and so does everything else the office form asks for ────────────
+  startSection("4b. Every field carried over from the office form survives too");
+  {
+    const full = await db.lead.findFirst({
+      where: { email: EMAIL },
+      select: {
+        dateOfBirth: true, passportNumber: true, channel: true, faculty: true,
+        currentQualification: true, academicQualification: true,
+        enrolmentDate: true, counsellingOutcomeEnum: true, counsellingOutcome: true,
+        assignedICRId: true,
+      },
+    });
+    const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
+
+    // ★ Each of these is a key the sync schema has to name. It is not
+    // `.strict()`, so an unlisted one is dropped in silence and the upload
+    // still answers 201 — the booth fills it in, the ICR sees "uploaded", and
+    // the answer is gone.
+    for (const [label, got, want] of [
+      ["date of birth", day(full?.dateOfBirth), "2004-03-17"],
+      ["passport number", full?.passportNumber, `P${stamp}`],
+      ["lead channel", full?.channel, "WALK_IN"],
+      ["faculty", full?.faculty, "Business & Management"],
+      ["current qualification", full?.currentQualification, "BSc Computer Science"],
+      ["highest academic qualification", full?.academicQualification, "BSc 2:1"],
+      ["enrolment date", day(full?.enrolmentDate), "2027-09-06"],
+      ["counselling notes", full?.counsellingOutcome, "Agreed to apply."],
+    ]) {
+      expect(got === want, `★ ${label} reached the database`,
+        `stored ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+    }
+    expect(!!full?.counsellingOutcomeEnum,
+      "★ counselling outcome reached the database",
+      `stored ${JSON.stringify(full?.counsellingOutcomeEnum)}`);
+
+    // The capture left Assigned ICR alone, so the route's long-standing
+    // fallback must still own the lead rather than leaving it unassigned.
+    expect(full?.assignedICRId === ctx.user.id,
+      "★ an unpicked Assigned ICR still falls back to the uploader",
+      `assigned ${JSON.stringify(full?.assignedICRId)}`);
   }
 
   // ── 5. The form folds itself back up ─────────────────────────────────────

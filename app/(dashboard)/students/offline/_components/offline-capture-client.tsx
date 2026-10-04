@@ -36,7 +36,9 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   BUDGET_RANGES,
+  COUNSELLING_OUTCOMES,
   ENGLISH_STATUSES,
+  LEAD_CHANNELS,
   LEAD_TEMPERATURES,
   STUDY_LEVELS,
   MONTHS,
@@ -70,7 +72,12 @@ interface FormState {
   phone: string;
   nationality: string;
   countryOfResidence: string;
+  /** "YYYY-MM-DD" from the date input, or "". Converted on the way out. */
+  dateOfBirth: string;
+  passportNumber: string;
+  channel: string;
   interestedProgram: string;
+  faculty: string;
   studyLevel: string;
   intakeYear: string;
   intakeMonth: string;
@@ -84,6 +91,13 @@ interface FormState {
    */
   leadTemperature: string;
   intendedDestination: string;
+  currentQualification: string;
+  academicQualification: string;
+  /** "YYYY-MM-DD" or "". */
+  enrolmentDate: string;
+  counsellingOutcomeEnum: string;
+  counsellingOutcome: string;
+  assignedICRId: string;
   sourceId: string;
   eventId: string;
   institutionId: string;
@@ -115,12 +129,22 @@ function emptyForm(): FormState {
     phone: "",
     nationality: "",
     countryOfResidence: "",
+    dateOfBirth: "",
+    passportNumber: "",
+    channel: NONE,
     interestedProgram: "",
+    faculty: "",
     studyLevel: "",
     intakeYear: String(new Date().getFullYear() + 1),
     intakeMonth: "",
     leadTemperature: NONE,
     intendedDestination: "",
+    currentQualification: "",
+    academicQualification: "",
+    enrolmentDate: "",
+    counsellingOutcomeEnum: NONE,
+    counsellingOutcome: "",
+    assignedICRId: NONE,
     sourceId: NONE,
     eventId: NONE,
     institutionId: NONE,
@@ -175,12 +199,22 @@ function toPayload(f: FormState): Record<string, unknown> {
     phone: f.phone.trim(),
     nationality: f.nationality.trim(),
     countryOfResidence: f.countryOfResidence.trim(),
+    dateOfBirth: isoDay(f.dateOfBirth),
+    passportNumber: opt(f.passportNumber),
+    channel: sel(f.channel),
     interestedProgram: f.interestedProgram.trim(),
+    faculty: opt(f.faculty),
     studyLevel: f.studyLevel,
     intakeYear: Number(f.intakeYear),
     intakeMonth: Number(f.intakeMonth),
     leadTemperature: sel(f.leadTemperature),
     intendedDestination: opt(f.intendedDestination),
+    currentQualification: opt(f.currentQualification),
+    academicQualification: opt(f.academicQualification),
+    enrolmentDate: isoDay(f.enrolmentDate),
+    counsellingOutcomeEnum: sel(f.counsellingOutcomeEnum),
+    counsellingOutcome: opt(f.counsellingOutcome),
+    assignedICRId: sel(f.assignedICRId),
     sourceId: sel(f.sourceId),
     eventId: sel(f.eventId),
     institutionId: sel(f.institutionId),
@@ -198,6 +232,17 @@ function toPayload(f: FormState): Record<string, unknown> {
     doNotContact: f.doNotContact,
   };
 }
+
+/**
+ * "YYYY-MM-DD" from a date input to the ISO datetime the sync route expects.
+ *
+ * Pinned to midnight UTC rather than built from the device clock. A capture is
+ * queued on a tablet at a booth and uploaded somewhere else entirely, so a
+ * local-midnight date would shift a birthday by a day between Lagos and
+ * Vancouver. The office form sends the same shape for the same reason.
+ */
+const isoDay = (v: string): string | undefined =>
+  v ? new Date(`${v}T00:00:00.000Z`).toISOString() : undefined;
 
 /** Same rule as marketingConsent above: unanswered stays unanswered. */
 const triBool = (v: "" | "yes" | "no"): boolean | undefined =>
@@ -224,6 +269,8 @@ function formFromCapture(data: Record<string, unknown>): FormState {
   const triState = (v: unknown): "" | "yes" | "no" =>
     v === true ? "yes" : v === false ? "no" : "";
   const sel = (v: unknown) => (v == null || v === "" ? NONE : String(v));
+  /** ISO datetime back to the "YYYY-MM-DD" a date input will accept. */
+  const day = (v: unknown) => (v == null ? "" : String(v).slice(0, 10));
   return {
     firstName: s(data.firstName),
     lastName: s(data.lastName),
@@ -231,12 +278,22 @@ function formFromCapture(data: Record<string, unknown>): FormState {
     phone: s(data.phone),
     nationality: s(data.nationality),
     countryOfResidence: s(data.countryOfResidence),
+    dateOfBirth: day(data.dateOfBirth),
+    passportNumber: s(data.passportNumber),
+    channel: sel(data.channel),
     interestedProgram: s(data.interestedProgram),
+    faculty: s(data.faculty),
     studyLevel: s(data.studyLevel),
     intakeYear: s(data.intakeYear) || String(new Date().getFullYear() + 1),
     intakeMonth: s(data.intakeMonth),
     leadTemperature: sel(data.leadTemperature),
     intendedDestination: s(data.intendedDestination),
+    currentQualification: s(data.currentQualification),
+    academicQualification: s(data.academicQualification),
+    enrolmentDate: day(data.enrolmentDate),
+    counsellingOutcomeEnum: sel(data.counsellingOutcomeEnum),
+    counsellingOutcome: s(data.counsellingOutcome),
+    assignedICRId: sel(data.assignedICRId),
     sourceId: sel(data.sourceId),
     eventId: sel(data.eventId),
     institutionId: sel(data.institutionId),
@@ -624,10 +681,10 @@ export function OfflineCaptureClient({
           <form onSubmit={saveToDevice} className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Personal Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="First name" name="firstName" required error={errors.firstName}>
+              <Field label="First Name" name="firstName" required error={errors.firstName}>
                 <Input value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Nkechi" />
               </Field>
-              <Field label="Last name" name="lastName" required error={errors.lastName}>
+              <Field label="Last Name" name="lastName" required error={errors.lastName}>
                 <Input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Obi" />
               </Field>
               <Field label="Email" name="email" required error={errors.email}>
@@ -641,18 +698,18 @@ export function OfflineCaptureClient({
                   uses. A value a badge scan put here that is not in the list is
                   kept rather than dropped, which matters most offline: whoever
                   captured it is not around to retype it. */}
-              <Field label="Citizenship" name="nationality" required error={errors.nationality}>
+              <Field label="Nationality" name="nationality" required error={errors.nationality}>
                 <Combobox
                   options={NATIONALITY_OPTIONS}
                   value={form.nationality}
                   onChange={(v) => set("nationality", v)}
-                  placeholder="Select citizenship..."
-                  searchPlaceholder="Search citizenship..."
-                  emptyText="No citizenship matches that."
+                  placeholder="Select nationality..."
+                  searchPlaceholder="Search nationality..."
+                  emptyText="No nationality matches that."
                   invalid={!!errors.nationality}
                 />
               </Field>
-              <Field label="Country of residence" name="countryOfResidence" required error={errors.countryOfResidence}>
+              <Field label="Country of Residence" name="countryOfResidence" required error={errors.countryOfResidence}>
                 <Combobox
                   options={COUNTRY_NAME_OPTIONS}
                   value={form.countryOfResidence}
@@ -663,13 +720,34 @@ export function OfflineCaptureClient({
                   invalid={!!errors.countryOfResidence}
                 />
               </Field>
-              {/* Academic Information on the office form; the same four
-                  questions, kept in this grid so a booth capture stays one
-                  continuous run of taps rather than three separate blocks. */}
-              <Field label="Intended programme" name="interestedProgram" required error={errors.interestedProgram}>
+              <Field label="Date of Birth" name="dateOfBirth">
+                <Input type="date" value={form.dateOfBirth} onChange={(e) => set("dateOfBirth", e.target.value)} />
+              </Field>
+              <Field label="Passport Number" name="passportNumber">
+                <Input value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} placeholder="Optional" />
+              </Field>
+              <Field label="Lead Channel" name="channel">
+                <Select value={form.channel} onValueChange={(v) => set("channel", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select channel..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Not recorded</SelectItem>
+                    {LEAD_CHANNELS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Academic Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Interested Program" name="interestedProgram" required error={errors.interestedProgram}>
                 <Input value={form.interestedProgram} onChange={(e) => set("interestedProgram", e.target.value)} placeholder="BSc Computer Science" />
               </Field>
-              <Field label="Study level" name="studyLevel" required error={errors.studyLevel}>
+              <Field label="Faculty" name="faculty">
+                <Input value={form.faculty} onChange={(e) => set("faculty", e.target.value)} placeholder="e.g. Business & Management" />
+              </Field>
+              <Field label="Study Level" name="studyLevel" required error={errors.studyLevel}>
                 <Select value={form.studyLevel} onValueChange={(v) => set("studyLevel", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -679,7 +757,7 @@ export function OfflineCaptureClient({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Intake month" name="intakeMonth" required error={errors.intakeMonth}>
+              <Field label="Intake Month" name="intakeMonth" required error={errors.intakeMonth}>
                 <Select value={form.intakeMonth} onValueChange={(v) => set("intakeMonth", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -689,7 +767,7 @@ export function OfflineCaptureClient({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Intake year" name="intakeYear" required error={errors.intakeYear}>
+              <Field label="Intake Year" name="intakeYear" required error={errors.intakeYear}>
                 <Input type="number" inputMode="numeric" value={form.intakeYear} onChange={(e) => set("intakeYear", e.target.value)} />
               </Field>
             </div>
@@ -816,7 +894,7 @@ export function OfflineCaptureClient({
                     it needs.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Lead temperature" name="leadTemperature" neededToProgress>
+                    <Field label="Lead Temperature" name="leadTemperature" neededToProgress>
                       <Select value={form.leadTemperature} onValueChange={(v) => set("leadTemperature", v)}>
                         <SelectTrigger><SelectValue placeholder="Not assessed yet" /></SelectTrigger>
                         <SelectContent>
@@ -827,7 +905,7 @@ export function OfflineCaptureClient({
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Intended destination" name="intendedDestination" neededToProgress error={errors.intendedDestination}>
+                    <Field label="Intended Destination" name="intendedDestination" neededToProgress error={errors.intendedDestination}>
                       <Combobox
                         options={COUNTRY_NAME_OPTIONS}
                         value={form.intendedDestination}
@@ -838,7 +916,7 @@ export function OfflineCaptureClient({
                         invalid={!!errors.intendedDestination}
                       />
                     </Field>
-                    <Field label="Preferred country" name="preferredCountry">
+                    <Field label="Preferred Country" name="preferredCountry">
                       <Combobox
                         options={COUNTRY_NAME_OPTIONS}
                         value={form.preferredCountry}
@@ -848,7 +926,7 @@ export function OfflineCaptureClient({
                         emptyText="No country matches that."
                       />
                     </Field>
-                    <Field label="Budget range" name="budgetRange">
+                    <Field label="Budget Range" name="budgetRange">
                       <Select value={form.budgetRange} onValueChange={(v) => set("budgetRange", v)}>
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
@@ -859,7 +937,13 @@ export function OfflineCaptureClient({
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="English status" name="englishStatus">
+                    <Field label="Current Qualification" name="currentQualification">
+                      <Input value={form.currentQualification} onChange={(e) => set("currentQualification", e.target.value)} placeholder="e.g. BSc Computer Science" />
+                    </Field>
+                    <Field label="Highest Academic Qualification" name="academicQualification">
+                      <Input value={form.academicQualification} onChange={(e) => set("academicQualification", e.target.value)} placeholder="e.g. BSc 2:1" />
+                    </Field>
+                    <Field label="English Proficiency" name="englishStatus">
                       <Select value={form.englishStatus} onValueChange={(v) => set("englishStatus", v)}>
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
@@ -870,6 +954,30 @@ export function OfflineCaptureClient({
                         </SelectContent>
                       </Select>
                     </Field>
+                    <Field label="Enrolment Date" name="enrolmentDate">
+                      <Input type="date" value={form.enrolmentDate} onChange={(e) => set("enrolmentDate", e.target.value)} />
+                    </Field>
+                    <Field label="Counselling Outcome" name="counsellingOutcomeEnum">
+                      <Select value={form.counsellingOutcomeEnum} onValueChange={(v) => set("counsellingOutcomeEnum", v)}>
+                        <SelectTrigger><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>Not recorded</SelectItem>
+                          {COUNSELLING_OUTCOMES.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field label="Counselling Notes" name="counsellingOutcome">
+                        <Textarea
+                          rows={2}
+                          value={form.counsellingOutcome}
+                          onChange={(e) => set("counsellingOutcome", e.target.value)}
+                          placeholder="What was agreed on the counselling call?"
+                        />
+                      </Field>
+                    </div>
                   </div>
                 </div>
               )}
@@ -884,7 +992,7 @@ export function OfflineCaptureClient({
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Assignment &amp; Source</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Lead source" name="sourceId" neededToProgress>
+                <Field label="Source" name="sourceId" neededToProgress>
                   <Select value={form.sourceId} onValueChange={(v) => set("sourceId", v)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -895,6 +1003,20 @@ export function OfflineCaptureClient({
                     </SelectContent>
                   </Select>
                 </Field>
+                <Field label="Assigned ICR" name="assignedICRId">
+                  <Select value={form.assignedICRId} onValueChange={(v) => set("assignedICRId", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select ICR..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Unassigned</SelectItem>
+                      {(reference?.icrUsers ?? []).map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {/* Offline-only. The office form has no Event picker because a
+                    lead typed up at a desk is not standing at a stand; this is
+                    the whole reason the page exists, so it stays. */}
                 <Field label="Event" name="eventId">
                   <Select value={form.eventId} onValueChange={(v) => set("eventId", v)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
