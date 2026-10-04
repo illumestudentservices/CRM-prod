@@ -7,6 +7,7 @@ import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { OFFLINE_CAPTURE_LIMIT } from "@/lib/offline-capture";
+import { LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
 
 /**
  * Uploads a batch of leads captured on a device with no connection.
@@ -51,6 +52,14 @@ const capturedLeadSchema = z.object({
   currentQualification: z.string().min(1).optional(),
   counsellingOutcome: z.string().min(1).optional(),
   academicQualification: z.string().min(1).optional(),
+  /// Hot / Warm / Cold, captured at the booth.
+  ///
+  /// MUST be listed here for the same reason as the consent fields below: this
+  /// schema is not `.strict()`, so an unlisted key is stripped in silence and
+  /// the route still answers 201. The ICR would pick a temperature, the batch
+  /// would upload "successfully", and the student would arrive with the field
+  /// blank and still stuck behind the New Lead gate.
+  leadTemperature: z.enum(LEAD_TEMPERATURE_VALUES).optional(),
   budgetRange: z
     .enum(["UNDER_10K", "FROM_10K_TO_20K", "FROM_20K_TO_35K", "FROM_35K_TO_50K", "OVER_50K", "UNDECIDED"])
     .optional(),
@@ -195,6 +204,7 @@ export async function POST(req: NextRequest) {
             currentQualification: lead.currentQualification,
             counsellingOutcome: lead.counsellingOutcome,
             academicQualification: lead.academicQualification,
+            leadTemperature: lead.leadTemperature,
             budgetRange: lead.budgetRange,
             englishStatus: lead.englishStatus,
             marketingConsent: lead.marketingConsent,

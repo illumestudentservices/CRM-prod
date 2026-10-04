@@ -51,16 +51,23 @@ const readQueue = (page) =>
   );
 
 /**
- * Picks `label` from the combobox at `index`.
+ * Picks `label` from the combobox inside the field named `key`.
  *
- * Addressed by position, not by label text: the offline `Field` puts the
- * required asterisk inside the <Label>, so its text content is "Citizenship*"
- * and an exact-text match finds nothing. The `comboboxOrder` check below pins
- * the positions, so a field being added above these two fails loudly instead of
- * quietly driving the wrong control.
+ * ★ ADDRESSED BY `data-field`, NOT BY POSITION.
+ *
+ * This used to drive `[role="combobox"]` by index, because the offline `Field`
+ * puts the required asterisk inside the <Label> — so its text reads
+ * "Citizenship*" and an exact-text match finds nothing. Indexing worked until
+ * Intended destination and Preferred country moved into the collapsed Pipeline
+ * Details section, and then it did something worse than break: a Radix
+ * `SelectTrigger` ALSO carries `role="combobox"`, so index 4 quietly became the
+ * Lead source dropdown and the script typed a country name into it.
+ *
+ * The offline `Field` now publishes `data-field`, exactly as the office form's
+ * `FormField` does, which makes that class of silent misfire impossible.
  */
-async function pick(page, index, search, label) {
-  const field = page.locator('[role="combobox"]').nth(index);
+async function pick(page, key, search, label) {
+  const field = page.locator(`[data-field="${key}"] [role="combobox"]`).first();
   await field.click();
   await page.waitForTimeout(400);
   await page.keyboard.type(search);
@@ -70,12 +77,19 @@ async function pick(page, index, search, label) {
   return field;
 }
 
-const CITIZENSHIP = 0;
-const RESIDENCE = 1;
-const STUDY_LEVEL = 2;
-const INTAKE_MONTH = 3;
-const DESTINATION = 4;
-const PREFERRED = 5;
+/** Opens Pipeline Details, which is collapsed by default. */
+async function openPipelineDetails(page) {
+  const toggle = page.getByRole("button", { name: /Pipeline Details/i }).first();
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+    await page.waitForTimeout(600);
+  }
+}
+
+const CITIZENSHIP = "nationality";
+const RESIDENCE = "countryOfResidence";
+const DESTINATION = "intendedDestination";
+const PREFERRED = "preferredCountry";
 
 try {
   ctx = await createAndLogin({ role: "SUPER_ADMIN" });
@@ -103,29 +117,30 @@ try {
   const comboboxes = await page.locator('[role="combobox"]').count();
   expect(comboboxes >= 4, "the two country fields render comboboxes", `found ${comboboxes}`);
 
-  // Pin the positions the rest of the script drives, so a new field inserted
-  // above them fails here rather than silently filling the wrong box.
-  const order = await page.locator('[role="combobox"]').allInnerTexts();
+  // ★ The two destination fields live in Pipeline Details, which is collapsed
+  // by default so the student standing at the booth cannot read the rep's
+  // judgements about them. They are genuinely ABSENT until it is opened.
   expect(
-    /Select citizenship/i.test(order[CITIZENSHIP]),
-    "combobox 0 is Citizenship",
-    `reads ${JSON.stringify(order[CITIZENSHIP])}`
+    (await page.locator(`[data-field="${DESTINATION}"]`).count()) === 0,
+    "the rep's section is folded away before it is opened"
   );
+  await openPipelineDetails(page);
   expect(
-    /Select country/i.test(order[RESIDENCE]),
-    "combobox 1 is Country of residence",
-    `reads ${JSON.stringify(order[RESIDENCE])}`
+    (await page.locator(`[data-field="${DESTINATION}"]`).count()) > 0,
+    "opening it reveals the destination fields"
   );
-  expect(
-    /Select destination/i.test(order[DESTINATION]),
-    "combobox 4 is Intended destination",
-    `reads ${JSON.stringify(order[DESTINATION])}`
-  );
-  expect(
-    /Confirmed after counselling/i.test(order[PREFERRED]),
-    "combobox 5 is Preferred country",
-    `reads ${JSON.stringify(order[PREFERRED])}`
-  );
+
+  // Each field is now addressed by name, so a field moving or being inserted
+  // cannot repoint these at a different control.
+  for (const [key, want, label] of [
+    [CITIZENSHIP, /Select citizenship/i, "Citizenship"],
+    [RESIDENCE, /Select country/i, "Country of residence"],
+    [DESTINATION, /Select destination/i, "Intended destination"],
+    [PREFERRED, /Confirmed after counselling/i, "Preferred country"],
+  ]) {
+    const text = await page.locator(`[data-field="${key}"] [role="combobox"]`).first().innerText();
+    expect(want.test(text), `${label} is its own control`, `reads ${JSON.stringify(text)}`);
+  }
 
   const citizenship = await pick(page, CITIZENSHIP, "niger", "Nigerian");
   expect(
@@ -173,16 +188,16 @@ try {
   await page.locator('input[type="tel"]').first().fill(`+15562${stamp}`);
   await page.getByPlaceholder("BSc Computer Science").fill("Business Administration");
 
-  // Study level and intake are plain Radix selects, addressed by position.
-  const selects = page.locator('[role="combobox"]');
-  await selects.nth(STUDY_LEVEL).click();
-  await page.waitForTimeout(400);
-  await page.getByRole("option", { name: /undergraduate/i }).first().click();
-  await page.waitForTimeout(300);
-  await selects.nth(INTAKE_MONTH).click();
-  await page.waitForTimeout(400);
-  await page.getByRole("option", { name: /september/i }).first().click();
-  await page.waitForTimeout(300);
+  // Study level and intake are plain Radix selects, addressed by name for the
+  // same reason as the comboboxes above.
+  const choose = async (key, option) => {
+    await page.locator(`[data-field="${key}"] [role="combobox"]`).first().click();
+    await page.waitForTimeout(400);
+    await page.getByRole("option", { name: option }).first().click();
+    await page.waitForTimeout(300);
+  };
+  await choose("studyLevel", /undergraduate/i);
+  await choose("intakeMonth", /september/i);
 
   // Consent became compulsory on this page, so a capture cannot be queued
   // until all four channels are answered. Answering them here is not incidental
