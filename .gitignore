@@ -105,3 +105,6 @@ tmp/
 
 # Python byte-code from scripts/ (e.g. make-favicon.py)
 __pycache__/
+
+# Screenshots and other throwaway output from QA scripts.
+scratch/

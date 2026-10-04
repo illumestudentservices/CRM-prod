@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -375,6 +375,31 @@ interface LeadFormProps {
   onSaved?: () => void;
 }
 
+/**
+ * Everything inside the collapsed Pipeline Details section.
+ *
+ * Listed explicitly rather than read off the DOM, because the list has one job:
+ * deciding whether a user sent here by a stage requirement arrives at an OPEN
+ * section. Miss a name and the click lands them on a form where the field they
+ * asked for is not rendered at all — which is worse than not moving them, and
+ * fails silently, since `focusFieldWhenReady` just polls until it gives up.
+ *
+ * `sourceId` is deliberately absent: it lives under Assignment & Source, which
+ * is not collapsed.
+ */
+const PIPELINE_DETAIL_FIELDS = new Set([
+  "leadTemperature",
+  "intendedDestination",
+  "preferredCountry",
+  "budgetRange",
+  "currentQualification",
+  "academicQualification",
+  "englishStatus",
+  "enrolmentDate",
+  "counsellingOutcomeEnum",
+  "counsellingOutcome",
+]);
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LeadForm({
@@ -402,6 +427,33 @@ export function LeadForm({
     if (!open || !focusField || focusInPipelineSection) return;
     return focusFieldWhenReady(focusField);
   }, [open, focusField, focusInPipelineSection]);
+
+  /**
+   * Pipeline Details is folded away by default.
+   *
+   * ── WHY ─────────────────────────────────────────────────────────────────
+   *
+   * This form is routinely filled in with the student sitting across the desk,
+   * or on a shared screen. The personal and academic sections are things the
+   * student is answering and may reasonably watch being typed; Pipeline Details
+   * is the rep's own working notes about them — how warm they seem, what they
+   * can afford, how the counselling call went. None of that is written for the
+   * student to read, and a rep who knows it is on screen will soften it. A
+   * hedged temperature is worth nothing, because the only thing the field is
+   * for is an honest judgement.
+   *
+   * ── WHY THE STATE LIVES HERE AND IS RESET ON OPEN ───────────────────────
+   *
+   * `LeadForm` stays mounted while the dialog is shut — only `DialogContent`
+   * unmounts — so this state survives a close and would otherwise still be
+   * expanded the next time the form is opened for a different student, in
+   * front of a different person. It is re-derived on every open instead:
+   * collapsed, unless the user was sent to a field inside it.
+   */
+  const [pipelineOpen, setPipelineOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (open) setPipelineOpen(!!focusField && PIPELINE_DETAIL_FIELDS.has(focusField));
+  }, [open, focusField]);
 
   const {
     register,
@@ -477,7 +529,7 @@ export function LeadForm({
         intendedDestination: lead?.intendedDestination ?? "",
         preferredCountry: lead?.preferredCountry ?? "",
         leadTemperature: lead?.leadTemperature ?? undefined,
-      budgetRange: lead?.budgetRange ?? undefined,
+        budgetRange: lead?.budgetRange ?? undefined,
         currentQualification: lead?.currentQualification ?? "",
         counsellingOutcome: lead?.counsellingOutcome ?? "",
         counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
@@ -921,12 +973,30 @@ export function LeadForm({
             </div>
           </div>
 
-          {/* Pipeline capture — every field the stage gate can ask for */}
+          {/* Pipeline capture — every field the stage gate can ask for.
+              Collapsed by default: these are the rep's notes ABOUT the student,
+              not answers FROM them, and the form is often filled in with the
+              student watching. See `pipelineOpen` above. */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">
+            <button
+              type="button"
+              onClick={() => setPipelineOpen((o) => !o)}
+              aria-expanded={pipelineOpen}
+              aria-controls="pipeline-details"
+              className="flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              {pipelineOpen
+                ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
               Pipeline Details
-            </h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500 -mt-2 mb-3">
+              <span className="ml-1 font-normal normal-case tracking-normal text-slate-400 dark:text-slate-500">
+                (To be filled by university rep)
+              </span>
+            </button>
+
+            {pipelineOpen && (
+            <div id="pipeline-details">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-3 mb-3">
               Filled in as the student progresses. Each stage asks only for what
               it needs.
             </p>
@@ -1074,6 +1144,8 @@ export function LeadForm({
                 </FormField>
               </div>
             </div>
+            </div>
+            )}
           </div>
 
           {/* Assignment & Source */}
