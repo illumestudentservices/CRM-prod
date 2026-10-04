@@ -34,6 +34,7 @@ import { displayName } from "@/lib/person-name";
 import {
   BUDGET_RANGES,
   COUNSELLING_OUTCOMES,
+  LEAD_TEMPERATURES,
   ENGLISH_STATUSES,
   STUDY_LEVELS,
   MONTHS,
@@ -95,6 +96,7 @@ const leadSchema = z.object({
   // field the user has no way to fill in.
   intendedDestination: z.string().optional(),
   preferredCountry: z.string().optional(),
+  leadTemperature: z.string().optional(),
   budgetRange: z.string().optional(),
   currentQualification: z.string().optional(),
   counsellingOutcome: z.string().optional(),
@@ -440,6 +442,7 @@ export function LeadForm({
       doNotContact: lead?.doNotContact ?? false,
       intendedDestination: lead?.intendedDestination ?? "",
       preferredCountry: lead?.preferredCountry ?? "",
+      leadTemperature: lead?.leadTemperature ?? undefined,
       budgetRange: lead?.budgetRange ?? undefined,
       currentQualification: lead?.currentQualification ?? "",
       counsellingOutcome: lead?.counsellingOutcome ?? "",
@@ -473,7 +476,8 @@ export function LeadForm({
         notes: lead?.notes ?? "",
         intendedDestination: lead?.intendedDestination ?? "",
         preferredCountry: lead?.preferredCountry ?? "",
-        budgetRange: lead?.budgetRange ?? undefined,
+        leadTemperature: lead?.leadTemperature ?? undefined,
+      budgetRange: lead?.budgetRange ?? undefined,
         currentQualification: lead?.currentQualification ?? "",
         counsellingOutcome: lead?.counsellingOutcome ?? "",
         counsellingOutcomeEnum: lead?.counsellingOutcomeEnum ?? undefined,
@@ -534,6 +538,7 @@ export function LeadForm({
         counsellingOutcome: orNull(values.counsellingOutcome),
         counsellingOutcomeEnum: orUndefined(values.counsellingOutcomeEnum),
         academicQualification: orNull(values.academicQualification),
+        leadTemperature: orUndefined(values.leadTemperature),
         budgetRange: orUndefined(values.budgetRange),
         englishStatus: orUndefined(values.englishStatus),
         // The date input yields "YYYY-MM-DD"; the API wants a full ISO datetime.
@@ -926,6 +931,34 @@ export function LeadForm({
               it needs.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* How warm the student is, judged by whoever spoke to them.
+                  Required to LEAVE New Lead, never to create one — see the
+                  `neededToProgress` note above and the matching comment in
+                  lib/lead-gate.ts. An ICR recording a walk-in or a stack of
+                  event cards has not had the conversation yet, and a guessed
+                  temperature is worse than an empty one: the only thing the
+                  field is for is that a person judged it. "Not assessed yet"
+                  is therefore a real, selectable answer at capture. */}
+              <FormField name="leadTemperature" label="Lead Temperature" neededToProgress>
+                <Select
+                  value={watch("leadTemperature") ?? "none"}
+                  onValueChange={(v) =>
+                    setValue("leadTemperature", v === "none" ? undefined : v, {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                    })
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Not assessed yet" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not assessed yet</SelectItem>
+                    {LEAD_TEMPERATURES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
               {/* Both are study destinations and both are gate requirements —
                   intendedDestination to leave New Lead, preferredCountry to
                   leave Contacted. They use the same 249-country list as Country

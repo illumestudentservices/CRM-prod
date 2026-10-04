@@ -196,11 +196,52 @@ try {
     fail("the institution interest requirement was not listed");
   }
 
+  // ─── Lead temperature appears as a requirement, and clicking it goes
+  //     to the dropdown rather than to a dead end ─────────────────────────────
+  startSection("The lead temperature rule opens the student form at the field");
+  // Back to New Lead explicitly: earlier sections move this student around, and
+  // the temperature is a New Lead rule, so it is simply not asked anywhere else.
+  await db.lead.update({
+    where: { id: leadId },
+    data: { stage: "NEW_LEAD", stageEnteredAt: new Date(), leadTemperature: null },
+  });
+  await reload(page);
+  {
+    const panel = await page.locator("body").innerText();
+    expect(/lead temperature/i.test(panel),
+      "an unjudged student is told the temperature is outstanding", panel.slice(0, 200));
+
+    const row = page.locator("button", { hasText: /lead temperature/i }).first();
+    if (await row.count() > 0) {
+      await row.click();
+      await page.waitForTimeout(1500);
+      // ★ The field has to be REACHABLE, not merely named. A requirement whose
+      // target does not resolve renders as a button that silently does nothing
+      // (see the fire-and-forget note in lib/lead-focus.ts), and the ICR is
+      // told what is wrong with no way to fix it.
+      const wrapper = page.locator('[data-field="leadTemperature"]');
+      expect(await wrapper.count() > 0,
+        "★ clicking it lands on the Lead Temperature control");
+      expect(await wrapper.first().innerText().then((t) => /hot|warm|cold|not assessed/i.test(t)),
+        "  …and the control offers the three judgements",
+        await wrapper.first().innerText().catch(() => "not found"));
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(600);
+    } else {
+      fail("the lead temperature requirement was not listed");
+    }
+  }
+
   // ─── The met state ───────────────────────────────────────────────────────
   startSection("When nothing is outstanding it offers the move");
   await db.lead.update({
     where: { id: leadId },
-    data: { stage: "NEW_LEAD", stageEnteredAt: new Date(), intendedDestination: "Canada" },
+    data: {
+      stage: "NEW_LEAD", stageEnteredAt: new Date(), intendedDestination: "Canada",
+      // Added with migration 042: the New Lead gate now also asks for a
+      // judgement before the student may be marked Contacted.
+      leadTemperature: "WARM",
+    },
   });
   const source = await db.recruitmentPartner.findFirst({
     where: { deletedAt: null, isActive: true }, select: { id: true },

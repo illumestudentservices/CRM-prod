@@ -16,6 +16,39 @@ import type {
   EnrolmentStatus,
 } from "@prisma/client";
 
+/**
+ * How warm a student is, as judged by the ICR who spoke to them.
+ *
+ * Ordered hottest first so the list reads as a scale rather than alphabetically
+ * — "Cold, Hot, Warm" would make a reader stop and think about an ordering that
+ * is supposed to be obvious.
+ *
+ * Values must match the LeadTemperature enum exactly; a mismatch is rejected by
+ * zod and reads to the user as the field simply not saving.
+ */
+export const LEAD_TEMPERATURES = [
+  { value: "HOT", label: "Hot — ready to move now" },
+  { value: "WARM", label: "Warm — interested, needs work" },
+  { value: "COLD", label: "Cold — little engagement" },
+] as const;
+
+/**
+ * The same three values as a tuple, for the zod schemas on the create and
+ * update routes.
+ *
+ * Derived rather than retyped. Spelling the list out in each route is three
+ * places for it to drift from the Prisma enum, and the failure is silent in
+ * the worst way: zod strips an unrecognised value, the route answers 200, and
+ * the field reads back empty. The user sees "it didn't save" and the gate goes
+ * on blocking them. `COUNSELLING_OUTCOME_VALUES` in the update route was
+ * written this way for exactly that reason.
+ */
+export const LEAD_TEMPERATURE_VALUES = LEAD_TEMPERATURES.map((t) => t.value) as [
+  "HOT",
+  "WARM",
+  "COLD",
+];
+
 export const BUDGET_RANGES = [
   { value: "UNDER_10K", label: "Under $10,000" },
   { value: "FROM_10K_TO_20K", label: "$10,000 - $20,000" },

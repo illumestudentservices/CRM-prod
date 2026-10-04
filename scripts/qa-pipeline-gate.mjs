@@ -75,6 +75,7 @@ const LEAD = {
   intakeMonth: 9,
   intendedDestination: "Canada",
   preferredCountry: "Canada",
+  leadTemperature: "WARM",
   interestedProgram: "Computer Science",
   budgetRange: "FROM_20K_TO_35K",
   currentQualification: "A-levels",
@@ -629,6 +630,61 @@ section("Interest subject: the journey wins over the person");
   check(
     "academic qualification falls back to the person",
     fallback.academicQualification === "A-levels AAB"
+  );
+}
+
+// ─── Lead temperature — required to LEAVE New Lead, never to create one ──────
+section("Lead temperature gates New Lead → Contacted");
+
+{
+  const acts = [scheduled()];
+
+  // The whole point of the field: a lead nobody has judged cannot advance.
+  const unset = at("NEW_LEAD", { leadTemperature: null });
+  const rUnset = evaluateStageGate(unset, "CONTACTED", acts, { now });
+  check(
+    "a lead with no temperature cannot leave New Lead",
+    !rUnset.canProgress && blocked(rUnset, "leadTemperature"),
+    messages(rUnset)
+  );
+  check(
+    "  …and the blocker names the field in plain words",
+    rUnset.blockers.some((b) => /lead temperature/i.test(b.message)),
+    messages(rUnset)
+  );
+
+  // ★ An EMPTY STRING must block exactly as null does. The form sends "" for a
+  // cleared Select, and a truthiness bug here would be invisible: the value
+  // looks set, the gate opens, and the field it exists to capture is blank.
+  const blank = at("NEW_LEAD", { leadTemperature: "" });
+  check(
+    "an empty string is not a judgement either",
+    !evaluateStageGate(blank, "CONTACTED", acts, { now }).canProgress,
+    "hasValue() must reject \"\" and not just null"
+  );
+
+  // All three values open the gate. COLD especially: it is a real answer, and
+  // a gate that only accepted HOT would quietly push ICRs to overstate.
+  for (const t of ["HOT", "WARM", "COLD"]) {
+    const r = evaluateStageGate(at("NEW_LEAD", { leadTemperature: t }), "CONTACTED", acts, { now });
+    check(`${t} satisfies the gate`, r.canProgress, messages(r));
+  }
+
+  // ★ It gates PROGRESS, not capture. Nothing about creating or holding a lead
+  // at New Lead may depend on this field — an ICR logging a walk-in or a stack
+  // of event cards has not had the conversation yet.
+  check(
+    "it is required at New Lead only, not at any later stage",
+    Object.entries(STAGE_CONFIG)
+      .filter(([stage]) => stage !== "NEW_LEAD")
+      .every(([, cfg]) =>
+        !(cfg.requiredFields ?? []).some((f) => f.key === "leadTemperature")
+      ),
+    "re-asking at a later stage would make a captured judgement expire for no reason"
+  );
+  check(
+    "the New Lead gate asks for it exactly once",
+    STAGE_CONFIG.NEW_LEAD.requiredFields.filter((f) => f.key === "leadTemperature").length === 1
   );
 }
 

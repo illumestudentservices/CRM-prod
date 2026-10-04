@@ -255,6 +255,17 @@ enum EnglishStatus {
   EXEMPT
 }
 
+/// How warm a student is, judged by the ICR who spoke to them.
+///
+/// Deliberately a three-value scale and nothing finer. A 1-10 score invites
+/// false precision and quiet drift between ICRs; three buckets are a judgement
+/// anyone can make consistently after one conversation.
+enum LeadTemperature {
+  HOT
+  WARM
+  COLD
+}
+
 enum BudgetRange {
   UNDER_10K
   FROM_10K_TO_20K
@@ -1221,6 +1232,11 @@ model Lead {
 
   // ─── Stage 2: Contacted ─────────────────────────────────────────────────
   preferredCountry     String?
+  /// Nullable on purpose: NOT asked at capture, because an ICR recording a
+  /// walk-in or an event lead has not spoken to them yet and any value would be
+  /// a guess. The New Lead gate requires it before the student can move to
+  /// Contacted, which is the first moment a real judgement exists.
+  leadTemperature      LeadTemperature?
   budgetRange          BudgetRange?
   currentQualification String?
   /// Free-text explanation from the ICR. Kept alongside the new enum
