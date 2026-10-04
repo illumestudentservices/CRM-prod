@@ -3,6 +3,8 @@
 import * as React from "react";
 import {
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
   CloudOff,
   Cloud,
   Download,
@@ -32,7 +34,13 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { BUDGET_RANGES, ENGLISH_STATUSES, STUDY_LEVELS, MONTHS } from "@/lib/lead-options";
+import {
+  BUDGET_RANGES,
+  ENGLISH_STATUSES,
+  LEAD_TEMPERATURES,
+  STUDY_LEVELS,
+  MONTHS,
+} from "@/lib/lead-options";
 import { COUNTRY_NAME_OPTIONS, NATIONALITY_OPTIONS } from "@/lib/countries";
 import { OFFLINE_CAPTURE_LIMIT, OFFLINE_CAPTURE_WARNING } from "@/lib/offline-capture";
 import {
@@ -66,6 +74,15 @@ interface FormState {
   studyLevel: string;
   intakeYear: string;
   intakeMonth: string;
+  /**
+   * Hot / Warm / Cold, same field the office form asks for.
+   *
+   * Never required here, exactly as there: an ICR working a booth queue has
+   * had one short conversation, and the New Lead gate asks for this before the
+   * student can move to Contacted — which is the point at which somebody has
+   * actually formed a view.
+   */
+  leadTemperature: string;
   intendedDestination: string;
   sourceId: string;
   eventId: string;
@@ -102,6 +119,7 @@ function emptyForm(): FormState {
     studyLevel: "",
     intakeYear: String(new Date().getFullYear() + 1),
     intakeMonth: "",
+    leadTemperature: NONE,
     intendedDestination: "",
     sourceId: NONE,
     eventId: NONE,
@@ -161,6 +179,7 @@ function toPayload(f: FormState): Record<string, unknown> {
     studyLevel: f.studyLevel,
     intakeYear: Number(f.intakeYear),
     intakeMonth: Number(f.intakeMonth),
+    leadTemperature: sel(f.leadTemperature),
     intendedDestination: opt(f.intendedDestination),
     sourceId: sel(f.sourceId),
     eventId: sel(f.eventId),
@@ -216,6 +235,7 @@ function formFromCapture(data: Record<string, unknown>): FormState {
     studyLevel: s(data.studyLevel),
     intakeYear: s(data.intakeYear) || String(new Date().getFullYear() + 1),
     intakeMonth: s(data.intakeMonth),
+    leadTemperature: sel(data.leadTemperature),
     intendedDestination: s(data.intendedDestination),
     sourceId: sel(data.sourceId),
     eventId: sel(data.eventId),
@@ -285,16 +305,35 @@ export function OfflineCaptureClient({
     reloadQueue();
   }, [reloadQueue]);
 
+  /**
+   * Pipeline Details is folded away, exactly as on the office form.
+   *
+   * It matters more here, not less. This form is filled in at a booth with the
+   * student standing in front of the ICR, often watching the tablet — which is
+   * the situation the office form only sometimes has. These are the rep's own
+   * notes about them: how warm they seem, what they can afford. A rep who knows
+   * the student can read it will soften what they put down, and a hedged
+   * temperature is worth nothing, because the only thing the field is for is an
+   * honest judgement.
+   *
+   * It re-folds whenever the form is reset — after a save, on cancel, and when
+   * a rejected lead is opened for correction — so it is never left standing
+   * open in front of the next student in the queue.
+   */
+  const [pipelineOpen, setPipelineOpen] = React.useState(false);
+
   function cancelEditing() {
     setEditingId(null);
     setForm(emptyForm());
     setErrors({});
+    setPipelineOpen(false);
   }
 
   function startEditing(q: QueuedCapture) {
     setEditingId(q.captureId);
     setForm(formFromCapture(q.data));
     setErrors({});
+    setPipelineOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -338,6 +377,7 @@ export function OfflineCaptureClient({
         const next = await countCaptures();
         setForm(emptyForm());
         setErrors({});
+        setPipelineOpen(false);
         await reloadQueue();
         toast({
           title: "Saved to this device",
@@ -582,17 +622,18 @@ export function OfflineCaptureClient({
           </p>
 
           <form onSubmit={saveToDevice} className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Personal Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="First name" required error={errors.firstName}>
+              <Field label="First name" name="firstName" required error={errors.firstName}>
                 <Input value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Nkechi" />
               </Field>
-              <Field label="Last name" required error={errors.lastName}>
+              <Field label="Last name" name="lastName" required error={errors.lastName}>
                 <Input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Obi" />
               </Field>
-              <Field label="Email" required error={errors.email}>
+              <Field label="Email" name="email" required error={errors.email}>
                 <Input type="email" inputMode="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
               </Field>
-              <Field label="Phone" required error={errors.phone}>
+              <Field label="Phone" name="phone" required error={errors.phone}>
                 <Input type="tel" inputMode="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
               </Field>
               {/* Both lists are bundled with the page, so they work at a booth
@@ -600,7 +641,7 @@ export function OfflineCaptureClient({
                   uses. A value a badge scan put here that is not in the list is
                   kept rather than dropped, which matters most offline: whoever
                   captured it is not around to retype it. */}
-              <Field label="Citizenship" required error={errors.nationality}>
+              <Field label="Citizenship" name="nationality" required error={errors.nationality}>
                 <Combobox
                   options={NATIONALITY_OPTIONS}
                   value={form.nationality}
@@ -611,7 +652,7 @@ export function OfflineCaptureClient({
                   invalid={!!errors.nationality}
                 />
               </Field>
-              <Field label="Country of residence" required error={errors.countryOfResidence}>
+              <Field label="Country of residence" name="countryOfResidence" required error={errors.countryOfResidence}>
                 <Combobox
                   options={COUNTRY_NAME_OPTIONS}
                   value={form.countryOfResidence}
@@ -622,10 +663,13 @@ export function OfflineCaptureClient({
                   invalid={!!errors.countryOfResidence}
                 />
               </Field>
-              <Field label="Intended programme" required error={errors.interestedProgram}>
+              {/* Academic Information on the office form; the same four
+                  questions, kept in this grid so a booth capture stays one
+                  continuous run of taps rather than three separate blocks. */}
+              <Field label="Intended programme" name="interestedProgram" required error={errors.interestedProgram}>
                 <Input value={form.interestedProgram} onChange={(e) => set("interestedProgram", e.target.value)} placeholder="BSc Computer Science" />
               </Field>
-              <Field label="Study level" required error={errors.studyLevel}>
+              <Field label="Study level" name="studyLevel" required error={errors.studyLevel}>
                 <Select value={form.studyLevel} onValueChange={(v) => set("studyLevel", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -635,7 +679,7 @@ export function OfflineCaptureClient({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Intake month" required error={errors.intakeMonth}>
+              <Field label="Intake month" name="intakeMonth" required error={errors.intakeMonth}>
                 <Select value={form.intakeMonth} onValueChange={(v) => set("intakeMonth", v)}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
@@ -645,7 +689,7 @@ export function OfflineCaptureClient({
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Intake year" required error={errors.intakeYear}>
+              <Field label="Intake year" name="intakeYear" required error={errors.intakeYear}>
                 <Input type="number" inputMode="numeric" value={form.intakeYear} onChange={(e) => set("intakeYear", e.target.value)} />
               </Field>
             </div>
@@ -744,89 +788,141 @@ export function OfflineCaptureClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Intended destination" error={errors.intendedDestination}>
-                <Combobox
-                  options={COUNTRY_NAME_OPTIONS}
-                  value={form.intendedDestination}
-                  onChange={(v) => set("intendedDestination", v)}
-                  placeholder="Select destination..."
-                  searchPlaceholder="Search country..."
-                  emptyText="No country matches that."
-                  invalid={!!errors.intendedDestination}
-                />
-              </Field>
-              <Field label="Preferred country">
-                <Combobox
-                  options={COUNTRY_NAME_OPTIONS}
-                  value={form.preferredCountry}
-                  onChange={(v) => set("preferredCountry", v)}
-                  placeholder="Confirmed after counselling"
-                  searchPlaceholder="Search country..."
-                  emptyText="No country matches that."
-                />
-              </Field>
+            {/* -- Pipeline Details: the rep's own notes --------------------
+                Collapsed by default. See `pipelineOpen` above: this form is
+                filled in with the student watching, and these are judgements
+                about them rather than answers from them. */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setPipelineOpen((o) => !o)}
+                aria-expanded={pipelineOpen}
+                aria-controls="offline-pipeline-details"
+                className="flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                {pipelineOpen
+                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                  : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+                Pipeline Details
+                <span className="ml-1 font-normal normal-case tracking-normal text-slate-400 dark:text-slate-500">
+                  (To be filled by university rep)
+                </span>
+              </button>
 
-              <Field label="Lead source">
-                <Select value={form.sourceId} onValueChange={(v) => set("sourceId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {(reference?.sources ?? []).map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Event">
-                <Select value={form.eventId} onValueChange={(v) => set("eventId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {(reference?.events ?? []).map((ev) => (
-                      <SelectItem key={ev.id} value={ev.id}>
-                        {ev.name} — {ev.city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Institution">
-                <Select value={form.institutionId} onValueChange={(v) => set("institutionId", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {(reference?.institutions ?? []).map((i) => (
-                      <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Budget range">
-                <Select value={form.budgetRange} onValueChange={(v) => set("budgetRange", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Not asked</SelectItem>
-                    {BUDGET_RANGES.map((b) => (
-                      <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="English status">
-                <Select value={form.englishStatus} onValueChange={(v) => set("englishStatus", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Not asked</SelectItem>
-                    {ENGLISH_STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              {pipelineOpen && (
+                <div id="offline-pipeline-details">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-3 mb-3">
+                    Filled in as the student progresses. Each stage asks only for what
+                    it needs.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="Lead temperature" name="leadTemperature" neededToProgress>
+                      <Select value={form.leadTemperature} onValueChange={(v) => set("leadTemperature", v)}>
+                        <SelectTrigger><SelectValue placeholder="Not assessed yet" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>Not assessed yet</SelectItem>
+                          {LEAD_TEMPERATURES.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="Intended destination" name="intendedDestination" neededToProgress error={errors.intendedDestination}>
+                      <Combobox
+                        options={COUNTRY_NAME_OPTIONS}
+                        value={form.intendedDestination}
+                        onChange={(v) => set("intendedDestination", v)}
+                        placeholder="Select destination..."
+                        searchPlaceholder="Search country..."
+                        emptyText="No country matches that."
+                        invalid={!!errors.intendedDestination}
+                      />
+                    </Field>
+                    <Field label="Preferred country" name="preferredCountry">
+                      <Combobox
+                        options={COUNTRY_NAME_OPTIONS}
+                        value={form.preferredCountry}
+                        onChange={(v) => set("preferredCountry", v)}
+                        placeholder="Confirmed after counselling"
+                        searchPlaceholder="Search country..."
+                        emptyText="No country matches that."
+                      />
+                    </Field>
+                    <Field label="Budget range" name="budgetRange">
+                      <Select value={form.budgetRange} onValueChange={(v) => set("budgetRange", v)}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>Not asked</SelectItem>
+                          {BUDGET_RANGES.map((b) => (
+                            <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field label="English status" name="englishStatus">
+                      <Select value={form.englishStatus} onValueChange={(v) => set("englishStatus", v)}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE}>Not asked</SelectItem>
+                          {ENGLISH_STATUSES.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <Field label="Notes">
+            {/* -- Assignment & Source --------------------------------------
+                Stays visible, as on the office form. `sourceId` is a hard New
+                Lead gate requirement, and a field the gate names has to be
+                reachable without first finding a collapsed section. None of
+                these three is a judgement about the student, so there is
+                nothing here they should not see. */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Assignment &amp; Source</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Lead source" name="sourceId" neededToProgress>
+                  <Select value={form.sourceId} onValueChange={(v) => set("sourceId", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>None</SelectItem>
+                      {(reference?.sources ?? []).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Event" name="eventId">
+                  <Select value={form.eventId} onValueChange={(v) => set("eventId", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>None</SelectItem>
+                      {(reference?.events ?? []).map((ev) => (
+                        <SelectItem key={ev.id} value={ev.id}>
+                          {ev.name} — {ev.city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Institution" name="institutionId">
+                  <Select value={form.institutionId} onValueChange={(v) => set("institutionId", v)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>None</SelectItem>
+                      {(reference?.institutions ?? []).map((i) => (
+                        <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+
+            <Field label="Notes" name="notes">
               <Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Anything worth remembering about this conversation" />
             </Field>
 
@@ -929,22 +1025,49 @@ export function OfflineCaptureClient({
 
 function Field({
   label,
+  name,
   required,
+  /**
+   * Required by the New Lead GATE, but not to capture the lead.
+   *
+   * Deliberately not a red asterisk — the same call the office form makes. A
+   * booth capture must never be blocked by a question the ICR has not had the
+   * conversation to answer; this says what is coming instead of pretending the
+   * field does not matter.
+   */
+  neededToProgress,
   error,
   children,
 }: {
   label: string;
+  /**
+   * Published as `data-field`, exactly as the office form's `FormField` does.
+   *
+   * Addressing a control by its position in the DOM is what the country test
+   * used to do here, and moving two fields into the collapsed Pipeline Details
+   * section silently repointed it at the Lead source dropdown — a Radix
+   * `SelectTrigger` also carries `role="combobox"`, so the wrong control was
+   * found rather than no control. A stable hook makes that class of break
+   * impossible.
+   */
+  name?: string;
   required?: boolean;
+  neededToProgress?: boolean;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-field={name}>
       <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </Label>
       {children}
+      {neededToProgress && !error && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Needed before this student can move past New Lead.
+        </p>
+      )}
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
