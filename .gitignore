@@ -108,3 +108,6 @@ __pycache__/
 
 # Screenshots and other throwaway output from QA scripts.
 scratch/
+
+# Word/Excel lock files, created while a document is open
+~$*
