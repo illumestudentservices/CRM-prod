@@ -12,9 +12,24 @@ import {
   canReviewOffboardingRequest,
 } from "@/lib/offboarding-requests";
 
-export default async function HRPage() {
+/**
+ * Tabs that exist on BOTH /hr and an employee's own profile, so a ?tab= can be
+ * carried across the redirect below. Anything else is dropped rather than
+ * passed on: Radix renders an empty panel for a value with no trigger, so
+ * forwarding `tab=attendance` would land an employee on a blank page under no
+ * highlighted tab.
+ */
+const TABS_SHARED_WITH_OWN_PROFILE = new Set(["leave", "holidays"]);
+
+export default async function HRPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect("/login");
+
+  const { tab } = await searchParams;
 
   const { role, id: userId } = session.user;
   const isHR = role === "HR_MANAGER" || role === "SUPER_ADMIN";
@@ -32,9 +47,15 @@ export default async function HRPage() {
     },
   });
 
-  // For employee self-service: redirect to their profile
+  // For employee self-service: redirect to their profile.
+  //
+  // The ?tab= is carried over. It used to be dropped, so the dashboard's own
+  // "Annual Leave Left" card — which links to /hr?tab=leave — put an employee
+  // on the Profile tab and left them to find Leave themselves. Every link into
+  // this page that names a tab was affected the same way.
   if (role === "EMPLOYEE" && me) {
-    redirect(`/hr/employees/${me.id}`);
+    const keep = tab && TABS_SHARED_WITH_OWN_PROFILE.has(tab) ? `?tab=${tab}` : "";
+    redirect(`/hr/employees/${me.id}${keep}`);
   }
 
   // Gender-filtered, so nobody is offered a leave type the server will refuse.

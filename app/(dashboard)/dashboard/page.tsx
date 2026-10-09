@@ -32,7 +32,7 @@ import { getDashboardActions } from "@/lib/dashboard-actions";
 import { ActionItemsCard, MyTasksCard } from "./_components/action-items";
 import { NoRegionBanner } from "@/components/shared/no-region-banner";
 import { NO_REGION } from "@/lib/region-scope";
-import { deriveLeaveBalances } from "@/lib/leave-policy";
+import { deriveLeaveBalances, LEAVE_TYPE_LABELS } from "@/lib/leave-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -413,7 +413,10 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
   const currentYear = now.getFullYear();
   const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
-  const [openTasks, pendingLeaves, travelRequests, leaveBalances, leaveRequests, holidays, assets] =
+  const [
+    openTasks, pendingLeaves, directReports, teamPendingLeave,
+    leaveBalances, leaveRequests, holidays, assets,
+  ] =
     await Promise.all([
       db.task.count({
         where: { assigneeId: employee.id, status: { in: ["TODO", "IN_PROGRESS"] }, deletedAt: null },
@@ -421,8 +424,14 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
       db.leaveRequest.count({
         where: { employeeId: employee.id, status: "PENDING" },
       }),
-      db.travelRequest.count({
-        where: { employeeId: employee.id, status: { in: ["PENDING", "APPROVED"] } },
+      // Replaces a Travel Requests count that linked to /travel. That route is
+      // redirected to /recruitment-planning by next.config.ts, which proxy.ts
+      // then refuses to both roles that see this dashboard — so the card was a
+      // number nobody could click through and a module nobody could open. What
+      // a manager does need here is the queue waiting on them.
+      db.employee.count({ where: { managerId: employee.id, isActive: true } }),
+      db.leaveRequest.count({
+        where: { status: "PENDING", employee: { managerId: employee.id } },
       }),
       db.leaveBalance.findMany({
         where: { employeeId: employee.id, year: currentYear },
@@ -455,7 +464,7 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
 
   return {
     employee: { jobTitle: employee.jobTitle, department: employee.department?.name },
-    stats: { openTasks, pendingLeaves, travelRequests },
+    stats: { openTasks, pendingLeaves, directReports, teamPendingLeave },
     leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
     leaveRequests,
     holidays,
@@ -1364,8 +1373,14 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           iconBg="bg-[#1E3A5F]/10"
           href="/tasks"
         />
+        {/*
+          Named from the policy, not hardcoded. This card read "Annual Leave
+          Left" while the balance card directly beneath it called the same
+          number "Vacation (Paid)" — ANNUAL is a retired leave type, and two
+          names for one figure reads as two different entitlements.
+        */}
         <StatCard
-          title="Annual Leave Left"
+          title={`${LEAVE_TYPE_LABELS.VACATION_PAID} Left`}
           value={`${annualRemaining}d`}
           icon="CalendarDays"
           iconColor="text-emerald-600"
@@ -1380,14 +1395,22 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
           iconBg="bg-amber-50"
           href="/hr?tab=leave"
         />
-        <StatCard
-          title="Travel Requests"
-          value={(stats?.travelRequests ?? 0).toLocaleString()}
-          icon="TrendingUp"
-          iconColor="text-violet-600"
-          iconBg="bg-violet-50"
-          href="/travel"
-        />
+        {/*
+          Only for someone who actually manages people. For everyone else the
+          row is three cards wide, which is better than a fourth that can only
+          ever read zero — which is what the Travel Requests card it replaced
+          did, while linking to a route the viewer cannot open.
+        */}
+        {(stats?.directReports ?? 0) > 0 && (
+          <StatCard
+            title="Awaiting Your Approval"
+            value={(stats?.teamPendingLeave ?? 0).toLocaleString()}
+            icon="Clock"
+            iconColor="text-violet-600"
+            iconBg="bg-violet-50"
+            href="/hr?tab=leave"
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

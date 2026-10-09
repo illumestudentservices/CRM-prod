@@ -452,7 +452,21 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "ICR",
     "INSTITUTION_CLIENT",
   ],
-  hr: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR"],
+  // HQ_EXECUTIVE added 2026-10-09. The sidebar is drawn from PERMISSION_MATRIX
+  // (via NAV_RESOURCE_MAP: hr -> erp.read) while proxy.ts admits the route from
+  // this list, so a role in one and not the other gets a link that bounces.
+  // HQ_EXECUTIVE holds `erp: ["read"]` here and a DB override granting
+  // `erp: write`, so the ERP was plainly meant for them — and the omission cut
+  // eight of the fifteen people in production out of the module entirely: no
+  // leave balance, no way to apply, no holiday calendar, and no access to their
+  // own employee record, since /hr/employees/[id] sits behind this same prefix.
+  // Two of them are line managers with staff reporting to them.
+  //
+  // Nothing new is exposed by letting them in: the HR-only tabs stay gated on
+  // isHR, /hr/employees/[id] already redirects anyone who is neither HR nor the
+  // subject, and GET /api/hr/attendance and /api/hr/leave pin a non-HR caller
+  // to their own rows. REGIONAL_MANAGER and ICR have had this page all along.
+  hr: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR", "HQ_EXECUTIVE"],
   travel: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR"],
   risk_compliance: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   knowledge: ["SUPER_ADMIN", "HR_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "EMPLOYEE"],
@@ -460,7 +474,10 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   markets: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   stakeholders: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   activities: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
-  tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
+  // HQ_EXECUTIVE added 2026-10-09, same drift as `hr` above: they hold
+  // `tasks: ["read"]` in PERMISSION_MATRIX, so the Tasks link was drawn in
+  // their sidebar and bounced them to /dashboard when clicked.
+  tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE", "HQ_EXECUTIVE"],
   settings:     ["SUPER_ADMIN"],
   activity_log: ["SUPER_ADMIN"],
   recycle_bin:  ["SUPER_ADMIN"],
