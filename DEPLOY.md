@@ -245,3 +245,69 @@ npm run db:generate
 - Verify `RESEND_API_KEY` is valid
 - Check Resend dashboard for delivery logs
 - App still functions without email; notifications are in-app
+
+---
+
+## 10. Backups and recovery
+
+> Added 2026-10-09. Until then there was no backup job: the dumps in
+> `/root/db-backups` had each been taken by hand before a risky migration, the
+> newest was nineteen days old, and a cron entry that merely `chmod`-ed the
+> backup directory made the area look covered.
+
+### What runs
+
+| When | Command | Label |
+|---|---|---|
+| Nightly 02:30 | `scripts/backup-db.sh nightly` (cron) | `nightly` |
+| Every deploy | called by `deploy.sh` before the build is swapped in | `pre-deploy` |
+| By hand | `scripts/backup-db.sh pre-042` | whatever you pass |
+
+Dumps land in `/root/db-backups/illume_crm-<label>-<timestamp>.sql.gz`, mode
+`600`. `nightly` and `pre-deploy` dumps are pruned after **14 days**. Dumps under
+any other label are never pruned, so the hand-made pre-migration ones are kept
+indefinitely.
+
+The script refuses to call a dump a backup until it has verified it: `pg_dump`'s
+own exit status (not the pipeline's), gzip integrity, at least one
+`CREATE TABLE`, the presence of `users` / `employees` / `leads` /
+`leave_requests`, and a size floor. It writes to `.part` and renames only on
+success, and it **prunes only after** the new dump has passed — rotating first
+would mean the night the dump breaks is the night the old ones are deleted.
+
+A failing deploy backup **aborts the deploy**. That is deliberate.
+
+### Restoring
+
+```bash
+# Inspect first — never restore blind
+zcat /root/db-backups/illume_crm-nightly-20261009-023000.sql.gz | head -40
+
+# Restore into a scratch database and look at it before touching production
+sudo -u postgres createdb illume_crm_restore
+zcat /root/db-backups/<file>.sql.gz | sudo -u postgres psql -d illume_crm_restore
+
+# Only then, and only if you are sure:
+pm2 stop illume-crm
+sudo -u postgres dropdb illume_crm && sudo -u postgres createdb illume_crm
+zcat /root/db-backups/<file>.sql.gz | sudo -u postgres psql -d illume_crm
+pm2 start illume-crm
+```
+
+### What a backup does NOT cover
+
+These matter if the **server itself** is lost rather than the data:
+
+1. **The dumps live on the same machine they protect** (`/root/db-backups`).
+   Losing the VPS loses the backups with it. On-server retention was the chosen
+   trade-off on 2026-10-09; moving a copy off the box is still the open item.
+2. **`.env` is not in git and is not copied anywhere.** It holds `AUTH_SECRET`,
+   `DATABASE_URL` and `BREVO_API_KEY`. Without `AUTH_SECRET` every existing
+   session is invalidated; without the rest the app will not boot or send mail.
+   Keep a copy in a password manager.
+3. **The SSH key** `~/.ssh/illume_vps` is the only way in — password auth is
+   disabled on the server.
+
+Knowledge-base attachments *are* covered: `KnowledgeBaseAttachment.data` is
+stored as bytes in the database, so a dump includes them. There is no separate
+uploads directory to back up.

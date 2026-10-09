@@ -57,6 +57,26 @@ npm run build || die "build failed — live app untouched, nothing swapped"
 
 [ -d "$BUILD_DIR/.next" ] || die "build produced no .next"
 
+# ── 2b. Back up the database before anything is swapped ───────────────────────
+#
+# Here rather than at the top: a build that fails changes nothing, so there is
+# nothing to roll back to and no reason to spend the time.
+#
+# The health check below can restore the previous .next, but it cannot undo a
+# data change — and `git reset --hard` in the next step brings new source onto
+# the live database. A failed deploy was recoverable; a deploy that wrote bad
+# data was not.
+#
+# Fatal on failure, deliberately. "Deploy anyway, we have no backup" is the
+# decision this script should not be allowed to make quietly.
+#
+# Run from BUILD_DIR, not APP_DIR, for two reasons: it is the version being
+# deployed, and APP_DIR has not been updated yet at this point — so on the very
+# first deploy carrying this change APP_DIR has no backup-db.sh at all and the
+# deploy would abort on its own new safety check.
+log "Backing up the database"
+"$BUILD_DIR/scripts/backup-db.sh" pre-deploy || die "backup failed — nothing deployed"
+
 # ── 3. Swap the build in ──────────────────────────────────────────────────────
 log "Swapping build into place"
 rm -rf "$APP_DIR/.next.prev"
