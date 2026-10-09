@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
-import { Plus, Calendar, Flag } from "lucide-react";
+import { Plus, Calendar, Flag, Paperclip } from "lucide-react";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 interface Task {
   id: string;
@@ -42,6 +43,9 @@ export function TaskBoard({ userId, isHR }: { userId: string; isHR: boolean }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
+  // The board shows the same tasks as the Tasks screen, so it carries the same
+  // paperwork. A file attached in one place has to be reachable from the other.
+  const [attachmentsTask, setAttachmentsTask] = useState<Task | null>(null);
 
   async function load() {
     setLoading(true);
@@ -121,7 +125,7 @@ export function TaskBoard({ userId, isHR }: { userId: string; isHR: boolean }) {
                           </span>
                         )}
                       </div>
-                      <div className="flex gap-1 flex-wrap">
+                      <div className="flex gap-1 flex-wrap items-center">
                         {COLUMNS.filter((c) => c.key !== col.key).map((c) => (
                           <Button
                             key={c.key}
@@ -133,6 +137,15 @@ export function TaskBoard({ userId, isHR }: { userId: string; isHR: boolean }) {
                             → {c.label}
                           </Button>
                         ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs px-2 ml-auto"
+                          onClick={() => setAttachmentsTask(task)}
+                          title="Attachments"
+                        >
+                          <Paperclip className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -141,6 +154,17 @@ export function TaskBoard({ userId, isHR }: { userId: string; isHR: boolean }) {
           );
         })}
       </div>
+
+      <Dialog open={!!attachmentsTask} onOpenChange={(o) => !o && setAttachmentsTask(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Attachments — {attachmentsTask?.title}</DialogTitle>
+          </DialogHeader>
+          {attachmentsTask && (
+            <AttachmentsPanel parentType="TASK" parentId={attachmentsTask.id} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-md">

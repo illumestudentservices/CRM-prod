@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
-import { canReadParent, canWriteParent } from "@/lib/attachment-parent";
+import { canReadParent, canWriteParent, canAccessParentRow } from "@/lib/attachment-parent";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
 import { logActivity } from "@/lib/activity-logger";
 import { trashRecord } from "@/lib/recycle-bin";
@@ -42,6 +42,14 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // …and the parent ROW, not just its module. Holding tasks:read is not the
+  // same as having anything to do with the task this file hangs off.
+  if (!(await canAccessParentRow(attachment.parentType, attachment.parentId, {
+    userId: session.user.id, role,
+  }))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   return new NextResponse(new Uint8Array(attachment.data), {
     headers: safeAttachmentHeaders({
       filename: attachment.name,
@@ -70,7 +78,15 @@ export async function DELETE(
 
   const isUploader = attachment.uploadedById === session.user.id;
   const role = session.user.role as Role;
-  const isWriter = await canWriteParent(role, attachment.parentType);
+
+  // "Can delete anyone's" is module write PLUS a claim on this row. Without
+  // the second half, write permission on tasks meant delete permission on
+  // every task attachment in the company.
+  const isWriter =
+    (await canWriteParent(role, attachment.parentType)) &&
+    (await canAccessParentRow(attachment.parentType, attachment.parentId, {
+      userId: session.user.id, role,
+    }));
 
   if (!isUploader && !isWriter) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
