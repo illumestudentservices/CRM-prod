@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
+import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const updateSchema = z.object({
@@ -91,6 +92,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const newAssigneeId = parsed.data.assigneeId ?? undefined;
     const reassigningTo =
       newAssigneeId && newAssigneeId !== existing.assigneeId ? newAssigneeId : null;
+
+    // Guarding creation alone would leave the obvious hole: raise the task for
+    // yourself, then hand it to anybody with a PATCH.
+    if (reassigningTo) {
+      const actor = await db.employee.findFirst({ where: { userId }, select: { id: true } });
+      if (!actor) {
+        return NextResponse.json({ error: "No Employee profile for the signed-in user" }, { status: 409 });
+      }
+      const refusal = await refuseAssignment(actor.id, reassigningTo);
+      if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+    }
 
     const updated = await db.task.update({ where: { id }, data: patch });
     void logActivity(session.user.id, "UPDATE", "Task", updated.id, { route: "tasks/[id]" });

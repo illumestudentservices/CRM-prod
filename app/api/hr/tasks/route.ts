@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
@@ -142,11 +143,17 @@ export async function POST(req: NextRequest) {
     if (parentError) return NextResponse.json({ error: parentError }, { status: 422 });
   }
 
+  // Same two rules as /api/tasks, and the same default: unassigned becomes
+  // self-assigned rather than ownerless.
+  const assigneeId = data.assigneeId ?? employee.id;
+  const refusal = await refuseAssignment(employee.id, assigneeId);
+  if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+
   const task = await db.task.create({
     data: {
       title: data.title,
       description: data.description,
-      assigneeId: data.assigneeId ?? null,
+      assigneeId,
       sourceActivityId: data.sourceActivityId ?? null,
       createdById: employee.id,
       priority: data.priority,
