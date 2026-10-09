@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { userNameFields } from "@/lib/person-name";
@@ -109,13 +110,19 @@ export async function GET(
     orderBy: { date: "desc" },
   });
 
-  // Open tasks
+  // Open tasks — only the ones the VIEWER is entitled to see.
+  //
+  // This block returned everything assigned to the employee whose profile was
+  // open, so an HR screen became a way to read somebody's whole workload. On
+  // your own profile the rule returns your own tasks, which is the same list;
+  // on someone else's it returns only the tasks the viewer allocated to them,
+  // which is what a manager checking on work they handed out should see.
   const openTasks = await db.task.findMany({
-    where: {
+    where: await visibleTaskWhereForUser(session.user.id, {
       assigneeId: id,
       deletedAt: null,
       status: { in: ["TODO", "IN_PROGRESS"] },
-    },
+    }),
     orderBy: { dueDate: "asc" },
     take: 10,
   });

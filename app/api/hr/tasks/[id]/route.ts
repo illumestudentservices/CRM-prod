@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
-const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
+// HR_ROLES was removed on 2026-10-09. Being in HR is not a relationship to
+// a task, and it was the only thing standing between an HR account and every
+// task in the company. Visibility is decided by lib/task-visibility.ts alone.
 
 const patchTaskSchema = z.object({
   title: z.string().min(1).optional(),
@@ -43,12 +44,14 @@ export async function PATCH(
     select: { id: true },
   });
 
-  const isHR = HR_ROLES.includes(session.user.role as Role);
-  const isAssignee = employee && task.assigneeId === employee.id;
-  const isCreator = employee && task.createdById === employee.id;
+  // The HR bypass that used to sit here is gone: being in HR_ROLES is not a
+  // relationship to a task. Only the two people on it may touch it.
+  const isAssignee = !!employee && task.assigneeId === employee.id;
+  const isCreator = !!employee && task.createdById === employee.id;
 
-  if (!isHR && !isAssignee && !isCreator) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!isAssignee && !isCreator) {
+    // 404, not 403 — a caller who cannot see the task must not learn it exists.
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   let body: unknown;
@@ -68,8 +71,8 @@ export async function PATCH(
 
   const updateData: Record<string, unknown> = { ...parsed.data };
 
-  // Non-HR assignees can only update status
-  if (!isHR && !isCreator) {
+  // An assignee reports progress; the person who allocated it owns the rest.
+  if (!isCreator) {
     const { status } = parsed.data;
     Object.keys(updateData).forEach((k) => {
       if (k !== "status") delete updateData[k];
@@ -147,11 +150,18 @@ export async function DELETE(
     select: { id: true },
   });
 
-  const isHR = HR_ROLES.includes(session.user.role as Role);
-  const isCreator = employee && task.createdById === employee.id;
+  const isCreator = !!employee && task.createdById === employee.id;
+  const isAssignee = !!employee && task.assigneeId === employee.id;
 
-  if (!isHR && !isCreator) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!isCreator) {
+    // An assignee can see the task but not destroy it; anyone else is told
+    // nothing about whether it exists.
+    return isAssignee
+      ? NextResponse.json(
+          { error: "Only the person who raised this task can delete it." },
+          { status: 403 }
+        )
+      : NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
   await trashRecord({ entityType: "HRTask", entityId: id, userId: session.user.id });

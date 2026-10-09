@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
@@ -77,7 +78,16 @@ export default async function HRPage({
         ...OWNED_BY_LIVE_EMPLOYEE,
       },
     }),
-    db.task.count({ where: { status: { in: ["TODO", "IN_PROGRESS"] }, deletedAt: null } }),
+    // Scoped like everything else that reads a task. This counted every open
+    // task in the company, sitting directly above a board that now shows only
+    // your own and the ones you allocated — a card reading 47 over a list of 3
+    // both leaks the difference and reads as a bug.
+    db.task.count({
+      where: await visibleTaskWhereForUser(session.user.id, {
+        status: { in: ["TODO", "IN_PROGRESS"] },
+        deletedAt: null,
+      }),
+    }),
     db.leaveRequest.count({ where: { status: "PENDING", ...OWNED_BY_LIVE_EMPLOYEE } }),
   ]);
 

@@ -58,33 +58,29 @@ export async function GET(req: NextRequest) {
     if (category) where.category = category;
     if (parentType) where.parentType = parentType;
     if (parentId) where.parentId = parentId;
+    // Visibility.
+    //
+    // `scope` no longer decides how much you see, only how little. There used
+    // to be an org-wide tier behind `tasks:approve`; it is gone, because a
+    // permission whose only use is reading everybody's work is a standing
+    // exemption rather than an administrative tool. See lib/task-visibility.ts.
+    const me = await db.employee.findFirst({ where: { userId }, select: { id: true } });
+    if (!me) return NextResponse.json({ data: [] });
+
     if (scope === "mine") {
-      const employee = await db.employee.findFirst({ where: { userId }, select: { id: true } });
-      if (!employee) return NextResponse.json({ data: [] });
-      where.assigneeId = employee.id;
+      where.assigneeId = me.id;
     } else {
-      // Any scope other than "mine" used to drop the assignee filter entirely, so
-      // every tasks:read holder — EMPLOYEE included — could list all 200 most
-      // recent tasks in the organisation just by asking for ?scope=all.
-      //
-      // Seeing the whole organisation now requires tasks:approve. That is a
-      // matrix action rather than a hardcoded role list, so it can be granted
-      // per role in Settings → Security without a deploy; by default only
-      // SUPER_ADMIN holds it.
-      //
-      // Everyone else gets their own tasks plus the ones they raised for other
-      // people, which is wider than scope=mine (assigned-only) and preserves
-      // visibility of work they delegated.
-      const canSeeAll = await effectiveHasPermission(role as Role, "tasks", "approve");
-      if (canSeeAll) {
-        if (assigneeId) where.assigneeId = assigneeId;
-      } else {
-        const employee = await db.employee.findFirst({ where: { userId }, select: { id: true } });
-        if (!employee) return NextResponse.json({ data: [] });
-        if (assigneeId && assigneeId !== employee.id) {
-          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
-        where.OR = [{ assigneeId: employee.id }, { createdById: employee.id }];
+      where.OR = [{ assigneeId: me.id }, { createdById: me.id }];
+    }
+
+    // Narrowing by assignee is allowed; widening by it is not. Asking for
+    // somebody else's tasks returns only the ones you allocated to them, which
+    // is what a manager checking on work they handed out actually wants.
+    if (assigneeId) {
+      where.assigneeId = assigneeId;
+      if (assigneeId !== me.id) {
+        delete where.OR;
+        where.createdById = me.id;
       }
     }
 

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assignableEmployees } from "@/lib/task-assignment";
+import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
@@ -19,21 +20,14 @@ import { FireTemplatesButton } from "./_components/fire-templates-button";
  * the surface staff actually use, and a task title is rarely neutral — "Draft
  * exit letter for <name>" tells you something nobody meant to publish.
  *
- * The scope now matches the API's exactly: your own tasks plus the ones you
- * raised for other people, unless you hold tasks:approve, which is the
- * existing org-wide escalation and is SUPER_ADMIN only by default.
+ * The scope now matches the API's exactly, and there is no longer an admin
+ * tier above it: your own tasks plus the ones you allocated, for everybody.
+ * The `tasks:approve` widening this page briefly honoured was removed on
+ * 2026-10-09 — see lib/task-visibility.ts for why.
  */
-async function getVisibleTasks(userId: string, canSeeAll: boolean) {
-  const me = await db.employee.findFirst({ where: { userId }, select: { id: true } });
-  if (!me && !canSeeAll) return [];
-
+async function getVisibleTasks(userId: string) {
   const tasks = await db.task.findMany({
-    where: {
-      deletedAt: null,
-      ...(canSeeAll || !me
-        ? {}
-        : { OR: [{ assigneeId: me.id }, { createdById: me.id }] }),
-    },
+    where: await visibleTaskWhereForUser(userId, { deletedAt: null }),
     include: {
       assignee: {
         include: { user: { select: { id: true, name: true, image: true } } },
@@ -88,10 +82,8 @@ export default async function TasksPage() {
 
   const canWrite = await effectiveHasPermission(session.user.role, "tasks", "write");
 
-  const canSeeAllTasks = await effectiveHasPermission(session.user.role, "tasks", "approve");
-
   const [tasks, employees, templates] = await Promise.all([
-    getVisibleTasks(session.user.id, canSeeAllTasks),
+    getVisibleTasks(session.user.id),
     getAssignableEmployees(session.user.id),
     canWrite
       ? db.taskTemplate.findMany({
