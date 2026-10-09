@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const blankToUndefined = (v: unknown) =>
@@ -132,7 +133,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No Employee profile for the signed-in user" }, { status: 409 });
     }
 
+    // No assignee given means the person raising it keeps it. Leaving it unset
+    // was the quiet third way round the rule below: a task nobody owns, that
+    // the reminder job then has to guess a recipient for.
     const assigneeId = data.assigneeId ?? creator.id;
+
+    const refusal = await refuseAssignment(creator.id, assigneeId);
+    if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+
     const task = await db.task.create({
       data: {
         title: data.title,

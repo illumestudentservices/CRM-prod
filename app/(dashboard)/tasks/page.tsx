@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { assignableEmployees } from "@/lib/task-assignment";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
 import { MyDashboard } from "./_components/my-dashboard";
 import { FireTemplatesButton } from "./_components/fire-templates-button";
-import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 async function getAllTasks() {
   return db.task.findMany({
@@ -26,12 +26,19 @@ async function getAllTasks() {
   });
 }
 
-async function getEmployees() {
-  return db.employee.findMany({
-    where: ACTIVE_EMPLOYEE,
-    include: { user: { select: { id: true, name: true, image: true } } },
-    orderBy: { user: { name: "asc" } },
-  });
+/**
+ * Who this person may put a task on: themselves, and their direct reports.
+ *
+ * It used to be every active employee in the company. The assignee dropdown is
+ * the only place staff learn what the rule is, and offering a name the server
+ * will refuse is worse than not offering it — the refusal arrives after the
+ * task has been written out. Built from the same helper the API enforces with,
+ * so the list and the rule cannot drift apart.
+ */
+async function getAssignableEmployees(userId: string) {
+  const me = await db.employee.findFirst({ where: { userId }, select: { id: true } });
+  if (!me) return [];
+  return assignableEmployees(me.id);
 }
 
 export default async function TasksPage() {
@@ -43,7 +50,7 @@ export default async function TasksPage() {
 
   const [tasks, employees, templates] = await Promise.all([
     getAllTasks(),
-    getEmployees(),
+    getAssignableEmployees(session.user.id),
     canWrite
       ? db.taskTemplate.findMany({
           orderBy: [{ isActive: "desc" }, { name: "asc" }],

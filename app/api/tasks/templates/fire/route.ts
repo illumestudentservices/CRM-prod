@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { fireTaskTemplate, fireEventTriggers } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { refuseAssignment } from "@/lib/task-assignment";
 
 const schema = z.object({
   templateId: z.string().optional(),
@@ -34,9 +35,15 @@ export async function POST(req: NextRequest) {
     const employee = await db.employee.findFirst({ where: { userId }, select: { id: true } });
     if (!employee) return NextResponse.json({ error: "No Employee profile" }, { status: 409 });
 
+    // Firing a template is creating several tasks at once, so it answers to
+    // the same rule — otherwise it would be the widest hole of the five.
+    const assigneeId = parsed.data.assigneeId ?? employee.id;
+    const refusal = await refuseAssignment(employee.id, assigneeId);
+    if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+
     const opts = {
       createdById: employee.id,
-      assigneeId: parsed.data.assigneeId ?? employee.id,
+      assigneeId,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       parentType: parsed.data.parentType as any,
       parentId: parsed.data.parentId,

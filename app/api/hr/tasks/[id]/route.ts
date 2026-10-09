@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
+import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
@@ -78,6 +79,18 @@ export async function PATCH(
 
   if (updateData.status === "DONE") {
     updateData.completedAt = new Date();
+  }
+
+  // Reassignment is subject to the same rule as creation; see
+  // lib/task-assignment.ts. `employee` is null only for a user with no HR
+  // record, who cannot reach this branch — the field is stripped above for
+  // anyone who is neither HR nor the creator.
+  if (typeof updateData.assigneeId === "string" && updateData.assigneeId !== task.assigneeId) {
+    if (!employee) {
+      return NextResponse.json({ error: "No Employee profile for the signed-in user" }, { status: 409 });
+    }
+    const refusal = await refuseAssignment(employee.id, updateData.assigneeId);
+    if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
   }
 
   const updated = await db.task.update({

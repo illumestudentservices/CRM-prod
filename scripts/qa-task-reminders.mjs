@@ -92,6 +92,14 @@ async function main() {
   const worker = await createAndLogin({ role: "EMPLOYEE", withEmployee: true });
   ctxs.push(worker);
 
+  // The reporting line is required, not decoration: since 2026-10-09 a task may
+  // only be given to yourself or to a direct report, so without this the
+  // fixture below is refused with a 403 and every assertion after it cascades.
+  await db.employee.update({
+    where: { id: worker.employee.id },
+    data: { managerId: manager.employee.id },
+  });
+
   // /api/hr/tasks, not /api/tasks: this is where the Tasks screen posts, and
   // it was the endpoint that notified nobody and created tasks in a status the
   // reminder job did not look at.
