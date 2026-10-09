@@ -5,6 +5,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApplyLeaveDialog } from "@/components/hr/apply-leave-dialog";
+import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -155,6 +156,13 @@ export function LeaveManager({
 
   return (
     <div className="space-y-6">
+      {/*
+        A manager who is not HR gets their team's queue here. HR already sees
+        every pending request in the table below, so showing them the same rows
+        twice would only make the page longer.
+      */}
+      {!isHR && <TeamLeaveApprovals onDecided={load} />}
+
       {/*
         The dashboard link is labelled "Apply for leave →" and lands here, so
         the action has to exist here. Until now this tab only listed requests,

@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { HolidayList } from "@/components/hr/holiday-list";
 import { LeaveSection } from "./leave-section";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -92,6 +94,15 @@ interface EmployeeTabsClientProps {
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
+/**
+ * Every tab value that has a trigger below. A ?tab= outside this set is
+ * ignored, because Radix renders an empty panel under no highlighted tab for a
+ * value it has no trigger for — a blank page that looks like a broken one.
+ */
+const TAB_VALUES = new Set([
+  "profile", "leave", "holidays", "worklogs", "training", "assets", "reviews", "documents",
+]);
+
 export function EmployeeTabsClient({
   employeeId,
   profile,
@@ -104,11 +115,24 @@ export function EmployeeTabsClient({
   documents,
   performanceReviews,
 }: EmployeeTabsClientProps) {
+  const [activeTab, setActiveTab] = React.useState("profile");
+
+  // /hr?tab=leave redirects an EMPLOYEE here and carries the tab with it, so
+  // honour it — otherwise the dashboard's leave card lands them on Profile and
+  // leaves them to find Leave for themselves. Same approach as the HR tabs.
+  // Read in an effect rather than from useSearchParams() so this component does
+  // not have to sit inside a Suspense boundary.
+  React.useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab && TAB_VALUES.has(tab)) setActiveTab(tab);
+  }, []);
+
   return (
-    <Tabs defaultValue="profile">
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="flex-wrap h-auto gap-1">
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="leave">Leave</TabsTrigger>
+        <TabsTrigger value="holidays">Holidays</TabsTrigger>
         <TabsTrigger value="worklogs">Worklogs</TabsTrigger>
         <TabsTrigger value="training">Training</TabsTrigger>
         <TabsTrigger value="assets">Assets</TabsTrigger>
@@ -158,6 +182,13 @@ export function EmployeeTabsClient({
       {/* LEAVE */}
       <TabsContent value="leave" className="mt-4">
         <LeaveSection employeeId={employeeId} balances={leaveBalances} isOwnProfile={isOwnProfile} />
+      </TabsContent>
+
+      {/* HOLIDAYS — the same global + own-region list the HR tab shows, read
+          only. An EMPLOYEE is redirected off /hr, so this was the one ERP
+          calendar they had no way to open. */}
+      <TabsContent value="holidays" className="mt-4">
+        <HolidayList />
       </TabsContent>
 
       {/* WORKLOGS */}

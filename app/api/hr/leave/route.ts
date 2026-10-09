@@ -28,6 +28,10 @@ const createLeaveSchema = z.object({
   reason: z.string().optional(),
 });
 
+/** How a date reads in a notification or an email. */
+const fmtDate = (d: Date) =>
+  d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
+
 /**
  * Chargeable days between two dates: weekdays, less any public holiday that
  * applies to the employee's region.
@@ -64,39 +68,96 @@ export async function GET(req: NextRequest) {
   const employeeId = searchParams.get("employeeId");
   const status = searchParams.get("status");
   const leaveType = searchParams.get("leaveType");
+  // "team" = the requests of the people who report to me, and only those. Its
+  // own scope rather than widening the default list, so "Your leave requests"
+  // keeps meaning exactly that and a manager's own history never mixes into
+  // the queue they are being asked to decide.
+  const scope = searchParams.get("scope");
   const isHR = HR_ROLES.includes(session.user.role as Role);
 
   const where: Record<string, unknown> = {};
 
-  // "Non-HR can only see their own" was in an `else if`, so an explicit
-  // ?employeeId= bypassed it and exposed anyone's leave history — including
-  // medical and compassionate reasons — to any signed-in user.
-  if (isHR) {
-    if (employeeId) where.employeeId = employeeId;
-  } else {
-    const employee = await db.employee.findUnique({
-      where: { userId: session.user.id },
+  // The viewer's own employee record, needed by both the team scope and the
+  // self scope below.
+  const me = await db.employee.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+
+  if (scope === "team") {
+    // A manager could always APPROVE a direct report — PATCH /api/hr/leave/[id]
+    // accepts `isManager` and says so in its refusal text. Nothing ever listed
+    // the requests to them, so the permission was real and unreachable: the
+    // only screen rendering an Approve button is gated on isHR, and this
+    // endpoint forced every non-HR caller down to their own rows. Managers were
+    // emailed "Action Required" and had nowhere to act.
+    if (!me) return NextResponse.json({ requests: [] });
+    const reports = await db.employee.findMany({
+      where: { managerId: me.id },
       select: { id: true },
     });
-    if (!employee) return NextResponse.json({ requests: [] });
-    if (employeeId && employeeId !== employee.id) {
+    const reportIds = reports.map((r) => r.id);
+
+    // A narrowing employeeId has to be one of them. Ignoring it instead would
+    // answer a question nobody asked — the caller filtered to one person and
+    // got the whole team back — and that is the shape of the bug this endpoint
+    // already had once, where a check sat in an `else` and an explicit
+    // employeeId walked past it.
+    if (employeeId) {
+      if (!reportIds.includes(employeeId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      where.employeeId = employeeId;
+    } else {
+      // An empty `in` matches nothing, which is the right answer for someone
+      // with no direct reports.
+      where.employeeId = { in: reportIds };
+    }
+  } else if (isHR) {
+    if (employeeId) where.employeeId = employeeId;
+  } else {
+    // "Non-HR can only see their own" was in an `else if`, so an explicit
+    // ?employeeId= bypassed it and exposed anyone's leave history — including
+    // medical and compassionate reasons — to any signed-in user.
+    if (!me) return NextResponse.json({ requests: [] });
+    if (employeeId && employeeId !== me.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    where.employeeId = employee.id;
+    where.employeeId = me.id;
   }
 
   if (status) where.status = status;
   if (leaveType) where.leaveType = leaveType;
 
-  const requests = await db.leaveRequest.findMany({
+  const rows = await db.leaveRequest.findMany({
     where,
     include: {
       employee: {
-        include: { user: { select: { id: true, name: true, image: true } } },
+        // A select, not the whole row. `include: { employee: true }` returned
+        // every scalar on it — home address, next of kin, phone, gender, cost
+        // centre — to anyone who could read a leave request. HR could already
+        // see those elsewhere; managers now reaching this endpoint cannot, and
+        // a leave queue is not the place to hand them over.
+        select: {
+          id: true,
+          employeeId: true,
+          managerId: true,
+          user: { select: { id: true, name: true, image: true } },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // Whether this viewer may decide each row, worked out here rather than left
+  // to the client to infer. The client cannot see managerId relationships for
+  // anyone but itself, and a button that appears on a row the server will
+  // refuse is worse than no button.
+  const requests = rows.map((r) => ({
+    ...r,
+    canDecide:
+      r.status === "PENDING" && (isHR || (!!me && r.employee.managerId === me.id)),
+  }));
 
   return NextResponse.json({ requests });
 }
@@ -132,7 +193,7 @@ export async function POST(req: NextRequest) {
     include: {
       user: { select: { id: true, name: true, regionId: true } },
       manager: {
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true } } },
       },
     },
   });
@@ -253,7 +314,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return tx.leaveRequest.create({
+      const created = await tx.leaveRequest.create({
         data: {
           employeeId: data.employeeId,
           leaveType,
@@ -267,6 +328,30 @@ export async function POST(req: NextRequest) {
           employee: { include: { user: { select: { id: true, name: true } } } },
         },
       });
+
+      // Tell the manager in the app, inside the same transaction that books
+      // the request.
+      //
+      // Applying used to create no Notification row for anyone, while the
+      // DECISION route creates one for the employee — so the person being asked
+      // to act was the only party with nothing in their bell, and a missed
+      // email was the end of the trail. Written here rather than fired and
+      // forgotten afterwards because a silently dropped write leaves the
+      // request sitting in a queue nobody has been told about, which is the
+      // failure this is meant to prevent.
+      if (employee.manager?.user) {
+        await tx.notification.create({
+          data: {
+            userId: employee.manager.user.id,
+            title: "Leave request awaiting your approval",
+            message: `${employee.user.name ?? "An employee"} requested ${days} day${days !== 1 ? "s" : ""} of ${policy.label.toLowerCase()} from ${fmtDate(data.startDate)} to ${fmtDate(data.endDate)}.`,
+            type: "LEAVE",
+            link: "/hr?tab=leave",
+          },
+        });
+      }
+
+      return created;
     });
   } catch (err) {
     if (err instanceof LeaveError) {
@@ -276,18 +361,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Notify direct manager + region manager (fire-and-forget)
-  const fmt = (d: Date) => d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
   const leaveEmailPayload = {
     employeeName: employee.user.name ?? "Employee",
     leaveType: data.leaveType,
-    startDate: fmt(data.startDate),
-    endDate: fmt(data.endDate),
+    startDate: fmtDate(data.startDate),
+    endDate: fmtDate(data.endDate),
     days,
     reason: data.reason,
     leaveUrl: `${process.env.NEXTAUTH_URL ?? ""}/hr`,
   };
 
-  // Email direct manager
+  // Email direct manager. The in-app notification is written inside the
+  // transaction above; email is fire-and-forget because a mail provider being
+  // down must not fail a leave application.
   if (employee.manager?.user) {
     sendLeaveAppliedEmail({
       to: employee.manager.user.email,

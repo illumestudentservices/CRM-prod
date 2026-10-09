@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import {
@@ -108,6 +109,14 @@ export function LeaveSection({
 
   return (
     <div className="space-y-6">
+      {/*
+        An EMPLOYEE is redirected off /hr to this page, so for an employee who
+        manages people this is the only screen where their team's queue can
+        reach them. Shown on their own profile only — on someone else's record
+        it would be the wrong person's queue.
+      */}
+      {isOwnProfile && <TeamLeaveApprovals />}
+
       {/* Balances */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {initialBalances.map((b) => {
