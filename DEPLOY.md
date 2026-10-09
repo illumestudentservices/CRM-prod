@@ -311,3 +311,51 @@ These matter if the **server itself** is lost rather than the data:
 Knowledge-base attachments *are* covered: `KnowledgeBaseAttachment.data` is
 stored as bytes in the database, so a dump includes them. There is no separate
 uploads directory to back up.
+
+---
+
+## 11. Scheduled jobs
+
+Every automation runs from `root`'s crontab on the VPS. Times are **UTC** —
+the server clock is UTC, so 12:00 here is 08:00 in Toronto on daylight time.
+
+| UTC | Job | Log |
+|---|---|---|
+| 02:30 | `scripts/backup-db.sh nightly` | `/var/log/illume-backup.log` |
+| 03:00 | `scripts/purge-deleted-users.ts` | `/var/log/illume-purge.log` |
+| 03:00 | `scripts/purge-recycle-bin.mjs` | `/var/log/illume-recycle-purge.log` |
+| 07:00 | `scripts/lead-automation.ts` | `/var/log/illume-automation.log` |
+| 07:15 | `scripts/interest-automation.ts` | `/var/log/illume-automation.log` |
+| 07:30 | `scripts/network-automation.ts` | `/var/log/illume-automation.log` |
+| 08:15 | `scripts/transition-reminders.ts` | `/var/log/illume-transition-reminders.log` |
+| 08:45 | `scripts/holiday-reminders.ts` | `/var/log/illume-holiday-reminders.log` |
+| 09:00 | `scripts/offboarding-countdown.ts` | `/var/log/illume-offboarding-countdown.log` |
+| **12:00** | `scripts/task-reminders.ts` | `/var/log/illume-task-reminders.log` |
+| hourly | `chmod 600` over `/root/db-backups` and the PM2 logs | — |
+
+The backup deliberately runs **before** the two 03:00 purge jobs, so a purge
+that deletes the wrong thing is still recoverable from that night's dump.
+
+### Task reminders
+
+`scripts/task-reminders.ts` is the only job that mails ordinary staff on a
+schedule, which is why it sits at 12:00 UTC rather than with the 07:00 cluster:
+it should land as people start their day, not at 03:00 local.
+
+Each task with a due date produces four notices and no more — one when it is
+assigned (sent immediately from the request, not by this job), then a week
+before, three days before, and on the day itself. The rungs are **ranges**, not
+exact days, so a missed run still delivers the right notice.
+
+What was sent is recorded in `task_reminders`, one row per `(task, stage)`,
+carrying the due date it was sent against. Moving a deadline therefore re-arms
+the ladder. To check a run without sending anything:
+
+```bash
+cd /var/www/illume-crm && node --import tsx scripts/task-reminders.ts --dry-run
+```
+
+`reachedNobody` in that output is the line worth reading: it lists tasks that
+have a deadline, are on a rung today, and have neither an assignee nor a
+contactable creator. They notify no one, and without that line they look
+identical to a quiet day.
