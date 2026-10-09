@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import type { Role } from "@/lib/permissions";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { visibleTaskWhere } from "@/lib/task-visibility";
 import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
-const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
+// HR_ROLES was removed on 2026-10-09. Being in HR is not a relationship to
+// a task, and it was the only thing standing between an HR account and every
+// task in the company. Visibility is decided by lib/task-visibility.ts alone.
 
 const createTaskSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -61,20 +63,34 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const assigneeId = searchParams.get("assigneeId");
   const sourceActivityId = searchParams.get("sourceActivityId");
-  const isHR = HR_ROLES.includes(session.user.role as Role);
+  // Visibility.
+  //
+  // Two things changed here on 2026-10-09. HR_ROLES used to see every task in
+  // the company from this endpoint — the widest read in the task system, and
+  // the one the Tasks screen itself calls. And everyone else saw only what was
+  // ASSIGNED to them, so a manager could not see the work they had handed out
+  // the moment after handing it out.
+  //
+  // Both answers now come from one rule: your own tasks, plus the ones you
+  // allocated. See lib/task-visibility.ts.
+  const employee = await db.employee.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+  if (!employee) return NextResponse.json({ tasks: [] });
 
-  const where: Record<string, unknown> = { deletedAt: null };
+  const where: Record<string, unknown> = {
+    deletedAt: null,
+    ...visibleTaskWhere(employee.id),
+  };
 
-  if (!isHR) {
-    // Employees see only their assigned tasks
-    const employee = await db.employee.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-    if (!employee) return NextResponse.json({ tasks: [] });
-    where.assigneeId = employee.id;
-  } else if (assigneeId) {
+  // As above: filtering by assignee may only narrow what you can already see.
+  if (assigneeId) {
     where.assigneeId = assigneeId;
+    if (assigneeId !== employee.id) {
+      delete where.OR;
+      where.createdById = employee.id;
+    }
   }
 
   if (status) where.status = status;

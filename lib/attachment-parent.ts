@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { AttachmentParentType, Role } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { canSeeTask } from "@/lib/task-visibility";
 
 /**
  * Polymorphic attachments — parent existence + access gate.
@@ -97,44 +98,19 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     exists: async (id) =>
       (await db.task.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
     /**
-     * The people a task belongs to: whoever it is assigned to, whoever raised
-     * it, and the assignee's line manager.
+     * Exactly the people who can see the task: the assignee and whoever
+     * allocated it. Nothing else — the files cannot be visible more widely
+     * than the task they hang off, so this delegates to the one rule in
+     * lib/task-visibility.ts rather than restating it.
      *
-     * The first two mirror what GET /api/tasks already returns to an ordinary
-     * caller, so the files follow the task rather than being visible more
-     * widely than the task itself. The manager is included because they are
-     * the only person who may assign the task in the first place, and a brief
-     * they cannot read is not a brief.
-     *
-     * `tasks:approve` is the existing org-wide escalation — the same
-     * permission that lets GET /api/tasks?scope=all see every task, held by
-     * SUPER_ADMIN only unless Settings → Security says otherwise.
+     * Two clauses were removed on 2026-10-09, hours after being added: a
+     * `tasks:approve` escape hatch, and the assignee's line manager. The
+     * manager clause looked harmless — they are the only person who may
+     * allocate the task — but a manager who did NOT allocate it has no claim
+     * on it, and leaving the clause in would have made the attachment gate
+     * quietly wider than the task list above it.
      */
-    canAccessRow: async (id, actor) => {
-      if (await effectiveHasPermission(actor.role, "tasks", "approve")) return true;
-
-      const me = await db.employee.findFirst({
-        where: { userId: actor.userId },
-        select: { id: true },
-      });
-      if (!me) return false;
-
-      const task = await db.task.findFirst({
-        where: { id, deletedAt: null },
-        select: {
-          assigneeId: true,
-          createdById: true,
-          assignee: { select: { managerId: true } },
-        },
-      });
-      if (!task) return false;
-
-      return (
-        task.assigneeId === me.id ||
-        task.createdById === me.id ||
-        task.assignee?.managerId === me.id
-      );
-    },
+    canAccessRow: async (id, actor) => canSeeTask(actor.userId, id),
   },
   ACTIVITY: {
     label: "Field Operation",

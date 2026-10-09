@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
+import { taskRelation } from "@/lib/task-visibility";
 import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
 
@@ -46,6 +47,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       select: { status: true, startedAt: true, assigneeId: true },
     });
     if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+
+    // Row gate. Holding tasks:write meant being able to edit ANY task by id —
+    // retitle it, move its deadline, mark somebody else's work done.
+    const rel = await taskRelation(userId, id);
+    if (!rel.canSee) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patch: any = {};
@@ -143,10 +149,33 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { role } = session.user;
+    const { id } = await ctx.params;
+
+    // The row gate runs FIRST, and deliberately.
+    //
+    // Deleting was the least guarded operation in the task system: tasks:delete
+    // and an id were enough to destroy anybody's task. Only the person who
+    // allocated it may delete it — an assignee can decline or complete work,
+    // not erase the record that it was asked for.
+    //
+    // Checking the relationship before the permission costs nothing (a caller
+    // with no claim on the task gets 404 either way) and buys the assignee a
+    // reason instead of a bare "Forbidden" they cannot act on. Most assignees
+    // do not hold tasks:delete, so with the checks the other way round the
+    // permission gate answered first and the explanation never ran.
+    const rel = await taskRelation(session.user.id, id);
+    if (!rel.canSee) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!rel.isCreator) {
+      return NextResponse.json(
+        { error: "Only the person who raised this task can delete it." },
+        { status: 403 }
+      );
+    }
+
     if (!(await effectiveHasPermission(role as Role, "tasks", "delete"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const { id } = await ctx.params;
+
     await trashRecord({ entityType: "Task", entityId: id, userId: session.user.id });
     return NextResponse.json({ ok: true });
   } catch (err) {

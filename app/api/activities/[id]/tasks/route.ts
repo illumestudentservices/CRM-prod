@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -44,8 +45,15 @@ export async function GET(
     return NextResponse.json({ error: "Activity not found" }, { status: 404 });
   }
 
+  // Scoped to the caller. `activities:read` opens the field operation, not the
+  // tasks hanging off it: those belong to whoever holds and whoever allocated
+  // them, the same as everywhere else. Before this, opening an activity listed
+  // every task raised from it, whoever it was for.
   const tasks = await db.task.findMany({
-    where: { sourceActivityId: id, deletedAt: null },
+    where: await visibleTaskWhereForUser(session.user.id, {
+      sourceActivityId: id,
+      deletedAt: null,
+    }),
     include: {
       assignee: {
         include: { user: { select: { id: true, name: true, image: true } } },
