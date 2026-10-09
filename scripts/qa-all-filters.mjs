@@ -8,11 +8,14 @@
  * or one that silently searches only a capped first page, passes the second
  * check and fails the first. Every expectation below is computed from the DB.
  *
- * Read-only: one disposable SUPER_ADMIN, destroyed in `finally`. Creates no
- * fixtures and writes nothing, so it is safe to re-run.
+ * One disposable SUPER_ADMIN, destroyed in `finally`. Almost entirely
+ * read-only: the /tasks section is the one exception and must be, because task
+ * visibility is scoped to the assignee and the allocator, so a disposable user
+ * sees an empty list until it owns something. It creates four tasks and deletes
+ * them in its own `finally`, so the suite is still safe to re-run.
  */
 import { chromium } from "playwright";
-import { BASE, db, createAndLogin, destroyUser, startSection, expect, summary } from "./qa-lib.mjs";
+import { BASE, db, createAndLogin, destroyUser, startSection, expect, summary, TAG } from "./qa-lib.mjs";
 
 const BROWSER_BASE = BASE.replace("127.0.0.1", "localhost");
 let ctx, browser, page;
@@ -118,7 +121,9 @@ async function goParams(route, params) {
 }
 
 try {
-  ctx = await createAndLogin({ role: "SUPER_ADMIN" });
+  // withEmployee: the /tasks section needs an Employee row to own its fixtures,
+  // because task visibility is keyed on employee id, not user id.
+  ctx = await createAndLogin({ role: "SUPER_ADMIN", withEmployee: true });
   browser = await chromium.launch();
   const bctx = await browser.newContext({ viewport: { width: 1700, height: 1100 } });
   await bctx.addCookies(
@@ -234,23 +239,80 @@ try {
   // ═══ TASKS ═════════════════════════════════════════════════════════════════
   startSection("/tasks — status, priority");
   {
-    await go("/tasks");
-    const shown = await resultCount();
-    expect(shown > 0, `task list renders ${shown} rows`);
-    const byStatus = await db.task.groupBy({
-      by: ["status"], _count: true, orderBy: { _count: { status: "desc" } }, take: 1,
+    // ★ THIS SECTION OWNS ITS FIXTURES, AND HAS TO.
+    //
+    // It used to open /tasks and compare the rendered count against
+    // db.task.groupBy() over the WHOLE table. That worked only because the
+    // page listed every task in the company. Since 2026-10-09 a task is
+    // visible to the person it is assigned to and the person who allocated it
+    // and to nobody else (lib/task-visibility.ts), so a disposable admin who
+    // holds nothing correctly sees an empty list — and the old assertion read
+    // that correct behaviour as a broken filter.
+    //
+    // The filter is still checked against the database, which is the whole
+    // point of this file; the predicate just includes the assignee now. Four
+    // tasks are created, two DONE and two TODO, so the status filter has
+    // something to actually discriminate between.
+    const mine = await db.employee.findFirst({
+      where: { userId: ctx.user.id }, select: { id: true },
     });
-    if (byStatus.length) {
-      const s = byStatus[0].status;
-      const label = titleCase(s);
-      try {
-        await pickCombo("All Statuses", label);
-        // Tasks may be scoped; compare to the visible total rather than the raw
-        // table when the page scopes by assignee.
-        const got = await resultCount();
-        expect(got === byStatus[0]._count,
-          `status "${label}" shows ${byStatus[0]._count} (DB count)`, `saw ${got}`);
-      } catch { expect(false, `status option "${label}" was selectable`); }
+    const made = [];
+    if (mine) {
+      for (const [i, status] of ["DONE", "DONE", "TODO", "NOT_STARTED"].entries()) {
+        made.push(await db.task.create({
+          data: {
+            title: `${TAG} filter fixture ${i + 1}`,
+            createdById: mine.id,
+            assigneeId: mine.id,
+            status,
+            priority: i % 2 ? "HIGH" : "MEDIUM",
+            category: "INTERNAL",
+          },
+          select: { id: true },
+        }));
+      }
+    }
+
+    try {
+      await go("/tasks");
+      const shown = await resultCount();
+      const visible = mine
+        ? await db.task.count({
+            where: {
+              deletedAt: null,
+              OR: [{ assigneeId: mine.id }, { createdById: mine.id }],
+            },
+          })
+        : 0;
+      expect(shown === visible,
+        `task list renders the ${visible} tasks this user can see`, `saw ${shown}`);
+
+      const byStatus = await db.task.groupBy({
+        by: ["status"],
+        where: { deletedAt: null, OR: [{ assigneeId: mine?.id }, { createdById: mine?.id }] },
+        _count: true,
+        orderBy: { _count: { status: "desc" } },
+        take: 1,
+      });
+      if (byStatus.length) {
+        const label = titleCase(byStatus[0].status);
+        try {
+          await pickCombo("All Statuses", label);
+          const got = await resultCount();
+          expect(got === byStatus[0]._count,
+            `status "${label}" shows ${byStatus[0]._count} (DB count, scoped to this user)`,
+            `saw ${got}`);
+        } catch { expect(false, `status option "${label}" was selectable`); }
+      }
+    } finally {
+      // Removed here rather than in the global teardown: destroyUser cannot
+      // delete a user whose tasks still reference them.
+      if (made.length) {
+        await db.taskReminder.deleteMany({
+          where: { taskId: { in: made.map((t) => t.id) } },
+        }).catch(() => {});
+        await db.task.deleteMany({ where: { id: { in: made.map((t) => t.id) } } }).catch(() => {});
+      }
     }
   }
 

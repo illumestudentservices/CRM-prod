@@ -79,10 +79,23 @@ try {
   expect(errors.length === 0, "no page errors", errors.join(" | "));
 
   // Detail page: do the extra addresses actually show as contacts?
+  //
+  // Matched on a PREFIX, not an exact name. The country-in-name backfill
+  // (scripts/backfill-partner-country-in-name.mjs) renamed this row to
+  // "Uniserve Education (Kenya)", and the exact-match lookup here had been
+  // returning null ever since — the suite then threw on `uniserve.id` and
+  // reported it as a fatal, while the on-screen check above kept passing
+  // because `body.includes("Uniserve Education")` still matched the new name.
+  // A test that keeps asserting the right thing on screen while its own
+  // fixture lookup has rotted away is the worst kind to leave in place.
   const uniserve = await db.recruitmentPartner.findFirst({
-    where: { name: "Uniserve Education", type: "AGENT" },
-    select: { id: true, _count: { select: { partnerContacts: true } } },
+    where: { name: { startsWith: "Uniserve Education" }, type: "AGENT" },
+    select: { id: true, name: true, _count: { select: { partnerContacts: true } } },
   });
+  if (!expect(!!uniserve, "the imported partner row is still findable",
+      "no AGENT whose name starts with 'Uniserve Education' — has the import fixture changed?")) {
+    throw new Error("fixture partner missing — cannot check the detail page");
+  }
   await page.goto(`${BROWSER_BASE}/recruitment-network/partners/${uniserve.id}`, { waitUntil: "networkidle" });
   const detail = await page.locator("body").innerText();
   expect(
@@ -90,7 +103,7 @@ try {
     "the extra addresses render on the partner detail page",
     "contact rows exist in the database but are not on screen"
   );
-  ok(`Uniserve Education has ${uniserve._count.partnerContacts} contact rows`);
+  ok(`${uniserve.name} has ${uniserve._count.partnerContacts} contact rows`);
 } catch (e) {
   startSection("fatal");
   fail("suite threw", e?.stack ?? String(e));
