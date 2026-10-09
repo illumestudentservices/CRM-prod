@@ -65,6 +65,29 @@ export interface ParentContext {
       soft-deleted). Runs before any permission check so the response for
       "not found" and "not permitted" don't diverge. */
   exists: (parentId: string) => Promise<boolean>;
+  /**
+   * Optional gate on the SPECIFIC ROW, applied on top of the module
+   * permission.
+   *
+   * ★ WHY THIS WAS ADDED (2026-10-09).
+   *
+   * `resource` + read/write answers "may this ROLE touch this module", and
+   * every role that can open the Tasks page holds `tasks:read`. Nothing asked
+   * whether the caller had anything to do with THIS record. Measured against
+   * the live code, an ordinary EMPLOYEE could list, download, upload to and
+   * delete the attachments on ANY task in the company, given its id — all four
+   * returned 200.
+   *
+   * A task can carry a performance note, a contract or a student's paperwork,
+   * so module-level permission is the wrong granularity for it. Where a parent
+   * type has an owner, it says so here. Returning undefined keeps the previous
+   * behaviour, which is correct for the parent types that are genuinely
+   * shared, like a recruitment event.
+   */
+  canAccessRow?: (
+    parentId: string,
+    actor: { userId: string; role: Role }
+  ) => Promise<boolean>;
 }
 
 const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
@@ -73,6 +96,45 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "tasks",
     exists: async (id) =>
       (await db.task.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
+    /**
+     * The people a task belongs to: whoever it is assigned to, whoever raised
+     * it, and the assignee's line manager.
+     *
+     * The first two mirror what GET /api/tasks already returns to an ordinary
+     * caller, so the files follow the task rather than being visible more
+     * widely than the task itself. The manager is included because they are
+     * the only person who may assign the task in the first place, and a brief
+     * they cannot read is not a brief.
+     *
+     * `tasks:approve` is the existing org-wide escalation — the same
+     * permission that lets GET /api/tasks?scope=all see every task, held by
+     * SUPER_ADMIN only unless Settings → Security says otherwise.
+     */
+    canAccessRow: async (id, actor) => {
+      if (await effectiveHasPermission(actor.role, "tasks", "approve")) return true;
+
+      const me = await db.employee.findFirst({
+        where: { userId: actor.userId },
+        select: { id: true },
+      });
+      if (!me) return false;
+
+      const task = await db.task.findFirst({
+        where: { id, deletedAt: null },
+        select: {
+          assigneeId: true,
+          createdById: true,
+          assignee: { select: { managerId: true } },
+        },
+      });
+      if (!task) return false;
+
+      return (
+        task.assigneeId === me.id ||
+        task.createdById === me.id ||
+        task.assignee?.managerId === me.id
+      );
+    },
   },
   ACTIVITY: {
     label: "Field Operation",
@@ -207,4 +269,23 @@ export async function canWriteParent(
 ): Promise<boolean> {
   const ctx = CONTEXTS[parentType];
   return effectiveHasPermission(role, ctx.resource, "write");
+}
+
+/**
+ * The row-level half of the gate, for parent types that define one.
+ *
+ * True when the type has no `canAccessRow` — the module permission was the
+ * whole answer for those, and still is. Every attachment route calls this
+ * after its canRead/canWrite check; a route that skipped it would silently
+ * reopen the hole the hook was added to close, which is why it is a named
+ * function rather than four inline lookups.
+ */
+export async function canAccessParentRow(
+  parentType: AttachmentParentType,
+  parentId: string,
+  actor: { userId: string; role: Role }
+): Promise<boolean> {
+  const ctx = CONTEXTS[parentType];
+  if (!ctx.canAccessRow) return true;
+  return ctx.canAccessRow(parentId, actor);
 }

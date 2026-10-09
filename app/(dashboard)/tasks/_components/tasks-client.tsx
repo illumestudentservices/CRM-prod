@@ -74,6 +74,9 @@ interface TaskItem {
     title: string;
     type: string;
   } | null;
+  /** Files on this task. Drawn on the row so the paperwork is visible without
+   *  opening a menu on every task to find out there is none. */
+  attachmentCount?: number;
 }
 
 interface EmployeeItem {
@@ -796,6 +799,25 @@ export function TasksClient({
 
                     {/* Actions */}
                     <TableCell>
+                      <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 gap-1"
+                        onClick={() => setAttachmentsTask(task)}
+                        title={
+                          task.attachmentCount
+                            ? `${task.attachmentCount} attachment${task.attachmentCount === 1 ? "" : "s"}`
+                            : "Add an attachment"
+                        }
+                      >
+                        <Paperclip
+                          className={`h-4 w-4 ${task.attachmentCount ? "" : "text-muted-foreground"}`}
+                        />
+                        {!!task.attachmentCount && (
+                          <span className="text-xs font-medium">{task.attachmentCount}</span>
+                        )}
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -828,6 +850,7 @@ export function TasksClient({
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

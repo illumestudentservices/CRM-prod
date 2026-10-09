@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import type { Role, AttachmentParentType } from "@prisma/client";
 import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
-import { attachmentContext, canReadParent, canWriteParent } from "@/lib/attachment-parent";
+import {
+  attachmentContext, canReadParent, canWriteParent, canAccessParentRow,
+} from "@/lib/attachment-parent";
 import { logActivity } from "@/lib/activity-logger";
 
 /**
@@ -77,6 +79,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: `${ctx.label} not found` }, { status: 404 });
   }
 
+  // Row-level gate. The module permission above says the caller may use
+  // attachments at all; this says whether this particular record is theirs to
+  // see. 404 rather than 403, for the same reason the existence check is: a
+  // caller must not be able to distinguish "exists but not yours" from
+  // "does not exist".
+  if (!(await canAccessParentRow(parentType as AttachmentParentType, parentId, {
+    userId: session.user.id, role,
+  }))) {
+    return NextResponse.json({ error: `${ctx.label} not found` }, { status: 404 });
+  }
+
   const attachments = await db.attachment.findMany({
     where: { parentType: parentType as AttachmentParentType, parentId },
     select: {
@@ -120,6 +133,12 @@ export async function POST(req: NextRequest) {
 
   const ctx = attachmentContext(parentType as AttachmentParentType);
   if (!(await ctx.exists(parentId))) {
+    return NextResponse.json({ error: `${ctx.label} not found` }, { status: 404 });
+  }
+
+  if (!(await canAccessParentRow(parentType as AttachmentParentType, parentId, {
+    userId: session.user.id, role,
+  }))) {
     return NextResponse.json({ error: `${ctx.label} not found` }, { status: 404 });
   }
 
