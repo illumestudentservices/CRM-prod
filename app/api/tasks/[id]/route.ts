@@ -6,6 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
+import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -111,25 +112,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
 
     if (reassigningTo) {
-      try {
-        const target = await db.employee.findUnique({
-          where: { id: reassigningTo },
-          select: { userId: true },
-        });
-        if (target?.userId && target.userId !== userId) {
-          await db.notification.create({
-            data: {
-              userId: target.userId,
-              title: "Task reassigned to you",
-              message: updated.title,
-              type: "TASK_ASSIGNED",
-              link: `/tasks?taskId=${updated.id}`,
-            },
-          });
-        }
-      } catch {
-        /* non-fatal */
-      }
+      await notifyTaskAssigned({
+        taskId: updated.id,
+        actorUserId: userId,
+        reason: "reassigned",
+      });
     }
 
     return NextResponse.json(updated);

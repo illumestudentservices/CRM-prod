@@ -7,6 +7,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -152,29 +153,17 @@ export async function POST(req: NextRequest) {
     });
     void logActivity(session.user.id, "CREATE", "Task", task.id, { route: "tasks" });
 
-    // Spec Tasks §11 — notify the assignee when a task is created for someone
-    // other than the creator. Silent failure keeps the create response 201.
-    if (assigneeId !== creator.id) {
-      try {
-        const assigneeUser = await db.employee.findUnique({
-          where: { id: assigneeId },
-          select: { userId: true },
-        });
-        if (assigneeUser?.userId) {
-          await db.notification.create({
-            data: {
-              userId: assigneeUser.userId,
-              title: "New task assigned",
-              message: task.title,
-              type: "TASK_ASSIGNED",
-              link: `/tasks?taskId=${task.id}`,
-            },
-          });
-        }
-      } catch {
-        /* non-fatal */
-      }
-    }
+    // Spec Tasks §11 — tell the assignee, in the app and by email. Shared with
+    // the other three assignment sites so they cannot drift apart; it decides
+    // for itself whether there is anyone to tell. Awaited rather than fired and
+    // forgotten: on a serverless runtime the function can be frozen the moment
+    // the response is returned, and a dropped assignment email is exactly the
+    // kind of loss nobody reports.
+    await notifyTaskAssigned({
+      taskId: task.id,
+      actorUserId: session.user.id,
+      reason: "created",
+    });
 
     return NextResponse.json(task, { status: 201 });
   } catch (err) {

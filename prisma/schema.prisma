@@ -2847,9 +2847,13 @@ model Task {
   /// Spec Tasks §7 — who closed the task. Denorm off the Employee model so
   /// the audit trail survives assignee changes.
   closedById       String?
-  /// Spec Tasks §8 — the reminder cron sets this when a reminder or a
-  /// due-soon notification was sent, so we don't nag twice.
+  /// Spec Tasks §8 — kept for history. The reminder cron no longer reads it:
+  /// one nullable flag cannot express four separate notices, and because the
+  /// explicit-reminder path and the due-soon path both wrote it, whichever
+  /// fired first silently cancelled the other. Scheduling now lives in
+  /// `reminders` below, one row per notice actually sent.
   reminderSentAt   DateTime?
+  reminders        TaskReminder[]
   /// Spec Tasks §8 — the reminder cron sets this when an overdue task was
   /// escalated to the RM.
   escalatedAt      DateTime?
@@ -2862,6 +2866,55 @@ model Task {
   @@index([reminderDate])
   @@index([escalationDate])
   @@map("tasks")
+}
+
+/// Which of the four notices a `TaskReminder` row records.
+///
+/// The cadence is fixed deliberately: one notice on creation, then a week out,
+/// three days out, and on the day itself. CUSTOM is the separate notice for a
+/// task carrying its own `reminderDate`, which is set by the person raising it
+/// and is not part of the standard ladder.
+enum TaskReminderStage {
+  CREATED
+  DUE_IN_7_DAYS
+  DUE_IN_3_DAYS
+  DUE_TODAY
+  CUSTOM
+}
+
+/// One row per notice sent about one task — the ledger that makes the reminder
+/// cron idempotent.
+///
+/// ★ WHY A TABLE AND NOT MORE COLUMNS ON `tasks`.
+///
+/// The previous design had a single `reminderSentAt`. Once set, every later
+/// notice was suppressed, so a task could only ever produce ONE email in its
+/// whole life — and the due-soon notice and the custom reminder fought over the
+/// same flag. Four booleans would fix the first problem and not the second, and
+/// would have to grow again the next time the cadence changes.
+///
+/// `forDueDate` is what makes a moved deadline work. The unique key is
+/// (taskId, stage), and the row carries the due date the notice was sent
+/// against; when a due date is pushed back, the stored date no longer matches
+/// and the stage re-arms by itself. Without it, moving a task from "due
+/// tomorrow" to "due next month" would permanently silence its reminders.
+model TaskReminder {
+  id         String            @id @default(uuid())
+  taskId     String
+  task       Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stage      TaskReminderStage
+  /// The due date this notice was sent against; null for CREATED, which does
+  /// not depend on one.
+  forDueDate DateTime?         @db.Date
+  /// Who it reached. Zero is recordable: a task with no assignee and no
+  /// contactable creator notifies nobody, and that must be visible on the log
+  /// rather than looking like the notice was never scheduled.
+  sentCount  Int               @default(0)
+  sentAt     DateTime          @default(now())
+
+  @@unique([taskId, stage])
+  @@index([stage, sentAt])
+  @@map("task_reminders")
 }
 
 model EmployeeDocument {

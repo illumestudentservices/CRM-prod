@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
+import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -164,6 +165,15 @@ export async function POST(req: NextRequest) {
     },
   });
   void logActivity(session.user.id, "CREATE", "Task", task.id, { route: "hr/tasks" });
+
+  // This endpoint told nobody anything until 2026-10-09 — and it is the one the
+  // Tasks screen posts to, so in practice no task raised through the UI ever
+  // notified the person it was given to.
+  await notifyTaskAssigned({
+    taskId: task.id,
+    actorUserId: session.user.id,
+    reason: "created",
+  });
 
   return NextResponse.json({ task }, { status: 201 });
 }
