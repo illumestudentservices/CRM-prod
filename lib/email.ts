@@ -1424,6 +1424,82 @@ export async function sendReminderDigestEmail(opts: {
   });
 }
 
+// ─── TASK ASSIGNED (sent once, the moment the task is raised) ─────────────────
+
+/**
+ * The first of the four notices a task produces: one email when it is created.
+ *
+ * Sent immediately from the request rather than queued for the morning digest,
+ * because the point of it is "this is now yours" and a day-old assignment that
+ * arrives after the work should have started is not a notification. The three
+ * later notices — a week out, three days out, and the day itself — are batched
+ * into the daily digest instead, since those are reminders of things the
+ * recipient already knows about and one list beats three separate emails.
+ *
+ * `dueDate` is deliberately spelled out in full. A task is often raised in one
+ * market and worked in another, and "10/09" means two different days depending
+ * on who is reading it.
+ */
+export async function sendTaskAssignedEmail(opts: {
+  to: string;
+  recipientName: string;
+  taskTitle: string;
+  taskId: string;
+  assignedByName: string;
+  /// Already formatted for display, or undefined when the task has no deadline.
+  dueDate?: string;
+  priority: string;
+  category?: string;
+  description?: string;
+  /// Null when there is no deadline — the line then explains that no reminders
+  /// will follow, which is the thing a recipient cannot otherwise tell.
+  reminderSchedule?: string;
+}) {
+  const urgent = opts.priority === "URGENT" || opts.priority === "HIGH";
+
+  await safeSend({
+    to: opts.to,
+    subject: `New task: ${opts.taskTitle}${opts.dueDate ? ` — due ${opts.dueDate}` : ""}`,
+    html: wrapEmail(
+      "New task assigned",
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:23px;font-weight:700;color:${INK};line-height:1.3;">
+        A task has been assigned to you
+      </h1>
+      <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.recipientName}, ${opts.assignedByName} has raised a task in your name.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid ${urgent ? "#B45309" : HAIRLINE};border-radius:10px;margin:20px 0 0;">
+        <tr>
+          <td style="padding:16px 20px;font-family:${FONT};">
+            <div style="font-size:16px;font-weight:700;color:${INK};line-height:1.4;">${opts.taskTitle}</div>
+            ${opts.description
+              ? `<div style="font-size:13px;line-height:1.6;color:${MUTED};margin-top:6px;">${opts.description}</div>`
+              : ""}
+            <div style="margin-top:12px;">${badge(opts.priority, urgent ? "#B45309" : NAVY)}</div>
+          </td>
+        </tr>
+      </table>
+
+      ${infoTable([
+        ["Due date", opts.dueDate ?? "No deadline set"],
+        ...(opts.category ? [["Category", opts.category] as [string, string]] : []),
+        ["Raised by", opts.assignedByName],
+      ])}
+
+      ${ctaButton("Open the task", `${BASE_URL}/tasks?taskId=${opts.taskId}`)}
+
+      <p style="margin:18px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
+        ${opts.reminderSchedule ??
+          "This task has no due date, so no further reminders will be sent about it."}
+      </p>
+      `,
+      `${opts.assignedByName} assigned you: ${opts.taskTitle}`
+    ),
+  });
+}
+
 // ─── ADMIN ALERT (serious, hard-to-undo actions) ──────────────────────────────
 
 /**

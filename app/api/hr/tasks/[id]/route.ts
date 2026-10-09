@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
+import { notifyTaskAssigned } from "@/lib/task-notify";
 
 const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 
@@ -95,6 +96,17 @@ export async function PATCH(
     },
   });
   void logActivity(session.user.id, "UPDATE", "Task", updated.id, { route: "hr/tasks/[id]" });
+
+  // Handing a task to somebody else is the one update they cannot discover on
+  // their own. Compared against the row read before the update, so a PATCH that
+  // merely repeats the current assignee does not re-announce it.
+  if (updated.assigneeId && updated.assigneeId !== task.assigneeId) {
+    await notifyTaskAssigned({
+      taskId: updated.id,
+      actorUserId: session.user.id,
+      reason: "reassigned",
+    });
+  }
 
   return NextResponse.json({ task: updated });
 }
