@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ApplyLeaveDialog } from "@/components/hr/apply-leave-dialog";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
+import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -162,6 +163,9 @@ export function LeaveManager({
         twice would only make the page longer.
       */}
       {!isHR && <TeamLeaveApprovals onDecided={load} />}
+      {/* Below the queue, not inside it: the queue empties, the record does
+          not, and a manager most needs the history when nothing is pending. */}
+      {!isHR && <TeamLeaveHistory />}
 
       {/*
         The dashboard link is labelled "Apply for leave →" and lands here, so

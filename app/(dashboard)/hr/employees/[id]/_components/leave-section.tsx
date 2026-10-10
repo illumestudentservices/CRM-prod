@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
+import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import {
@@ -116,6 +117,7 @@ export function LeaveSection({
         it would be the wrong person's queue.
       */}
       {isOwnProfile && <TeamLeaveApprovals />}
+      {isOwnProfile && <TeamLeaveHistory />}
 
       {/* Balances */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

@@ -132,6 +132,48 @@ async function main() {
   expect(after?.adjustmentDays === 7, "and the adjustment lands",
     `adjustment is ${after?.adjustmentDays}`);
 
+  // ── Leave history ────────────────────────────────────────────────────────
+  startSection("A manager sees what their team has already taken");
+
+  const past = await db.leaveRequest.create({
+    data: {
+      employeeId: report.employee.id,
+      leaveType: "VACATION_PAID",
+      startDate: new Date(Date.UTC(2026, 4, 11)),
+      endDate: new Date(Date.UTC(2026, 4, 13)),
+      days: 3,
+      reason: `${TAG} already taken`,
+      status: "APPROVED",
+    },
+    select: { id: true },
+  });
+
+  const bossHistory = await api(boss.jar, "GET", "/api/hr/leave?scope=team");
+  const mine = (bossHistory.payload?.requests ?? []).filter(
+    (r) => r.employee?.id === report.employee.id);
+  expect(mine.some((r) => r.id === past.id),
+    "*** the manager sees a decided request from their report ***",
+    `${mine.length} request(s) returned`);
+  const histRow = mine.find((r) => r.id === past.id);
+  expect(histRow?.status === "APPROVED", "with its outcome", String(histRow?.status));
+  expect(histRow?.canDecide === false, "and no decision control on a settled one",
+    String(histRow?.canDecide));
+
+  // The payload must not quietly carry the rest of the employee record.
+  const leaked = Object.keys(histRow?.employee ?? {}).filter(
+    (k) => !["id", "employeeId", "managerId", "user"].includes(k));
+  expect(leaked.length === 0,
+    "*** and no personal detail beyond a name rides along ***", leaked.join(", "));
+
+  const strangerHistory = await api(stranger.jar, "GET", "/api/hr/leave?scope=team");
+  expect(!(strangerHistory.payload?.requests ?? []).some((r) => r.id === past.id),
+    "*** somebody with no reports sees none of it ***");
+
+  const targeted = await api(stranger.jar, "GET",
+    `/api/hr/leave?scope=team&employeeId=${report.employee.id}`);
+  expect(targeted.status === 403 || !(targeted.payload?.requests ?? []).length,
+    "nor by asking for that employee directly", `status ${targeted.status}`);
+
   startSection("The manager sees the result of it");
   const afterBoss = await api(boss.jar, "GET", `/api/hr/leave/balances?year=${YEAR}`);
   const row = (afterBoss.payload?.balances ?? []).find(
