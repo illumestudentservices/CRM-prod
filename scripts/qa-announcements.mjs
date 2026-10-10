@@ -368,6 +368,84 @@ async function main() {
     "stored verbatim rather than mangled (React escapes it on render)",
     `${stored?.content}`);
 
+  // ── Reach ─────────────────────────────────────────────────────────────────
+  startSection("A regional manager posts to their own region and nowhere else");
+
+  // REGIONAL_MANAGER holds announcements:write but NOT approve, so write lets
+  // them post and approve decides how far it goes.
+  const rmA = await createAndLogin({ role: "REGIONAL_MANAGER", withEmployee: true });
+  ctxs.push(rmA);
+  await db.user.update({ where: { id: rmA.user.id }, data: { regionId: regA.id } });
+
+  const rmFeed = await api(rmA.jar, "GET", "/api/hr/announcements");
+  expect(rmFeed.payload?.canWrite === true,
+    "a regional manager may now post", `canWrite=${rmFeed.payload?.canWrite}`);
+  expect(rmFeed.payload?.canApprove === false,
+    "*** but is not allowed to address everyone ***",
+    `canApprove=${rmFeed.payload?.canApprove}`);
+  expect(rmFeed.payload?.myRegionId === regA.id,
+    "and the form is told which region is theirs",
+    `myRegionId=${rmFeed.payload?.myRegionId}`);
+
+  const rmOwn = await api(rmA.jar, "POST", "/api/hr/announcements",
+    mk({ title: `${TAG} rm-own`, isGlobal: false, regionId: regA.id }));
+  const rmOwnId = track(rmOwn);
+  expect(rmOwn.status === 201,
+    `they can post to ${regA.name}, their own region`, `status ${rmOwn.status}`);
+  expect(rmOwn.payload?.announcement?.isGlobal === false
+    && rmOwn.payload?.announcement?.regionId === regA.id,
+    "and it is stored scoped to that region",
+    `global=${rmOwn.payload?.announcement?.isGlobal} region=${rmOwn.payload?.announcement?.regionId}`);
+
+  const rmGlobal = await api(rmA.jar, "POST", "/api/hr/announcements",
+    mk({ title: `${TAG} rm-global`, isGlobal: true }));
+  track(rmGlobal);
+  expect(rmGlobal.status === 403,
+    "*** they CANNOT post to everyone at Illume ***", `status ${rmGlobal.status}`);
+
+  const rmOther = await api(rmA.jar, "POST", "/api/hr/announcements",
+    mk({ title: `${TAG} rm-other`, isGlobal: false, regionId: regB.id }));
+  track(rmOther);
+  expect(rmOther.status === 403,
+    `*** nor to ${regB.name}, somebody else's region ***`, `status ${rmOther.status}`);
+
+  startSection("Editing is not a way around the reach rule");
+  const escalate = await api(rmA.jar, "PATCH", `/api/hr/announcements/${rmOwnId}`,
+    { isGlobal: true });
+  expect(escalate.status === 403,
+    "*** they cannot post regionally then widen it to everyone ***",
+    `status ${escalate.status}`);
+  const moveIt = await api(rmA.jar, "PATCH", `/api/hr/announcements/${rmOwnId}`,
+    { isGlobal: false, regionId: regB.id });
+  expect(moveIt.status === 403,
+    "nor move it into another region", `status ${moveIt.status}`);
+  const reword = await api(rmA.jar, "PATCH", `/api/hr/announcements/${rmOwnId}`,
+    { title: `${TAG} rm-own reworded` });
+  expect(reword.status === 200,
+    "but they can still fix their own wording", `status ${reword.status}`);
+
+  startSection("A regional manager with no region cannot post at all");
+  const rmNone = await createAndLogin({ role: "REGIONAL_MANAGER", withEmployee: true });
+  ctxs.push(rmNone);
+  await db.user.update({ where: { id: rmNone.user.id }, data: { regionId: null } });
+  const orphan = await api(rmNone.jar, "POST", "/api/hr/announcements",
+    mk({ title: `${TAG} rm-noregion`, isGlobal: false, regionId: regA.id }));
+  track(orphan);
+  expect(orphan.status === 403,
+    "*** refused, rather than silently reaching nobody ***", `status ${orphan.status}`);
+  expect(/no region/i.test(orphan.payload?.error ?? ""),
+    "and the message says why", `${orphan.payload?.error}`);
+
+  startSection("Company-wide roles keep their reach");
+  const execFeed = await api(exec.jar, "GET", "/api/hr/announcements");
+  expect(execFeed.payload?.canApprove === true,
+    "HQ_EXECUTIVE can still address everyone", `canApprove=${execFeed.payload?.canApprove}`);
+  const vpGlobal = await api(vp.jar, "POST", "/api/hr/announcements",
+    mk({ title: `${TAG} vp-global`, isGlobal: true }));
+  track(vpGlobal);
+  expect(vpGlobal.status === 201,
+    "and VP_GLOBAL_SALES can post company-wide", `status ${vpGlobal.status}`);
+
   startSection("Clients see nothing");
   const client = await createAndLogin({ role: "INSTITUTION_CLIENT" });
   ctxs.push(client);

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { logActivity } from "@/lib/activity-logger";
-import { visibleAnnouncementWhere } from "@/lib/announcement-visibility";
+import { visibleAnnouncementWhere, authorReach } from "@/lib/announcement-visibility";
 
 /**
  * Correcting and withdrawing an announcement.
@@ -126,8 +126,43 @@ export async function PATCH(
   // The two fields decide each other, so they are resolved together against
   // what the row already holds — patching isGlobal alone must not leave a
   // company-wide announcement still pinned to a region.
-  const isGlobal = data.isGlobal ?? existing.isGlobal;
-  const regionId = isGlobal ? null : (data.regionId ?? existing.regionId);
+  let isGlobal = data.isGlobal ?? existing.isGlobal;
+  let regionId = isGlobal ? null : (data.regionId ?? existing.regionId);
+
+  /**
+   * The same reach rule as POST. Without it, editing is a way around it: a
+   * regional manager posts to their own region, then patches isGlobal to true
+   * and reaches the whole company anyway.
+   */
+  const me = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, regionId: true },
+  });
+  if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const reach = authorReach(
+    await effectiveHasPermission(role, RESOURCE, "approve"),
+    me,
+  );
+  if (reach.kind === "nowhere") {
+    return NextResponse.json({ error: reach.why }, { status: 403 });
+  }
+  if (reach.kind === "ownRegion") {
+    if (isGlobal) {
+      return NextResponse.json(
+        { error: "You can only post to your own region, not to everyone at Illume." },
+        { status: 403 },
+      );
+    }
+    if (regionId && regionId !== reach.regionId) {
+      return NextResponse.json(
+        { error: "You can only post to your own region." },
+        { status: 403 },
+      );
+    }
+    isGlobal = false;
+    regionId = reach.regionId;
+  }
 
   if (!isGlobal && !regionId) {
     return NextResponse.json(

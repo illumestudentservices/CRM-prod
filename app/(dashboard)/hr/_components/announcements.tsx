@@ -67,6 +67,9 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
   const [regions, setRegions] = useState<Region[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
+  // Reach: may this person address everyone, or only their own region?
+  const [canApprove, setCanApprove] = useState(false);
+  const [myRegionId, setMyRegionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -82,6 +85,8 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
       setItems(data.announcements ?? []);
       setCanWrite(!!data.canWrite);
       setCanDelete(!!data.canDelete);
+      setCanApprove(!!data.canApprove);
+      setMyRegionId(data.myRegionId ?? null);
     } finally {
       setLoading(false);
     }
@@ -107,7 +112,11 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
 
   function openNew() {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm(
+      canApprove
+        ? EMPTY_FORM
+        : { ...EMPTY_FORM, isGlobal: false, regionId: myRegionId ?? "" },
+    );
     setFormError(null);
     setShowForm(true);
   }
@@ -209,10 +218,12 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
     setItems((prev) => prev.filter((x) => x.id !== a.id));
   }
 
+  const myRegion = regions.find((r) => r.id === myRegionId) ?? null;
+
   const formValid =
     form.title.trim().length > 0 &&
     form.content.trim().length > 0 &&
-    (form.isGlobal || !!form.regionId);
+    (canApprove ? (form.isGlobal || !!form.regionId) : !!myRegionId);
 
   return (
     <div className="space-y-4">
@@ -328,6 +339,19 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
 
             <div className="space-y-2">
               <Label>Who sees it</Label>
+              {/* Somebody without `approve` can only reach their own region, so
+                  they are shown what will happen rather than a menu whose other
+                  options the server would refuse. */}
+              {!canApprove ? (
+                <div className="rounded-md border px-3 py-2 text-sm">
+                  {myRegion
+                    ? <>Staff in <b>{myRegion.name}</b>, and nobody else.</>
+                    : <span className="text-red-600">
+                        Your profile has no region set, so you cannot post yet.
+                        Ask an administrator to set it.
+                      </span>}
+                </div>
+              ) : (
               <Select
                 value={form.isGlobal ? "all" : (form.regionId || "pick")}
                 onValueChange={(v) =>
@@ -346,9 +370,12 @@ export function Announcements({ userId }: { isHR?: boolean; userId: string }) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                A region-only announcement is shown to staff in that region, and nobody else.
-              </p>
+              )}
+              {canApprove && (
+                <p className="text-xs text-muted-foreground">
+                  A region-only announcement is shown to staff in that region, and nobody else.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">

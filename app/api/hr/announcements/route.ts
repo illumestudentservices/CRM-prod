@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity-logger";
 import {
   visibleAnnouncementWhere,
   announcementAudience,
+  authorReach,
 } from "@/lib/announcement-visibility";
 
 /**
@@ -85,6 +86,12 @@ export async function GET(req: NextRequest) {
   const canDelete = await effectiveHasPermission(
     session.user.role as Role, RESOURCE, "delete",
   );
+  // "approve" is reach: may this person address the whole company, or only
+  // their own region? The form asks so it can offer the right audience
+  // rather than offering a choice the POST will refuse.
+  const canApprove = await effectiveHasPermission(
+    session.user.role as Role, RESOURCE, "approve",
+  );
 
   /**
    * ★ isRead IS SENT, AND readReceipts IS KEPT.
@@ -106,7 +113,10 @@ export async function GET(req: NextRequest) {
     regionName: a.region?.name ?? null,
   }));
 
-  return NextResponse.json({ announcements, canWrite, canDelete });
+  return NextResponse.json({
+    announcements, canWrite, canDelete, canApprove,
+    myRegionId: me.regionId ?? null,
+  });
 }
 
 // ─── POST /api/hr/announcements ───────────────────────────────────────────────
@@ -137,7 +147,47 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
-  const regionId = data.isGlobal ? null : (data.regionId ?? null);
+
+  const me = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, regionId: true },
+  });
+  if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  /**
+   * ★ WRITE SAYS YOU MAY POST. APPROVE SAYS HOW FAR IT GOES.
+   *
+   * A regional manager holds write and not approve, so they may address their
+   * own region and nothing else. Refused rather than quietly rewritten: an
+   * author who believes they have just told the whole company, and has not,
+   * is worse off than one who gets an error.
+   */
+  const reach = authorReach(
+    await effectiveHasPermission(session.user.role as Role, RESOURCE, "approve"),
+    me,
+  );
+  if (reach.kind === "nowhere") {
+    return NextResponse.json({ error: reach.why }, { status: 403 });
+  }
+  if (reach.kind === "ownRegion") {
+    if (data.isGlobal) {
+      return NextResponse.json(
+        { error: "You can only post to your own region, not to everyone at Illume." },
+        { status: 403 },
+      );
+    }
+    if (data.regionId && data.regionId !== reach.regionId) {
+      return NextResponse.json(
+        { error: "You can only post to your own region." },
+        { status: 403 },
+      );
+    }
+  }
+
+  const isGlobal = reach.kind === "ownRegion" ? false : data.isGlobal;
+  const regionId = isGlobal
+    ? null
+    : (reach.kind === "ownRegion" ? reach.regionId : (data.regionId ?? null));
 
   // regionId now has a foreign key, so a bad one would fail at the database
   // with a 500. Checked here instead, to answer 422 with something a person
@@ -167,7 +217,7 @@ export async function POST(req: NextRequest) {
       title: data.title,
       content: data.content,
       authorId: session.user.id,
-      isGlobal: data.isGlobal,
+      isGlobal,
       regionId,
       expiresAt: data.expiresAt ?? null,
     },
@@ -175,8 +225,9 @@ export async function POST(req: NextRequest) {
 
   void logActivity(session.user.id, "CREATE", "Announcement", announcement.id, {
     route: "hr/announcements",
-    isGlobal: data.isGlobal,
+    isGlobal,
     regionId,
+    reach: reach.kind,
   });
 
   /**

@@ -85,3 +85,43 @@ export async function announcementAudience(a: {
   });
   return rows.map((r) => r.id).filter((id) => id !== a.authorId);
 }
+
+/**
+ * How far an author is allowed to reach.
+ *
+ * ★ WRITING ONE AND CHOOSING WHO GETS IT ARE TWO DIFFERENT PERMISSIONS.
+ *
+ * Nothing expressed this until regional managers were given announcements:
+ * write. Write alone would have let any of them post to all 101 people, or to
+ * somebody else's region — not what "let regional managers post" means.
+ *
+ * So reach is `announcements:approve`:
+ *
+ *   with approve     company-wide, or any region they choose
+ *   without approve  their own region, and nowhere else
+ *
+ * It lives in PERMISSION_MATRIX rather than in a role list inside the route,
+ * because a second hard-coded list in the route is exactly what made this
+ * feature disagree with itself in the first place — and this way it can be
+ * moved in Settings → Security without a deploy.
+ */
+export type Reach =
+  | { kind: "anywhere" }
+  | { kind: "ownRegion"; regionId: string }
+  | { kind: "nowhere"; why: string };
+
+export function authorReach(
+  canApprove: boolean,
+  user: { regionId?: string | null },
+): Reach {
+  if (canApprove) return { kind: "anywhere" };
+  if (!user.regionId) {
+    return {
+      kind: "nowhere",
+      why:
+        "You can only post to your own region, and your profile has no region set. " +
+        "Ask an administrator to set it.",
+    };
+  }
+  return { kind: "ownRegion", regionId: user.regionId };
+}
