@@ -8,6 +8,7 @@ import type { Role } from "@/lib/permissions";
 import type { Prisma } from "@prisma/client";
 import { sendWelcomeEmail, sendSecurityAlertEmail, getSuperAdminEmails } from "@/lib/email";
 import { createMagicLink } from "@/lib/magic-link";
+import { postNewHireAnnouncement } from "@/lib/new-hire-announcement";
 import { generateTempPassword } from "@/lib/password";
 import { displayName, userNameFields } from "@/lib/person-name";
 import { emailIsTaken, normaliseEmail } from "@/lib/email-identity";
@@ -266,6 +267,24 @@ export async function POST(req: NextRequest) {
       createdUserId: employee.user.id,
       email: data.email,
     });
+
+    /**
+     * Announce the joiner to everyone else — in-app and by email.
+     *
+     * Fire-and-forget on purpose: the person is already hired and the record
+     * is written. A mail provider having a bad minute must not turn a
+     * successful hire into a 500 and leave the form looking like it failed.
+     */
+    postNewHireAnnouncement({ employeeId: employee.id, actorUserId: session.user.id })
+      .then((r) => {
+        if (r) {
+          console.log(
+            `[new-hire] announced ${employee.employeeId}: ` +
+              `${r.notified} notified, ${r.emailed} emailed, ${r.emailFailed} failed`,
+          );
+        }
+      })
+      .catch((err) => console.error("[POST /api/hr/employees] new-hire announcement failed:", err));
 
     // Fire-and-forget: generate magic link + send welcome email
     createMagicLink(employee.user.id, 72)
