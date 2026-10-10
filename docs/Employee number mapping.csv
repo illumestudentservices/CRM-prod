@@ -1,0 +1,108 @@
+Old number,New number,Name,Email,Joined,State
+ILL-0009,ILL-0002,"IT Admin",it@illumestudentservices.ca,2021-03-01,live
+ILL-0021,ILL-0003,"Annie Li",annie@illumestudentservices.ca,2022-03-15,live
+ILL-0103,ILL-0004,"Gurpreet Kaur",preety@illumestudentservices.ca,2022-07-01,live
+ILL-0012,ILL-0005,"Sai Henniger",sai@illumestudentservices.ca,2022-07-13,live
+ILL-0013,ILL-0006,"Duarte Dias",duarte@illumestudentservices.ca,2022-07-13,live
+ILL-0014,ILL-0007,"Shivang Malik",shivang@illumestudentservices.ca,2022-07-13,live
+ILL-0053,ILL-0008,"Caroline Abigael Okoth",carolyne@illumestudentservices.ca,2022-07-13,live
+ILL-0092,ILL-0009,"Aminat Lisau",aminat@illumestudentservices.ca,2022-07-13,live
+ILL-0093,ILL-0010,"Adetoke Oluwande",adetoke@illumestudentservices.ca,2022-07-13,live
+ILL-0098,ILL-0011,"Neeraj Malik",neeraj@illumestudentservices.ca,2022-07-13,live
+ILL-0107,ILL-0012,"Achim Ngonamei",achim@illumestudentservices.ca,2022-07-13,live
+ILL-0086,ILL-0013,"Kwame Odame",kwame@illumestudentservices.ca,2022-07-14,live
+ILL-0100,ILL-0014,"Marinaa Dos Anjos",marinaa@illumestudentservices.ca,2022-08-05,live
+ILL-0096,ILL-0015,"Sahil Chawla",sahil@illumestudentservices.ca,2022-08-10,live
+ILL-0018,ILL-0016,"Nancy Doan",nancy@illumestudentservices.ca,2022-08-24,live
+ILL-0087,ILL-0017,"John Lee",john@illumestudentservices.ca,2022-10-28,live
+ILL-0023,ILL-0018,"Nesrin Khweldi Elarnouti",nesrin@illumestudentservices.ca,2023-01-26,live
+ILL-0020,ILL-0019,"Suchita Tirkey",suchita@illumestudentservices.ca,2023-03-23,live
+ILL-0077,ILL-0020,"Ayotola Oluwande",oluwande@illumestudentservices.ca,2023-03-23,live
+ILL-0082,ILL-0021,"Oyindamola Olajumoke",damola@illumestudentservices.ca,2023-03-24,live
+ILL-0088,ILL-0022,"Jennifer Udochu",jennifer@illumestudentservices.ca,2023-03-24,live
+ILL-0016,ILL-0023,"Andrew Dawkins",andrew@illumestudentservices.ca,2023-03-31,live
+ILL-0104,ILL-0024,"Estefania Hernandez Velazquez",estefania.hernandezv@uwindsor.ca,2023-05-01,live
+ILL-0015,ILL-0025,"Andrew Lan",alan@illumestudentservices.ca,2023-05-29,live
+ILL-0106,ILL-0026,"Ashish Sharma",ashish@illumestudentservices.ca,2023-06-02,live
+ILL-0024,ILL-0027,"Ashley-Jane Chow",ashley-jane@illumestudentservices.ca,2023-06-03,live
+ILL-0065,ILL-0028,"Jignasha Dhora",jignashamohawkcollege@gmail.com,2023-07-13,live
+ILL-0105,ILL-0029,"Chloe Tran",anh@illumestudentservices.ca,2023-07-13,live
+ILL-0102,ILL-0030,"Ivy Nguyen",ivy@illumestudentservices.ca,2023-07-24,live
+ILL-0099,ILL-0031,"Mohamad Al Habal",mohamad@illumestudentservices.ca,2023-07-26,live
+ILL-0094,ILL-0032,"Adedayo Okusanya",adedayo@illumestudentservices.ca,2023-08-15,live
+ILL-0101,ILL-0033,"Luis Emilio Robles",emilio@illumestudentservices.ca,2023-08-30,live
+ILL-0074,ILL-0034,"Ijeoma Amadi",ijeoma@illumestudentservices.ca,2023-09-14,live
+ILL-0095,ILL-0035,"Uyen Tran",uyen.tran@uwindsor.ca,2023-09-14,live
+ILL-0097,ILL-0036,"Nema Reshamvala",nema.reshamvala@uwindsor.ca,2023-09-14,live
+ILL-0090,ILL-0037,"Awele Ojuolape",awele@illumestudentservices.ca,2023-09-27,live
+ILL-0083,ILL-0038,"Olabisi Adebiyi",olabisi@illumestudentservices.ca,2023-10-11,live
+ILL-0084,ILL-0039,"Margaret Bai",yunfang.bai@uwindsor.ca,2023-10-25,live
+ILL-0085,ILL-0040,"Linda Mokua",lindakm@uwindsor.ca,2023-10-25,live
+ILL-0075,ILL-0041,"Pranav Pande",pranav@illumestudentservices.ca,2023-11-01,live
+ILL-0078,ILL-0042,"David Márquez Castro",david@illumestudentservices.ca,2023-11-06,live
+ILL-0046,ILL-0043,"Mirela Costa de Freitas",mirela@illumestudentservices.ca,2023-12-04,live
+ILL-0076,ILL-0044,"Kelly Hua",kelly@illumestudentservices.ca,2024-01-01,live
+ILL-0079,ILL-0045,"Abitha Latheef",abitha@illumestudentservices.ca,2024-02-10,live
+ILL-0072,ILL-0046,"Trupti Savaliya",trupti@illumestudentservices.ca,2024-05-01,live
+ILL-0073,ILL-0047,"Precious Okeke",precious@illumestudentservices.ca,2024-05-05,live
+ILL-0019,ILL-0048,"Yetunde Pereira",yetunde@illumestudentservices.ca,2024-06-27,live
+ILL-0071,ILL-0049,"Ana Patricia Barleta",ana@illumestudentservices.ca,2024-08-01,live
+ILL-0038,ILL-0050,"Sefunmi Obayan",sefunmi@illumestudentservices.ca,2024-08-08,live
+ILL-0112,ILL-0051,"Mauricio Korber Molina",mauricio@illumestudentservices.ca,2024-08-19,live
+ILL-0066,ILL-0052,"Christina Ren",christina.ren@illumestudentservices.ca,2024-08-30,live
+ILL-0061,ILL-0053,"Tran Vo",tran@illumestudentservices.ca,2024-09-09,live
+ILL-0064,ILL-0054,"Unnikrishnan H",unnikrishnan@illumestudentservices.ca,2024-09-24,live
+ILL-0068,ILL-0055,"Lexie Ngoc Ta",lexie@illumestudentservices.ca,2024-10-14,live
+ILL-0067,ILL-0056,"Trang Hang",trang@illumestudentservices.ca,2024-10-23,live
+ILL-0109,ILL-0057,"Bianca Yuan",bianca@illumestudentservices.ca,2024-10-30,live
+ILL-0062,ILL-0058,"Ese Okoro",ese@illumestudentservices.ca,2024-10-31,live
+ILL-0059,ILL-0059,"Ruchi Vats",ruchi@illumestudentservices.ca,2024-11-01,live
+ILL-0060,ILL-0060,"Saba Anjum",saba@illumestudentservices.ca,2024-11-01,live
+ILL-0058,ILL-0061,"Chidinma Ojo",chidinma@illumestudentservices.ca,2025-01-02,live
+ILL-0056,ILL-0062,"Apratim Mukhopadhyay",apratim@illumestudentservices.ca,2025-01-15,live
+ILL-0116,ILL-0063,"Rosalin Mesah",rosalin@illumestudentservices.ca,2025-01-17,live
+ILL-0057,ILL-0064,"Catherine Haryani",catherineh@illumestudentservices.ca,2025-01-20,live
+ILL-0055,ILL-0065,"Leila Yang",leila@illumestudentservices.ca,2025-02-05,live
+ILL-0040,ILL-0066,"Lily Ha",lily@illumestudentservices.ca,2025-04-29,live
+ILL-0026,ILL-0067,"Mohab Abdelrazek",mhesham@uwindsor.ca,2025-05-01,live
+ILL-0118,ILL-0068,"Zeain Rattansi",zeain@illumestudentservices.ca,2025-06-11,live
+ILL-0042,ILL-0069,"Remil Angelo C. Garcia",remil@illumestudentservices.ca,2025-08-08,live
+ILL-0052,ILL-0070,"Bhakthi Ranasinghe",bhakthi@illumestudentservices.ca,2025-08-11,live
+ILL-0051,ILL-0071,"Anh Viet Nguyen",anh.nguyen@illumestudentservices.ca,2025-08-18,live
+ILL-0050,ILL-0072,"Kevin Guevarra",kevin@illumestudentservices.ca,2025-09-01,live
+ILL-0036,ILL-0073,"Victor Gitonga",victor@illumestudentservices.ca,2025-09-05,live
+ILL-0049,ILL-0074,"Akindele Oyewuwuo",akindele@illumestudentservices.ca,2025-09-10,live
+ILL-0025,ILL-0075,"Xiaohong (Cathy) Luo",cathy@illumestudentservices.ca,2025-09-14,live
+ILL-0048,ILL-0076,"Phuong Nhu Dang",phuong@illumestudentservices.ca,2025-09-20,live
+ILL-0047,ILL-0077,"Elizabeth Iroko",elizabeth.iroko@illumestudentservices.ca,2025-10-01,live
+ILL-0045,ILL-0078,"Mohamed Osama Raouf",mohamed@illumestudentservices.ca,2025-10-22,live
+ILL-0044,ILL-0079,"Eunice Baba",eunice@illumestudentservices.ca,2025-10-23,live
+ILL-0039,ILL-0080,"Jess Lee",jess@illumestudentservices.ca,2025-10-27,live
+ILL-0043,ILL-0081,"Mehar Wadhwa",mehar@illumestudentservices.ca,2025-11-01,live
+ILL-0030,ILL-0082,"Charles Ukpejebo",charles@illumestudentservices.ca,2025-11-10,live
+ILL-0037,ILL-0083,"Igar Murilo Volpi Garcia",igar@illumestudentservices.ca,2025-11-10,live
+ILL-0041,ILL-0084,"Mustafizur Rahman Meraj",mustafizur@illumestudentservices.ca,2025-11-17,live
+ILL-0111,ILL-0085,"Jinyu Ren",jinyu.ren@illumestudentservices.ca,2025-12-01,live
+ILL-0035,ILL-0086,"Achut Sadana",achut@illumestudentservices.ca,2026-01-27,live
+ILL-0034,ILL-0087,"Germaine Khaled Yehia Omara",germaine@illumestudentservices.ca,2026-02-06,live
+ILL-0033,ILL-0088,"ZITA IDA AKUMU ODHIAMBO",zita@illumestudentservices.ca,2026-02-16,live
+ILL-0032,ILL-0089,"Sally Atulegwu",sally@illumestudentservices.ca,2026-03-01,live
+ILL-0027,ILL-0090,"Ntami Abraham",ntami@illumestudentservices.ca,2026-03-09,live
+ILL-0031,ILL-0091,"Akindele Afolalu",akindele.afolalu@illumestudentservices.ca,2026-03-09,live
+ILL-0029,ILL-0092,"Tashu Nanwal",tashu@illumestudentservices.ca,2026-04-01,live
+ILL-0011,ILL-0093,"RM user",deepdarshansingrodia22@gmail.com,2026-05-01,live
+ILL-0110,ILL-0094,"Brett Zhu",brett@illumestudentservices.ca,2026-05-07,live
+ILL-0028,ILL-0095,"Hania Moemen",hania@illumestudentservices.ca,2026-05-11,live
+ILL-0108,ILL-0096,"Ayona Peter",ayona@illumestudentservices.ca,2026-07-10,live
+ILL-0113,ILL-0097,"Mohammad Ali Tahir",mohammad@illumestudentservices.ca,2026-08-01,live
+ILL-0117,ILL-0098,"Taulik Bhadra",taulik@illumestudentservices.ca,2026-08-12,live
+ILL-0114,ILL-0099,"Neena Rana",neena@illumestudentservices.ca,2026-09-11,live
+ILL-0115,ILL-0100,"Richard Li",richard@illumestudentservices.ca,2026-09-15,live
+ILL-0054,ILL-9001,"Olumayowa Okewumi",olumayowa@illumestudentservices.ca,2025-02-03,departed
+ILL-0063,ILL-9002,"Adedoyin Adetoye",adedoyin@illumestudentservices.ca,2024-10-18,departed
+ILL-0069,ILL-9003,"Reedam Sharma",reedam@illumestudentservices.ca,2024-09-01,departed
+ILL-0070,ILL-9004,"MS Ha Dang",ha@illumestudentservices.ca,2024-08-26,departed
+ILL-0080,ILL-9005,"Vivian Wang",vivian@illumestudentservices.ca,2023-07-25,departed
+ILL-0081,ILL-9006,"Shu Wang",shu@illumestudentservices.ca,2022-12-01,departed
+ILL-0089,ILL-9007,"Catherine Kerigo",catherine@illumestudentservices.ca,2023-08-30,departed
+ILL-0091,ILL-9008,"Ann Mwai",ann@illumestudentservices.ca,2023-08-01,departed

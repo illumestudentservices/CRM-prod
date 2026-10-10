@@ -176,13 +176,22 @@ export async function POST(req: NextRequest) {
 
     const employee = await db.$transaction(async (tx) => {
       // Determine next employee number inside the transaction to prevent race conditions
-      const lastEmp = await tx.employee.findFirst({
-        orderBy: { createdAt: "desc" },
-        select: { employeeId: true },
-      });
-      const lastNum = lastEmp
-        ? parseInt(lastEmp.employeeId.replace(/^[A-Z]+-/, ""), 10) || 0
-        : 0;
+      // The HIGHEST number in use, not the newest row.
+      //
+      // Reading the most recently created record only works while ids rise
+      // with creation time. One back-dated or re-created employee and the next
+      // id collides with a number already taken, which the unique index then
+      // rejects at the worst moment — midway through hiring somebody.
+      //
+      // ILL-9000 and above is the retired block: departed staff were moved
+      // there on 2026-10-10 so living employees could take their old numbers.
+      // Counting it would hand the next hire ILL-9009.
+      const RETIRED_FROM = 9000;
+      const existing = await tx.employee.findMany({ select: { employeeId: true } });
+      const lastNum = existing.reduce((max, e) => {
+        const n = parseInt(String(e.employeeId).replace(/^[A-Z]+-/, ""), 10);
+        return Number.isFinite(n) && n < RETIRED_FROM && n > max ? n : max;
+      }, 0);
       const employeeId = `ILL-${String(lastNum + 1).padStart(4, "0")}`;
 
       const user = await tx.user.create({

@@ -150,10 +150,15 @@ for (const p of people) {
       // row, which is correct only while ids rise with creation time; one
       // back-dated or re-created record and the next id collides with a
       // number already in use.
+      // Ignore the retired block. Departed staff were parked at ILL-9001+ on
+      // 2026-10-10 so living people could take their old numbers, and a plain
+      // max() then hands the next new hire ILL-9009 — a number from the
+      // graveyard, sitting ninety rows above everyone else.
+      const RETIRED_FROM = 9000;
       const rows = await tx.employee.findMany({ select: { employeeId: true } });
       const maxNum = rows.reduce((m, r) => {
         const n = parseInt(String(r.employeeId).replace(/^[A-Z]+-/, ""), 10);
-        return Number.isFinite(n) && n > m ? n : m;
+        return Number.isFinite(n) && n < RETIRED_FROM && n > m ? n : m;
       }, 0);
       const employeeId = `ILL-${String(maxNum + 1).padStart(4, "0")}`;
 
