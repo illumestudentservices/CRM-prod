@@ -61,7 +61,14 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/hr/employees");
+    // Every employee, not the first page.
+    //
+    // This asked for no limit, so it got the default 50 — and the table has no
+    // pager of its own, while its search box filters CLIENT-SIDE over whatever
+    // was loaded. With 101 staff that did not merely truncate the list: it
+    // made half the company unfindable, with a search that returned "no
+    // results" rather than anything suggesting more rows existed.
+    const res = await fetch("/api/hr/employees?limit=1000");
     const data = await res.json();
     setEmployees(data.employees || []);
     setLoading(false);

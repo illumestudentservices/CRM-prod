@@ -86,7 +86,19 @@ export async function GET(req: NextRequest) {
     const isActiveParam = searchParams.get("isActive");
     const search = searchParams.get("search");
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "50"));
+    // ★ THE CEILING WAS 100 AND THE HEADCOUNT IS 101.
+    //
+    // Two callers already ask for ?limit=200 — the manager picker and the
+    // asset assignment list — and were being silently cut to 100, so the
+    // newest member of staff could not be chosen as anybody's manager and did
+    // not appear in asset assignment. Nothing errored; the list was just
+    // short, which is the kind of fault that survives for months.
+    //
+    // Still bounded, because an uncapped limit is a denial-of-service waiting
+    // to happen, but bounded well above any plausible headcount rather than
+    // just above today's.
+    const MAX_LIMIT = 1000;
+    const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get("limit") ?? "50") || 50));
 
     const where: Prisma.EmployeeWhereInput = {
       // Default to active employees unless caller requests otherwise
