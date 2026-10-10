@@ -216,6 +216,71 @@ async function main() {
     "and with no provider key nothing was actually accepted for delivery",
     `emailed=${loud?.emailed} — mail may have left the building`);
 
+  // ── The choice on the form ────────────────────────────────────────────────
+  startSection("Announcing is a choice on the hire form, not a side effect");
+
+  async function hire(suffix, extra) {
+    const email = `${TAG.toLowerCase()}-${suffix}@illume.local`;
+    const res = await api(hr.jar, "POST", "/api/hr/employees", {
+      firstName: suffix, lastName: TAG, email,
+      jobTitle: "Student Advisor",
+      startDate: new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10),
+      employmentType: "FULL_TIME", role: "EMPLOYEE", managerId: hr.employee.id,
+      ...extra,
+    });
+    const u = await db.user.findFirst({
+      where: { email }, select: { id: true, employee: { select: { id: true } } },
+    });
+    if (u?.employee) madeEmployees.push(u.employee.id);
+    return { res, title: `Welcome to Illume, ${suffix} ${TAG}` };
+  }
+
+  // announce: false — nothing at all.
+  const quietHire = await hire("Quiet", { announce: false });
+  expect(quietHire.res.status === 201 || quietHire.res.status === 200,
+    "a hire with the box unticked still succeeds", `status ${quietHire.res.status}`);
+  await new Promise((r) => setTimeout(r, 3000));
+  const quietAnn = await db.announcement.findFirst({ where: { title: quietHire.title } });
+  if (quietAnn) announcements.push(quietAnn.id);
+  expect(!quietAnn,
+    "*** and posts NO announcement ***",
+    quietAnn ? "an announcement was posted anyway" : "nothing posted");
+
+  // announce: true, announceByEmail: false — dashboard only.
+  const dashOnly = await hire("Dashonly", { announce: true, announceByEmail: false });
+  expect(dashOnly.res.status === 201 || dashOnly.res.status === 200,
+    "a hire announced without email succeeds", `status ${dashOnly.res.status}`);
+  let dashAnn = null;
+  for (let i = 0; i < 40 && !dashAnn; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    dashAnn = await db.announcement.findFirst({ where: { title: dashOnly.title } });
+  }
+  if (dashAnn) announcements.push(dashAnn.id);
+  expect(!!dashAnn,
+    "*** the announcement is posted ***", dashAnn ? "posted" : "missing");
+  let dashNotifs = [];
+  for (let i = 0; i < 40; i++) {
+    dashNotifs = await db.notification.findMany({ where: { title: dashOnly.title } });
+    if (dashNotifs.length) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  expect(dashNotifs.length > 0,
+    "and everyone still gets the in-app notification", `${dashNotifs.length}`);
+
+  // Default (nothing passed) must behave as before.
+  const defaulted = await hire("Defaulted", {});
+  expect(defaulted.res.status === 201 || defaulted.res.status === 200,
+    "a caller that says nothing about announcing still succeeds", `status ${defaulted.res.status}`);
+  let defAnn = null;
+  for (let i = 0; i < 40 && !defAnn; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    defAnn = await db.announcement.findFirst({ where: { title: defaulted.title } });
+  }
+  if (defAnn) announcements.push(defAnn.id);
+  expect(!!defAnn,
+    "*** and is announced, so the default did not change ***",
+    defAnn ? "announced" : "not announced");
+
   startSection("A missing employee is survivable");
   const nothing = await postNewHireAnnouncement({
     employeeId: "00000000-0000-0000-0000-000000000000",

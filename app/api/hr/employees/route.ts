@@ -55,6 +55,16 @@ const createEmployeeSchema = z
     // Drives maternity/paternity eligibility. Optional so an incomplete
     // onboarding is still possible; a null blocks the parental types.
     gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
+    /**
+     * Whether to tell everyone. Defaults to true so the behaviour is the same
+     * for a caller that does not say — but it is a choice on the form, because
+     * not every hire is one the whole company should hear about on the day:
+     * a contractor, a rehire, somebody starting next quarter, or simply a
+     * record being corrected.
+     */
+    announce: z.boolean().default(true),
+    /** The announcement reaches everyone in-app regardless; this is the inbox. */
+    announceByEmail: z.boolean().default(true),
   })
   .superRefine((data, ctx) => {
     if (data.role !== "SUPER_ADMIN" && !data.managerId) {
@@ -275,7 +285,12 @@ export async function POST(req: NextRequest) {
      * is written. A mail provider having a bad minute must not turn a
      * successful hire into a 500 and leave the form looking like it failed.
      */
-    postNewHireAnnouncement({ employeeId: employee.id, actorUserId: session.user.id })
+    if (data.announce) {
+    postNewHireAnnouncement({
+      employeeId: employee.id,
+      actorUserId: session.user.id,
+      skipEmail: !data.announceByEmail,
+    })
       .then((r) => {
         if (r) {
           console.log(
@@ -285,6 +300,9 @@ export async function POST(req: NextRequest) {
         }
       })
       .catch((err) => console.error("[POST /api/hr/employees] new-hire announcement failed:", err));
+    } else {
+      console.log(`[new-hire] ${employee.employeeId} created without an announcement, as asked`);
+    }
 
     // Fire-and-forget: generate magic link + send welcome email
     createMagicLink(employee.user.id, 72)

@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const schema = z.object({
   // User info
@@ -37,6 +38,9 @@ const schema = z.object({
   phone: z.string().optional(),
   emergencyContact: z.string().optional(),
   emergencyPhone: z.string().optional(),
+  // Whether the rest of the company hears about this one.
+  announce: z.boolean(),
+  announceByEmail: z.boolean(),
 }).superRefine((data, ctx) => {
   if (data.role !== "SUPER_ADMIN" && !data.managerId) {
     ctx.addIssue({
@@ -74,8 +78,16 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
   const [managers, setManagers] = useState<Manager[]>([]);
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema) as never,
-    defaultValues: { role: "EMPLOYEE", employmentType: "FULL_TIME" },
+    // Announcing defaults ON: it is the normal case, and the two ticks are
+    // right there to turn it off for a hire that does not warrant it.
+    defaultValues: {
+      role: "EMPLOYEE", employmentType: "FULL_TIME",
+      announce: true, announceByEmail: true,
+    },
   });
+
+  const announce = watch("announce");
+  const announceByEmail = watch("announceByEmail");
 
   const selectedRole = watch("role");
 
@@ -254,6 +266,50 @@ export function EmployeeForm({ open, onClose, onSuccess }: Props) {
                   <Label>Emergency Phone</Label>
                   <Input {...register("emergencyPhone")} placeholder="+60 12 345 6789" />
                 </div>
+              </div>
+
+              {/* Announcing a joiner reaches everyone at Illume, so it is a
+                  decision made here rather than a side effect of saving. */}
+              <div className="rounded-lg border p-3 space-y-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={announce}
+                    onCheckedChange={(v) => {
+                      const on = v === true;
+                      setValue("announce", on);
+                      // Turning the announcement off turns the email off with
+                      // it; there is nothing to email.
+                      if (!on) setValue("announceByEmail", false);
+                      else setValue("announceByEmail", true);
+                    }}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    Announce this new joiner to the team
+                    <span className="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                      Name, job title, team and start date. No contact details.
+                      Shows on everyone&apos;s dashboard for 30 days.
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  className={`flex items-start gap-2 pl-6 ${announce ? "cursor-pointer" : "opacity-50"}`}
+                >
+                  <Checkbox
+                    checked={announceByEmail}
+                    disabled={!announce}
+                    onCheckedChange={(v) => setValue("announceByEmail", v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm">
+                    Email it as well
+                    <span className="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                      Sends to everyone at Illume. Leave off to keep it to the
+                      dashboard.
+                    </span>
+                  </span>
+                </label>
               </div>
               <DialogFooter className="gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setStep(1)}>← Back</Button>
