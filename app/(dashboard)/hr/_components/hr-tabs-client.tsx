@@ -25,6 +25,9 @@ interface HRTabsClientProps {
   myLeaveBalances: { leaveType: string; totalDays: number; availableDays: number }[];
   isHR: boolean;
   isSuperAdmin: boolean;
+  /** True when the viewer has at least one direct report. Opens the Leave
+   *  Balances tab to line managers, who see only their own team there. */
+  hasDirectReports: boolean;
   /** Regional and HR managers raise requests; Super Admins review them. */
   canSeeAccountRequests: boolean;
   /**
@@ -45,6 +48,7 @@ export function HRTabsClient({
   myLeaveBalances,
   isHR,
   isSuperAdmin,
+  hasDirectReports,
   canSeeAccountRequests,
   canSeeOffboarding,
   userId,
@@ -127,7 +131,9 @@ export function HRTabsClient({
             <TabsTrigger value="offboarding">Offboarding</TabsTrigger>
           )}
           <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
-          {isHR && <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>}
+          {(isHR || hasDirectReports) && (
+            <TabsTrigger value="leave-balances">Leave Balances</TabsTrigger>
+          )}
         </TabsList>
         {isHR && (
           <TabsContent value="employees" className="mt-4">

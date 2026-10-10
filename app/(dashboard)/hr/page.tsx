@@ -48,6 +48,17 @@ export default async function HRPage({
     },
   });
 
+  // Opens the Leave Balances tab to line managers. Counted rather than
+  // inferred from the role: "manager" here means somebody with reports, which
+  // is the same boundary leave approval and task assignment already use, and
+  // it does not track the role column — several Regional Managers have no
+  // reports and some HQ Executives have a dozen.
+  const hasDirectReports = me
+    ? (await db.employee.count({
+        where: { managerId: me.id, user: { deletedAt: null } },
+      })) > 0
+    : false;
+
   // For employee self-service: redirect to their profile.
   //
   // The ?tab= is carried over. It used to be dropped, so the dashboard's own
@@ -153,6 +164,7 @@ export default async function HRPage({
         myEmployeeId={me?.id ?? null}
         myLeaveBalances={myLeaveBalances}
         isHR={isHR}
+        hasDirectReports={hasDirectReports}
         isSuperAdmin={role === "SUPER_ADMIN"}
         canSeeAccountRequests={canSeeAccountRequests}
         canSeeOffboarding={canSeeOffboarding}

@@ -30,19 +30,28 @@ export async function GET(req: NextRequest) {
     new URL(req.url).searchParams.get("year") ?? String(new Date().getUTCFullYear())
   );
 
-  // Non-HR users may only see their own figures.
-  const ownEmployee = isHR
+  // ── Who you may see ────────────────────────────────────────────────────
+  //
+  // HR and Super Admins see everybody. Everyone else used to see only their
+  // own row, which left a line manager unable to answer the first question
+  // anybody asks them — "how much leave have I got left?" — about the very
+  // people whose requests they approve.
+  //
+  // A manager now sees their own figures plus those of their DIRECT reports,
+  // and no further: this is the same boundary as leave approval and task
+  // assignment, so one idea of "my team" governs all three.
+  const me = isHR
     ? null
     : await db.employee.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
       });
-  if (!isHR && !ownEmployee) return NextResponse.json({ balances: [] });
+  if (!isHR && !me) return NextResponse.json({ balances: [], canEdit: false });
 
   const employees = await db.employee.findMany({
     where: {
       ...ACTIVE_EMPLOYEE,
-      ...(ownEmployee ? { id: ownEmployee.id } : {}),
+      ...(me ? { OR: [{ id: me.id }, { managerId: me.id }] } : {}),
     },
     select: {
       id: true,
@@ -107,7 +116,13 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  return NextResponse.json({ balances, policies: LEAVE_POLICIES });
+  // Decided here, not in the browser. The screen hides the control when this
+  // is false, but the PATCH below is what actually enforces it.
+  return NextResponse.json({
+    balances,
+    policies: LEAVE_POLICIES,
+    canEdit: session.user.role === "SUPER_ADMIN",
+  });
 }
 
 // ─── PATCH /api/hr/leave/balances ─────────────────────────────────────────────
@@ -130,8 +145,18 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const isHR = HR_ROLES.includes(session.user.role as Role);
-  if (!isHR) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Super Admin only, narrower than the rest of this file on purpose.
+  //
+  // Everything else here answers to HR_ROLES, but changing a balance writes a
+  // number that overrides the accrual policy and is reachable no other way —
+  // there is no approval step behind it and no second pair of eyes. Set on
+  // 2026-10-10: adjustments go through a Super Admin.
+  if (session.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Only a Super Admin can adjust a leave balance." },
+      { status: 403 }
+    );
+  }
 
   let body: unknown;
   try { body = await req.json(); } catch {

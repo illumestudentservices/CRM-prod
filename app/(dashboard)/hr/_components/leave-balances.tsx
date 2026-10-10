@@ -51,6 +51,10 @@ export function LeaveBalances() {
   const currentYear = new Date().getFullYear();
 
   const [balances, setBalances] = React.useState<Balance[]>([]);
+  // Mirrors the server's answer rather than re-deriving it from a role in the
+  // browser, so the control cannot drift out of step with what the PATCH will
+  // actually accept.
+  const [canEdit, setCanEdit] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [year, setYear] = React.useState(String(currentYear));
   const [search, setSearch] = React.useState("");
@@ -66,6 +70,7 @@ export function LeaveBalances() {
     const res = await fetch(`/api/hr/leave/balances?year=${year}`);
     const data = await res.json();
     setBalances(data.balances ?? []);
+    setCanEdit(!!data.canEdit);
     setLoading(false);
   }
 
@@ -268,15 +273,21 @@ export function LeaveBalances() {
                         {remaining}d
                       </span>
                     </TableCell>
+                    {/* Adjusting a balance is a Super Admin action; a line
+                        manager reads this screen but does not write to it.
+                        The cell stays so the columns keep their widths. */}
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => openEdit(b)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => openEdit(b)}
+                          title="Adjust this balance"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
