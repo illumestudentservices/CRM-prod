@@ -1,5 +1,6 @@
 import { stageHex, stageLabel } from "@/lib/lead-pipeline";
 import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
+import { staffGuideAttachment, STAFF_GUIDE_FILENAME } from "@/lib/staff-guide";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? "";
 const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS ?? "noreply@illumestudentservices.cloud";
@@ -329,6 +330,22 @@ export async function sendWelcomeEmail(opts: {
         </tr>`).join("")}
       </table>
 
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F8FAFC" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;margin:0 0 22px;">
+        <tr>
+          <td style="padding:18px 20px;font-family:${FONT};">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${INK};">
+              Attached: your staff guide
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:${BODY_TEXT};">
+              This email has a PDF attached &mdash; <b>${STAFF_GUIDE_FILENAME}</b>.
+              It walks you through setting your password, the two-factor setup you
+              will be asked for the first time you sign in, booking leave, and how
+              your leave is worked out. Worth ten minutes before you start.
+            </p>
+          </td>
+        </tr>
+      </table>
+
       <p style="margin:0;font-family:${FONT};font-size:12px;color:${MUTED};">
         Having trouble? Contact IT for assistance.
       </p>
@@ -336,13 +353,35 @@ export async function sendWelcomeEmail(opts: {
     `Set your password and sign in — your Illume account is ready.`
   );
 
-  await safeSend({
-    to: opts.to,
-    // No emoji in the subject: it reads as marketing, and several corporate
-    // filters score it accordingly. This is an account-credentials email.
-    subject: `Welcome to Illume — set your password, ${firstName}`,
-    html,
-  });
+  // No emoji in the subject: it reads as marketing, and several corporate
+  // filters score it accordingly. This is an account-credentials email.
+  const subject = `Welcome to Illume — set your password, ${firstName}`;
+
+  /**
+   * ★ THE ATTACHMENT MUST NOT BE ABLE TO COST SOMEBODY THE EMAIL.
+   *
+   * This is the only message that carries the link to set a password, so a
+   * failure here does not mean "no guide" — it means a new joiner cannot get
+   * into the system and has nothing telling them why. Brevo rejects an
+   * oversized or malformed attachment by rejecting the whole message, so a
+   * refused send is retried once WITHOUT the guide, and the loss of the
+   * attachment is logged rather than passed on to the recipient.
+   */
+  const guide = staffGuideAttachment();
+
+  if (!guide) {
+    await safeSend({ to: opts.to, subject, html });
+    return;
+  }
+
+  const sent = await safeSend({ to: opts.to, subject, html, attachments: [guide] });
+  if (!sent) {
+    console.error(
+      `[email] welcome to ${opts.to} was refused with the guide attached — ` +
+        `retrying without it so the password link still arrives`,
+    );
+    await safeSend({ to: opts.to, subject, html });
+  }
 }
 
 // ─── 2. PASSWORD RESET ────────────────────────────────────────────────────────
