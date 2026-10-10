@@ -384,6 +384,158 @@ export async function sendWelcomeEmail(opts: {
   }
 }
 
+// ─── 1b. ONBOARDING FOLLOW-UP + Q&A SESSION ───────────────────────────────────
+
+/**
+ * The follow-up to the onboarding run: did it arrive, and come to the Q&A.
+ *
+ * ★ WHY THE TIME ZONES ARE A TABLE AND NOT A SENTENCE.
+ *
+ * Staff sit in seven regions spanning UTC+0 to UTC+8, and the session is set
+ * in IST. "5 PM IST" is not an instruction anybody outside India can act on,
+ * and a single converted time would be wrong for everyone it was not written
+ * for. Each row is computed once, by hand, for the actual date — not by the
+ * reader, at 4am, from a UTC offset.
+ *
+ * ★ THE LABELS SAY EDT AND PDT, NOT EST AND PST.
+ *
+ * Canada is on daylight time until 1 November, so Toronto is UTC-4 on the day.
+ * Writing "EST" would be an hour out and would put the Americas staff on the
+ * call at the wrong time — which is the one mistake a time-zone table exists
+ * to prevent. The offsets are spelled out so a reader can check them.
+ */
+export async function sendErpSessionEmail(opts: {
+  to: string;
+  name: string;
+  joinUrl?: string;
+  attachments?: Array<{ name: string; content: string }>;
+}) {
+  const firstName = opts.name.split(" ")[0];
+
+  const times: [string, string][] = [
+    ["India, Sri Lanka (IST)", "5:00 PM"],
+    ["Nepal", "5:15 PM"],
+    ["Bangladesh", "5:30 PM"],
+    ["Pakistan (PKT)", "4:30 PM"],
+    ["UAE and the Gulf (GST)", "3:30 PM"],
+    ["Cairo (EEST)", "2:30 PM"],
+    ["Nairobi / East Africa (EAT)", "2:30 PM"],
+    ["Lagos, Douala (WAT)", "12:30 PM"],
+    ["Accra (GMT)", "11:30 AM"],
+    ["Vietnam, Jakarta (ICT / WIB)", "6:30 PM"],
+    ["Philippines, China (PHT / CST)", "7:30 PM"],
+    ["Halifax (ADT)", "8:30 AM"],
+    ["São Paulo (BRT)", "8:30 AM"],
+    ["Toronto, Windsor (EDT)", "7:30 AM"],
+    ["Bogotá, Lima (COT / PET)", "6:30 AM"],
+    ["Winnipeg (CDT)", "6:30 AM"],
+    ["Mexico City (CST)", "5:30 AM"],
+    ["Calgary, Edmonton (MDT)", "5:30 AM"],
+    ["Vancouver (PDT)", "4:30 AM"],
+    ["UTC", "11:30"],
+  ];
+
+  const html = wrapEmail(
+    "Illume ERP — Q&A session on Tuesday",
+    `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:24px;font-weight:700;color:${INK};line-height:1.3;">
+        Did your sign-in email arrive, ${firstName}?
+      </h1>
+      <p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        We have sent everyone a welcome email with a link to set your own password
+        for the Illume ERP. We hope you have it. If you cannot find it:
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFBEB" style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;margin:0 0 26px;">
+        <tr>
+          <td style="padding:18px 20px;font-family:${FONT};font-size:14px;line-height:1.7;color:#78350F;">
+            <b>1.</b> Check your junk or spam folder first — that is where it
+            usually is.<br/>
+            <b>2.</b> Still nothing? <b>Reply to this email</b> and we will send it
+            again.<br/><br/>
+            Please do this soon. The link in the welcome email expires
+            <b>72 hours</b> after it was sent, so if yours has already run out just
+            reply and ask for a new one. There is no penalty for asking.
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 14px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:${MUTED};">
+        Q&A session
+      </p>
+      <p style="margin:0 0 18px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        We are running an open session for anyone who has questions about the
+        system — signing in, the two-factor setup, booking leave, finding your
+        way around. Come if you need it; there is no need to attend if you are
+        already set up.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F0F9FF" style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;margin:0 0 22px;">
+        <tr>
+          <td align="center" style="padding:24px;font-family:${FONT};">
+            <p style="margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0369A1;">
+              Tuesday 13 October 2026
+            </p>
+            <p style="margin:0 0 6px;font-size:26px;font-weight:700;color:#0C4A6E;line-height:1.2;">
+              5:00 PM IST
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#0369A1;">
+              Your local time is in the table below.
+            </p>
+            ${opts.joinUrl ? ctaButton("Join the session", opts.joinUrl) : ""}
+          </td>
+        </tr>
+      </table>
+      ${opts.joinUrl
+        ? ""
+        : `<p style="margin:0 0 22px;font-family:${FONT};font-size:14px;line-height:1.65;color:${BODY_TEXT};">
+             A calendar invite with the joining link will follow separately.
+           </p>`}
+
+      <p style="margin:0 0 12px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:${MUTED};">
+        The same moment, where you are
+      </p>
+      ${infoTable(times)}
+      <p style="margin:0 0 26px;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
+        All times are on Tuesday 13 October. If your country changes its clocks
+        this month, trust the calendar invite over this table.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F8FAFC" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;margin:0 0 22px;">
+        <tr>
+          <td style="padding:18px 20px;font-family:${FONT};">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${INK};">
+              Read the guide first &mdash; and the session is recorded
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.65;color:${BODY_TEXT};">
+              The PDF attached to this email answers most of what people ask,
+              including the first sign-in, the two-factor setup and how your leave
+              is worked out. Ten minutes with it may save you the meeting.
+              <br/><br/>
+              <b>We will record the session</b> and share it afterwards, so if the
+              time does not work for you — and for some of you it is very early
+              or very late — you are not missing anything. Watch it later, or
+              just reply with your question and we will answer it directly.
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0;font-family:${FONT};font-size:12px;color:${MUTED};">
+        Any problem signing in? Contact IT, or simply reply to this email.
+      </p>
+    `,
+    `Reply if your sign-in email never arrived. Q&A session Tuesday 5:00 PM IST, recorded.`
+  );
+
+  return safeSend({
+    to: opts.to,
+    subject: `Illume ERP — Q&A session Tuesday, and your sign-in link`,
+    html,
+    attachments: opts.attachments,
+  });
+}
+
 // ─── 2. PASSWORD RESET ────────────────────────────────────────────────────────
 //
 // sendPasswordResetEmail was removed 2026-08-18. It put the new password in the
