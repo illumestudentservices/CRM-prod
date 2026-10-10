@@ -45,6 +45,10 @@ MANUAL = {
     "aminat liasu": "Aminat Lisau",               # 'sa' transposed
     "kevin guevarara": "Kevin Guevarra",          # an extra 'a'
     "viet anh nguyen": "Anh Viet Nguyen",         # same words, reordered
+    # Resolved by the user on 2026-10-10, not by similarity. The register's
+    # "Precious Okoro" sits exactly between two real people — Precious Okeke
+    # and Ese Okoro — and the matcher was right to refuse it. It is Precious.
+    "precious okoro": "Precious Okeke",
 }
 
 NOT_PEOPLE = {
