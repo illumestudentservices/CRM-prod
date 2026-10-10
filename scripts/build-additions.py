@@ -63,6 +63,11 @@ REGION_MANAGER = {
     "Africa": "ILL-0019",
     "China": "ILL-0021",
     "Southeast Asia": "ILL-0018",
+    # Set by the user on 2026-10-10, and standing: these two regions had no
+    # manager on record, so anyone in them was being left with no leave
+    # approver and no way to be assigned work.
+    "Latin America": "ILL-0021",   # Annie Li
+    "Middle East": "ILL-0010",     # Jamshid Mirzabekov
 }
 
 CRM_DEPARTMENTS = {
