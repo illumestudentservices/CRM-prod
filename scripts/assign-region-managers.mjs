@@ -35,7 +35,7 @@ const REGION_MANAGER = {
   "China": "ILL-0021",
   "Southeast Asia": "ILL-0018",
   "Latin America": "ILL-0021",
-  "Middle East": "ILL-0010",
+  "Middle East": "ILL-0001",
 };
 
 const COMMIT = process.argv.includes("--commit");
