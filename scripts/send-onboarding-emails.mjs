@@ -31,6 +31,18 @@
  * re-sending is refused unless --resend is passed, so an accidental repeat run
  * an hour later does not email everybody again while they are still reading
  * the first one.
+ *
+ * ★ --force <email,...> SENDS TO A NAMED PERSON WHATEVER THEIR STATE.
+ *
+ * Somebody who already has a working password is outside the automatic scope
+ * on purpose, and occasionally that is wrong: they never saw the original,
+ * they want the guide, or they are locked out of their mail. --force names
+ * them explicitly, so the decision is a person's rather than a query's.
+ *
+ * It does NOT reset anybody's password. The magic link in the email lets them
+ * choose a new one if they use it; ignore the email and the existing password
+ * keeps working. The one real side effect is that any password-reset link
+ * they already had is cancelled, because createMagicLink clears prior tokens.
  */
 import "dotenv/config";
 
@@ -52,6 +64,7 @@ const list = (n) =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+const FORCE = list("--force");
 const TEST = val("--test");
 const COMMIT = flag("--commit");
 const RESEND = flag("--resend");
@@ -123,17 +136,35 @@ if (TEST) {
 }
 
 // ── The real list ───────────────────────────────────────────────────────────
+// With --force the password-state filter is dropped for exactly the named
+// addresses and nothing else; without it, scope is "has never onboarded".
+const scope = FORCE.length
+  ? { isActive: true, user: { deletedAt: null, email: { in: FORCE } } }
+  : { isActive: true, user: { deletedAt: null, isActive: true, passwordChangedAt: null } };
+
 const candidates = await db.employee.findMany({
-  where: {
-    isActive: true,
-    user: { deletedAt: null, isActive: true, passwordChangedAt: null },
-  },
+  where: scope,
   select: {
     id: true, employeeId: true, jobTitle: true,
-    user: { select: { id: true, email: true, name: true, firstName: true, lastName: true } },
+    user: { select: { id: true, email: true, name: true, firstName: true, lastName: true, passwordChangedAt: true } },
   },
   orderBy: { employeeId: "asc" },
 });
+
+if (FORCE.length) {
+  console.log(`--force: ${FORCE.length} address(es) named explicitly`);
+  const found = new Set(candidates.map((e) => e.user.email.toLowerCase()));
+  for (const f of FORCE) if (!found.has(f)) console.log(`  NOT FOUND  ${f}`);
+  for (const e of candidates) {
+    console.log(
+      `  ${e.employeeId}  ${e.user.email}  ` +
+        (e.user.passwordChangedAt
+          ? "— already has a password; the link lets them set a new one if they use it"
+          : "— has never set a password"),
+    );
+  }
+  console.log();
+}
 
 const already = new Set(
   (
@@ -152,7 +183,9 @@ for (const e of candidates) {
   if (NEVER_EMAIL.has(email)) { skipped.never.push(email); continue; }
   if (EXCLUDE.includes(email)) { skipped.excluded.push(email); continue; }
   if (ONLY.length && !ONLY.includes(email)) { skipped.notOnly.push(email); continue; }
-  if (already.has(e.user.id) && !RESEND) { skipped.already.push(email); continue; }
+  // An address named with --force was asked for by a person, so the ledger
+  // does not get to veto it; everything else still needs --resend.
+  if (already.has(e.user.id) && !RESEND && !FORCE.length) { skipped.already.push(email); continue; }
   queue.push(e);
 }
 
@@ -245,9 +278,18 @@ console.log(`  sent:   ${sent}`);
 console.log(`  failed: ${failed.length}`);
 for (const f of failed) console.log(`      ${f.label} — ${f.why}`);
 
-const remaining = await db.employee.count({
-  where: { isActive: true, user: { deletedAt: null, isActive: true, passwordChangedAt: null } },
-});
+const remaining = FORCE.length
+  ? null
+  : await db.employee.count({
+      where: { isActive: true, user: { deletedAt: null, isActive: true, passwordChangedAt: null } },
+    });
+if (remaining === null) {
+  console.log(`
+  Targeted send — the overall onboarding figures are unchanged.`);
+  console.log("=".repeat(60));
+  await db.$disconnect();
+  process.exit(failed.length ? 1 : 0);
+}
 console.log(`\n  ${remaining} account(s) still have no password set.`);
 console.log(`  Links expire in 72 hours. Re-run this after that to chase whoever`);
 console.log(`  has not acted — they will still be in the list, and anyone who has`);
