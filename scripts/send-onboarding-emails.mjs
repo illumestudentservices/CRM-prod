@@ -194,7 +194,11 @@ if (LIMIT && queue.length > LIMIT) {
   queue = queue.slice(0, LIMIT);
 }
 
-console.log(`${candidates.length} active account(s) have never set a password`);
+console.log(
+  FORCE.length
+    ? `${candidates.length} named account(s) matched`
+    : `${candidates.length} active account(s) have never set a password`,
+);
 console.log(`  not a person / never email:      ${skipped.never.length}`);
 if (EXCLUDE.length) console.log(`  --exclude:                      ${skipped.excluded.length}`);
 if (ONLY.length) console.log(`  outside --only:                 ${skipped.notOnly.length}`);
