@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Role } from "@/lib/permissions";
 
-const ALLOWED: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "REGIONAL_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS"];
+// VP_GLOBAL_SALES is here because PERMISSION_MATRIX grants it
+// announcements:write, and posting one to a single region needs the list
+// to choose from. Without it the region dropdown came back empty and the
+// only option was a company-wide announcement.
+const ALLOWED: Role[] = ["HR_MANAGER", "SUPER_ADMIN", "REGIONAL_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS", "VP_GLOBAL_SALES"];
 
 export async function GET() {
   const session = await auth();

@@ -122,6 +122,21 @@ export function infoRow(label: string, value: string) {
   </tr>`;
 }
 
+/**
+ * Escapes text that came from a person before it is interpolated into a
+ * template. Every other template here interpolates values the system
+ * generated; announcements interpolate what somebody typed, and without this
+ * anyone with announcements:write could post HTML into everyone's mail.
+ */
+export function escapeHtml(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function infoTable(rows: [string, string][]) {
   // `overflow:hidden` to clip the corner radius does nothing in most clients,
   // so the border is put on the table itself rather than relying on the clip.
@@ -533,6 +548,57 @@ export async function sendErpSessionEmail(opts: {
     subject: `Illume ERP — Q&A session Tuesday, and your sign-in link`,
     html,
     attachments: opts.attachments,
+  });
+}
+
+// ─── 1c. ANNOUNCEMENT ─────────────────────────────────────────────────────────
+
+/**
+ * An announcement, emailed.
+ *
+ * Opt-in only: the route defaults notifyByEmail to false and every
+ * announcement raises an in-app notification regardless. One tick should not
+ * be able to mail a hundred people by accident, and most notices do not earn
+ * an inbox.
+ *
+ * content is plain text from a textarea, so it is escaped and its line breaks
+ * are turned into <br/>. Interpolating it raw would let anyone with
+ * announcements:write post HTML into everybody's mail client.
+ */
+export async function sendAnnouncementEmail(opts: {
+  to: string;
+  name: string;
+  title: string;
+  content: string;
+}) {
+  const firstName = opts.name.split(" ")[0];
+  const safe = escapeHtml(opts.content).replace(/\n/g, "<br/>");
+
+  return safeSend({
+    to: opts.to,
+    subject: opts.title,
+    html: wrapEmail(
+      "Announcement",
+      `
+      <p style="margin:0 0 6px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:${MUTED};">
+        Announcement
+      </p>
+      <h1 style="margin:0 0 18px;font-family:${FONT};font-size:22px;font-weight:700;color:${INK};line-height:1.35;">
+        ${escapeHtml(opts.title)}
+      </h1>
+      <p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hello ${escapeHtml(firstName)},
+      </p>
+      <div style="font-family:${FONT};font-size:15px;line-height:1.7;color:${BODY_TEXT};margin:0 0 26px;">
+        ${safe}
+      </div>
+      <p style="margin:0;font-family:${FONT};font-size:12px;color:${MUTED};">
+        You are receiving this because it was posted to everyone at Illume.
+        You can also see it on your dashboard.
+      </p>
+    `,
+      opts.title
+    ),
   });
 }
 

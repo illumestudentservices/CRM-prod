@@ -1007,6 +1007,7 @@ model User {
   engagementLogs    EngagementLog[]
   notifications     Notification[]
   auditLogs         AuditLog[]
+  announcements     Announcement[]       @relation("AnnouncementAuthor")
   accountRequests   AccountRequest[]  @relation("AccountRequestRequester")
   reviewedRequests  AccountRequest[]  @relation("AccountRequestReviewer")
   offboardingRequests        OffboardingRequest[] @relation("OffboardingRequestRequester")
@@ -1161,6 +1162,8 @@ model Region {
   transitionReports TransitionReport[]
   /// IT equipment sitting in this region — see ITAsset.regionId.
   itAssets         ITAsset[]
+  /// Announcements aimed at this region only — see Announcement.isGlobal.
+  announcements    Announcement[]
 
   @@map("regions")
 }
@@ -3134,9 +3137,18 @@ model Announcement {
   id          String    @id @default(uuid())
   title       String
   content     String    @db.Text
-  authorId    String
+  // Nullable with SetNull, for the same reason AuditLog.userId is: an
+  // announcement is a record of something the company said, and it should
+  // outlive the account of whoever typed it. A required author would either
+  // block deleting that person or take the notice down with them.
+  authorId    String?
+  author      User?     @relation("AnnouncementAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   isGlobal    Boolean   @default(true)
+  // A real foreign key. Before this, regionId was a bare string, so a typo or
+  // a stale id was accepted and the announcement then belonged to no region
+  // that exists — invisible to everyone once the feed started filtering.
   regionId    String?
+  region      Region?   @relation(fields: [regionId], references: [id], onDelete: SetNull)
   publishedAt DateTime  @default(now())
   expiresAt   DateTime?
   createdAt   DateTime  @default(now())
@@ -3144,6 +3156,8 @@ model Announcement {
 
   readReceipts AnnouncementRead[]
 
+  @@index([publishedAt])
+  @@index([regionId])
   @@map("announcements")
 }
 

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Eye, EyeOff, ShieldCheck, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AUTH_CARD, AUTH_LABEL, AUTH_INPUT } from "@/lib/auth-card";
 import { Label } from "@/components/ui/label";
 
 const RULES = [
@@ -82,7 +83,7 @@ export default function ResetPasswordPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className={AUTH_CARD}>
           {tokenStatus === "loading" && (
             <div className="text-center py-8">
               <div className="w-8 h-8 border-2 border-[#1E3A5F] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -118,14 +119,14 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="password">New Password</Label>
+                  <Label htmlFor="password" className={AUTH_LABEL}>New Password</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pr-10"
+                      className={`pr-10 ${AUTH_INPUT}`}
                       placeholder="Create a strong password"
                       autoComplete="new-password"
                     />
@@ -140,13 +141,13 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirm">Confirm Password</Label>
+                  <Label htmlFor="confirm" className={AUTH_LABEL}>Confirm Password</Label>
                   <Input
                     id="confirm"
                     type={showPassword ? "text" : "password"}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    className={confirm && !passwordsMatch ? "border-red-400" : ""}
+                    className={`${AUTH_INPUT} ${confirm && !passwordsMatch ? "border-red-400" : ""}`}
                     placeholder="Repeat your password"
                     autoComplete="new-password"
                   />

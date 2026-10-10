@@ -138,26 +138,44 @@ export default async function EmployeeDetailPage({
               />
             )}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <span>{employee.user.email}</span>
+          {/*
+            ★ WRAPPING, NOT A FOUR-COLUMN GRID.
+
+            This was `grid grid-cols-2 md:grid-cols-4`, which gives every item
+            a quarter of the width whatever is in it. A long address —
+            deepdarshansingrodia22@gmail.com is 32 characters — does not fit a
+            quarter, and since nothing clipped it the text ran straight over
+            the next cell: the email and the joining date printed on top of
+            each other, with the calendar icon in the middle of a word.
+
+            A fixed track cannot be right here, because the items are optional
+            (phone and department are often blank) and an email can be any
+            length. Flex-wrap sizes each one to its content and moves it to the
+            next line when it will not fit, so nothing can ever overlap. The
+            icons are shrink-0 so they are never squeezed, min-w-0 lets a long
+            value shrink rather than push its neighbour, and break-all is the
+            last resort for an address with no spaces to break at.
+          */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+              <Mail className="h-4 w-4 shrink-0" />
+              <span className="break-all">{employee.user.email}</span>
             </div>
             {employee.phone && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                <span>{employee.phone}</span>
+              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                <Phone className="h-4 w-4 shrink-0" />
+                <span className="break-all">{employee.phone}</span>
               </div>
             )}
             {employee.department && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                <span>{employee.department.name}</span>
+              <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                <Building2 className="h-4 w-4 shrink-0" />
+                <span className="truncate">{employee.department.name}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>Since {formatDate(employee.startDate)}</span>
+            <div className="flex items-center gap-2 text-muted-foreground shrink-0">
+              <Calendar className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">Since {formatDate(employee.startDate)}</span>
             </div>
           </div>
         </div>

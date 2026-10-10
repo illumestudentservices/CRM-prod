@@ -12,7 +12,17 @@ interface Announcement {
   title: string;
   content: string;
   publishedAt: string;
-  readReceipts: { readAt: string }[];
+  authorName: string | null;
+  regionName: string | null;
+  isGlobal: boolean;
+  /**
+   * The feed's own answer, rather than this card counting receipts itself.
+   * The HR tab and this card used to read different fields off the same
+   * payload and disagree about whether something had been read; both now read
+   * this one. readReceipts is still sent, and still correct, but nothing here
+   * needs to interpret it.
+   */
+  isRead: boolean;
 }
 
 export function AnnouncementsFeed() {
@@ -27,17 +37,12 @@ export function AnnouncementsFeed() {
   }, []);
 
   async function markRead(id: string) {
-    await fetch(`/api/hr/announcements/${id}/read`, { method: "POST" });
-    setItems((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, readReceipts: [{ readAt: new Date().toISOString() }] }
-          : a
-      )
-    );
+    const res = await fetch(`/api/hr/announcements/${id}/read`, { method: "POST" });
+    if (!res.ok) return;
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, isRead: true } : a)));
   }
 
-  const unreadCount = items.filter((a) => a.readReceipts.length === 0).length;
+  const unreadCount = items.filter((a) => !a.isRead).length;
 
   if (!loading && items.length === 0) return null;
 
@@ -60,7 +65,7 @@ export function AnnouncementsFeed() {
               <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
             ))
           : items.slice(0, 5).map((ann) => {
-              const isRead = ann.readReceipts.length > 0;
+              const isRead = ann.isRead;
               return (
                 <div
                   key={ann.id}
@@ -75,8 +80,10 @@ export function AnnouncementsFeed() {
                       )}
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">{ann.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5" suppressHydrationWarning>
-                          {formatRelative(ann.publishedAt)}
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          <span suppressHydrationWarning>{formatRelative(ann.publishedAt)}</span>
+                          {ann.authorName && <span> · by {ann.authorName}</span>}
+                          {!ann.isGlobal && ann.regionName && <span> · {ann.regionName}</span>}
                         </p>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                           {ann.content}

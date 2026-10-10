@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Eye, EyeOff, ShieldCheck, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AUTH_CARD, AUTH_LABEL, AUTH_INPUT } from "@/lib/auth-card";
 import { Label } from "@/components/ui/label";
 import { PASSWORD_MAX_AGE_DAYS, PASSWORD_HISTORY_DEPTH } from "@/lib/password";
 
@@ -98,7 +99,7 @@ export default function ChangePasswordPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className={AUTH_CARD}>
           <div className="mb-6">
             <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 mb-3">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
@@ -118,7 +119,7 @@ export default function ChangePasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {isExpiry && (
               <div className="space-y-1.5">
-                <Label htmlFor="currentPassword">Current Password</Label>
+                <Label htmlFor="currentPassword" className={AUTH_LABEL}>Current Password</Label>
                 <Input
                   id="currentPassword"
                   type="password"
@@ -126,19 +127,20 @@ export default function ChangePasswordPage() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Your existing password"
                   autoComplete="current-password"
+                  className={AUTH_INPUT}
                 />
               </div>
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">New Password</Label>
+              <Label htmlFor="password" className={AUTH_LABEL}>New Password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
+                  className={`pr-10 ${AUTH_INPUT}`}
                   placeholder="Create a strong password"
                   autoComplete="new-password"
                 />
@@ -153,13 +155,13 @@ export default function ChangePasswordPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirm Password</Label>
+              <Label htmlFor="confirm" className={AUTH_LABEL}>Confirm Password</Label>
               <Input
                 id="confirm"
                 type={showPassword ? "text" : "password"}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className={confirm && !passwordsMatch ? "border-red-400" : ""}
+                className={`${AUTH_INPUT} ${confirm && !passwordsMatch ? "border-red-400" : ""}`}
                 placeholder="Repeat your password"
                 autoComplete="new-password"
               />
