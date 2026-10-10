@@ -330,7 +330,7 @@ export async function sendWelcomeEmail(opts: {
       </table>
 
       <p style="margin:0;font-family:${FONT};font-size:12px;color:${MUTED};">
-        Having trouble? Contact your HR manager for assistance.
+        Having trouble? Contact IT for assistance.
       </p>
     `,
     `Set your password and sign in — your Illume account is ready.`

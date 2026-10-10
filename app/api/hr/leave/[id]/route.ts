@@ -71,7 +71,7 @@ export async function PATCH(
     }
   } else {
     if (!isHR && !isManager) {
-      return NextResponse.json({ error: "Forbidden — only HR managers or direct manager can approve/reject" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden — a leave request can only be decided by the employee's manager or an administrator" }, { status: 403 });
     }
   }
 
