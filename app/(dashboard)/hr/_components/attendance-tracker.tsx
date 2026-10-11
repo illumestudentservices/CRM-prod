@@ -72,24 +72,38 @@ export function AttendanceTracker({ isHR, userId }: { isHR: boolean; userId: str
     setActionLoading(false);
   }
 
+  /**
+   * Not one of these columns carried a value before — all six were `cell`
+   * only — so there was nothing a search box could have matched, and there
+   * was none. See the note in employee-table.tsx for the same fault.
+   */
   const columns: ColumnDef<AttendanceRecord>[] = [
     ...(isHR ? [{
+      id: "employee",
+      accessorFn: (row: AttendanceRecord) =>
+        `${row.employee?.user.name ?? ""} ${row.employee?.employeeId ?? ""}`.trim(),
       header: "Employee",
       cell: ({ row }: { row: { original: AttendanceRecord } }) => (
         <span className="text-sm">{row.original.employee?.user.name ?? "—"}</span>
       ),
     }] : []),
     {
+      id: "date",
+      accessorFn: (row) => formatDate(row.date),
       header: "Date",
       cell: ({ row }) => <span className="text-sm">{formatDate(row.original.date)}</span>,
     },
     {
+      id: "checkIn",
+      accessorFn: (row) => (row.checkIn ? formatDateTime(row.checkIn) : ""),
       header: "Check In",
       cell: ({ row }) => row.original.checkIn
         ? <span className="text-sm text-green-600">{formatDateTime(row.original.checkIn)}</span>
         : <span className="text-muted-foreground text-sm">—</span>,
     },
     {
+      id: "checkOut",
+      accessorFn: (row) => (row.checkOut ? formatDateTime(row.checkOut) : ""),
       header: "Check Out",
       cell: ({ row }) => row.original.checkOut
         ? <span className="text-sm text-blue-600">{formatDateTime(row.original.checkOut)}</span>
@@ -137,7 +151,15 @@ export function AttendanceTracker({ isHR, userId }: { isHR: boolean; userId: str
           )}
         </div>
       )}
-      <DataTable columns={columns} data={records} loading={loading} searchKey={undefined} />
+      <DataTable
+        columns={columns}
+        data={records}
+        loading={loading}
+        /* Was undefined: no search box at all, on a table with a row per
+           person per day. An empty string gives a global search. */
+        searchKey=""
+        searchPlaceholder="Search name, ID or date…"
+      />
     </div>
   );
 }

@@ -345,8 +345,11 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
       <DataTable
         columns={columns}
         data={leads}
-        searchKey="name"
-        searchPlaceholder="Search leads..."
+        /* Global search, not the name column alone: a one-column search
+           answers "no results" for anything the reader can plainly see
+           in another column. */
+        searchKey=""
+        searchPlaceholder="Search name, email, programme…"
         onRowClick={(lead) => router.push(`/students/${lead.id}`)}
         enableRowSelection
         onSelectionChange={setSelectedLeads}

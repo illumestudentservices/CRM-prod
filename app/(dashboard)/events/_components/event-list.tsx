@@ -266,8 +266,11 @@ export function EventList({ events, stats }: EventListProps) {
       <DataTable
         columns={columns}
         data={filtered}
-        searchKey="name"
-        searchPlaceholder="Search events..."
+        /* Global search, not the name column alone: a one-column search
+           answers "no results" for anything the reader can plainly see
+           in another column. */
+        searchKey=""
+        searchPlaceholder="Search events, venue, city…"
         onRowClick={(row) => router.push(`/events/${row.id}`)}
         emptyTitle="No events found"
         emptyDescription="Create your first event to start tracking ROI."

@@ -93,8 +93,17 @@ export function LeaveManager({
     }
   }
 
+  /**
+   * Every column carries a value, not only a rendering — see the note in
+   * employee-table.tsx. Without an accessor a column is invisible to the
+   * search box, which is why this table had no search box at all: there was
+   * nothing for one to match against.
+   */
   const columns: ColumnDef<LeaveRequest>[] = [
     ...(isHR ? [{
+      id: "employee",
+      accessorFn: (row: LeaveRequest) =>
+        `${row.employee.user.name ?? ""} ${row.employee.employeeId}`.trim(),
       header: "Employee",
       cell: ({ row }: { row: { original: LeaveRequest } }) => (
         <div>
@@ -104,10 +113,14 @@ export function LeaveManager({
       ),
     }] : []),
     {
+      id: "leaveType",
+      accessorFn: (row) => leaveTypeLabel(row.leaveType),
       header: "Type",
       cell: ({ row }) => <span className="text-sm">{leaveTypeLabel(row.original.leaveType)}</span>,
     },
     {
+      id: "dates",
+      accessorFn: (row) => `${formatDate(row.startDate)} ${formatDate(row.endDate)}`,
       header: "Dates",
       cell: ({ row }) => (
         <span className="text-sm">
@@ -121,6 +134,8 @@ export function LeaveManager({
       cell: ({ row }) => <span className="font-medium">{row.original.days}d</span>,
     },
     {
+      id: "reason",
+      accessorFn: (row) => row.reason ?? "",
       header: "Reason",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
@@ -129,6 +144,8 @@ export function LeaveManager({
       ),
     },
     {
+      id: "status",
+      accessorFn: (row) => row.status,
       header: "Status",
       cell: ({ row }) => (
         <Badge variant={STATUS_VARIANTS[row.original.status] ?? "secondary"}>
@@ -229,7 +246,11 @@ export function LeaveManager({
           columns={columns}
           data={requests}
           loading={loading}
-          searchKey={undefined}
+          /* An empty string means a GLOBAL search across every column that
+             has a value. It was undefined, so there was no search box here at
+             all — on a table that grows by one row per leave request. */
+          searchKey=""
+          searchPlaceholder="Search name, ID, type, status…"
           emptyTitle={isHR ? "No pending leave requests" : "No leave requests"}
           emptyDescription={isHR ? "All requests have been reviewed." : "You haven't submitted any leave requests."}
         />
