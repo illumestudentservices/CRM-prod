@@ -101,40 +101,53 @@ try {
        * testing rather than a screen that was never tested. A test that
        * silently skips is more dangerous than one that fails.
        */
-      const bodyRows = page.locator("table tbody tr");
-      let rowsBefore = 0;
-      for (let i = 0; i < 24; i++) {
-        rowsBefore = await bodyRows.count();
-        const settled = await page
-          .getByText(/no results found|nothing in the recycle bin|no .*(found|yet)/i)
-          .count();
-        /**
-         * Rows WITH TEXT IN THEM. A loading skeleton is still a <tr>, so
-         * counting rows alone let this break out early and then read a row of
-         * empty cells — which it reported as "no searchable text", meaning a
-         * screen that works looked like a screen with no search. Waiting for
-         * actual characters is the difference between testing it and skipping
-         * it while appearing not to.
-         */
-        const firstRowText = rowsBefore
-          ? (await bodyRows.first().innerText().catch(() => "")).trim()
-          : "";
-        if ((rowsBefore > 1 && firstRowText.length > 3) || settled > 0) break;
-        await page.waitForTimeout(600);
-      }
+      /**
+       * ★ NOT EVERY LIST IS A <table>.
+       *
+       * HR · Assets and Students & pipeline render cards, so a sweep that
+       * only counts table rows reported them as empty — and "empty" reads as
+       * "nothing to test" rather than "I cannot see this screen". Both have
+       * search boxes of their own, and both went unexercised because of it.
+       */
+      const cardRows = page.locator('[data-testid="list-item"], article, li[class*="rounded"]');
+      const tableRows = page.locator("table tbody tr");
 
       /**
-       * An empty table still renders ONE row, to hold "No results found. Try
-       * adjusting your search or filters." The first version of this sweep
-       * read that sentence as data, searched for the word "adjusting", and
-       * reported a broken search on a screen that simply had nothing in it.
-       * A false alarm in a tool built to find real ones is worse than useless.
+       * ★ DECIDE TABLE-OR-CARDS INSIDE THE WAIT, NOT BEFORE IT.
+       *
+       * Both of these were settled once, up front, while the page was still
+       * blank — so a card screen was judged "not cards" before its cards
+       * existed, and HR · Assets (89 of them) was written off as empty on
+       * every run. Any decision made before the data arrives is a decision
+       * made about an empty page.
+       *
+       * Wait the full fifteen seconds for rows WITH TEXT, re-deciding each
+       * time round, and only call a screen empty when the time is up.
        */
-      const emptyBefore = await page
-        .getByText(/no results found|nothing in the recycle bin|no .*(found|yet)/i)
-        .count();
-      if (rowsBefore === 0 || emptyBefore > 0) {
-        note(route, label, "none", "nothing in the table to search for");
+      let useCards = false;
+      let rowsBefore = 0;
+      let firstRowText = "";
+      for (let i = 0; i < 25; i++) {
+        const nTable = await tableRows.count();
+        const nCards = await cardRows.count();
+        useCards = nTable === 0 && nCards > 2;
+        const rows = useCards ? cardRows : tableRows;
+        rowsBefore = useCards ? nCards : nTable;
+        firstRowText = rowsBefore
+          ? (await rows.first().innerText().catch(() => "")).trim()
+          : "";
+        if (rowsBefore > 0 && firstRowText.length > 3) break;
+        await page.waitForTimeout(600);
+      }
+      const bodyRows = useCards ? cardRows : tableRows;
+
+      if (rowsBefore === 0 || firstRowText.length <= 3) {
+        note(route, label, "none", "still empty after 15s — nothing to search for");
+        continue;
+      }
+      // One row holding "No results found" is an empty table, not a row.
+      if (/no results found|nothing in the (bin|recycle bin)|no plans yet/i.test(firstRowText)) {
+        note(route, label, "none", `empty state: "${firstRowText.slice(0, 40)}"`);
         continue;
       }
 
@@ -165,7 +178,9 @@ try {
        * the point is to search for something the reader can see with their
        * own eyes, which is the claim the box is making.
        */
-      const cells = await bodyRows.first().locator("td").allInnerTexts();
+      const cells = useCards
+        ? [await bodyRows.first().innerText()]
+        : await bodyRows.first().locator("td").allInnerTexts();
       const token = cells
         .flatMap((c) => c.split(/\s+/))
         .map((w) => w.replace(/[^\w@.\-]/g, ""))
@@ -182,13 +197,16 @@ try {
 
       const emptyState = await page.getByText(/no results found|no .* found/i).count();
       const rowsAfter = await bodyRows.count();
-      const stillThere = await page.locator("table tbody").getByText(token, { exact: false }).count();
+      const stillThere = useCards
+        ? await page.getByText(token, { exact: false }).count()
+        : await page.locator("table tbody").getByText(token, { exact: false }).count();
 
       if (emptyState > 0 || stillThere === 0) {
         note(route, label, "fail",
           `searched "${token}" (visible on row 1) and it vanished — ${rowsAfter} row(s)`);
       } else {
-        note(route, label, "ok", `"${token}" → ${rowsAfter} row(s), the row survives`);
+        note(route, label, "ok",
+          `"${token}" → ${rowsAfter} ${useCards ? "card" : "row"}(s), it survives`);
       }
 
       await tableBox.fill("");
