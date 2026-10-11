@@ -223,6 +223,33 @@ async function main() {
   expect(ownerDeletesOwn.status === 200,
     "the employee can delete their own", `status ${ownerDeletesOwn.status}`);
 
+  /**
+   * ★ AND IT IS ACTUALLY GONE.
+   *
+   * Deleting soft-deletes, so the row survives for the recycle bin — and no
+   * query excluded deleted rows. A file deleted from this panel came back on
+   * the next load and was still served by the download route. Every layer was
+   * correct on its own: the button fired, the route returned 200, the
+   * timestamp was written. Nothing asked what the list said afterwards, which
+   * is the only question the person deleting it cares about.
+   */
+  const afterDelete = await list(owner.jar, owner.employee.id);
+  expect(!(afterDelete.payload?.data ?? []).some((a) => a.id === employeeFileId),
+    "*** and it disappears from the list ***",
+    "the deleted file is still listed");
+
+  const deadGrab = await fetch(`${BASE}/api/attachments/${employeeFileId}`, {
+    headers: { cookie: owner.jar.header() }, redirect: "manual",
+  });
+  expect(deadGrab.status === 404,
+    "*** and can no longer be downloaded ***",
+    `status ${deadGrab.status} — deleting withdrew nothing`);
+
+  const deleteAgain = await api(owner.jar, "DELETE", `/api/attachments/${employeeFileId}`);
+  expect(deleteAgain.status === 404,
+    "deleting it a second time is a 404, not another 200",
+    `status ${deleteAgain.status}`);
+
   startSection("A manager of somebody else");
   const otherManager = await createAndLogin({ role: "REGIONAL_MANAGER", withEmployee: true });
   ctxs.push(otherManager);

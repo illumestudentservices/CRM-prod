@@ -33,7 +33,15 @@ export async function GET(
 
   const { id } = await params;
 
-  const attachment = await db.attachment.findUnique({ where: { id } });
+  /**
+   * findFirst with deletedAt: null, not findUnique by id.
+   *
+   * Deleting is a SOFT delete - the row survives so it can be restored from
+   * the recycle bin - and this route never excluded deleted rows, so a file
+   * the owner had deleted was still served on request. The delete button
+   * wrote a timestamp and withdrew nothing.
+   */
+  const attachment = await db.attachment.findFirst({ where: { id, deletedAt: null } });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Read gate is on the PARENT — knowing the attachment ID doesn't
@@ -87,8 +95,11 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const attachment = await db.attachment.findUnique({
-    where: { id },
+  // Already-deleted rows are 404 here too, so deleting the same file twice
+  // reports "not found" rather than a second cheerful 200 on a row that is
+  // already gone.
+  const attachment = await db.attachment.findFirst({
+    where: { id, deletedAt: null },
     select: { id: true, parentType: true, parentId: true, uploadedById: true },
   });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });

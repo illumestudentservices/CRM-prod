@@ -100,7 +100,20 @@ export async function GET(req: NextRequest) {
   }
 
   const attachments = await db.attachment.findMany({
-    where: { parentType: parentType as AttachmentParentType, parentId },
+    /**
+     * ★ deletedAt: null — THE REASON DELETE APPEARED NOT TO WORK.
+     *
+     * Deleting an attachment goes through trashRecord, which SOFT-deletes:
+     * the row stays and gets a deletedAt so it can be restored from the
+     * recycle bin. No query here ever excluded those rows, so a file deleted
+     * from this panel came straight back on the next load, and the sibling
+     * download route served it on request.
+     *
+     * The delete returned 200 and wrote the timestamp, so every layer looked
+     * correct in isolation. Nothing asked what the list said afterwards — the
+     * one question a person deleting a file is actually asking.
+     */
+    where: { parentType: parentType as AttachmentParentType, parentId, deletedAt: null },
     select: {
       id: true,
       name: true,
