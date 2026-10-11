@@ -21,7 +21,25 @@ import "dotenv/config";
 
 const { db } = await import("@/lib/db");
 
-const COMMIT = process.argv.includes("--commit");
+const argv = process.argv.slice(2);
+const COMMIT = argv.includes("--commit");
+
+/**
+ * --rest  takes everyone with NO department instead of matching on job
+ *         title, minus whatever --except names.
+ *
+ * The people left over are "In Country Representative" spelled five
+ * different ways - In-Country, In Country, Inc Country, Country, Regional -
+ * so matching on the title again would catch some and miss others. Naming
+ * the exceptions is shorter, and honest about what is being decided rather
+ * than hiding the decision inside a pattern.
+ */
+const REST = argv.includes("--rest");
+const list = (flag) => {
+  const i = argv.indexOf(flag);
+  return i >= 0 ? (argv[i + 1] ?? "").split(",").map((x) => x.trim()).filter(Boolean) : [];
+};
+const EXCEPT = list("--except");
 const TEAM = "Student Recruitment";
 /** Matches Recruitment Specialist, In-Country Recruitment Officer, and so on. */
 const PATTERN = "recruit";
@@ -40,7 +58,9 @@ const matches = await db.employee.findMany({
   where: {
     isActive: true,
     user: { deletedAt: null },
-    jobTitle: { contains: PATTERN, mode: "insensitive" },
+    ...(REST
+      ? { departmentId: null, employeeId: { notIn: EXCEPT } }
+      : { jobTitle: { contains: PATTERN, mode: "insensitive" } }),
   },
   select: {
     id: true, employeeId: true, jobTitle: true, departmentId: true,
@@ -56,7 +76,11 @@ const elsewhere = matches.filter(
   (e) => e.departmentId && e.department?.name !== TEAM,
 );
 
-console.log(`${matches.length} active employee(s) with "${PATTERN}" in the job title\n`);
+console.log(REST
+  ? `${matches.length} active employee(s) with no department`
+    + (EXCEPT.length ? `, excluding ${EXCEPT.join(", ")}` : "")
+  : `${matches.length} active employee(s) with "${PATTERN}" in the job title`);
+console.log("");
 console.log(`  already in ${TEAM}:        ${alreadyRight.length}`);
 console.log(`  no department yet:         ${toFill.length}`);
 console.log(`  in a DIFFERENT department: ${elsewhere.length}`);
@@ -98,7 +122,9 @@ await db.auditLog
       entity: "Employee",
       entityId: `bulk-recruitment-department-${new Date().toISOString().slice(0, 10)}`,
       changes: {
-        rule: `jobTitle contains "${PATTERN}" (case-insensitive) and department was blank`,
+        rule: REST
+          ? `every active employee with no department, except ${EXCEPT.join(", ") || "none"}`
+          : `jobTitle contains "${PATTERN}" (case-insensitive) and department was blank`,
         department: TEAM,
         updated: count,
         employeeIds: toFill.map((e) => e.employeeId),
