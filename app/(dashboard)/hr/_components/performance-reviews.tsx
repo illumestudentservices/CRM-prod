@@ -58,7 +58,17 @@ const STATUS_BADGE: Record<string, { variant: "warning" | "default" | "success";
   COMPLETED: { variant: "success", label: "Completed" },
 };
 
-export function PerformanceReviews({ isHR }: { isHR: boolean }) {
+/**
+ * ★ WHAT THIS PERSON MAY DO COMES FROM THE SERVER.
+ *
+ * It used to take `isHR`, computed on the HR page as HR_MANAGER or
+ * SUPER_ADMIN. That was a second opinion about who may write a review, and
+ * it disagreed with the route: a line manager may now review their own team
+ * and would still have seen no button. The feed answers canWrite, canDelete
+ * and the list of people this person may review; an empty list is the answer
+ * to "may I write one at all".
+ */
+export function PerformanceReviews({ isHR }: { isHR?: boolean }) {
   const { toast } = useToast();
   const router = useRouter();
   const [reviews, setReviews] = useState<PerformanceReview[]>([]);
@@ -66,6 +76,8 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [canDelete, setCanDelete] = useState(false);
+  const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
 
   // Dialog state
   const [showCreate, setShowCreate] = useState(false);
@@ -86,7 +98,10 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
       const res = await fetch("/api/hr/performance-reviews");
       if (res.ok) {
         const data = await res.json();
-        setReviews(data.reviews);
+        setReviews(data.reviews ?? []);
+        setEmployees(data.reviewable ?? []);
+        setCanDelete(!!data.canDelete);
+        setMyEmployeeId(data.myEmployeeId ?? null);
       }
     } catch {
       toast({ title: "Error", description: "Failed to load reviews", variant: "destructive" });
@@ -95,22 +110,14 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
     }
   }, [toast]);
 
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const res = await fetch("/api/hr/employees");
-      if (res.ok) {
-        const data = await res.json();
-        setEmployees(data.employees ?? []);
-      }
-    } catch {
-      // silent
-    }
-  }, []);
 
   useEffect(() => {
     fetchReviews();
-    fetchEmployees();
-  }, [fetchReviews, fetchEmployees]);
+  }, [fetchReviews]);
+
+  // Somebody with nobody to review gets no "New Review" button. For a plain
+  // employee the screen is a read-only view of their own finished reviews.
+  const canCreate = employees.length > 0;
 
   const resetForm = () => {
     setFormEmployeeId("");
@@ -248,7 +255,7 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
             </SelectContent>
           </Select>
         </div>
-        {isHR && (
+        {canCreate && (
           <Button onClick={openCreate} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Create Review
           </Button>
@@ -296,15 +303,19 @@ export function PerformanceReviews({ isHR }: { isHR: boolean }) {
                     <td className="p-3 text-muted-foreground">{review.reviewerName}</td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {isHR && (
-                          <>
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(review)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(review.id)}>
-                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                            </Button>
-                          </>
+                        {/* Edit is for the reviewer and for admins. The
+                            subject of a review can read it and nothing more —
+                            the API refuses either way, this just stops the
+                            screen offering a button that would 403. */}
+                        {(canCreate || canDelete) && review.employee?.id !== myEmployeeId && (
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(review)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(review.id)}>
+                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                          </Button>
                         )}
                       </div>
                     </td>

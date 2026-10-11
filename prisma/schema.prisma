@@ -2496,7 +2496,9 @@ model Employee {
   timesheets         Timesheet[]         @relation("TimesheetEmployee")
   timesheetApprovals Timesheet[]         @relation("TimesheetApprover")
   travelRequests     TravelRequest[]
-  performanceReviews PerformanceReview[]
+  performanceReviews PerformanceReview[] @relation("ReviewSubject")
+  /// Reviews this employee has WRITTEN, as opposed to received.
+  reviewsGiven       PerformanceReview[] @relation("ReviewAuthor")
   kpiTargets         KPITarget[]
   trainingRecords    TrainingRecord[]
   assetAssignments   AssetAssignment[]
@@ -2761,8 +2763,14 @@ model TravelRequest {
 model PerformanceReview {
   id           String    @id @default(uuid())
   employeeId   String
-  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  reviewerId   String
+  employee     Employee  @relation("ReviewSubject", fields: [employeeId], references: [id], onDelete: Cascade)
+  // Was a bare String with no foreign key, resolved by a second query that
+  // printed "Unknown" when it missed. Nullable with SetNull for the same
+  // reason AuditLog.userId is: a review is a record of something that was
+  // said about somebody, and it should outlive the reviewer's account rather
+  // than vanish with it or block their deletion.
+  reviewerId   String?
+  reviewer     Employee? @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: SetNull)
   period       String
   score        Float?
   strengths    String?   @db.Text
@@ -2773,6 +2781,10 @@ model PerformanceReview {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  // One review per person per period. Without it the same quarter could be
+  // reviewed any number of times, and nothing said which one counted.
+  @@unique([employeeId, period])
+  @@index([reviewerId])
   @@map("performance_reviews")
 }
 

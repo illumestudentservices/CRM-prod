@@ -602,6 +602,54 @@ export async function sendAnnouncementEmail(opts: {
   });
 }
 
+// ─── 1d. PERFORMANCE REVIEW READY ─────────────────────────────────────────────
+
+/**
+ * Your review is finished and you can go and read it.
+ *
+ * ★ THE SCORE AND THE WORDING ARE DELIBERATELY NOT IN HERE.
+ *
+ * Only that it exists and where to find it. An appraisal score sitting in an
+ * inbox — forwarded, synced to a phone, read over a shoulder, kept for years —
+ * is exactly the disclosure the permissions in the app exist to control, and
+ * email is the one place those permissions do not reach.
+ */
+export async function sendReviewReadyEmail(opts: {
+  to: string;
+  name: string;
+  period: string;
+  reviewerName: string;
+}) {
+  const firstName = opts.name.split(" ")[0];
+  const url = `${BASE_URL}/hr?tab=performance-reviews`;
+
+  return safeSend({
+    to: opts.to,
+    subject: `Your ${opts.period} performance review is ready`,
+    html: wrapEmail(
+      "Your review is ready",
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:22px;font-weight:700;color:${INK};line-height:1.35;">
+        Your ${escapeHtml(opts.period)} review is ready
+      </h1>
+      <p style="margin:0 0 20px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hello ${escapeHtml(firstName)}, ${escapeHtml(opts.reviewerName)} has completed your
+        performance review for ${escapeHtml(opts.period)}.
+      </p>
+      <p style="margin:0 0 24px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Sign in to read it. It is on your own record, and only you, your
+        manager and an administrator can see it.
+      </p>
+      ${ctaButton("Read my review", url)}
+      <p style="margin:24px 0 0;font-family:${FONT};font-size:12px;color:${MUTED};">
+        If anything in it is unclear, speak to your manager before replying here.
+      </p>
+    `,
+      `${opts.reviewerName} has completed your ${opts.period} review.`
+    ),
+  });
+}
+
 // ─── 2. PASSWORD RESET ────────────────────────────────────────────────────────
 //
 // sendPasswordResetEmail was removed 2026-08-18. It put the new password in the

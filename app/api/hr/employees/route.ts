@@ -135,6 +135,9 @@ export async function GET(req: NextRequest) {
               image: true,
               role: true,
               isActive: true,
+              // Needed so the directory can be filtered by region. Region
+              // lives on User, not Employee, so it has to be asked for here.
+              region: { select: { id: true, name: true } },
             },
           },
           department: { select: { id: true, name: true } },

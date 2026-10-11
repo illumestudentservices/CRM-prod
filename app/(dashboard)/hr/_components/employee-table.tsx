@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EmailLink } from "@/components/shared/email-link";
 import { useRouter } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EmployeeForm } from "./employee-form";
 import { getInitials } from "@/lib/utils";
@@ -18,9 +21,6 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 
 const EMPLOYEE_EXPORT_COLUMNS = [
   { key: "name",           header: "Full Name" },
@@ -30,8 +30,19 @@ const EMPLOYEE_EXPORT_COLUMNS = [
   { key: "jobTitle",       header: "Job Title" },
   { key: "employmentType", header: "Employment Type" },
   { key: "manager",        header: "Manager" },
+  { key: "region",         header: "Region" },
   { key: "status",         header: "Status" },
 ];
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  FULL_TIME: "Full-time",
+  PART_TIME: "Part-time",
+  CONTRACT: "Contract",
+  INTERN: "Intern",
+};
+
+/** "Everything" in a Select, because Radix forbids an empty-string value. */
+const ANY = "__any__";
 
 interface EmployeeRow {
   id: string;
@@ -39,7 +50,10 @@ interface EmployeeRow {
   jobTitle: string;
   employmentType: string;
   isActive: boolean;
-  user: { name: string | null; email: string; image: string | null };
+  user: {
+    name: string | null; email: string; image: string | null;
+    region: { id: string; name: string } | null;
+  };
   department: { name: string } | null;
   manager: { user: { name: string | null } } | null;
 }
@@ -58,6 +72,15 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
   const [linkForm, setLinkForm] = useState({ jobTitle: "", startDate: "", employmentType: "FULL_TIME", gender: "none" });
   const [linkSaving, setLinkSaving] = useState(false);
   const [flagging, setFlagging] = useState<string | null>(null);
+
+  // ── Filters ──────────────────────────────────────────────────────────
+  // There were none at all before: the four columns people would want to
+  // filter by carried no data, so there was nothing to filter on.
+  const [fDept, setFDept] = useState(ANY);
+  const [fRegion, setFRegion] = useState(ANY);
+  const [fType, setFType] = useState(ANY);
+  const [fStatus, setFStatus] = useState("active");
+  const [shownRows, setShownRows] = useState<EmployeeRow[]>([]);
 
   async function load() {
     setLoading(true);
@@ -123,9 +146,50 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
     }
   }
 
+  /**
+   * ★ EVERY COLUMN NEEDS A VALUE, NOT JUST A RENDERING.
+   *
+   * Department, Type, Manager and Status were `cell`-only: they drew something
+   * on screen and carried no data, so there was nothing for the table to
+   * search or filter on. The Employee column was the same, which is why
+   * searching for a person's name found nothing — the search box was bound to
+   * `searchKey="employeeId"` and matched the ID column alone, so "Nancy"
+   * returned "no results" while Nancy sat two rows below.
+   *
+   * accessorFn gives each column a string the table can actually work with.
+   */
+  const departments = useMemo(
+    () => [...new Set(employees.map((e) => e.department?.name).filter(Boolean) as string[])].sort(),
+    [employees],
+  );
+  const regions = useMemo(
+    () => [...new Set(employees.map((e) => e.user.region?.name).filter(Boolean) as string[])].sort(),
+    [employees],
+  );
+
+  /**
+   * Filters are applied here rather than through the table's own column
+   * filters, so the search box and the dropdowns compose predictably: the
+   * dropdowns narrow the set, the search box then searches within it.
+   */
+  const visible = useMemo(
+    () => employees.filter((e) =>
+      (fDept === ANY || e.department?.name === fDept) &&
+      (fRegion === ANY || e.user.region?.name === fRegion) &&
+      (fType === ANY || e.employmentType === fType) &&
+      (fStatus === "all" || (fStatus === "active" ? e.isActive : !e.isActive))
+    ),
+    [employees, fDept, fRegion, fType, fStatus],
+  );
+
+  const filtersOn =
+    fDept !== ANY || fRegion !== ANY || fType !== ANY || fStatus !== "active";
+
   const columns: ColumnDef<EmployeeRow>[] = [
     {
       id: "employee",
+      // Name AND email, so either finds the row.
+      accessorFn: (row) => `${row.user.name ?? ""} ${row.user.email}`.trim(),
       header: "Employee",
       cell: ({ row }) => {
         const e = row.original;
@@ -149,27 +213,38 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
     },
     { accessorKey: "employeeId", header: "ID" },
     {
+      id: "department",
+      accessorFn: (row) => row.department?.name ?? "",
       header: "Department",
       cell: ({ row }) => row.original.department?.name ?? "—",
     },
     { accessorKey: "jobTitle", header: "Job Title" },
     {
-      header: "Type",
-      cell: ({ row }) => {
-        const labels: Record<string, string> = {
-          FULL_TIME: "Full-time",
-          PART_TIME: "Part-time",
-          CONTRACT: "Contract",
-          INTERN: "Intern",
-        };
-        return <span className="text-sm">{labels[row.original.employmentType] ?? row.original.employmentType}</span>;
-      },
+      id: "region",
+      accessorFn: (row) => row.user.region?.name ?? "",
+      header: "Region",
+      cell: ({ row }) => row.original.user.region?.name ?? "—",
     },
     {
+      id: "employmentType",
+      // The label, not the enum, so searching "Full-time" works as typed.
+      accessorFn: (row) => EMPLOYMENT_LABELS[row.employmentType] ?? row.employmentType,
+      header: "Type",
+      cell: ({ row }) => (
+        <span className="text-sm">
+          {EMPLOYMENT_LABELS[row.original.employmentType] ?? row.original.employmentType}
+        </span>
+      ),
+    },
+    {
+      id: "manager",
+      accessorFn: (row) => row.manager?.user.name ?? "",
       header: "Manager",
       cell: ({ row }) => row.original.manager?.user.name ?? "—",
     },
     {
+      id: "status",
+      accessorFn: (row) => (row.isActive ? "Active" : "Inactive"),
       header: "Status",
       cell: ({ row }) => (
         <Badge variant={row.original.isActive ? "success" : "secondary"}>
@@ -179,7 +254,16 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
     },
   ];
 
-  const exportData = employees.map((e) => ({
+  /**
+   * The export follows the screen.
+   *
+   * It used to serialise `employees` — every row loaded — while the table
+   * showed a filtered subset, so the file never matched what the person was
+   * looking at when they pressed the button. shownRows is what survived both
+   * the dropdowns and the search box.
+   */
+  const exportSource = shownRows.length || filtersOn ? shownRows : employees;
+  const exportData = exportSource.map((e) => ({
     name:           e.user.name ?? "",
     email:          e.user.email,
     employeeId:     e.employeeId,
@@ -187,6 +271,7 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
     jobTitle:       e.jobTitle,
     employmentType: e.employmentType.replace(/_/g, " "),
     manager:        e.manager?.user.name ?? "",
+    region:         e.user.region?.name ?? "",
     status:         e.isActive ? "Active" : "Inactive",
   }));
 
@@ -267,10 +352,72 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
           </Button>
         )}
       </div>
+      {/* ── Filter bar ──────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={fStatus} onValueChange={setFStatus}>
+          <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active only</SelectItem>
+            <SelectItem value="inactive">Inactive only</SelectItem>
+            <SelectItem value="all">Active + inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={fDept} onValueChange={setFDept}>
+          <SelectTrigger className="h-9 w-[180px]">
+            <SelectValue placeholder="All departments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>All departments</SelectItem>
+            {departments.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={fRegion} onValueChange={setFRegion}>
+          <SelectTrigger className="h-9 w-[170px]">
+            <SelectValue placeholder="All regions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>All regions</SelectItem>
+            {regions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={fType} onValueChange={setFType}>
+          <SelectTrigger className="h-9 w-[160px]">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>All types</SelectItem>
+            {Object.entries(EMPLOYMENT_LABELS).map(([v, label]) => (
+              <SelectItem key={v} value={v}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {filtersOn && (
+          <Button
+            variant="ghost" size="sm" className="h-9"
+            onClick={() => { setFDept(ANY); setFRegion(ANY); setFType(ANY); setFStatus("active"); }}
+          >
+            Clear filters
+          </Button>
+        )}
+
+        <span className="text-sm text-muted-foreground ml-auto">
+          {visible.length} of {employees.length}
+        </span>
+      </div>
+
       <DataTable
         columns={columns}
-        data={employees}
-        searchKey="employeeId"
+        data={visible}
+        /* An empty searchKey switches the box to a GLOBAL search, across every
+           column that has a value — name, email, ID, job title, department,
+           region, manager, status. It was bound to the ID column alone. */
+        searchKey=""
+        searchPlaceholder="Search name, email, ID, job title…"
+        onFilteredDataChange={setShownRows}
         loading={loading}
         onRowClick={(row) => router.push(`/hr/employees/${row.id}`)}
         /* This screen has its own Excel / CSV / PDF export above the table. */

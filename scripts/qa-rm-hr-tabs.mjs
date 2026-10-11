@@ -24,8 +24,13 @@ import {
 
 const { totpGenerate } = await import("../lib/totp.ts");
 
-const HR_ONLY_TABS = ["Employees", "Assets", "Performance Reviews", "Succession Planning"];
-const SELF_SERVE_TABS = ["Leave Management", "Holidays", "Tasks", "Knowledge Base", "Timesheets"];
+// "Performance Reviews" was HR-only and is not any more. A line manager
+// reviews their own team there and an employee reads their own finished
+// reviews; the API scopes both. The tab used to render for a regional
+// manager and then answer 403, which is what this list was guarding
+// against — now it answers properly, so it moves.
+const HR_ONLY_TABS = ["Employees", "Assets", "Succession Planning"];
+const SELF_SERVE_TABS = ["Leave Management", "Holidays", "Tasks", "Knowledge Base", "Timesheets", "Performance Reviews"];
 
 const ctxs = [];
 

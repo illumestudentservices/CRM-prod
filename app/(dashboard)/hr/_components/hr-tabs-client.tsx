@@ -120,7 +120,10 @@ export function HRTabsClient({
           */}
           {isHR && <TabsTrigger value="assets">Assets</TabsTrigger>}
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
-          {isHR && <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>}
+          {/* Open to everyone: a manager reviews their team here, and an
+              employee reads their own finished reviews. The API scopes what
+              each of them actually sees. */}
+          <TabsTrigger value="performance-reviews">Performance Reviews</TabsTrigger>
           {isHR && <TabsTrigger value="succession-planning">Succession Planning</TabsTrigger>}
           {canSeeAccountRequests && (
             <TabsTrigger value="account-requests">Account Requests</TabsTrigger>
