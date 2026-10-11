@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Eye, Download, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { ExportButton } from "@/components/shared/export-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,11 +80,34 @@ export function ReportList({
     );
   }
 
+  // No way to find a report existed on this screen at all.
+  const [search, setSearch] = useState("");
+  const q = search.trim().toLowerCase();
+  const shown = !q ? reports : reports.filter((r) =>
+    [
+      r.icr.name ?? "", r.icr.email, r.institution.name,
+      `${MONTH_NAMES[r.reportingMonth]} ${r.reportingYear}`,
+      STATUS_CONFIG[r.status].label,
+    ].join(" ").toLowerCase().includes(q));
+
   return (
     <>
-      <div className="flex justify-end mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search ICR, institution, period or status…"
+            className="pl-9 h-9 w-80"
+          />
+        </div>
+        <span className="text-sm text-muted-foreground ml-auto">
+          {shown.length} of {reports.length}
+        </span>
+        {/* The export follows the search, so the file matches the screen. */}
         <ExportButton
-          data={reports.map((r) => ({
+          data={shown.map((r) => ({
             icr: r.icr.name ?? r.icr.email,
             institution: r.institution.name,
             period: `${MONTH_NAMES[r.reportingMonth]} ${r.reportingYear}`,
@@ -115,7 +140,13 @@ export function ReportList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {reports.map((report) => (
+            {shown.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="p-8 text-center text-muted-foreground text-sm">
+                  No reports match &ldquo;{search}&rdquo;.
+                </TableCell>
+              </TableRow>
+            ) : shown.map((report) => (
               <TableRow key={report.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/60">
                 <TableCell className="text-sm font-medium text-slate-800 dark:text-slate-200">
                   {report.icr.name ?? report.icr.email}

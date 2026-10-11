@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Clock, Loader2, Plus, Send, CheckCircle2, RotateCcw, Trash2, Info, AlertTriangle, FileText,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FileText, Info, Loader2, Plus, RotateCcw, Search, Send, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -101,6 +99,7 @@ export function TimesheetsPanel() {
   const [sheets, setSheets] = React.useState<Sheet[] | null>(null);
   const [isAdmin, setIsAdmin] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
 
   const [open, setOpen] = React.useState<Detail | null>(null);
   const [transitions, setTransitions] = React.useState<{ to: string; label: string; requiresNotes?: boolean }[]>([]);
@@ -252,8 +251,23 @@ export function TimesheetsPanel() {
   const entryValid =
     !!entryForm.date && !!entryForm.description.trim() && Number(entryForm.hours) > 0;
 
-  const mine = (sheets ?? []).filter((s) => s.status !== "APPROVED");
-  const done = (sheets ?? []).filter((s) => s.status === "APPROVED");
+  /**
+   * An administrator sees every employee's timesheet here, one row per person
+   * per period, and there was no way to find one. The search covers who it
+   * belongs to and the period, which is how people actually look for them.
+   */
+  const q = search.trim().toLowerCase();
+  const visible = (sheets ?? []).filter((s) => {
+    if (!q) return true;
+    return [
+      s.employee.user.name ?? "", s.employee.user.email, s.employee.employeeId,
+      s.employee.jobTitle, s.employee.department?.name ?? "",
+      STATUS_LABELS[s.status] ?? s.status, s.frequency,
+      s.periodStart.slice(0, 10), s.periodEnd.slice(0, 10),
+    ].join(" ").toLowerCase().includes(q);
+  });
+  const mine = visible.filter((s) => s.status !== "APPROVED");
+  const done = visible.filter((s) => s.status === "APPROVED");
 
   return (
     <div className="space-y-4">
@@ -264,6 +278,16 @@ export function TimesheetsPanel() {
             field work is recorded in Field Operations, not here.
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search person, period or status…"
+            className="pl-9 h-9 w-72"
+          />
+        </div>
         <Button
           variant="outline"
           className="gap-1.5"
@@ -273,10 +297,17 @@ export function TimesheetsPanel() {
           {busy === "new" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           Open current period
         </Button>
+        </div>
       </div>
 
       {sheets === null ? (
         <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">Loading…</p>
+      ) : visible.length === 0 && q ? (
+        <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No timesheets match &ldquo;{search}&rdquo;.
+          </p>
+        </div>
       ) : sheets.length === 0 ? (
         <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
           <Clock className="h-7 w-7 mx-auto text-slate-300 dark:text-slate-600 mb-2" />

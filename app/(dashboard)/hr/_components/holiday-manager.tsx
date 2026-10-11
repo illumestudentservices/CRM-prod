@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarDays, Globe, MapPin, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Globe, MapPin, Plus, Search, Trash2 } from "lucide-react";
 
 interface Holiday {
   id: string;
@@ -49,6 +49,9 @@ export function HolidayManager({ isHR }: Props) {
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  // 101 holidays are loaded on production. A region filter alone still
+  // leaves 29 of them in a list you have to read line by line.
+  const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [filterRegion, setFilterRegion] = useState<string>("all");
 
@@ -121,10 +124,22 @@ export function HolidayManager({ isHR }: Props) {
     }
   }
 
+  const q = search.trim().toLowerCase();
   const filtered = holidays.filter((h) => {
-    if (filterRegion === "all") return true;
-    if (filterRegion === "global") return h.isGlobal;
-    return h.regionId === filterRegion;
+    const inRegion =
+      filterRegion === "all" ? true
+      : filterRegion === "global" ? h.isGlobal
+      : h.regionId === filterRegion;
+    if (!inRegion) return false;
+    if (!q) return true;
+    // Name, description, region and the formatted date, so "Diwali",
+    // "Nigeria" and "Nov" all find something.
+    return (
+      h.name.toLowerCase().includes(q) ||
+      (h.description ?? "").toLowerCase().includes(q) ||
+      (h.region?.name ?? (h.isGlobal ? "global" : "")).toLowerCase().includes(q) ||
+      formatDate(h.date).toLowerCase().includes(q)
+    );
   });
 
   const upcoming = filtered.filter((h) => isUpcoming(h.date));
@@ -140,6 +155,15 @@ export function HolidayManager({ isHR }: Props) {
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search holidays, region or date…"
+              className="pl-9 h-9 w-64"
+            />
+          </div>
           {isHR && (
             <Select value={filterRegion} onValueChange={setFilterRegion}>
               <SelectTrigger className="w-44">

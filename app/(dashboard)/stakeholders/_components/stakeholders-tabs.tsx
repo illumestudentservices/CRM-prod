@@ -4,7 +4,7 @@ import * as React from "react";
 import { EmailLink } from "@/components/shared/email-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
-import { School as SchoolIcon, Users as UsersIcon } from "lucide-react";
+import { School as SchoolIcon, Users as UsersIcon, Search as SearchIcon } from "lucide-react";
 import { SchoolForm } from "./school-form";
 import { CounsellorForm } from "./counsellor-form";
 
@@ -51,6 +51,23 @@ export function StakeholdersTabs({
   defaultTab: "schools" | "counsellors";
 }) {
   const [tab, setTab] = React.useState<"schools" | "counsellors">(defaultTab);
+  // Neither table had any way to find a row. Both are hand-rolled, so they
+  // never got the search the shared DataTable provides.
+  const [search, setSearch] = React.useState("");
+  const q = search.trim().toLowerCase();
+
+  const shownSchools = React.useMemo(
+    () => (!q ? schools : schools.filter((s) =>
+      [s.name, s.country, s.city ?? "", s.type, s.relationshipStatus]
+        .join(" ").toLowerCase().includes(q))),
+    [schools, q],
+  );
+  const shownCounsellors = React.useMemo(
+    () => (!q ? counsellors : counsellors.filter((c) =>
+      [c.name, c.email ?? "", c.phone ?? "", c.position ?? "", c.school.name]
+        .join(" ").toLowerCase().includes(q))),
+    [counsellors, q],
+  );
 
   const schoolOptions = React.useMemo(
     () => schools.map((s) => ({ id: s.id, name: s.name })),
@@ -68,11 +85,29 @@ export function StakeholdersTabs({
             <UsersIcon className="h-3.5 w-3.5" /> Counsellors ({counsellors.length})
           </TabsTrigger>
         </TabsList>
-        {tab === "schools" ? (
-          <SchoolForm markets={markets} />
-        ) : (
-          <CounsellorForm schools={schoolOptions} />
-        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tab === "schools"
+                ? "Search schools, country, city…"
+                : "Search counsellors, school, email…"}
+              className="pl-9 h-9 w-72 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A5F]"
+            />
+          </div>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {tab === "schools"
+              ? `${shownSchools.length} of ${schools.length}`
+              : `${shownCounsellors.length} of ${counsellors.length}`}
+          </span>
+          {tab === "schools" ? (
+            <SchoolForm markets={markets} />
+          ) : (
+            <CounsellorForm schools={schoolOptions} />
+          )}
+        </div>
       </div>
 
       <TabsContent value="schools" className="mt-4">
@@ -90,14 +125,16 @@ export function StakeholdersTabs({
               </tr>
             </thead>
             <tbody>
-              {schools.length === 0 ? (
+              {shownSchools.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-6 text-center text-muted-foreground">
-                    No schools yet. Click <strong>Add School</strong> to create the first one.
+                    {q
+                      ? <>No schools match &ldquo;{search}&rdquo;.</>
+                      : <>No schools yet. Click <strong>Add School</strong> to create the first one.</>}
                   </td>
                 </tr>
               ) : (
-                schools.map((s) => (
+                shownSchools.map((s) => (
                   <tr key={s.id} className="border-t hover:bg-muted/50">
                     <td className="p-2 font-medium">{s.name}</td>
                     <td className="p-2">
@@ -139,14 +176,16 @@ export function StakeholdersTabs({
               </tr>
             </thead>
             <tbody>
-              {counsellors.length === 0 ? (
+              {shownCounsellors.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-6 text-center text-muted-foreground">
-                    No counsellors yet. Add a school first, then create counsellors under it.
+                    {q
+                      ? <>No counsellors match &ldquo;{search}&rdquo;.</>
+                      : <>No counsellors yet. Add a school first, then create counsellors under it.</>}
                   </td>
                 </tr>
               ) : (
-                counsellors.map((c) => (
+                shownCounsellors.map((c) => (
                   <tr key={c.id} className="border-t hover:bg-muted/50">
                     <td className="p-2 font-medium">{c.name}</td>
                     <td className="p-2 text-muted-foreground">{c.school.name}</td>
