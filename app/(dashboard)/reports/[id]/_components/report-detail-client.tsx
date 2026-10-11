@@ -316,7 +316,7 @@ export function ReportDetailClient({
             <StatCard title="Conversion Rate" value={showPct(kpi.conversionRate)} icon={Target} change={pointDelta(kpi.conversionRate, prevKpi?.conversionRate)} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" />
             <StatCard title="Contact Rate" value={showPct(kpi.contactRate)} icon={Phone} change={pointDelta(kpi.contactRate, prevKpi?.contactRate)} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" />
             <StatCard title="Events" value={showNum(kpi.eventsCount)} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" />
-            <StatCard title="Event Cost" value={typeof kpi.totalEventCost !== "number" ? "—" : kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString()}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
+            <StatCard title="Event Cost" value={typeof kpi.totalEventCost !== "number" ? "—" : kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString("en-CA")}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
           </div>
         </div>
       )}
@@ -545,7 +545,7 @@ export function ReportDetailClient({
                       <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{event.name}</td>
                       <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 text-xs">{event.location}</td>
                       <td className="py-2.5 px-3 text-right font-semibold text-[#0EA5E9]">{event.leadsGenerated}</td>
-                      <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{event.cost > 0 ? `$${event.cost.toLocaleString()}` : "—"}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-400">{event.cost > 0 ? `$${event.cost.toLocaleString("en-CA")}` : "—"}</td>
                       <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-400">{event.roi !== null ? event.roi : "—"}</td>
                     </tr>
                   ))}

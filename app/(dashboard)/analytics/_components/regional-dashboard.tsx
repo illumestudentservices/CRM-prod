@@ -181,7 +181,7 @@ export function RegionalDashboard() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: unknown) => [(value as number).toLocaleString()]}
+                    formatter={(value: unknown) => [(value as number).toLocaleString("en-CA")]}
                     contentStyle={chart.tooltipContentStyle}
                   />
                   <Legend

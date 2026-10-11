@@ -76,7 +76,7 @@ export function ConversionFunnel({ stageBreakdown, onStageClick }: ConversionFun
                   <span className="text-xs text-slate-400 dark:text-slate-500">{conversionRate}%</span>
                 )}
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 w-8 text-right">
-                  {stage.count.toLocaleString()}
+                  {stage.count.toLocaleString("en-CA")}
                 </span>
               </div>
             </div>

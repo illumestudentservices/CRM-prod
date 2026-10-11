@@ -57,7 +57,7 @@ interface QBR {
  * ROI figures come out of a JSON column. The `ROIAnalysis` interface describes
  * the shape the generator writes today, but nothing validates a stored blob on
  * the way back in, so an older or partially-generated QBR can arrive missing a
- * field the type swears is a number. `totalCost.toLocaleString()` then throws
+ * field the type swears is a number. `totalCost.toLocaleString("en-CA")` then throws
  * and takes the whole dialog down — measured on /reports/qbr as "Cannot read
  * properties of undefined (reading 'toLocaleString')".
  *

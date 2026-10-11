@@ -265,7 +265,7 @@ export default async function NetworkPerformancePage() {
                 <td className="p-2">{c.startDate.toISOString().slice(0, 10)}</td>
                 <td className="p-2">{c.status ?? (c.isActive ? "OPEN" : "CLOSED")}</td>
                 <td className="p-2">{c.leadsGenerated}</td>
-                <td className="p-2">{c.actualSpend != null ? `$${c.actualSpend.toLocaleString()}` : c.budget != null ? `$${c.budget.toLocaleString()} (planned)` : "—"}</td>
+                <td className="p-2">{c.actualSpend != null ? `$${c.actualSpend.toLocaleString("en-CA")}` : c.budget != null ? `$${c.budget.toLocaleString("en-CA")} (planned)` : "—"}</td>
                 <td className="p-2">{c.costPerLead != null ? `$${c.costPerLead.toFixed(2)}` : "—"}</td>
               </tr>
             ))}

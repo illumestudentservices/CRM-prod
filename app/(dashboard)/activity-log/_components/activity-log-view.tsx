@@ -202,9 +202,9 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
       {/* ── Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: "Total Actions",    value: stats.total.toLocaleString(),           icon: Activity,  color: "text-blue-600"   },
-          { label: "Actions Today",    value: stats.today.toLocaleString(),            icon: Calendar,  color: "text-emerald-600" },
-          { label: "Active Today",     value: stats.activeUsersToday.toLocaleString(), icon: Users,     color: "text-violet-600"  },
+          { label: "Total Actions",    value: stats.total.toLocaleString("en-CA"),           icon: Activity,  color: "text-blue-600"   },
+          { label: "Actions Today",    value: stats.today.toLocaleString("en-CA"),            icon: Calendar,  color: "text-emerald-600" },
+          { label: "Active Today",     value: stats.activeUsersToday.toLocaleString("en-CA"), icon: Users,     color: "text-violet-600"  },
           { label: "Top Entity",       value: formatLabel(stats.topEntity),            icon: TrendingUp, color: "text-orange-500" },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
@@ -458,7 +458,7 @@ export function ActivityLogView({ stats }: { stats: Stats }) {
         {!loading && total > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <p className="text-xs text-muted-foreground">
-              Showing {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()} entries
+              Showing {from.toLocaleString("en-CA")}–{to.toLocaleString("en-CA")} of {total.toLocaleString("en-CA")} entries
             </p>
             <div className="flex items-center gap-2">
               <Button

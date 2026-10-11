@@ -174,7 +174,7 @@ export default async function ForecastPage({
             <li key={e.id} className="flex flex-wrap gap-x-3 text-slate-600 dark:text-slate-400">
               <span className="font-medium text-slate-800 dark:text-slate-200">{e.toStatus}</span>
               <span>{e.actedBy?.name ?? "—"}</span>
-              <span>{new Date(e.createdAt).toLocaleString()}</span>
+              <span>{new Date(e.createdAt).toLocaleString("en-CA")}</span>
               {e.comments && <span className="w-full text-slate-500">“{e.comments}”</span>}
             </li>
           ))}

@@ -338,7 +338,7 @@ export function WhatsAppInbox({ initialConversations, currentUserId }: WhatsAppI
                   contact: c.displayName ?? displayNameOr(c.lead, c.phone),
                   lastMessage: c.lastMessage ?? "—",
                   timestamp: c.lastMessageAt
-                    ? new Date(c.lastMessageAt).toLocaleString()
+                    ? new Date(c.lastMessageAt).toLocaleString("en-CA")
                     : "—",
                   status: c.unreadCount > 0 ? `${c.unreadCount} unread` : "Read",
                 }))}

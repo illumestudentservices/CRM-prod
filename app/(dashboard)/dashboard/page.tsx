@@ -35,7 +35,7 @@ import { NO_REGION } from "@/lib/region-scope";
 import { deriveLeaveBalances, LEAVE_TYPE_LABELS } from "@/lib/leave-policy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
+import { getInitials, formatDate } from "@/lib/utils";
 import type { Role } from "@/lib/permissions";
 import { AnnouncementsFeed } from "@/components/shared/announcements-feed";
 import { displayName } from "@/lib/person-name";
@@ -568,12 +568,12 @@ function RecentLeadsCard({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-8 w-8 rounded-full bg-[#1E3A5F]/10 flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold text-[#1E3A5F] dark:text-sky-300">
-                    {displayName(lead)
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
+                    {/* getInitials, not an inline copy of it. This was its
+                        own duplicate of the same logic, so fixing the helper
+                        left this one broken: a lead named with emoji split a
+                        surrogate pair here and hydration failed on the whole
+                        dashboard. */}
+                    {getInitials(displayName(lead))}
                   </span>
                 </div>
                 <div className="min-w-0">
@@ -908,7 +908,7 @@ async function ExecutiveDashboard({
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Total Leads"
-          value={stats.totalLeads.toLocaleString()}
+          value={stats.totalLeads.toLocaleString("en-CA")}
           change={calcChange(stats.leadsThisMonth, stats.leadsLastMonth)}
           icon="Users"
           iconColor="text-[#1E3A5F]"
@@ -917,7 +917,7 @@ async function ExecutiveDashboard({
         />
         <StatCard
           title="Enrolled"
-          value={stats.enrolled.toLocaleString()}
+          value={stats.enrolled.toLocaleString("en-CA")}
           change={calcChange(stats.enrolled, stats.enrolledLastMonth)}
           icon="GraduationCap"
           iconColor="text-emerald-600"
@@ -926,7 +926,7 @@ async function ExecutiveDashboard({
         />
         <StatCard
           title="Active Institutions"
-          value={stats.activeInstitutions.toLocaleString()}
+          value={stats.activeInstitutions.toLocaleString("en-CA")}
           icon="Building2"
           iconColor="text-violet-600"
           iconBg="bg-violet-50"
@@ -1179,7 +1179,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="My Leads"
-          value={stats.totalLeads.toLocaleString()}
+          value={stats.totalLeads.toLocaleString("en-CA")}
           change={calcChange(stats.leadsThisMonth, stats.leadsLastMonth)}
           icon="Users"
           iconColor="text-[#1E3A5F]"
@@ -1188,7 +1188,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
         />
         <StatCard
           title="New This Month"
-          value={stats.leadsThisMonth.toLocaleString()}
+          value={stats.leadsThisMonth.toLocaleString("en-CA")}
           change={calcChange(stats.leadsThisMonth, stats.leadsLastMonth)}
           icon="TrendingUp"
           iconColor="text-[#0EA5E9]"
@@ -1196,14 +1196,14 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
         />
         <StatCard
           title="In Progress"
-          value={stats.inProgress.toLocaleString()}
+          value={stats.inProgress.toLocaleString("en-CA")}
           icon="ClipboardList"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
         />
         <StatCard
           title="Enrolled"
-          value={stats.enrolled.toLocaleString()}
+          value={stats.enrolled.toLocaleString("en-CA")}
           icon="GraduationCap"
           iconColor="text-emerald-600"
           iconBg="bg-emerald-50"
@@ -1216,21 +1216,21 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Needs Attention"
-          value={actions.items.length.toLocaleString()}
+          value={actions.items.length.toLocaleString("en-CA")}
           icon="AlertCircle"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
         />
         <StatCard
           title="Deadlines This Week"
-          value={actions.counts.deadlines.toLocaleString()}
+          value={actions.counts.deadlines.toLocaleString("en-CA")}
           icon="CalendarDays"
           iconColor="text-rose-600"
           iconBg="bg-rose-50"
         />
         <StatCard
           title="Stalled Students"
-          value={actions.counts.stale.toLocaleString()}
+          value={actions.counts.stale.toLocaleString("en-CA")}
           icon="Clock"
           iconColor="text-orange-600"
           iconBg="bg-orange-50"
@@ -1238,7 +1238,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
         />
         <StatCard
           title="Open Tasks"
-          value={actions.counts.openTasks.toLocaleString()}
+          value={actions.counts.openTasks.toLocaleString("en-CA")}
           icon="ClipboardList"
           iconColor="text-[#0EA5E9]"
           iconBg="bg-[#0EA5E9]/10"
@@ -1367,7 +1367,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Open Tasks"
-          value={(stats?.openTasks ?? 0).toLocaleString()}
+          value={(stats?.openTasks ?? 0).toLocaleString("en-CA")}
           icon="CheckSquare"
           iconColor="text-[#1E3A5F]"
           iconBg="bg-[#1E3A5F]/10"
@@ -1404,7 +1404,7 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
         {(stats?.directReports ?? 0) > 0 && (
           <StatCard
             title="Awaiting Your Approval"
-            value={(stats?.teamPendingLeave ?? 0).toLocaleString()}
+            value={(stats?.teamPendingLeave ?? 0).toLocaleString("en-CA")}
             icon="Clock"
             iconColor="text-violet-600"
             iconBg="bg-violet-50"

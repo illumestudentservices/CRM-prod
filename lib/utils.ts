@@ -63,11 +63,37 @@ export function slugify(text: string): string {
     .replace(/[^\w-]+/g, "");
 }
 
+/**
+ * Initials for an avatar.
+ *
+ * ★ CODE POINTS, NOT name[0].
+ *
+ * name[0] returns the first UTF-16 CODE UNIT. For a name beginning with an
+ * astral character - an emoji, or scripts above the BMP - that is half a
+ * surrogate pair: a lone surrogate, which renders as a replacement character
+ * and does not survive a round trip identically.
+ *
+ * The visible symptom was a hydration error on /dashboard. React found the
+ * initials span differing between server and client, printed both sides as
+ * the same unreadable glyph, and regenerated the whole tree. The culprit was
+ * a lead named with three emoji.
+ *
+ * Array.from iterates code points, so a surrogate pair is taken whole or not
+ * at all. Splitting on /\s+/ rather than " " also stops a double space
+ * producing an empty segment and an undefined initial.
+ */
 export function getInitials(name: string | null | undefined, fallback?: string): string {
-  if (name) {
-    return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+  if (name?.trim()) {
+    return name
+      .trim()
+      .split(/\s+/)
+      .map((part) => Array.from(part)[0] ?? "")
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
   }
-  if (fallback) return fallback.slice(0, 2).toUpperCase();
+  if (fallback) return Array.from(fallback).slice(0, 2).join("").toUpperCase();
   return "??";
 }
 

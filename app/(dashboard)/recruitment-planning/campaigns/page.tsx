@@ -180,9 +180,9 @@ export default async function CampaignsPage({ searchParams }: Props) {
                   </td>
                   <td className="p-2 whitespace-nowrap">
                     {c.actualSpend != null
-                      ? `$${c.actualSpend.toLocaleString()}`
+                      ? `$${c.actualSpend.toLocaleString("en-CA")}`
                       : c.budget != null
-                      ? `$${c.budget.toLocaleString()} (planned)`
+                      ? `$${c.budget.toLocaleString("en-CA")} (planned)`
                       : "—"}
                   </td>
                   <td className="p-2">{c.leadsGenerated}</td>

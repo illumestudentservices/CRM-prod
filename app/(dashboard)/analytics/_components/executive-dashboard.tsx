@@ -145,7 +145,7 @@ interface ExecutiveData {
 function formatCurrency(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return `$${value.toLocaleString("en-CA")}`;
 }
 
 interface DrillDown {
@@ -325,7 +325,7 @@ export function ExecutiveDashboard({
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Total Leads YTD"
-          value={loading ? "—" : (data?.totalLeadsYTD ?? 0).toLocaleString()}
+          value={loading ? "—" : (data?.totalLeadsYTD ?? 0).toLocaleString("en-CA")}
           change={ytdChange}
           changeLabel="vs last year"
           icon="Users"
@@ -341,7 +341,7 @@ export function ExecutiveDashboard({
         />
         <StatCard
           title="Enrollments YTD"
-          value={loading ? "—" : (data?.enrollmentsYTD ?? 0).toLocaleString()}
+          value={loading ? "—" : (data?.enrollmentsYTD ?? 0).toLocaleString("en-CA")}
           icon="GraduationCap"
           iconColor="text-[#22C55E]"
           iconBg="bg-[#22C55E]/10"
@@ -355,7 +355,7 @@ export function ExecutiveDashboard({
         />
         <StatCard
           title="Active Partners"
-          value={loading ? "—" : (data?.activePartners ?? 0).toLocaleString()}
+          value={loading ? "—" : (data?.activePartners ?? 0).toLocaleString("en-CA")}
           icon="Handshake"
           iconColor="text-[#F59E0B]"
           iconBg="bg-[#F59E0B]/10"
@@ -364,7 +364,7 @@ export function ExecutiveDashboard({
         />
         <StatCard
           title="Events This Year"
-          value={loading ? "—" : (data?.eventsThisYear ?? 0).toLocaleString()}
+          value={loading ? "—" : (data?.eventsThisYear ?? 0).toLocaleString("en-CA")}
           icon="CalendarDays"
           iconColor="text-[#1E3A5F]"
           iconBg="bg-[#1E3A5F]/10"
@@ -776,25 +776,25 @@ export function ExecutiveDashboard({
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-violet-50 dark:bg-violet-500/15 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
-                    {(execData?.marketCoverage.schools ?? 0).toLocaleString()}
+                    {(execData?.marketCoverage.schools ?? 0).toLocaleString("en-CA")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Schools</p>
                 </div>
                 <div className="bg-violet-50/60 dark:bg-violet-500/10 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-violet-600 dark:text-violet-300">
-                    {(execData?.marketCoverage.agents ?? 0).toLocaleString()}
+                    {(execData?.marketCoverage.agents ?? 0).toLocaleString("en-CA")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Agents</p>
                 </div>
                 <div className="bg-violet-50/40 dark:bg-violet-500/10 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-violet-600 dark:text-violet-300">
-                    {(execData?.marketCoverage.counsellors ?? 0).toLocaleString()}
+                    {(execData?.marketCoverage.counsellors ?? 0).toLocaleString("en-CA")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Counsellors</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3 text-center">
                   <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">
-                    {(execData?.marketCoverage.markets ?? 0).toLocaleString()}
+                    {(execData?.marketCoverage.markets ?? 0).toLocaleString("en-CA")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Markets</p>
                 </div>
