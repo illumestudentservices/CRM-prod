@@ -71,6 +71,8 @@ async function main() {
   expect(ok.payload?.data?.mimeType === "application/pdf",
     "and stored with the canonical MIME", `${ok.payload?.data?.mimeType}`);
 
+  const hrFileId = ok.payload?.data?.id;
+
   const stored = await db.attachment.findUnique({
     where: { id: ok.payload?.data?.id },
     select: { parentType: true, parentId: true, size: true },
@@ -132,46 +134,165 @@ async function main() {
   // ── Who can see them ──────────────────────────────────────────────────────
   startSection("Whose documents these are");
 
-  const hrSees = await list(hr.jar, owner.employee.id);
-  expect((hrSees.payload?.data ?? []).length > 0, "HR can list them",
-    `${(hrSees.payload?.data ?? []).length}`);
+  /**
+   * ★ THE RULE, AND IT IS NOT SYMMETRIC.
+   *
+   * There is no HR at Illume; the line manager is it. So:
+   *
+   *   the employee   sees everything on their record — theirs and their
+   *                  manager's
+   *   the manager    sees ONLY what they uploaded themselves
+   *   a colleague    sees nothing
+   *
+   * The manager half is the privacy-critical one. A manager who can file a
+   * contract must not be able to read the doctor's note filed beside it.
+   */
+  const byManager = await upload(manager.jar, owner.employee.id, {
+    name: `${TAG}-contract-from-manager.pdf`, type: "application/pdf", bytes: 1024,
+  });
+  expect(byManager.status === 201,
+    "*** a manager can file a document for their own report ***",
+    `status ${byManager.status} ${JSON.stringify(byManager.payload?.error ?? "")}`);
+  const managerFileId = byManager.payload?.data?.id;
 
-  const ownerSees = await list(owner.jar, owner.employee.id);
-  expect(ownerSees.status === 200 && (ownerSees.payload?.data ?? []).length > 0,
-    "*** the employee can read their OWN documents ***",
-    `status ${ownerSees.status}, ${(ownerSees.payload?.data ?? []).length} file(s)`);
+  const byEmployee = await upload(owner.jar, owner.employee.id, {
+    name: `${TAG}-private-note.pdf`, type: "application/pdf", bytes: 1024,
+  });
+  expect(byEmployee.status === 201,
+    "*** the employee can upload to their own record ***",
+    `status ${byEmployee.status} ${JSON.stringify(byEmployee.payload?.error ?? "")}`);
+  const employeeFileId = byEmployee.payload?.data?.id;
+
+  const ownerList = await list(owner.jar, owner.employee.id);
+  const ownerIds = (ownerList.payload?.data ?? []).map((a) => a.id);
+  expect(ownerIds.includes(employeeFileId),
+    "*** the employee sees their own upload ***", "their own file is missing");
+  expect(ownerIds.includes(managerFileId),
+    "*** and the one their manager filed for them ***", "the manager's file is missing");
+
+  const mgrList = await list(manager.jar, owner.employee.id);
+  const mgrIds = (mgrList.payload?.data ?? []).map((a) => a.id);
+  expect(mgrList.status === 200, "the manager can open the record", `status ${mgrList.status}`);
+  expect(mgrIds.includes(managerFileId),
+    "*** the manager sees the document THEY filed ***", "their own upload is missing");
+  expect(!mgrIds.includes(employeeFileId),
+    "*** the manager does NOT see the employee's own upload ***",
+    "THE EMPLOYEE'S PRIVATE FILE LEAKED TO THEIR MANAGER");
+  expect(!mgrIds.includes(hrFileId),
+    "nor a file somebody else filed", "another uploader's file leaked to the manager");
 
   const colleagueSees = await list(colleague.jar, owner.employee.id);
-  expect(colleagueSees.status === 404 || colleagueSees.status === 403,
+  expect(colleagueSees.status === 404 || colleagueSees.status === 403
+    || (colleagueSees.payload?.data ?? []).length === 0,
     "*** a colleague holding the employee id gets nothing ***",
     `status ${colleagueSees.status}, ${(colleagueSees.payload?.data ?? []).length} file(s)`);
 
-  const managerSees = await list(manager.jar, owner.employee.id);
-  expect(managerSees.status === 404 || managerSees.status === 403,
-    "*** NOT EVEN THEIR LINE MANAGER ***",
-    `status ${managerSees.status}, ${(managerSees.payload?.data ?? []).length} file(s)`);
+  startSection("And the id is not a way round it");
 
-  startSection("And cannot be downloaded by id either");
-  const id = ok.payload?.data?.id;
-  const colleagueGrab = await api(colleague.jar, "GET", `/api/attachments/${id}`);
-  expect(colleagueGrab.status === 404 || colleagueGrab.status === 403,
-    "*** a colleague with the attachment id cannot download it ***",
-    `status ${colleagueGrab.status}`);
-  const ownerGrab = await fetch(`${BASE}/api/attachments/${id}`, {
+  const mgrGrab = await fetch(`${BASE}/api/attachments/${employeeFileId}`, {
+    headers: { cookie: manager.jar.header() }, redirect: "manual",
+  });
+  expect(mgrGrab.status === 404 || mgrGrab.status === 403,
+    "*** the manager cannot DOWNLOAD the employee's file by id ***",
+    `status ${mgrGrab.status} — listing hid it and the download did not`);
+
+  const mgrOwnGrab = await fetch(`${BASE}/api/attachments/${managerFileId}`, {
+    headers: { cookie: manager.jar.header() }, redirect: "manual",
+  });
+  expect(mgrOwnGrab.status === 200, "but can download their own", `status ${mgrOwnGrab.status}`);
+
+  const ownerGrabsMgr = await fetch(`${BASE}/api/attachments/${managerFileId}`, {
     headers: { cookie: owner.jar.header() }, redirect: "manual",
   });
-  expect(ownerGrab.status === 200, "but the owner can", `status ${ownerGrab.status}`);
+  expect(ownerGrabsMgr.status === 200,
+    "*** and the employee can download what their manager filed ***",
+    `status ${ownerGrabsMgr.status}`);
 
-  startSection("Uploading to somebody else's record");
-  const sneak = await upload(colleague.jar, owner.employee.id, pdf);
-  expect(sneak.status === 403 || sneak.status === 404,
-    "*** a colleague cannot put a file on another person's record ***",
-    `status ${sneak.status}`);
+  startSection("Deleting");
 
-  const selfUpload = await upload(owner.jar, owner.employee.id, {
-    name: `${TAG}-mine.pdf`, type: "application/pdf", bytes: 1024,
+  const mgrDeletesTheirs = await api(manager.jar, "DELETE", `/api/attachments/${employeeFileId}`);
+  expect(mgrDeletesTheirs.status === 403 || mgrDeletesTheirs.status === 404,
+    "*** the manager cannot delete the employee's private file ***",
+    `status ${mgrDeletesTheirs.status}`);
+  const stillThere = await db.attachment.findFirst({
+    where: { id: employeeFileId, deletedAt: null }, select: { id: true },
   });
-  console.log(`     (the employee uploading to their own record: ${selfUpload.status})`);
+  expect(!!stillThere, "and it is still there", "it was deleted");
+
+  const ownerDeletesOwn = await api(owner.jar, "DELETE", `/api/attachments/${employeeFileId}`);
+  expect(ownerDeletesOwn.status === 200,
+    "the employee can delete their own", `status ${ownerDeletesOwn.status}`);
+
+  startSection("A manager of somebody else");
+  const otherManager = await createAndLogin({ role: "REGIONAL_MANAGER", withEmployee: true });
+  ctxs.push(otherManager);
+  const otherList = await list(otherManager.jar, owner.employee.id);
+  expect(otherList.status === 404 || otherList.status === 403
+    || (otherList.payload?.data ?? []).length === 0,
+    "*** a manager who is NOT their manager sees nothing ***",
+    `status ${otherList.status}, ${(otherList.payload?.data ?? []).length} file(s)`);
+  const otherUpload = await upload(otherManager.jar, owner.employee.id, {
+    name: `${TAG}-not-mine.pdf`, type: "application/pdf", bytes: 512,
+  });
+  expect(otherUpload.status === 403 || otherUpload.status === 404,
+    "and cannot file anything there either", `status ${otherUpload.status}`);
+
+  startSection("What the manager's PAGE actually contains");
+
+  /**
+   * ★ HIDING A TAB IS NOT WITHHOLDING THE DATA.
+   *
+   * The first version of the documents-only view hid the Profile tab and
+   * still passed the address and next-of-kin number as props. They were
+   * invisible on screen and sitting in View Source — and a browser test that
+   * read innerText said it was fine, because innerText only shows what was
+   * rendered. This reads the raw HTML instead.
+   *
+   * The personal phone survived even that first fix, because it renders in
+   * the page header rather than inside the tabs.
+   */
+  await db.employee.update({
+    where: { id: owner.employee.id },
+    data: {
+      address: `${TAG} 17 Privacy Lane`,
+      emergencyContact: `${TAG} Next Of Kin`,
+      emergencyPhone: "+1 555 0200",
+      phone: "+1 555 0111",
+    },
+  });
+
+  const pageAs = async (jar) => {
+    const res = await fetch(`${BASE}/hr/employees/${owner.employee.id}`, {
+      headers: { cookie: jar.header() }, redirect: "manual",
+    });
+    return { status: res.status, body: res.status === 200 ? await res.text() : "" };
+  };
+
+  const mgrPage = await pageAs(manager.jar);
+  expect(mgrPage.status === 200, "a manager can open their report's record",
+    `status ${mgrPage.status}`);
+  for (const [label, needle] of [
+    ["home address", "Privacy Lane"],
+    ["next-of-kin name", "Next Of Kin"],
+    ["next-of-kin number", "555 0200"],
+    ["personal phone", "555 0111"],
+  ]) {
+    expect(!mgrPage.body.includes(needle),
+      `*** the ${label} is NOT in the HTML sent to the manager ***`,
+      "it is in the page source");
+  }
+  expect(/Attachments|Add file/.test(mgrPage.body),
+    "but the attachments panel is", "the panel is missing");
+
+  const ownPage = await pageAs(owner.jar);
+  expect(ownPage.body.includes("Privacy Lane"),
+    "the employee still sees their own address", "withheld from the person themselves");
+
+  const strangerPage = await pageAs(colleague.jar);
+  expect(strangerPage.status === 307 || strangerPage.status === 302,
+    "*** an unrelated employee is redirected away from the record ***",
+    `status ${strangerPage.status}`);
+  expect(strangerPage.body === "", "and gets no page body", "a body was returned");
 
   startSection("A record that does not exist");
   const ghost = await upload(hr.jar, "00000000-0000-0000-0000-000000000000", pdf);

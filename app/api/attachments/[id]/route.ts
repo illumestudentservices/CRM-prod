@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
-import { mayReadParentRow, canWriteParent, canAccessParentRow } from "@/lib/attachment-parent";
+import {
+  mayReadParentRow, mayWriteParentRow, maySeeAttachment, canAccessParentRow,
+} from "@/lib/attachment-parent";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
 import { logActivity } from "@/lib/activity-logger";
 import { trashRecord } from "@/lib/recycle-bin";
@@ -37,17 +39,28 @@ export async function GET(
   // Read gate is on the PARENT — knowing the attachment ID doesn't
   // automatically permit reading if the caller can't see the parent module.
   const role = session.user.role as Role;
-  // Same owner-aware check as the list route. Downloading is reading; if the
-  // two disagreed, a file would be listed and then refused on click.
-  if (!(await mayReadParentRow(attachment.parentType, attachment.parentId, {
-    userId: session.user.id, role,
-  }))) {
+  const actor = { userId: session.user.id, role };
+
+  /**
+   * Both gates, in order: may they reach the record, and may they see THIS
+   * file. The second is the one that matters here — without it a manager who
+   * cannot see a file in the list could still fetch it by id, and the id is
+   * the easy half to guess at from a shared screenshot or a browser history.
+   */
+  if (!(await mayReadParentRow(attachment.parentType, attachment.parentId, actor))) {
     // Same 404 for permission-denied to prevent ID enumeration against the gate.
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   // …and the parent ROW, not just its module. Holding tasks:read is not the
   // same as having anything to do with the task this file hangs off.
+  if (!(await maySeeAttachment(
+    attachment.parentType, attachment.parentId,
+    { uploadedById: attachment.uploadedById }, actor,
+  ))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   if (!(await canAccessParentRow(attachment.parentType, attachment.parentId, {
     userId: session.user.id, role,
   }))) {
@@ -86,8 +99,17 @@ export async function DELETE(
   // "Can delete anyone's" is module write PLUS a claim on this row. Without
   // the second half, write permission on tasks meant delete permission on
   // every task attachment in the company.
+  // "Can delete anyone's" now also requires being allowed to SEE the file.
+  // Otherwise a manager could delete the employee's private upload — one they
+  // are not permitted to open — by id.
   const isWriter =
-    (await canWriteParent(role, attachment.parentType)) &&
+    (await mayWriteParentRow(attachment.parentType, attachment.parentId, {
+      userId: session.user.id, role,
+    })) &&
+    (await maySeeAttachment(
+      attachment.parentType, attachment.parentId,
+      { uploadedById: attachment.uploadedById }, { userId: session.user.id, role },
+    )) &&
     (await canAccessParentRow(attachment.parentType, attachment.parentId, {
       userId: session.user.id, role,
     }));

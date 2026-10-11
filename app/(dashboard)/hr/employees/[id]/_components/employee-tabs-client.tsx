@@ -78,6 +78,8 @@ interface EmployeeTabsClientProps {
   profile: ProfileData;
   leaveBalances: LeaveBalance[];
   isOwnProfile: boolean;
+  /** A line manager, here only to file documents. Hides every other tab. */
+  documentsOnly?: boolean;
   worklogs: Worklog[];
   isHR: boolean;
   trainingRecords: TrainingRecord[];
@@ -101,13 +103,24 @@ export function EmployeeTabsClient({
   profile,
   leaveBalances,
   isOwnProfile,
+  documentsOnly = false,
   worklogs,
   isHR,
   trainingRecords,
   assetAssignments,
   performanceReviews,
 }: EmployeeTabsClientProps) {
-  const [activeTab, setActiveTab] = React.useState("profile");
+  /**
+   * ★ THE DEFAULT MATTERS AS MUCH AS THE TRIGGER.
+   *
+   * Hiding the Profile TAB while still defaulting to it would have rendered
+   * the address and next-of-kin panel on load, with only the button to switch
+   * away missing. A manager would have landed on exactly the data this is
+   * meant to keep from them.
+   */
+  const [activeTab, setActiveTab] = React.useState(
+    documentsOnly ? "documents" : "profile",
+  );
 
   // /hr?tab=leave redirects an EMPLOYEE here and carries the tab with it, so
   // honour it — otherwise the dashboard's leave card lands them on Profile and
@@ -122,17 +135,21 @@ export function EmployeeTabsClient({
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="flex-wrap h-auto gap-1">
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="leave">Leave</TabsTrigger>
-        <TabsTrigger value="holidays">Holidays</TabsTrigger>
-        <TabsTrigger value="worklogs">Worklogs</TabsTrigger>
-        <TabsTrigger value="training">Training</TabsTrigger>
-        <TabsTrigger value="assets">Assets</TabsTrigger>
-        <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
+        {/* A manager opening a report's record sees Documents alone. The
+            Profile tab holds a home address and a next-of-kin number, which
+            are no part of filing a contract. */}
+        {!documentsOnly && <TabsTrigger value="profile">Profile</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="leave">Leave</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="holidays">Holidays</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="worklogs">Worklogs</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="training">Training</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="assets">Assets</TabsTrigger>}
+        {!documentsOnly && <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>}
         <TabsTrigger value="documents">Documents</TabsTrigger>
       </TabsList>
 
       {/* PROFILE */}
+      {!documentsOnly && (
       <TabsContent value="profile" className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-base">Personal Information</CardTitle></CardHeader>
@@ -170,20 +187,26 @@ export function EmployeeTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       {/* LEAVE */}
+      {!documentsOnly && (
       <TabsContent value="leave" className="mt-4">
         <LeaveSection employeeId={employeeId} balances={leaveBalances} isOwnProfile={isOwnProfile} />
       </TabsContent>
+      )}
 
       {/* HOLIDAYS — the same global + own-region list the HR tab shows, read
           only. An EMPLOYEE is redirected off /hr, so this was the one ERP
           calendar they had no way to open. */}
+      {!documentsOnly && (
       <TabsContent value="holidays" className="mt-4">
         <HolidayList />
       </TabsContent>
+      )}
 
       {/* WORKLOGS */}
+      {!documentsOnly && (
       <TabsContent value="worklogs" className="mt-4">
         <Card>
           <CardContent className="p-4">
@@ -205,8 +228,10 @@ export function EmployeeTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       {/* TRAINING */}
+      {!documentsOnly && (
       <TabsContent value="training" className="mt-4">
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -227,8 +252,10 @@ export function EmployeeTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       {/* ASSETS */}
+      {!documentsOnly && (
       <TabsContent value="assets" className="mt-4">
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -248,8 +275,10 @@ export function EmployeeTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       {/* PERFORMANCE REVIEWS */}
+      {!documentsOnly && (
       <TabsContent value="reviews" className="mt-4">
         <Card>
           <CardContent className="p-4 space-y-3">
@@ -286,6 +315,7 @@ export function EmployeeTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       {/* DOCUMENTS */}
       <TabsContent value="documents" className="mt-4 space-y-4">

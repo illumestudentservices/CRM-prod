@@ -55,7 +55,30 @@ export default async function EmployeeDetailPage({
   const isHR = role === "HR_MANAGER" || role === "SUPER_ADMIN";
   const isSuperAdmin = role === "SUPER_ADMIN";
   const isOwnProfile = employee.userId === currentUserId;
-  if (!isHR && !isOwnProfile) redirect("/hr");
+
+  /**
+   * ★ A MANAGER MAY OPEN THEIR OWN REPORT'S RECORD — FOR DOCUMENTS ONLY.
+   *
+   * There is no HR function at Illume, so the line manager is it, and they
+   * cannot put a contract on somebody's record from a page they are redirected
+   * away from.
+   *
+   * What they must NOT gain by being let in is the rest of this page. The
+   * Profile tab carries a home address and a next-of-kin phone number, which
+   * have nothing to do with filing a contract. So the page opens for them and
+   * EmployeeTabsClient shows them the Documents tab and nothing else.
+   */
+  const viewerEmployee = await db.employee.findFirst({
+    where: { userId: currentUserId },
+    select: { id: true },
+  });
+  const isManagerOfThis =
+    !!viewerEmployee && employee.managerId === viewerEmployee.id;
+
+  if (!isHR && !isOwnProfile && !isManagerOfThis) redirect("/hr");
+
+  /** A line manager, here to file documents and nothing else. */
+  const documentsOnly = !isHR && !isOwnProfile && isManagerOfThis;
 
   const EMPLOYMENT_LABELS: Record<string, string> = {
     FULL_TIME: "Full-time", PART_TIME: "Part-time", CONTRACT: "Contract", INTERN: "Intern",
@@ -160,7 +183,10 @@ export default async function EmployeeDetailPage({
               <Mail className="h-4 w-4 shrink-0" />
               <span className="break-all">{employee.user.email}</span>
             </div>
-            {employee.phone && (
+            {/* A personal mobile number is not needed to file a contract, and
+                it renders in the page header rather than inside the tabs — so
+                withholding it from the Profile tab was not enough. */}
+            {employee.phone && !documentsOnly && (
               <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                 <Phone className="h-4 w-4 shrink-0" />
                 <span className="break-all">{employee.phone}</span>
@@ -183,7 +209,32 @@ export default async function EmployeeDetailPage({
       {/* Tabs */}
       <EmployeeTabsClient
         employeeId={employee.id}
-        profile={{
+        /*
+          ★ HIDING A TAB IS NOT WITHHOLDING THE DATA.
+
+          Everything below is serialised into the page and sent to the
+          browser. The first version of the documents-only view hid the
+          Profile TAB and still passed the address and next-of-kin number as
+          props — invisible on screen, and sitting in View Source for any
+          manager who looked. The tab was the curtain; this is the wall.
+
+          A manager here to file a contract gets the empty shape and none of
+          the values. Nothing is withheld from the person themselves, or from
+          an administrator.
+        */
+        profile={documentsOnly ? {
+          name: employee.user.name,
+          // Empty, not null: the prop is typed string and a documents-only
+          // viewer has no business with the address either way.
+          email: "",
+          phone: null,
+          regionName: null,
+          address: null,
+          emergencyContact: null,
+          emergencyPhone: null,
+          managerName: null,
+          directReports: [],
+        } : {
           name: employee.user.name,
           email: employee.user.email,
           phone: employee.phone,
@@ -194,13 +245,14 @@ export default async function EmployeeDetailPage({
           managerName: employee.manager?.user.name ?? null,
           directReports: employee.directReports,
         }}
-        leaveBalances={deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender)}
+        leaveBalances={documentsOnly ? [] : deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender)}
         isOwnProfile={isOwnProfile}
-        worklogs={employee.worklogs}
+        documentsOnly={documentsOnly}
+        worklogs={documentsOnly ? [] : employee.worklogs}
         isHR={isHR}
-        trainingRecords={employee.trainingRecords}
-        assetAssignments={employee.assetAssignments}
-        performanceReviews={employee.performanceReviews}
+        trainingRecords={documentsOnly ? [] : employee.trainingRecords}
+        assetAssignments={documentsOnly ? [] : employee.assetAssignments}
+        performanceReviews={documentsOnly ? [] : employee.performanceReviews}
       />
     </div>
   );

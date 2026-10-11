@@ -6,7 +6,8 @@ import type { Role, AttachmentParentType } from "@prisma/client";
 import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
 import {
-  attachmentContext, mayReadParentRow, canWriteParent, canAccessParentRow,
+  attachmentContext, mayReadParentRow, mayWriteParentRow, maySeeAttachment,
+  canAccessParentRow,
 } from "@/lib/attachment-parent";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -112,7 +113,23 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ data: attachments });
+  /**
+   * ★ THE LIST IS FILTERED PER FILE, NOT JUST PER RECORD.
+   *
+   * On a staff record the employee and their line manager both legitimately
+   * reach the same parent, and must not see the same files: the manager put
+   * the contract there and has no business reading the doctor's note filed
+   * next to it. Types without a canSeeAttachment are unaffected.
+   */
+  const actor = { userId: session.user.id, role };
+  const visible = [];
+  for (const a of attachments) {
+    if (await maySeeAttachment(parentType as AttachmentParentType, parentId, a, actor)) {
+      visible.push(a);
+    }
+  }
+
+  return NextResponse.json({ data: visible });
 }
 
 // ── POST /api/attachments (multipart/form-data) ─────────────────────────
@@ -135,7 +152,11 @@ export async function POST(req: NextRequest) {
   const { parentType, parentId } = parsed.data;
 
   const role = session.user.role as Role;
-  if (!(await canWriteParent(role, parentType as AttachmentParentType))) {
+  // Module permission, OR a relationship to this record where the type allows
+  // it — an employee and their manager both upload here and hold no erp_hr.
+  if (!(await mayWriteParentRow(parentType as AttachmentParentType, parentId, {
+    userId: session.user.id, role,
+  }))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

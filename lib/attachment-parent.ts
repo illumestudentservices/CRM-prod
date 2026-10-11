@@ -111,15 +111,69 @@ export interface ParentContext {
     parentId: string,
     actor: { userId: string; role: Role }
   ) => Promise<boolean>;
+  /** As ownerCanRead, for uploading. Opt-in, per type. */
+  ownerCanWrite?: (
+    parentId: string,
+    actor: { userId: string; role: Role }
+  ) => Promise<boolean>;
+  /**
+   * Optional: a filter on the INDIVIDUAL FILE, applied after the row gate.
+   *
+   * ★ WHY A THIRD LAYER.
+   *
+   * `resource` asks about the module, `canAccessRow` about the record. Both
+   * are about reaching the same place, and for a staff record two people
+   * legitimately reach it — the employee and the line manager who acts as
+   * their HR. What differs is which files each may see once there: the
+   * employee's own uploads are not the manager's business.
+   *
+   * Without this the only choices are "manager sees nothing on the record" or
+   * "manager sees the doctor's note", and neither is right.
+   */
+  canSeeAttachment?: (
+    attachment: { uploadedById: string | null },
+    parentId: string,
+    actor: { userId: string; role: Role }
+  ) => Promise<boolean>;
 }
 
-/** Is this Employee row this user's own? */
-async function ownsEmployeeRecord(employeeId: string, userId: string): Promise<boolean> {
-  const hit = await db.employee.findFirst({
-    where: { id: employeeId, userId },
-    select: { id: true },
+/**
+ * What this actor is to the employee whose record it is.
+ *
+ * ★ THERE IS NO HR FUNCTION AT ILLUME. THE LINE MANAGER IS IT.
+ *
+ * So a manager has to be able to put a contract on their report's record —
+ * and must NOT be able to read what that person filed there themselves. The
+ * two directions are different, which is why this returns a relation rather
+ * than a boolean: "may they touch this record" and "may they see this file"
+ * have different answers for the same person.
+ */
+export type EmployeeRecordRelation = "self" | "manager" | "admin" | "none";
+
+export async function employeeRecordRelation(
+  employeeId: string,
+  actor: { userId: string; role: Role },
+): Promise<EmployeeRecordRelation> {
+  const employee = await db.employee.findFirst({
+    where: { id: employeeId },
+    select: { id: true, userId: true, managerId: true },
   });
-  return !!hit;
+  if (!employee) return "none";
+
+  if (employee.userId === actor.userId) return "self";
+
+  if (employee.managerId) {
+    const actorEmployee = await db.employee.findFirst({
+      where: { userId: actor.userId },
+      select: { id: true },
+    });
+    if (actorEmployee && actorEmployee.id === employee.managerId) return "manager";
+  }
+
+  // An administrator, by the permission that gates the rest of the HR module.
+  if (await effectiveHasPermission(actor.role, "erp_hr", "read")) return "admin";
+
+  return "none";
 }
 
 const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
@@ -149,18 +203,34 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
         where: { id, user: { deletedAt: null } },
         select: { id: true },
       })) !== null,
-    canAccessRow: async (id, actor) => {
-      if (await ownsEmployeeRecord(id, actor.userId)) return true;
-      // Otherwise an HR administrator, by the same permission that gates the
-      // rest of the HR module.
-      return effectiveHasPermission(actor.role, "erp_hr", "read");
-    },
+    canAccessRow: async (id, actor) =>
+      (await employeeRecordRelation(id, actor)) !== "none",
+    /** The person, their manager, or an administrator. */
+    ownerCanRead: async (id, actor) =>
+      (await employeeRecordRelation(id, actor)) !== "none",
+    /** Same three may add a file. Who can then READ it is the next rule. */
+    ownerCanWrite: async (id, actor) =>
+      (await employeeRecordRelation(id, actor)) !== "none",
     /**
-     * Reading your own file needs no HR permission. Uploading and deleting
-     * still do — the record is maintained by HR, and a contract somebody can
-     * quietly replace is not a record.
+     * ★ THE PRIVACY RULE, AND IT IS NOT SYMMETRIC.
+     *
+     *   the employee   sees everything on their own record — what they filed
+     *                  and what their manager filed for them
+     *   their manager  sees ONLY what they uploaded themselves
+     *   an admin       sees everything
+     *
+     * A manager acting as HR needs to put a contract on the record and see it
+     * again. They have no business reading what the person chose to keep
+     * there — a doctor's note, a grievance, a passport scan. Row-level access
+     * cannot express that, because both parties legitimately reach the same
+     * record; the split is per FILE, by who uploaded it.
      */
-    ownerCanRead: async (id, actor) => ownsEmployeeRecord(id, actor.userId),
+    canSeeAttachment: async (att, parentId, actor) => {
+      const rel = await employeeRecordRelation(parentId, actor);
+      if (rel === "self" || rel === "admin") return true;
+      if (rel === "manager") return att.uploadedById === actor.userId;
+      return false;
+    },
   },
 
   TASK: {
@@ -317,6 +387,38 @@ export async function canReadParent(
  * Read routes call this instead of canReadParent so the owner clause cannot
  * be forgotten in one of them.
  */
+/**
+ * May this actor UPLOAD to this parent — by module permission, or by their
+ * relationship to the row where the type allows it.
+ */
+export async function mayWriteParentRow(
+  parentType: AttachmentParentType,
+  parentId: string,
+  actor: { userId: string; role: Role }
+): Promise<boolean> {
+  if (await canWriteParent(actor.role, parentType)) return true;
+  const ctx = CONTEXTS[parentType];
+  if (!ctx.ownerCanWrite) return false;
+  return ctx.ownerCanWrite(parentId, actor);
+}
+
+/**
+ * May this actor see this ONE file?
+ *
+ * Types without a `canSeeAttachment` return true — reaching the record was
+ * always the whole answer for them, and still is.
+ */
+export async function maySeeAttachment(
+  parentType: AttachmentParentType,
+  parentId: string,
+  attachment: { uploadedById: string | null },
+  actor: { userId: string; role: Role }
+): Promise<boolean> {
+  const ctx = CONTEXTS[parentType];
+  if (!ctx.canSeeAttachment) return true;
+  return ctx.canSeeAttachment(attachment, parentId, actor);
+}
+
 export async function mayReadParentRow(
   parentType: AttachmentParentType,
   parentId: string,
