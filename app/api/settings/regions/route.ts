@@ -58,6 +58,63 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * PATCH /api/settings/regions?id=…
+ *
+ * There was no way to change a region once created — only add and delete. A
+ * typo in a name or code could be fixed only by deleting the region, which
+ * detaches every user, lead and institution attached to it, and re-creating
+ * it. That is not an edit; it is data loss with extra steps.
+ */
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session || session.user.role !== "SUPER_ADMIN") return forbidden();
+
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 422 });
+
+  let body: { name?: string; code?: string; description?: string };
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { name, code, description } = body;
+  if (name !== undefined && !name.trim()) {
+    return NextResponse.json({ error: "Name cannot be empty" }, { status: 422 });
+  }
+  if (code !== undefined && !code.trim()) {
+    return NextResponse.json({ error: "Code cannot be empty" }, { status: 422 });
+  }
+
+  const existing = await db.region.findUnique({ where: { id }, select: { id: true, name: true, code: true } });
+  if (!existing) return NextResponse.json({ error: "Region not found" }, { status: 404 });
+
+  try {
+    const region = await db.region.update({
+      where: { id },
+      data: {
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(code !== undefined ? { code: code.trim().toUpperCase() } : {}),
+        ...(description !== undefined ? { description: description.trim() || null } : {}),
+      },
+      include: { _count: { select: { users: true, leads: true, institutions: true } } },
+    });
+    void logActivity(session.user.id, "UPDATE", "Region", region.id, {
+      route: "settings/regions",
+      from: { name: existing.name, code: existing.code },
+      to: { name: region.name, code: region.code },
+    });
+    return NextResponse.json({ region });
+  } catch (err: unknown) {
+    const msg = String(err);
+    if (msg.includes("Unique constraint")) {
+      return NextResponse.json({ error: "A region with that name or code already exists" }, { status: 409 });
+    }
+    console.error("[regions PATCH]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session || session.user.role !== "SUPER_ADMIN") return forbidden();

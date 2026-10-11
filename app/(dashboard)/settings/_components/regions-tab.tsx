@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Globe, Plus, Trash2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,6 +29,11 @@ export function RegionsSettingsTab() {
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // The cards already carried hover:shadow-md and a group class, so they
+  // LOOKED clickable and did nothing. Clicking one now opens it for edit —
+  // which until now was impossible at all: you could add a region and
+  // delete it, and deleting detaches every user, lead and institution on it.
+  const [editing, setEditing] = useState<Region | null>(null);
 
   function load() {
     setLoading(true);
@@ -36,6 +43,33 @@ export function RegionsSettingsTab() {
   }
 
   useEffect(() => { load(); }, []);
+
+  function openEdit(r: Region) {
+    setEditing(r);
+    setForm({ name: r.name, code: r.code, description: r.description ?? "" });
+  }
+
+  async function saveEdit() {
+    if (!editing || !form.name.trim() || !form.code.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/settings/regions?id=${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      toast({ title: "Region updated" });
+      setEditing(null);
+      setForm({ name: "", code: "", description: "" });
+      load();
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Error", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function addRegion() {
     if (!form.name.trim() || !form.code.trim()) return;
@@ -97,7 +131,15 @@ export function RegionsSettingsTab() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {regions.map((r) => (
-          <Card key={r.id} className="hover:shadow-md transition-shadow group">
+          <Card
+            key={r.id}
+            className="hover:shadow-md transition-shadow group cursor-pointer focus-within:ring-2 focus-within:ring-[#1E3A5F]"
+            onClick={() => openEdit(r)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openEdit(r); } }}
+            title={`Edit ${r.name}`}
+          >
             <CardContent className="pt-4 pb-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -106,7 +148,9 @@ export function RegionsSettingsTab() {
                   <Badge variant="outline" className="font-mono text-xs">{r.code}</Badge>
                 </div>
                 <button
-                  onClick={() => setConfirmId(r.id)}
+                  // stopPropagation, or deleting would also open the editor
+                  // behind the confirmation dialog.
+                  onClick={(e) => { e.stopPropagation(); setConfirmId(r.id); }}
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                   title="Delete region"
                 >
@@ -146,6 +190,43 @@ export function RegionsSettingsTab() {
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button onClick={addRegion} disabled={!form.name.trim() || !form.code.trim() || saving}>
               {saving ? "Creating…" : "Create Region"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog — opened by clicking a region card */}
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) { setEditing(null); setForm({ name: "", code: "", description: "" }); } }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Region</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? `${editing._count.users} user(s), ${editing._count.leads} lead(s) and ${editing._count.institutions} institution(s) are attached to this region. Renaming it keeps them all.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Region Name *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Code * <span className="text-xs text-muted-foreground">(short identifier)</span></Label>
+              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} maxLength={10} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Input placeholder="Optional description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={!form.name.trim() || !form.code.trim() || saving}>
+              {saving ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

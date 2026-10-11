@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { EmailLink } from "@/components/shared/email-link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable } from "@/components/shared/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ interface EmployeeRow {
 
 export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAdmin: boolean }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +77,26 @@ export function EmployeeTable({ isHR, isSuperAdmin }: { isHR: boolean; isSuperAd
   // ── Filters ──────────────────────────────────────────────────────────
   // There were none at all before: the four columns people would want to
   // filter by carried no data, so there was nothing to filter on.
+  /**
+   * Seeded from ?department= so clicking a bar on the Headcount chart lands
+   * here with that department already selected. Without this the chart could
+   * only ever navigate to an unfiltered list, which is not a drill-down.
+   */
   const [fDept, setFDept] = useState(ANY);
+
+  /**
+   * useSearchParams, not window.location read once on mount.
+   *
+   * Clicking a bar on the Headcount chart is a CLIENT-SIDE navigation, and
+   * this table is already mounted inside the HR tabs — so a [] effect never
+   * runs again and the department arrived in the URL while the filter sat on
+   * "All departments". The chart looked like it had done nothing.
+   */
+  useEffect(() => {
+    const d = searchParams.get("department");
+    if (d) setFDept(d);
+  }, [searchParams]);
+
   const [fRegion, setFRegion] = useState(ANY);
   const [fType, setFType] = useState(ANY);
   const [fStatus, setFStatus] = useState("active");

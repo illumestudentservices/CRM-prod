@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -57,6 +58,8 @@ export function HRDashboardStats({
     { name: "Completed", value: trainingCompletion },
     { name: "Pending", value: 100 - trainingCompletion },
   ];
+  const router = useRouter();
+
   // Convert perfScores to distribution buckets
   const buckets: Record<string, number> = { "1-2": 0, "2-3": 0, "3-4": 0, "4-5": 0 };
   for (const p of perfScoreDistribution) {
@@ -66,6 +69,23 @@ export function HRDashboardStats({
     else buckets["4-5"]++;
   }
   const perfData = Object.entries(buckets).map(([range, count]) => ({ range, count }));
+
+  /**
+   * ★ THE CHARTS WERE DECORATION.
+   *
+   * Four of them, none clickable — not a dead handler, no handler at all. The
+   * obvious thing to do with "Headcount by Department" is press a bar to see
+   * who is in it, and nothing happened.
+   *
+   * Each bar now goes to the tab that holds the underlying rows, carrying a
+   * filter where the destination can honour one. Headcount passes the
+   * department through to the employee table's own filter, which exists.
+   *
+   * The pie chart is deliberately NOT clickable: "Training Completion Rate" is
+   * a percentage with no per-person list behind it, and a cursor promising a
+   * drill-down that does not exist is worse than no cursor.
+   */
+  const go = (href: string) => router.push(href);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Headcount by Department */}
@@ -79,8 +99,21 @@ export function HRDashboardStats({
           {deptHeadcount.length === 0 ? (
             <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No department data</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={deptHeadcount} margin={{ top: 0, right: 10, left: -10, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={220} className="[&_.recharts-wrapper]:!cursor-pointer">
+              <BarChart
+                data={deptHeadcount}
+                margin={{ top: 0, right: 10, left: -10, bottom: 0 }}
+                /* Recharts fires reliably at CHART level: a handler on <Bar>
+                   never ran, because the click lands on the rectangle's path
+                   and the cursor style never reached it either. activeLabel is
+                   the category under the pointer. */
+                onClick={(st) => {
+                  // Recharts 3 types activeLabel as string | number | undefined.
+                  const label = st?.activeLabel;
+                  if (label == null) return;
+                  go(`/hr?tab=employees&department=${encodeURIComponent(String(label))}`);
+                }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                 <XAxis
                   dataKey="name"
@@ -116,7 +149,7 @@ export function HRDashboardStats({
           {leaveUtilization.filter((l) => l.total > 0).length === 0 ? (
             <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No leave data</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} className="[&_.recharts-wrapper]:!cursor-pointer">
               <BarChart
                 data={leaveUtilization
                   .filter((l) => l.total > 0)
@@ -126,6 +159,7 @@ export function HRDashboardStats({
                     Used: l.used,
                   }))}
                 margin={{ top: 0, right: 10, left: -10, bottom: 0 }}
+                onClick={() => go("/hr?tab=leave")}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                 <XAxis dataKey="name" tick={{ ...chart.tickStyle, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -202,10 +236,11 @@ export function HRDashboardStats({
           {perfScoreDistribution.length === 0 ? (
             <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">No performance data</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} className="[&_.recharts-wrapper]:!cursor-pointer">
               <BarChart
                 data={perfData}
                 margin={{ top: 0, right: 10, left: -10, bottom: 0 }}
+                onClick={() => go("/hr?tab=performance-reviews")}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
                 <XAxis
