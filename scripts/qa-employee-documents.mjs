@@ -294,6 +294,34 @@ async function main() {
     `status ${strangerPage.status}`);
   expect(strangerPage.body === "", "and gets no page body", "a body was returned");
 
+  startSection("The label says what the system actually does");
+
+  /**
+   * ★ A WRONG LABEL IS WORSE THAN NO LABEL.
+   *
+   * This line read "Visible to this employee and HR only — not to colleagues,
+   * and not to their manager." Both halves went stale the moment the rule
+   * changed: there is no HR, and the manager now sees what they filed. People
+   * act on a sentence like that — somebody reads "not to their manager" and
+   * uploads on the strength of it.
+   *
+   * The behaviour is asserted above. This asserts the promise made about it.
+   */
+  const labelFor = (body) => {
+    const t = body.replace(/<[^>]+>/g, " ").replace(/&mdash;/g, "-").replace(/\s+/g, " ");
+    const i = t.indexOf("right-to-work paperwork");
+    return i < 0 ? "" : t.slice(i, i + 260);
+  };
+
+  const mgrLabel = labelFor(mgrPage.body);
+  expect(mgrLabel.length > 0, "the manager is shown a description", "none found");
+  expect(!/not to their manager/i.test(mgrLabel),
+    "*** it no longer claims the manager cannot see these ***", mgrLabel.slice(0, 80));
+  expect(!/HR only/i.test(mgrLabel),
+    "*** nor mentions an HR function that does not exist ***", mgrLabel.slice(0, 80));
+  expect(/you upload/i.test(mgrLabel) && /private to them/i.test(mgrLabel),
+    "and tells the manager their view is partial", mgrLabel.slice(0, 120));
+
   startSection("A record that does not exist");
   const ghost = await upload(hr.jar, "00000000-0000-0000-0000-000000000000", pdf);
   expect(ghost.status === 404, "is a 404, not a 500", `status ${ghost.status}`);

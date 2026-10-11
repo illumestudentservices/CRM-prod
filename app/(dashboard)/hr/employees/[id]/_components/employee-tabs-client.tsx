@@ -338,9 +338,32 @@ export function EmployeeTabsClient({
         {/* No outer card title: AttachmentsPanel draws its own "Attachments"
             heading, and two of them stacked read as a mistake. */}
         <div className="space-y-2">
+          {/*
+            ★ THE LINE HAS TO MATCH THE RULE.
+
+            It used to read "Visible to this employee and HR only — not to
+            colleagues, and not to their manager." Both halves went stale the
+            moment the rule changed: there is no HR, and the manager now sees
+            what they themselves filed. A label that contradicts the system is
+            worse than no label, because people act on it — somebody reads
+            "not to their manager" and uploads something on that basis.
+
+            Two wordings, because the honest answer differs by who is reading.
+          */}
           <p className="text-xs text-muted-foreground">
-            Contracts, certificates and right-to-work paperwork. Up to {MAX_UPLOAD_MB} MB each.
-            Visible to this employee and HR only &mdash; not to colleagues, and not to their manager.
+            Contracts, certificates and right-to-work paperwork. Up to {MAX_UPLOAD_MB} MB each.{" "}
+            {documentsOnly ? (
+              <>
+                You can see the files <b>you</b> upload here. Anything this employee
+                uploads themselves stays private to them.
+              </>
+            ) : (
+              <>
+                This employee sees everything here. Their manager sees only the files
+                the manager uploads &mdash; not the ones the employee adds. Colleagues
+                see nothing.
+              </>
+            )}
           </p>
           <AttachmentsPanel parentType="EMPLOYEE_DOCUMENT" parentId={employeeId} />
         </div>
