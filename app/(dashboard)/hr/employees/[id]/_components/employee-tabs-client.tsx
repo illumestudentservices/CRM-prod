@@ -52,14 +52,6 @@ interface AssetAssignment {
   asset: { name: string; type: string; serialNumber: string | null };
 }
 
-interface EmployeeDocument {
-  id: string;
-  name: string;
-  type: string;
-  url: string;
-  expiryDate: Date | string | null;
-}
-
 interface PerformanceReview {
   id: string;
   period: string;
@@ -90,7 +82,6 @@ interface EmployeeTabsClientProps {
   isHR: boolean;
   trainingRecords: TrainingRecord[];
   assetAssignments: AssetAssignment[];
-  documents: EmployeeDocument[];
   performanceReviews: PerformanceReview[];
 }
 
@@ -114,7 +105,6 @@ export function EmployeeTabsClient({
   isHR,
   trainingRecords,
   assetAssignments,
-  documents,
   performanceReviews,
 }: EmployeeTabsClientProps) {
   const [activeTab, setActiveTab] = React.useState("profile");
@@ -325,30 +315,6 @@ export function EmployeeTabsClient({
           <AttachmentsPanel parentType="EMPLOYEE_DOCUMENT" parentId={employeeId} />
         </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Records on file</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Documents recorded against this employee before attachments existed.
-            </p>
-          </CardHeader>
-          <CardContent className="p-4 pt-0 space-y-3">
-            {documents.length === 0
-              ? <p className="text-muted-foreground text-sm text-center py-6">No documents uploaded.</p>
-              : documents.map((d) => (
-                <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
-                  <div>
-                    <p className="font-medium text-sm">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">{d.type}</p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    {d.expiryDate && <span className="text-amber-600">Exp: {formatDate(d.expiryDate)}</span>}
-                    <a href={d.url} target="_blank" rel="noreferrer" className="text-[#0EA5E9] hover:underline">Download</a>
-                  </div>
-                </div>
-              ))}
-          </CardContent>
-        </Card>
       </TabsContent>
     </Tabs>
   );

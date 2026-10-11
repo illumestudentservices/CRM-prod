@@ -31,7 +31,6 @@ export default async function EmployeeDetailPage({
       directReports: { include: { user: true } },
       leaveBalances: { where: { year: new Date().getFullYear() } },
       trainingRecords: { orderBy: { createdAt: "desc" }, take: 10 },
-      documents: { orderBy: { uploadedAt: "desc" } },
       assetAssignments: {
         where: { returnedAt: null },
         include: { asset: true },
@@ -201,7 +200,6 @@ export default async function EmployeeDetailPage({
         isHR={isHR}
         trainingRecords={employee.trainingRecords}
         assetAssignments={employee.assetAssignments}
-        documents={employee.documents}
         performanceReviews={employee.performanceReviews}
       />
     </div>
