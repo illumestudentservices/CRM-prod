@@ -170,8 +170,20 @@ export async function employeeRecordRelation(
     if (actorEmployee && actorEmployee.id === employee.managerId) return "manager";
   }
 
-  // An administrator, by the permission that gates the rest of the HR module.
-  if (await effectiveHasPermission(actor.role, "erp_hr", "read")) return "admin";
+  /**
+   * ★ erp_hr:WRITE, NOT :read.
+   *
+   * read is held by HQ_EXECUTIVE — eight people, including two Client
+   * Relations directors and the Marketing Director. Keying "admin" off it
+   * meant all eight could read every employee's private uploads: the file
+   * somebody put on their own record precisely because it was theirs.
+   *
+   * write is held by SUPER_ADMIN and HR_MANAGER — the people who maintain
+   * staff records, which is the job that needs to see what is on one. It
+   * stays a permission rather than a role list, so it can be moved in
+   * Settings -> Security without a deploy.
+   */
+  if (await effectiveHasPermission(actor.role, "erp_hr", "write")) return "admin";
 
   return "none";
 }

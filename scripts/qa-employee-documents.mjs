@@ -250,6 +250,39 @@ async function main() {
     "deleting it a second time is a 404, not another 200",
     `status ${deleteAgain.status}`);
 
+  startSection("An HQ Executive is not an HR administrator");
+
+  /**
+   * ★ erp_hr:read IS NOT A LICENCE TO READ SOMEBODY'S PRIVATE FILE.
+   *
+   * HQ_EXECUTIVE holds erp_hr:read and eight people have it — the CEO, two
+   * Client Relations directors, the Marketing Director, a VP and others.
+   * While "admin" was keyed off that permission, all eight could open the
+   * file an employee had uploaded to their own record. Read access to HR
+   * data is not the same claim as read access to a passport scan.
+   */
+  const exec = await createAndLogin({ role: "HQ_EXECUTIVE", withEmployee: true });
+  ctxs.push(exec);
+
+  const execList = await list(exec.jar, owner.employee.id);
+  const execIds = (execList.payload?.data ?? []).map((a) => a.id);
+  expect(!execIds.includes(employeeFileId),
+    "*** an HQ Executive does NOT see the employee's private upload ***",
+    `${execIds.length} file(s) visible to them`);
+  expect(!execIds.includes(managerFileId),
+    "nor the manager's", "the manager's file leaked to an HQ Executive");
+
+  const execGrab = await fetch(`${BASE}/api/attachments/${employeeFileId}`, {
+    headers: { cookie: exec.jar.header() }, redirect: "manual",
+  });
+  expect(execGrab.status === 404 || execGrab.status === 403,
+    "*** and cannot download it by id ***", `status ${execGrab.status}`);
+
+  const adminList = await list(hr.jar, owner.employee.id);
+  expect((adminList.payload?.data ?? []).length > 0,
+    "while a super admin still sees the record",
+    `${(adminList.payload?.data ?? []).length} file(s)`);
+
   startSection("A manager of somebody else");
   const otherManager = await createAndLogin({ role: "REGIONAL_MANAGER", withEmployee: true });
   ctxs.push(otherManager);
