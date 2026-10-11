@@ -89,9 +89,80 @@ export interface ParentContext {
     parentId: string,
     actor: { userId: string; role: Role }
   ) => Promise<boolean>;
+  /**
+   * Optional: READ access granted by owning the row, without the module
+   * permission.
+   *
+   * ★ OPT-IN, AND ONLY OPT-IN.
+   *
+   * `resource` answers "may this role work with this module", and it is
+   * checked BEFORE canAccessRow — so for EMPLOYEE_DOCUMENT, whose resource is
+   * erp_hr, an ordinary employee was refused at the module gate and the
+   * ownership rule below it never ran. They could not read their own
+   * contract.
+   *
+   * The fix is NOT to let canAccessRow override the module check generally:
+   * it returns true for every parent type that does not define one, so that
+   * would quietly delete the gate for the shared types. Each type that wants
+   * ownership to be sufficient says so here, for reads only. Writing still
+   * needs the module permission.
+   */
+  ownerCanRead?: (
+    parentId: string,
+    actor: { userId: string; role: Role }
+  ) => Promise<boolean>;
+}
+
+/** Is this Employee row this user's own? */
+async function ownsEmployeeRecord(employeeId: string, userId: string): Promise<boolean> {
+  const hit = await db.employee.findFirst({
+    where: { id: employeeId, userId },
+    select: { id: true },
+  });
+  return !!hit;
 }
 
 const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
+  /**
+   * One person's own staff record. The tightest rule in this registry.
+   *
+   * ★ EXCLUSIVE TO THE PERSON AND HR. NOT THE LINE MANAGER.
+   *
+   * What goes on a staff record is a contract, a passport scan, a visa, a
+   * medical note, a disciplinary letter. `erp_hr` already answers "may this
+   * role work with HR records at all" — SUPER_ADMIN and HR_MANAGER, with
+   * HQ_EXECUTIVE read-only — and that is the right gate for an administrator.
+   *
+   * What it does NOT do is let somebody read their own file, so the owner is
+   * added here by employee id.
+   *
+   * A manager is deliberately absent. They can be added later if the business
+   * asks; it cannot be taken back once somebody has read a colleague's visa.
+   * The same reasoning removed a manager clause from TASK below, hours after
+   * it was added.
+   */
+  EMPLOYEE_DOCUMENT: {
+    label: "Employee record",
+    resource: "erp_hr",
+    exists: async (id) =>
+      (await db.employee.findFirst({
+        where: { id, user: { deletedAt: null } },
+        select: { id: true },
+      })) !== null,
+    canAccessRow: async (id, actor) => {
+      if (await ownsEmployeeRecord(id, actor.userId)) return true;
+      // Otherwise an HR administrator, by the same permission that gates the
+      // rest of the HR module.
+      return effectiveHasPermission(actor.role, "erp_hr", "read");
+    },
+    /**
+     * Reading your own file needs no HR permission. Uploading and deleting
+     * still do — the record is maintained by HR, and a contract somebody can
+     * quietly replace is not a record.
+     */
+    ownerCanRead: async (id, actor) => ownsEmployeeRecord(id, actor.userId),
+  },
+
   TASK: {
     label: "Task",
     resource: "tasks",
@@ -237,6 +308,24 @@ export async function canReadParent(
 ): Promise<boolean> {
   const ctx = CONTEXTS[parentType];
   return effectiveHasPermission(role, ctx.resource, "read");
+}
+
+/**
+ * May this actor READ this parent's attachments — by module permission, or by
+ * owning the row where the type allows that.
+ *
+ * Read routes call this instead of canReadParent so the owner clause cannot
+ * be forgotten in one of them.
+ */
+export async function mayReadParentRow(
+  parentType: AttachmentParentType,
+  parentId: string,
+  actor: { userId: string; role: Role }
+): Promise<boolean> {
+  if (await canReadParent(actor.role, parentType)) return true;
+  const ctx = CONTEXTS[parentType];
+  if (!ctx.ownerCanRead) return false;
+  return ctx.ownerCanRead(parentId, actor);
 }
 
 export async function canWriteParent(

@@ -4218,6 +4218,11 @@ enum AttachmentParentType {
   COMPLIANCE_ITEM
   ACCOUNT_INTERVENTION
   QUARTERLY_BUSINESS_REVIEW
+  /// Files on one person's own staff record — contracts, certificates,
+  /// right-to-work paperwork. The parentId is an Employee.id, and the access
+  /// rule in lib/attachment-parent.ts is the tightest in the registry: the
+  /// person themselves and HR, nobody else, not even their line manager.
+  EMPLOYEE_DOCUMENT
 }
 
 model Attachment {

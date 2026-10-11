@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { HolidayList } from "@/components/hr/holiday-list";
 import { LeaveSection } from "./leave-section";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { MAX_UPLOAD_MB } from "@/lib/uploads";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -296,9 +298,41 @@ export function EmployeeTabsClient({
       </TabsContent>
 
       {/* DOCUMENTS */}
-      <TabsContent value="documents" className="mt-4">
+      <TabsContent value="documents" className="mt-4 space-y-4">
+        {/*
+          ★ THIS PERSON'S SPACE, AND NOBODY ELSE'S.
+
+          parentId is this employee's id, so a file uploaded here hangs off
+          this record alone. The gate is EMPLOYEE_DOCUMENT in
+          lib/attachment-parent.ts: the person themselves, and HR. Not a
+          colleague, and deliberately not their line manager — a staff record
+          carries contracts, visas and medical notes.
+
+          Size and file type are not decided here. AttachmentsPanel enforces
+          the one app-wide 3 MB limit from lib/uploads.ts, and the server
+          re-checks it and runs validateAttachment, which refuses html, svg,
+          exe and script types and rejects anything whose extension disagrees
+          with its MIME. A client check is a convenience; the server is the
+          boundary.
+        */}
+        {/* No outer card title: AttachmentsPanel draws its own "Attachments"
+            heading, and two of them stacked read as a mistake. */}
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Contracts, certificates and right-to-work paperwork. Up to {MAX_UPLOAD_MB} MB each.
+            Visible to this employee and HR only &mdash; not to colleagues, and not to their manager.
+          </p>
+          <AttachmentsPanel parentType="EMPLOYEE_DOCUMENT" parentId={employeeId} />
+        </div>
+
         <Card>
-          <CardContent className="p-4 space-y-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Records on file</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Documents recorded against this employee before attachments existed.
+            </p>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
             {documents.length === 0
               ? <p className="text-muted-foreground text-sm text-center py-6">No documents uploaded.</p>
               : documents.map((d) => (

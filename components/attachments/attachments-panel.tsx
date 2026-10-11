@@ -36,6 +36,20 @@ interface AttachmentRow {
   uploadedBy?: { id: string; name: string | null; email: string } | null;
 }
 
+/**
+ * ★ A HAND-WRITTEN COPY OF THE PRISMA ENUM.
+ *
+ * It exists because this is a client component and importing from
+ * @prisma/client would drag the client runtime into the browser bundle. The
+ * cost is that the list of parent types now lives in four places — the enum
+ * in schema.prisma, PARENT_TYPES in the attachments route, CONTEXTS in
+ * lib/attachment-parent.ts, and here — and adding EMPLOYEE_DOCUMENT needed
+ * all four. Only this one failed loudly; the other three would have failed at
+ * runtime with a 422.
+ *
+ * Kept as a copy rather than fixed, because narrowing the bundle matters more
+ * than the duplication, but a new type must be added in all four.
+ */
 export type AttachmentParentType =
   | "TASK"
   | "ACTIVITY"
@@ -55,7 +69,8 @@ export type AttachmentParentType =
   | "RISK_REGISTER"
   | "COMPLIANCE_ITEM"
   | "ACCOUNT_INTERVENTION"
-  | "QUARTERLY_BUSINESS_REVIEW";
+  | "QUARTERLY_BUSINESS_REVIEW"
+  | "EMPLOYEE_DOCUMENT";
 
 export interface AttachmentsPanelProps {
   parentType: AttachmentParentType;

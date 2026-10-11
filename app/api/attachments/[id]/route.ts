@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
-import { canReadParent, canWriteParent, canAccessParentRow } from "@/lib/attachment-parent";
+import { mayReadParentRow, canWriteParent, canAccessParentRow } from "@/lib/attachment-parent";
 import { safeAttachmentHeaders } from "@/lib/attachment-safety";
 import { logActivity } from "@/lib/activity-logger";
 import { trashRecord } from "@/lib/recycle-bin";
@@ -37,7 +37,11 @@ export async function GET(
   // Read gate is on the PARENT — knowing the attachment ID doesn't
   // automatically permit reading if the caller can't see the parent module.
   const role = session.user.role as Role;
-  if (!(await canReadParent(role, attachment.parentType))) {
+  // Same owner-aware check as the list route. Downloading is reading; if the
+  // two disagreed, a file would be listed and then refused on click.
+  if (!(await mayReadParentRow(attachment.parentType, attachment.parentId, {
+    userId: session.user.id, role,
+  }))) {
     // Same 404 for permission-denied to prevent ID enumeration against the gate.
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

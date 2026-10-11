@@ -6,7 +6,7 @@ import type { Role, AttachmentParentType } from "@prisma/client";
 import { checkUploadSize } from "@/lib/uploads";
 import { validateAttachment } from "@/lib/attachment-safety";
 import {
-  attachmentContext, canReadParent, canWriteParent, canAccessParentRow,
+  attachmentContext, mayReadParentRow, canWriteParent, canAccessParentRow,
 } from "@/lib/attachment-parent";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -41,6 +41,9 @@ const PARENT_TYPES = [
   "COMPLIANCE_ITEM",
   "ACCOUNT_INTERVENTION",
   "QUARTERLY_BUSINESS_REVIEW",
+  // Files on one person's staff record. Its canAccessRow is the tightest
+  // in the registry — the person themselves, and HR.
+  "EMPLOYEE_DOCUMENT",
 ] as const;
 
 const parentQuerySchema = z.object({
@@ -68,7 +71,12 @@ export async function GET(req: NextRequest) {
   const { parentType, parentId } = parsed.data;
 
   const role = session.user.role as Role;
-  if (!(await canReadParent(role, parentType as AttachmentParentType))) {
+  // Module permission, OR ownership where the parent type allows it — an
+  // employee has no erp_hr permission and must still be able to read the
+  // documents on their own record.
+  if (!(await mayReadParentRow(parentType as AttachmentParentType, parentId, {
+    userId: session.user.id, role,
+  }))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
