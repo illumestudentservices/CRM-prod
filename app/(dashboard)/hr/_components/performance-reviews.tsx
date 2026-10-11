@@ -45,11 +45,27 @@ interface PerformanceReview {
   };
 }
 
+/**
+ * The people this user may review, as the feed sends them.
+ *
+ * ★ THIS SHAPE IS FLAT, AND IT USED TO BE NESTED.
+ *
+ * The picker was filled from /api/hr/employees, whose rows carry
+ * `user: { name }`. It is now filled from the `reviewable` list on the
+ * performance-reviews feed, which carries a flat `name` — and the interface
+ * was left describing the old shape while the code still read `emp.user.name`.
+ *
+ * `emp.user` was undefined, so opening this tab threw "Cannot read properties
+ * of undefined (reading 'name')" and React unmounted the ENTIRE HR page: no
+ * tabs, no employees, no leave, nothing. TypeScript could not catch it because
+ * the interface was a claim about the data, not a check of it, and the data
+ * arrives as JSON at runtime.
+ */
 interface Employee {
   id: string;
   employeeId: string;
   jobTitle: string;
-  user: { name: string | null };
+  name: string | null;
 }
 
 const STATUS_BADGE: Record<string, { variant: "warning" | "default" | "success"; label: string }> = {
@@ -344,7 +360,7 @@ export function PerformanceReviews({ isHR }: { isHR?: boolean }) {
                   <SelectContent>
                     {employees.map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
-                        {emp.user.name ?? emp.employeeId} - {emp.jobTitle}
+                        {emp.name ?? emp.employeeId} - {emp.jobTitle}
                       </SelectItem>
                     ))}
                   </SelectContent>
