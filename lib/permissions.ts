@@ -13,6 +13,7 @@ type Resource =
   | "users"
   | "settings"
   | "announcements"
+  | "directory"
   | "knowledge_base"
   | "whatsapp"
   | "markets"
@@ -58,6 +59,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read", "write", "delete", "approve", "export"],
     settings: ["read", "write", "delete", "approve", "export"],
     announcements: ["read", "write", "delete", "approve", "export"],
+    directory: ["read", "export"],
     knowledge_base: ["read", "write", "delete", "approve", "export"],
     whatsapp: ["read", "write", "delete"],
     markets: ["read", "write", "delete", "approve", "export"],
@@ -87,6 +89,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read", "write", "approve"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read", "write"],
     markets: ["read", "export"],
@@ -116,6 +119,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: [],
     markets: ["read", "export"],
@@ -145,6 +149,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read", "write"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read", "write"],
     markets: ["read", "write", "export"],
@@ -174,6 +179,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: [],
     settings: [],
     announcements: ["read"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read", "write"],
     markets: ["read"],
@@ -203,6 +209,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: [],
     settings: [],
     announcements: ["read"],
+    directory: [],
     knowledge_base: [],
     whatsapp: [],
     markets: [],
@@ -232,6 +239,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read", "write", "approve"],
+    directory: ["read"],
     knowledge_base: ["read", "write"],
     whatsapp: [],
     markets: [],
@@ -261,6 +269,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: [],
     settings: [],
     announcements: ["read"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: [],
     markets: [],
@@ -294,6 +303,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read", "write"],
     markets: ["read", "export"],
@@ -326,6 +336,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: [],
     settings: [],
     announcements: ["read"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read", "write"],
     markets: ["read"],
@@ -357,6 +368,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     users: ["read"],
     settings: [],
     announcements: ["read", "write", "approve"],
+    directory: ["read"],
     knowledge_base: ["read"],
     whatsapp: ["read"],
     markets: ["read", "export"],
@@ -403,6 +415,27 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "REGIONAL_MANAGER",
     "ICR",
     "INSTITUTION_CLIENT",
+    "HR_MANAGER",
+    "EMPLOYEE",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
+  ],
+  // Every internal role. A staff directory that staff cannot open is not a
+  // directory, and before this the only list of colleagues in the system was
+  // the HR screen — gated on HR_ROLES, returning home addresses.
+  //
+  // INSTITUTION_CLIENT is deliberately absent and must stay absent: those are
+  // partner-university logins, and the directory carries titles, reporting
+  // lines and work addresses for all 101 staff. That is Illume's internal
+  // structure, not something to hand its customers. /api/directory refuses
+  // them in its own right, because a nav gate does not cover an API.
+  directory: [
+    "SUPER_ADMIN",
+    "HQ_EXECUTIVE",
+    "HQ_ANALYTICS",
+    "REGIONAL_MANAGER",
+    "ICR",
     "HR_MANAGER",
     "EMPLOYEE",
     "ACCOUNT_MANAGER",

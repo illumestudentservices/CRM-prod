@@ -25,6 +25,7 @@ import {
   Plane,
   ShieldAlert,
   BookOpen,
+  Contact,
   MessageCircle,
   Trash2, UserRoundX, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "tasks", label: "Tasks", href: "/tasks", icon: CheckSquare },
   { key: "hr", label: "HR & ERP", href: "/hr", icon: Briefcase },
   { key: "risk_compliance", label: "Risk & Compliance", href: "/risk-compliance", icon: ShieldAlert },
+  { key: "directory", label: "Staff Directory", href: "/directory", icon: Contact },
   { key: "knowledge", label: "Knowledge Base", href: "/knowledge", icon: BookOpen },
   { key: "whatsapp", label: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
   { key: "activity_log", label: "Activity Log", href: "/activity-log", icon: ShieldCheck },

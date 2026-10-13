@@ -118,6 +118,7 @@ const PATH_TO_MODULE: ReadonlyArray<readonly [string, string]> = [
   ["/recruitment-planning/campaigns", "recruitment_network"],
   ["/recruitment-network", "recruitment_network"],
   ["/recruitment-planning", "recruitment_planning"],
+  ["/directory", "directory"],
   ["/market-intelligence", "market_intelligence"],
   ["/field-operations", "field_operations"],
   ["/risk-compliance", "risk_compliance"],

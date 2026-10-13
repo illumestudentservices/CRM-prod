@@ -81,6 +81,11 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
   reports:             { resource: "reports",             action: "read" },
   executive_dashboard: { resource: "executive_dashboard", action: "read" },
   hr:                  { resource: "erp",                 action: "read" },
+  // The sidebar is driven by THIS map, not by NAV_PERMISSIONS. A key listed
+  // there and missing here renders for nobody — which is what happened to
+  // recycle_bin, and what happened to the directory until it was caught by a
+  // browser check: the page worked and the link was invisible.
+  directory:           { resource: "directory",           action: "read" },
   markets:             { resource: "markets",             action: "read" },
   stakeholders:        { resource: "stakeholders",        action: "read" },
   activities_field:    { resource: "activities",           action: "read" },
