@@ -2,8 +2,8 @@
 #
 # Zero-downtime-ish deploy for the Illume CRM VPS.
 #
-# The problem this solves: running `next build` inside the directory PM2 is
-# serving from rewrites .next over ~90 seconds. Next.js serves content-hashed
+# The problem this solves: running `next build` inside the directory the app
+# is serving from rewrites .next over ~90 seconds. Next.js serves content-hashed
 # chunks, so anyone with the app open during that window hits ChunkLoadError and
 # a 500. That happened in production on 2026-07-27.
 #
@@ -17,7 +17,10 @@ set -euo pipefail
 
 APP_DIR=/var/www/illume-crm
 BUILD_DIR=/var/www/illume-crm-build
-PM2_APP=illume-crm
+SERVICE=illume-crm
+# The app runs as the unprivileged `illume` user under systemd. It used to
+# run as root under PM2; a flaw in the app was a flaw in the whole machine.
+APP_USER=illume
 HEALTH_URL=http://localhost:3000
 REF="${1:-origin/main}"
 
@@ -92,8 +95,14 @@ if ! cmp -s "$BUILD_DIR/package-lock.json" "$APP_DIR/package-lock.json"; then
 fi
 cd "$APP_DIR" && npx prisma generate >/dev/null
 
-log "Reloading $PM2_APP"
-pm2 reload "$PM2_APP" --update-env >/dev/null 2>&1 || pm2 restart "$PM2_APP" >/dev/null
+# Everything above ran as root, so the files are root-owned again. The
+# service runs as $APP_USER and would fail to read its own build.
+log "Returning ownership to $APP_USER"
+chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+chmod 600 "$APP_DIR/.env"
+
+log "Restarting $SERVICE"
+systemctl restart "$SERVICE"
 
 # ── 4. Health check, roll back if it doesn't come up ──────────────────────────
 log "Health check"
@@ -111,7 +120,8 @@ if [ "$OK" -ne 1 ]; then
   if [ -d "$APP_DIR/.next.prev" ]; then
     rm -rf "$APP_DIR/.next"
     mv "$APP_DIR/.next.prev" "$APP_DIR/.next"
-    pm2 restart "$PM2_APP" >/dev/null
+    chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+    systemctl restart "$SERVICE"
     die "rolled back to previous build"
   fi
   die "no previous build to roll back to"
