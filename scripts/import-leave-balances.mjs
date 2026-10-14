@@ -40,6 +40,21 @@
  * Vacation and sick are different: they vary genuinely per person, they are
  * what people have actually spent, and nothing else can supply them.
  *
+ * ★ DO NOT RE-RUN THIS WITH THE OLD REPORT. It would undo a policy change.
+ *
+ * The adjustment is solved against whatever accrual the policy computes AT THE
+ * MOMENT OF THE RUN. On 2026-10-14 the vacation rule changed: the 3 waiting
+ * months are now earned rather than forfeited, so everyone who joined in 2026
+ * accrues 3.5 days more than they did when this import ran on 2026-10-10.
+ *
+ * Re-running against the same Leave_Balance_Report.xlsx would solve for the
+ * OLD figures again and silently subtract those 3.5 days right back out,
+ * because the report was produced by a system that did not credit them. The
+ * balances would look untouched and the policy would be dead.
+ *
+ * A fresh report from a system that applies the same rule is fine. The old
+ * file is not. The run-time banner below says so again.
+ *
  * ★ WHAT IS IGNORED.
  *
  * The "Extra Work" column has no counterpart here and is not loaded. Several
@@ -61,6 +76,23 @@ if (!file) {
 
 const sheet = JSON.parse(readFileSync(file, "utf8"));
 const YEAR = new Date().getUTCFullYear();
+
+// Loud, because the failure is invisible: balances would look correct and the
+// policy change would be gone. See the note at the top of this file.
+console.log(
+  "\n" +
+    "!".repeat(62) +
+    "\n  The vacation rule changed on 2026-10-14: the 3 waiting months\n" +
+    "  are now EARNED, not forfeited. Adjustments are solved against the\n" +
+    "  accrual as it stands today.\n\n" +
+    "  Importing a report from a system that does NOT credit those months\n" +
+    "  will subtract them back out of every 2026 joiner's balance, and\n" +
+    "  nothing on screen will look wrong.\n\n" +
+    "  Check how the source report treats the waiting period first.\n" +
+    "!".repeat(62) +
+    "\n"
+);
+
 console.log(`${sheet.length} row(s) from the report, writing against ${YEAR}`);
 console.log(COMMIT ? "MODE: COMMIT\n" : "MODE: dry run — nothing will be written\n");
 
