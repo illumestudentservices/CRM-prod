@@ -29,6 +29,14 @@ die() { printf '\n\033[1;31mFAILED: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ -d "$APP_DIR" ] || die "$APP_DIR not found"
 
+# The app tree belongs to $APP_USER but this script runs as root, and git
+# refuses to touch a repository owned by somebody else ("dubious ownership").
+# Declared here rather than set by hand on the box, so a rebuilt server or a
+# second environment does not fail on its first deploy.
+for d in "$APP_DIR" "$BUILD_DIR"; do
+  git config --global --get-all safe.directory 2>/dev/null | grep -qx "$d"     || git config --global --add safe.directory "$d"
+done
+
 # ── 1. Refresh the shadow checkout ────────────────────────────────────────────
 log "Syncing source into shadow build dir"
 if [ ! -d "$BUILD_DIR/.git" ]; then
