@@ -67,9 +67,10 @@ export interface LeavePolicy {
 }
 
 export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
-  // Effective after 3 months from joining; 1.75 days credited monthly on the
-  // joining date; reset yearly on 31 December; max balance 21.
-  // 1.75 x 12 = 21, so a full year reaches the cap exactly.
+  // Usable after 3 months from joining; 1.75 days earned per complete month
+  // worked, credited on the joining date; reset yearly on 31 December; max
+  // balance 21. 1.75 x 12 = 21, so a full year reaches the cap exactly — which
+  // only holds if the waiting months are earned too. See computeAccrual.
   VACATION_PAID: {
     leaveType: "VACATION_PAID",
     label: "Vacation (Paid)",
@@ -82,7 +83,7 @@ export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
     encash: false,
     eligibleGenders: null,
     summary:
-      "1.75 days credited monthly on your joining date, starting 3 months after you join. Caps at 21 days and resets on 31 December. Unused days are not carried forward or encashed.",
+      "1.75 days earned for every complete month you have worked, credited on your joining date. You can start using it 3 months after you join, and those first 3 months are credited to you then. Caps at 21 days and resets on 31 December. Unused days are not carried forward or encashed.",
   },
 
   // Effective after 5 days from joining; 5 days credited yearly on 1 January,
@@ -311,11 +312,28 @@ export function computeAccrual(
 
     let credits = 0;
     let nextAccrualOn: Date | null = null;
-    const waitMonths =
-      policy.waitingPeriod.unit === "months" ? policy.waitingPeriod.value : 0;
 
-    for (let i = 0; i < 2400; i++) {
-      const creditDate = addMonthsUTC(doj, waitMonths + i);
+    // ★ THE WAITING PERIOD DEFERS THE LEAVE, IT DOES NOT FORFEIT IT.
+    //
+    // Credits run from the first COMPLETED month after joining, not from the
+    // end of the waiting period, so somebody who joins on 11 May reaches
+    // 11 August holding the three months they have worked rather than one.
+    // The early return above still gives them nothing to spend until that
+    // date, and POST /api/hr/leave refuses on inWaitingPeriod regardless.
+    //
+    // The alternative — starting the count at doj + waitingPeriod — does not
+    // delay those three months, it deletes them: the balance resets every
+    // 31 December and carryForward is false, so a mid-year joiner could never
+    // reach the 21 days that 1.75 x 12 is built to give.
+    //
+    // Business decision, 2026-10-14. NOTE: the previous HR system's Leave
+    // Balance Report, loaded as opening balances on 2026-10-10, was computed
+    // the other way — ILL-0086 was reported at exactly the figure the old rule
+    // produces. So this is a deliberate change of policy, not a bug fix, and
+    // the people who joined in 2026 gain 1.75 x <waiting months> on top of
+    // their imported opening balance.
+    for (let i = 1; i < 2400; i++) {
+      const creditDate = addMonthsUTC(doj, i);
       if (creditDate > today) {
         nextAccrualOn = creditDate;
         break;
