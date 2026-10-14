@@ -393,10 +393,17 @@ export interface LeaveEntitlement extends AccrualResult {
   policy: LeavePolicy;
   usedDays: number;
   pendingDays: number;
-  /** Accrued + manual adjustment, i.e. the total the employee may draw on. */
+  /** Accrued + manual adjustment, capped at the policy ceiling. */
   entitlementDays: number;
   /** What can still be booked right now. */
   availableDays: number;
+  /**
+   * True when the ceiling actually bit, i.e. accrual plus adjustment came to
+   * more than the policy allows. Worth surfacing: without it, HR sets a +10
+   * adjustment, sees the figure stop at 21, and cannot tell whether it was
+   * applied.
+   */
+  cappedAtMax: boolean;
 }
 
 /** Combines computed accrual with what's already been consumed. */
@@ -409,7 +416,21 @@ export function computeEntitlement(
   const policy = LEAVE_POLICIES[leaveType];
   const accrual = computeAccrual(policy, joiningDate, asOf);
 
-  const entitlementDays = accrual.accruedDays + (consumed.adjustmentDays ?? 0);
+  // ★ THE CEILING APPLIES AFTER THE ADJUSTMENT, NOT BEFORE IT.
+  //
+  // computeAccrual already caps what is EARNED, but a manual adjustment was
+  // added on top of that cap and nothing checked the total, so an opening
+  // balance carried over from the previous HR system pushed two people to 22.5
+  // and 23 days against a stated maximum of 21.
+  //
+  // Capping here covers every reader at once: deriveLeaveBalances for the
+  // screens, and POST /api/hr/leave for what can actually be booked, which
+  // would otherwise have let those two book days the policy does not allow.
+  //
+  // Only vacation has a ceiling; maxBalance is null for the other three.
+  const rawEntitlement = accrual.accruedDays + (consumed.adjustmentDays ?? 0);
+  const entitlementDays =
+    policy.maxBalance !== null ? Math.min(rawEntitlement, policy.maxBalance) : rawEntitlement;
 
   return {
     ...accrual,
@@ -418,6 +439,7 @@ export function computeEntitlement(
     usedDays: consumed.usedDays,
     pendingDays: consumed.pendingDays,
     entitlementDays: Number(entitlementDays.toFixed(2)),
+    cappedAtMax: policy.maxBalance !== null && rawEntitlement > policy.maxBalance,
     // Pending requests are held against the balance so two overlapping
     // requests cannot both be approved into an overdraft.
     availableDays: Number(
@@ -455,6 +477,8 @@ export interface DerivedLeaveBalance {
   inWaitingPeriod: boolean;
   eligibleFrom: Date;
   policySummary: string;
+  /** The policy ceiling held the figure down — see LeaveEntitlement. */
+  cappedAtMax: boolean;
 }
 
 /** A stored consumption row, loosely typed so callers can hand over Prisma rows. */
@@ -513,6 +537,7 @@ export function deriveLeaveBalances(
       inWaitingPeriod: e.inWaitingPeriod,
       eligibleFrom: e.eligibleFrom,
       policySummary: e.policy.summary,
+      cappedAtMax: e.cappedAtMax,
     };
   });
 }

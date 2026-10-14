@@ -172,6 +172,85 @@ const overdrawn = computeEntitlement(
 );
 expect(overdrawn.availableDays === 0, "*** available never goes negative ***", `${overdrawn.availableDays}`);
 
+// ── The ceiling binds after the adjustment ───────────────────────────────────
+section("*** 21 days is the ceiling, adjustment included ***");
+
+// The real shape that broke this: an opening balance carried over from the
+// previous HR system, added on top of a full accrual.
+const carried = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-03-09"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 10.75 },
+  d("2026-10-14")
+);
+expect(
+  carried.entitlementDays === 21,
+  "*** 12.25 accrued + 10.75 adjustment is held at 21, not 23 ***",
+  `${carried.entitlementDays}`
+);
+expect(carried.availableDays === 21, "and only 21 days can be booked", `${carried.availableDays}`);
+expect(carried.cappedAtMax === true, "and the figure is flagged as capped");
+
+const justUnder = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-03-09"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 8.75 },
+  d("2026-10-14")
+);
+expect(justUnder.entitlementDays === 21, "exactly 21 is allowed", `${justUnder.entitlementDays}`);
+expect(justUnder.cappedAtMax === false, "and is not flagged as capped");
+
+const capThenSpend = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-03-09"),
+  { usedDays: 4, pendingDays: 1, adjustmentDays: 10.75 },
+  d("2026-10-14")
+);
+expect(
+  capThenSpend.availableDays === 16,
+  "days already taken come off the capped figure, not the raw one",
+  `${capThenSpend.availableDays}`
+);
+
+// A negative adjustment must still reduce, never be lifted by the cap.
+const docked = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-02-16"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: -5 },
+  d("2026-10-14")
+);
+expect(docked.entitlementDays === 7.25, "a negative adjustment still applies in full", `${docked.entitlementDays}`);
+expect(docked.cappedAtMax === false, "and is not flagged as capped");
+
+// The other three policies have no ceiling and must not gain one.
+const bigSick = computeEntitlement(
+  "SICK",
+  d("2026-05-11"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 40 },
+  d("2026-10-14")
+);
+expect(bigSick.entitlementDays === 43.5, "*** sick leave has no ceiling and is not capped ***", `${bigSick.entitlementDays}`);
+expect(bigSick.cappedAtMax === false, "nor flagged as capped");
+
+const bigMat = computeEntitlement(
+  "MATERNITY",
+  d("2026-05-11"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 10 },
+  d("2026-10-14")
+);
+expect(bigMat.entitlementDays === 32, "maternity is likewise uncapped", `${bigMat.entitlementDays}`);
+
+// And the cap reaches the screens, not just the apply route.
+const shown = deriveLeaveBalances(
+  d("2026-03-09"),
+  [{ leaveType: "VACATION_PAID", usedDays: 0, pendingDays: 0, adjustmentDays: 10.75 }],
+  "MALE",
+  d("2026-10-14")
+);
+const shownVac = shown.find((b) => b.leaveType === "VACATION_PAID");
+expect(shownVac.totalDays === 21, "*** the screens show 21, not 23 ***", `${shownVac.totalDays}`);
+expect(shownVac.cappedAtMax === true, "and carry the capped flag through");
+
 // ── Gender still decides which types appear ──────────────────────────────────
 section("Gender eligibility is untouched");
 
