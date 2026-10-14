@@ -1,12 +1,20 @@
 import puppeteer from "puppeteer-core";
 
+// Order matters: the first existing path wins. Google Chrome (a real .deb
+// binary) is listed FIRST because on Ubuntu 24.04 the chromium packages are
+// snaps, and snap confinement stops puppeteer launching them as a child
+// process ("not a snap cgroup"). A snap chromium at /usr/bin/chromium-browser
+// is a wrapper that fails, so it must not be preferred over a working Chrome.
+// An explicit PUPPETEER_EXECUTABLE_PATH overrides everything.
 const CHROMIUM_PATHS = [
-  "/usr/bin/chromium-browser",
-  "/usr/bin/chromium",
-  "/snap/bin/chromium",
+  process.env.PUPPETEER_EXECUTABLE_PATH || "",
   "/usr/bin/google-chrome-stable",
   "/usr/bin/google-chrome",
-];
+  "/opt/google/chrome/google-chrome",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/snap/bin/chromium",
+].filter(Boolean);
 
 function findChromium(): string {
   const fs = require("fs");
