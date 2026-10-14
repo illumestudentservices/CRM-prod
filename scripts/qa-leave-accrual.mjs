@@ -73,6 +73,32 @@ const dayBefore = vac("2026-05-11", "2026-08-10");
 expect(dayBefore.accruedDays === 0, "the day before it ends still shows nothing", `${dayBefore.accruedDays}`);
 expect(dayBefore.inWaitingPeriod === true, "and is still inside the waiting period");
 
+// An adjustment must not leak days out during the wait. The booking route
+// refuses on inWaitingPeriod, so a positive figure here would be a number the
+// screen shows and the system will not honour.
+const carriedIn = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-05-11"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 10 },
+  d("2026-08-10")
+);
+expect(
+  carriedIn.availableDays === 0,
+  "*** an opening balance is not spendable during the waiting period ***",
+  `${carriedIn.availableDays} days were offered`
+);
+const carriedOut = computeEntitlement(
+  "VACATION_PAID",
+  d("2026-05-11"),
+  { usedDays: 0, pendingDays: 0, adjustmentDays: 10 },
+  d("2026-08-11")
+);
+expect(
+  carriedOut.availableDays === 15.25,
+  "and it arrives in full the day the wait ends (5.25 + 10)",
+  `${carriedOut.availableDays}`
+);
+
 // ── The three months arrive together ─────────────────────────────────────────
 section("*** The 3 waiting months are credited, not forfeited ***");
 

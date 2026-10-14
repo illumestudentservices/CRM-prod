@@ -442,9 +442,19 @@ export function computeEntitlement(
     cappedAtMax: policy.maxBalance !== null && rawEntitlement > policy.maxBalance,
     // Pending requests are held against the balance so two overlapping
     // requests cannot both be approved into an overdraft.
-    availableDays: Number(
-      Math.max(0, entitlementDays - consumed.usedDays - consumed.pendingDays).toFixed(2)
-    ),
+    //
+    // Nothing is available during the waiting period, even when an adjustment
+    // is sitting there. Accrual returns 0 while the wait runs, but a manual
+    // adjustment was added after it, so a new hire carrying an opening balance
+    // from a previous employer was shown days they could not take: POST
+    // /api/hr/leave refuses on inWaitingPeriod before it ever looks at this
+    // figure. The adjustment is held, not lost — it appears in full on the day
+    // the wait ends.
+    availableDays: accrual.inWaitingPeriod
+      ? 0
+      : Number(
+          Math.max(0, entitlementDays - consumed.usedDays - consumed.pendingDays).toFixed(2)
+        ),
   };
 }
 
