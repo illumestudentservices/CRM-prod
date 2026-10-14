@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { safeSend } from "@/lib/email";
+import { generatePdfFromHtml } from "@/lib/pdf-generator";
 
 /**
  * Weekly activity report for Super Admins.
@@ -328,6 +329,118 @@ export function renderInteractiveReport(r: ActivityReport): string {
 </script></body></html>`;
 }
 
+/**
+ * A print-friendly layout for the PDF attachment.
+ *
+ * A PDF cannot filter or sort, so this shows everything laid out instead: the
+ * people who did nothing up top (the actionable part), then everyone who
+ * worked with their actions spelled out. No scripts — it is rendered by a
+ * headless browser to PDF, so only the printed result matters.
+ */
+export function renderPrintableReport(r: ActivityReport): string {
+  const idle = r.people.filter((p) => p.state === "LOGGED_IN");
+  const absent = r.people.filter((p) => p.state === "NO_SIGN_IN");
+  const worked = r.people.filter((p) => p.state === "WORKED");
+
+  const plainRows = (ps: PersonActivity[]) =>
+    ps
+      .map(
+        (p) => `<tr>
+          <td class="nm">${esc(p.name)}</td>
+          <td class="mono">${esc(p.employeeId ?? "—")}</td>
+          <td>${esc(p.role.replace(/_/g, " "))}</td>
+          <td class="num">${p.logins}</td></tr>`,
+      )
+      .join("");
+
+  const workedRows = worked
+    .map((p) => {
+      const actions = Object.entries(p.breakdown)
+        .sort((a, b) => b[1] - a[1])
+        .map(([a, n]) => `${esc(prettyAction(a))} × ${n}`)
+        .join(", ");
+      return `<tr>
+        <td class="nm">${esc(p.name)}</td>
+        <td class="mono">${esc(p.employeeId ?? "—")}</td>
+        <td>${esc(p.role.replace(/_/g, " "))}</td>
+        <td class="num">${p.workActions}</td>
+        <td class="mono">${fmtDateTime(p.lastActiveAt)}</td>
+        <td class="acts">${actions}</td></tr>`;
+    })
+    .join("");
+
+  const section = (title: string, color: string, head: string, body: string, empty: string) =>
+    `<h2 style="color:${color}">${title}</h2>` +
+    (body
+      ? `<table class="t"><thead>${head}</thead><tbody>${body}</tbody></table>`
+      : `<p class="empty">${empty}</p>`);
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Activity Report ${fmtDate(r.from)} to ${fmtDate(r.to)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font:11px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f2335;margin:0}
+  h1{font-size:18px;color:#0f3d5c;margin:0 0 2px}
+  h2{font-size:13px;margin:18px 0 6px;page-break-after:avoid}
+  .sub{color:#64748b;margin:0 0 14px;font-size:11px}
+  .tiles{display:flex;gap:8px;margin-bottom:6px}
+  .tile{flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;text-align:center}
+  .tile .n{font-size:20px;font-weight:700}.tile .l{font-size:9px;color:#64748b}
+  .tile.w .n{color:#1c6b3a}.tile.i .n{color:#9a6a00}.tile.a .n{color:#b01c2e}
+  .note{font-size:10px;color:#64748b;margin:4px 0 0}
+  table.t{width:100%;border-collapse:collapse;margin-top:2px}
+  .t th{font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:#64748b;text-align:left;
+    border-bottom:1.5px solid #cbd5e1;padding:4px 6px}
+  .t td{padding:4px 6px;border-bottom:1px solid #eef2f6;vertical-align:top}
+  .t tr{page-break-inside:avoid}
+  .nm{font-weight:600}.mono{font-variant-numeric:tabular-nums;color:#475569}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .acts{color:#475569;font-size:10px}
+  .empty{color:#1c6b3a;font-size:11px;margin:2px 0 0}
+  .foot{margin-top:18px;padding-top:8px;border-top:1px solid #e2e8f0;color:#64748b;font-size:9.5px}
+</style></head><body>
+  <h1>Staff Activity Report</h1>
+  <p class="sub">${fmtDate(r.from)} – ${fmtDate(r.to)} (${r.windowDays} days) · generated ${fmtDateTime(r.generatedAt)}</p>
+  <div class="tiles">
+    <div class="tile"><div class="n">${r.totals.total}</div><div class="l">STAFF ACCOUNTS</div></div>
+    <div class="tile w"><div class="n">${r.totals.worked}</div><div class="l">WORKED</div></div>
+    <div class="tile i"><div class="n">${r.totals.loggedIn}</div><div class="l">LOGGED IN, NO WORK</div></div>
+    <div class="tile a"><div class="n">${r.totals.noSignIn}</div><div class="l">NEVER SIGNED IN</div></div>
+  </div>
+  <p class="note">"Worked" means at least one recorded action (create, edit, decide, upload, export) — not just a login. Passive reading is not recorded.</p>
+
+  ${section(
+    `Logged in but did no work (${idle.length})`,
+    "#9a6a00",
+    `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Logins</th></tr>`,
+    plainRows(idle),
+    "None — everyone who signed in also did something.",
+  )}
+  ${section(
+    `Never signed in (${absent.length})`,
+    "#b01c2e",
+    `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Logins</th></tr>`,
+    plainRows(absent),
+    "None — everyone signed in at least once.",
+  )}
+  ${section(
+    `Worked (${worked.length})`,
+    "#1c6b3a",
+    `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Actions</th><th>Last active</th><th>What they did</th></tr>`,
+    workedRows,
+    "No recorded actions by anyone this period.",
+  )}
+
+  <p class="foot">Illume Student Advisory Services — internal, confidential. Activity is measured from the
+    system audit log over the ${r.windowDays}-day window above.</p>
+</body></html>`;
+}
+
+/** Render the printable report to a PDF buffer (headless Chromium). */
+export async function buildReportPdf(r: ActivityReport): Promise<Buffer> {
+  return generatePdfFromHtml(renderPrintableReport(r));
+}
+
 /** The static summary that goes in the email body (no scripts — mail-safe). */
 export function renderEmailSummary(r: ActivityReport): string {
   const idle = r.people.filter((p) => p.state === "LOGGED_IN");
@@ -360,8 +473,8 @@ export function renderEmailSummary(r: ActivityReport): string {
     ${list("Logged in but did no work", idle, "Present in the system but recorded no action this week.")}
     ${list("Never signed in", absent, "No login at all this week.")}
     <p style="margin:22px 0 0;padding:12px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#475569">
-      📎 The attached <b>activity-report.html</b> is interactive — open it in a browser to
-      sort, filter, search, and click any person to see exactly what they did.</p>
+      📎 The attached <b>PDF</b> lists everyone — who worked and exactly what they did,
+      who logged in without working, and who never signed in.</p>
   </div>`;
 }
 
@@ -393,14 +506,14 @@ export async function sendWeeklyActivityReport(opts: {
     return { sent: false, recipients, report };
   }
 
-  const html = renderInteractiveReport(report);
+  const pdf = await buildReportPdf(report);
   const stamp = report.to.toISOString().slice(0, 10);
   const sent = await safeSend({
     to: recipients,
     subject: `Weekly staff activity — ${report.totals.worked} worked, ${report.totals.loggedIn + report.totals.noSignIn} inactive`,
     html: renderEmailSummary(report),
     attachments: [
-      { name: `activity-report-${stamp}.html`, content: Buffer.from(html, "utf8").toString("base64") },
+      { name: `activity-report-${stamp}.pdf`, content: pdf.toString("base64") },
     ],
   });
 

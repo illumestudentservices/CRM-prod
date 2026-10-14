@@ -18,6 +18,7 @@ import { writeFileSync } from "node:fs";
 import {
   buildActivityReport,
   renderInteractiveReport,
+  buildReportPdf,
   sendWeeklyActivityReport,
 } from "@/lib/activity-report";
 
@@ -41,8 +42,13 @@ async function main() {
   );
 
   if (outFile) {
-    writeFileSync(outFile, renderInteractiveReport(report), "utf8");
-    console.log(`[activity-report] wrote interactive report to ${outFile}`);
+    if (outFile.toLowerCase().endsWith(".pdf")) {
+      writeFileSync(outFile, await buildReportPdf(report));
+      console.log(`[activity-report] wrote PDF report to ${outFile}`);
+    } else {
+      writeFileSync(outFile, renderInteractiveReport(report), "utf8");
+      console.log(`[activity-report] wrote interactive HTML report to ${outFile}`);
+    }
   }
 
   if (dryRun) {
