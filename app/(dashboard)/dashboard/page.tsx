@@ -1328,9 +1328,6 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
 
       {/* Assets */}
       <AssetsCard assets={assets} />
-
-      {/* Announcements */}
-      <AnnouncementsFeed />
     </div>
   );
 }
@@ -1440,9 +1437,6 @@ async function ERPDashboard({ userId, regionId }: { userId: string; regionId?: s
 
       {/* Assets */}
       <AssetsCard assets={assets} />
-
-      {/* Announcements */}
-      <AnnouncementsFeed />
     </div>
   );
 }
@@ -1514,6 +1508,22 @@ export default async function DashboardPage({
   return (
     <div className="space-y-6">
       <NoRegionBanner role={role} regionId={regionId} />
+
+      {/*
+       * Announcements, once, for every dashboard view.
+       *
+       * This used to be rendered inside ICRDashboard and ERPDashboard, as the
+       * LAST card on each — so the six roles that default to the executive view
+       * (Super Admin, HQ Executive, HQ Analytics, Regional Manager, Account
+       * Manager, VP Global Sales) never saw a company announcement at all, and
+       * everybody else had to scroll past six cards to find one. A Regional
+       * Manager could post an announcement and then not see it.
+       *
+       * The card hides itself when there is nothing to show, so putting it at
+       * the top costs an empty dashboard nothing.
+       */}
+      <AnnouncementsFeed />
+
       {/* Tab switcher — only show if user can see both */}
       {canViewExecutive && (
         <div className="flex items-center justify-between">
