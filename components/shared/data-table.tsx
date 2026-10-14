@@ -234,8 +234,10 @@ export function DataTable<TData, TValue>({
             </div>
           )}
 
+          {/* Same problem as the header row: slate-600 on a 10% navy tint is
+              dark text on a dark surface once the theme flips. */}
           {selectedCount > 0 && (
-            <span className="text-sm text-slate-600 bg-[#1E3A5F]/10 px-2.5 py-1 rounded-md font-medium">
+            <span className="text-sm text-slate-600 bg-[#1E3A5F]/10 px-2.5 py-1 rounded-md font-medium dark:text-slate-200 dark:bg-slate-800">
               {selectedCount} selected
             </span>
           )}
@@ -297,9 +299,17 @@ export function DataTable<TData, TValue>({
       {/* Table */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
         <Table>
+          {/* The header row needs its own dark surface. TableHead sets
+              dark:text-slate-400, so on a hard-coded bg-slate-50 the header of
+              EVERY table in the app was light grey text on near-white — barely
+              readable in dark mode. The hover variant has to be overridden too,
+              or the row flashes back to white on the way past. */}
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-slate-50/80 hover:bg-slate-50/80">
+              <TableRow
+                key={headerGroup.id}
+                className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-800/50 dark:hover:bg-slate-800/50"
+              >
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}

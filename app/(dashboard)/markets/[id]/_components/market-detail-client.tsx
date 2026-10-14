@@ -404,7 +404,7 @@ export function MarketDetailClient({
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-800/50 dark:hover:bg-slate-800/50">
                   <TableHead>Name</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Type</TableHead>
@@ -473,7 +473,7 @@ export function MarketDetailClient({
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-800/50 dark:hover:bg-slate-800/50">
                   <TableHead>Title</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Date</TableHead>
@@ -537,7 +537,7 @@ export function MarketDetailClient({
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/80">
+                <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 dark:bg-slate-800/50 dark:hover:bg-slate-800/50">
                   <TableHead>Title</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
