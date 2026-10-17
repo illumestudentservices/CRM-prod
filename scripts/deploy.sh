@@ -94,14 +94,31 @@ rm -rf "$APP_DIR/.next.prev"
 [ -d "$APP_DIR/.next" ] && mv "$APP_DIR/.next" "$APP_DIR/.next.prev"
 cp -a "$BUILD_DIR/.next" "$APP_DIR/.next"
 
+# Snapshot the lockfile that is CURRENTLY installed, BEFORE we reset the tree to
+# the new ref. Comparing the post-reset lockfile against BUILD_DIR's (the old
+# bug) always matched, because both were already the new version — so the
+# runtime node_modules never got refreshed and a dependency update silently
+# never took effect on the running app. Comparing against what is actually
+# installed is the correct test.
+INSTALLED_LOCK="$(mktemp)"
+cp "$APP_DIR/package-lock.json" "$INSTALLED_LOCK"
+
 # Source files must match the build that references them
 git -C "$APP_DIR" fetch --quiet origin
 git -C "$APP_DIR" reset --hard --quiet "$REF"
-# node_modules only needs refreshing when the lockfile moved
-if ! cmp -s "$BUILD_DIR/package-lock.json" "$APP_DIR/package-lock.json"; then
-  cd "$APP_DIR" && npm ci --omit=dev --no-audit --no-fund
+
+# A full `npm ci` (not --omit=dev): prisma generate below loads prisma.config.ts,
+# which imports dotenv — a devDependency. --omit=dev removed it and broke
+# `prisma generate`, which left the app with no generated client and a 500. Dev
+# deps at runtime are harmless; a missing one is an outage.
+if ! cmp -s "$INSTALLED_LOCK" "$APP_DIR/package-lock.json"; then
+  log "Runtime dependencies changed — reinstalling in $APP_DIR"
+  cd "$APP_DIR" && npm ci --no-audit --no-fund || { rm -f "$INSTALLED_LOCK"; die "npm ci failed in $APP_DIR"; }
 fi
-cd "$APP_DIR" && npx prisma generate >/dev/null
+rm -f "$INSTALLED_LOCK"
+# Always regenerate: a fresh npm ci wipes node_modules/.prisma, and the client
+# must exist before the app starts or every request 500s.
+cd "$APP_DIR" && npx prisma generate >/dev/null || die "prisma generate failed"
 
 # Everything above ran as root, so the files are root-owned again. The
 # service runs as $APP_USER and would fail to read its own build.
