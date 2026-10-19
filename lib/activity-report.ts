@@ -8,22 +8,33 @@ import { generatePdfFromHtml } from "@/lib/pdf-generator";
  * ★ THE POINT: "LOGGED IN" IS NOT "WORKED".
  *
  * A login proves someone opened the door. It does not prove they did anything.
- * This report separates three states, because the difference is the whole
+ * This report separates four states, because the difference is the whole
  * question a manager is actually asking:
  *
- *   WORKED       — took at least one business action (created, edited, decided,
- *                  uploaded, exported). Real use of the system.
- *   LOGGED IN    — signed in, but recorded no business action. Present, idle.
- *   NO SIGN-IN   — did not sign in at all during the window.
+ *   WORKED           — took at least one business action (created, edited,
+ *                      decided, uploaded, exported). Real use of the system.
+ *   LOGGED IN        — signed in during the window, but recorded no business
+ *                      action. Present, idle.
+ *   DIDN'T SIGN IN   — did not sign in during the window, but HAS used the
+ *                      portal before. A lapse this week, not a dormant account.
+ *   NEVER SIGNED IN  — has never once logged into the portal, in its whole
+ *                      history. The account was created and never activated.
+ *
+ * The last two used to be one bucket ("no sign-in this window"), which hid the
+ * difference between someone who normally works but was away this week and
+ * someone who has never set foot in the system at all — a very different
+ * conversation. They are now separate.
  *
  * The signal is the audit log. Every business action writes an AuditLog row
  * with the acting user; authentication ceremony (the login itself, MFA, a
  * password reset) writes rows too, and those are deliberately NOT counted as
- * work — otherwise "logged in and did nothing" would read as activity.
+ * work — otherwise "logged in and did nothing" would read as activity. "Never
+ * signed in" is judged against the ENTIRE audit history, not the window: a user
+ * with no LOGIN row ever has never signed in.
  *
- * The emailed summary is static (mail clients strip scripts). The real report
- * is the attached HTML file: open it in a browser and it sorts, filters,
- * searches, and expands each person to show exactly what they did.
+ * The emailed summary is static (mail clients strip scripts). The attached PDF
+ * lists everyone laid out by state; the interactive HTML (when produced) sorts,
+ * filters, searches, and expands each person to show exactly what they did.
  */
 
 /**
@@ -42,7 +53,7 @@ const PRESENCE_ACTIONS = new Set([
   "PASSWORD_RESET_REQUESTED",
 ]);
 
-export type ActivityState = "WORKED" | "LOGGED_IN" | "NO_SIGN_IN";
+export type ActivityState = "WORKED" | "LOGGED_IN" | "DIDNT_SIGN_IN" | "NEVER_LOGGED_IN";
 
 export interface PersonActivity {
   userId: string;
@@ -65,7 +76,7 @@ export interface ActivityReport {
   windowDays: number;
   generatedAt: Date;
   people: PersonActivity[];
-  totals: { total: number; worked: number; loggedIn: number; noSignIn: number };
+  totals: { total: number; worked: number; loggedIn: number; didntSignIn: number; neverLoggedIn: number };
 }
 
 /** Internal roles only — Institution Clients are partner logins, not staff. */
@@ -95,6 +106,16 @@ export async function buildActivityReport(windowDays = 7, asOf = new Date()): Pr
     select: { userId: true, action: true, createdAt: true },
   });
 
+  // "Has this person EVER signed in?" — judged against all time, not the window.
+  // A user with no LOGIN row anywhere in the audit history has never activated
+  // their account, which is a different state from "didn't sign in this week".
+  const everLoggedInRows = await db.auditLog.findMany({
+    where: { action: "LOGIN", userId: { not: null } },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  const everLoggedIn = new Set(everLoggedInRows.map((r) => r.userId as string));
+
   // Fold the log down to a per-user tally in one pass.
   type Tally = { work: number; logins: number; last: Date | null; breakdown: Record<string, number> };
   const byUser = new Map<string, Tally>();
@@ -117,8 +138,16 @@ export async function buildActivityReport(windowDays = 7, asOf = new Date()): Pr
     const t = byUser.get(u.id);
     const workActions = t?.work ?? 0;
     const logins = t?.logins ?? 0;
+    // Order matters: work beats a bare login; a login this week beats silence;
+    // and among the silent, "has signed in before" is separated from "never".
     const state: ActivityState =
-      workActions > 0 ? "WORKED" : logins > 0 ? "LOGGED_IN" : "NO_SIGN_IN";
+      workActions > 0
+        ? "WORKED"
+        : logins > 0
+          ? "LOGGED_IN"
+          : everLoggedIn.has(u.id)
+            ? "DIDNT_SIGN_IN"
+            : "NEVER_LOGGED_IN";
     return {
       userId: u.id,
       name: u.name || u.email,
@@ -135,8 +164,14 @@ export async function buildActivityReport(windowDays = 7, asOf = new Date()): Pr
   });
 
   // Worked first by volume (most active at the top), then the idle, then the
-  // absent — so the people who need a nudge sort to the bottom together.
-  const order: Record<ActivityState, number> = { WORKED: 0, LOGGED_IN: 1, NO_SIGN_IN: 2 };
+  // week's absentees, then the never-activated — so the accounts that most need
+  // a nudge sort to the bottom together.
+  const order: Record<ActivityState, number> = {
+    WORKED: 0,
+    LOGGED_IN: 1,
+    DIDNT_SIGN_IN: 2,
+    NEVER_LOGGED_IN: 3,
+  };
   people.sort(
     (a, b) => order[a.state] - order[b.state] || b.workActions - a.workActions || a.name.localeCompare(b.name),
   );
@@ -145,7 +180,8 @@ export async function buildActivityReport(windowDays = 7, asOf = new Date()): Pr
     total: people.length,
     worked: people.filter((p) => p.state === "WORKED").length,
     loggedIn: people.filter((p) => p.state === "LOGGED_IN").length,
-    noSignIn: people.filter((p) => p.state === "NO_SIGN_IN").length,
+    didntSignIn: people.filter((p) => p.state === "DIDNT_SIGN_IN").length,
+    neverLoggedIn: people.filter((p) => p.state === "NEVER_LOGGED_IN").length,
   };
 
   return { from, to, windowDays, generatedAt: to, people, totals };
@@ -165,18 +201,19 @@ const fmtDateTime = (d: Date | null) =>
 const prettyAction = (a: string) =>
   a.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
+const STATE_LABEL: Record<ActivityState, string> = {
+  WORKED: "Worked",
+  LOGGED_IN: "Logged in only",
+  DIDNT_SIGN_IN: "Didn't sign in last week",
+  NEVER_LOGGED_IN: "Never signed in",
+};
+
 /**
  * The interactive report, as one self-contained HTML file. No external assets,
  * so it opens from an email attachment and works offline. Vanilla JS: filter,
  * search, sort, and a per-person drill-down.
  */
 export function renderInteractiveReport(r: ActivityReport): string {
-  const STATE_LABEL: Record<ActivityState, string> = {
-    WORKED: "Worked",
-    LOGGED_IN: "Logged in only",
-    NO_SIGN_IN: "No sign-in",
-  };
-
   const rows = r.people
     .map((p, i) => {
       const breakdown = Object.entries(p.breakdown)
@@ -187,7 +224,9 @@ export function renderInteractiveReport(r: ActivityReport): string {
         ? `<div class="detail">${breakdown}</div>`
         : p.state === "LOGGED_IN"
           ? `<div class="detail muted">Signed in ${p.logins} time(s) but recorded no action.</div>`
-          : `<div class="detail muted">Did not sign in during this period.</div>`;
+          : p.state === "DIDNT_SIGN_IN"
+            ? `<div class="detail muted">Did not sign in last week — but has signed in before.</div>`
+            : `<div class="detail muted">Has never signed in to the portal.</div>`;
       return `<tr class="row ${p.state}" data-state="${p.state}" data-i="${i}"
         data-name="${esc(p.name.toLowerCase())} ${esc((p.employeeId ?? "").toLowerCase())} ${esc(p.role.toLowerCase())}"
         data-work="${p.workActions}" data-logins="${p.logins}"
@@ -210,20 +249,21 @@ export function renderInteractiveReport(r: ActivityReport): string {
 <style>
   :root{--bg:#f6f8fa;--card:#fff;--ink:#0f2335;--muted:#64748b;--line:#e2e8f0;
     --navy:#0f3d5c;--worked:#1c6b3a;--worked-bg:#e7f5ec;--idle:#9a6a00;--idle-bg:#fdf3e0;
-    --absent:#b01c2e;--absent-bg:#fdeaec;}
+    --lapse:#c2410c;--lapse-bg:#fdeee4;--never:#b01c2e;--never-bg:#fdeaec;}
   @media(prefers-color-scheme:dark){:root{--bg:#0b1017;--card:#121a24;--ink:#e6edf3;
-    --muted:#93a3b5;--line:#243040;--worked-bg:#0f2a1a;--idle-bg:#2a2208;--absent-bg:#2a1113;}}
+    --muted:#93a3b5;--line:#243040;--worked-bg:#0f2a1a;--idle-bg:#2a2208;--lapse-bg:#2a1708;--never-bg:#2a1113;}}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);
     font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px}
   .wrap{max-width:1080px;margin:0 auto}
   h1{font-size:20px;margin:0 0 4px;color:var(--navy)}
   @media(prefers-color-scheme:dark){h1{color:#7cc5ff}}
   .sub{color:var(--muted);margin:0 0 20px}
-  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-  @media(max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+  @media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr)}}
   .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .tile .n{font-size:26px;font-weight:700}.tile .l{color:var(--muted);font-size:12px}
-  .tile.worked .n{color:var(--worked)}.tile.idle .n{color:var(--idle)}.tile.absent .n{color:var(--absent)}
+  .tile.worked .n{color:var(--worked)}.tile.idle .n{color:var(--idle)}
+  .tile.lapse .n{color:var(--lapse)}.tile.never .n{color:var(--never)}
   .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
   .controls button{background:var(--card);border:1px solid var(--line);color:var(--ink);
     padding:7px 12px;border-radius:999px;cursor:pointer;font-size:13px}
@@ -242,7 +282,8 @@ export function renderInteractiveReport(r: ActivityReport): string {
   .badge{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
   .badge.WORKED{background:var(--worked-bg);color:var(--worked)}
   .badge.LOGGED_IN{background:var(--idle-bg);color:var(--idle)}
-  .badge.NO_SIGN_IN{background:var(--absent-bg);color:var(--absent)}
+  .badge.DIDNT_SIGN_IN{background:var(--lapse-bg);color:var(--lapse)}
+  .badge.NEVER_LOGGED_IN{background:var(--never-bg);color:var(--never)}
   .detailrow{display:none}.detailrow.show{display:table-row}
   .detail{padding:4px 2px 8px 24px;display:flex;gap:6px;flex-wrap:wrap}
   .detail.muted{color:var(--muted)}
@@ -255,13 +296,15 @@ export function renderInteractiveReport(r: ActivityReport): string {
     <div class="tile"><div class="n">${r.totals.total}</div><div class="l">Staff accounts</div></div>
     <div class="tile worked"><div class="n">${r.totals.worked}</div><div class="l">Worked</div></div>
     <div class="tile idle"><div class="n">${r.totals.loggedIn}</div><div class="l">Logged in, no work</div></div>
-    <div class="tile absent"><div class="n">${r.totals.noSignIn}</div><div class="l">Never signed in</div></div>
+    <div class="tile lapse"><div class="n">${r.totals.didntSignIn}</div><div class="l">Didn't sign in last week</div></div>
+    <div class="tile never"><div class="n">${r.totals.neverLoggedIn}</div><div class="l">Never signed in</div></div>
   </div>
   <div class="controls">
     <button data-f="all" class="on">All</button>
     <button data-f="WORKED">Worked</button>
     <button data-f="LOGGED_IN">Logged in only</button>
-    <button data-f="NO_SIGN_IN">No sign-in</button>
+    <button data-f="DIDNT_SIGN_IN">Didn't sign in last week</button>
+    <button data-f="NEVER_LOGGED_IN">Never signed in</button>
     <input id="q" placeholder="Search name, ID, role…">
   </div>
   <table><thead><tr>
@@ -272,7 +315,8 @@ export function renderInteractiveReport(r: ActivityReport): string {
   ${rows}
   </tbody></table>
   <p class="foot">Interactive: click a name to see what they did, click a filter, type to search,
-    click a column heading to sort. "Work" counts business actions only — signing in is not work.</p>
+    click a column heading to sort. "Work" counts business actions only — signing in is not work.
+    "Never signed in" means no login on the portal in its entire history.</p>
 </div>
 <script>
   var tb=document.getElementById('tb');
@@ -333,13 +377,15 @@ export function renderInteractiveReport(r: ActivityReport): string {
  * A print-friendly layout for the PDF attachment.
  *
  * A PDF cannot filter or sort, so this shows everything laid out instead: the
- * people who did nothing up top (the actionable part), then everyone who
- * worked with their actions spelled out. No scripts — it is rendered by a
- * headless browser to PDF, so only the printed result matters.
+ * accounts that need attention up top (idle, then the week's absentees, then
+ * those who have never signed in), and everyone who worked, with their actions
+ * spelled out, below. No scripts — it is rendered by a headless browser to PDF,
+ * so only the printed result matters.
  */
 export function renderPrintableReport(r: ActivityReport): string {
   const idle = r.people.filter((p) => p.state === "LOGGED_IN");
-  const absent = r.people.filter((p) => p.state === "NO_SIGN_IN");
+  const lapsed = r.people.filter((p) => p.state === "DIDNT_SIGN_IN");
+  const never = r.people.filter((p) => p.state === "NEVER_LOGGED_IN");
   const worked = r.people.filter((p) => p.state === "WORKED");
 
   const plainRows = (ps: PersonActivity[]) =>
@@ -375,6 +421,8 @@ export function renderPrintableReport(r: ActivityReport): string {
       ? `<table class="t"><thead>${head}</thead><tbody>${body}</tbody></table>`
       : `<p class="empty">${empty}</p>`);
 
+  const nameHead = `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Logins</th></tr>`;
+
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Activity Report ${fmtDate(r.from)} to ${fmtDate(r.to)}</title>
 <style>
@@ -386,7 +434,7 @@ export function renderPrintableReport(r: ActivityReport): string {
   .tiles{display:flex;gap:8px;margin-bottom:6px}
   .tile{flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;text-align:center}
   .tile .n{font-size:20px;font-weight:700}.tile .l{font-size:9px;color:#64748b}
-  .tile.w .n{color:#1c6b3a}.tile.i .n{color:#9a6a00}.tile.a .n{color:#b01c2e}
+  .tile.w .n{color:#1c6b3a}.tile.i .n{color:#9a6a00}.tile.l .n{color:#c2410c}.tile.a .n{color:#b01c2e}
   .note{font-size:10px;color:#64748b;margin:4px 0 0}
   table.t{width:100%;border-collapse:collapse;margin-top:2px}
   .t th{font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:#64748b;text-align:left;
@@ -405,23 +453,32 @@ export function renderPrintableReport(r: ActivityReport): string {
     <div class="tile"><div class="n">${r.totals.total}</div><div class="l">STAFF ACCOUNTS</div></div>
     <div class="tile w"><div class="n">${r.totals.worked}</div><div class="l">WORKED</div></div>
     <div class="tile i"><div class="n">${r.totals.loggedIn}</div><div class="l">LOGGED IN, NO WORK</div></div>
-    <div class="tile a"><div class="n">${r.totals.noSignIn}</div><div class="l">NEVER SIGNED IN</div></div>
+    <div class="tile l"><div class="n">${r.totals.didntSignIn}</div><div class="l">DIDN'T SIGN IN LAST WEEK</div></div>
+    <div class="tile a"><div class="n">${r.totals.neverLoggedIn}</div><div class="l">NEVER SIGNED IN</div></div>
   </div>
-  <p class="note">"Worked" means at least one recorded action (create, edit, decide, upload, export) — not just a login. Passive reading is not recorded.</p>
+  <p class="note">"Worked" means at least one recorded action (create, edit, decide, upload, export) — not just a login.
+    Passive reading is not recorded. "Never signed in" means no login on the portal in its entire history.</p>
 
   ${section(
     `Logged in but did no work (${idle.length})`,
     "#9a6a00",
-    `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Logins</th></tr>`,
+    nameHead,
     plainRows(idle),
     "None — everyone who signed in also did something.",
   )}
   ${section(
-    `Never signed in (${absent.length})`,
+    `Didn't sign in last week (${lapsed.length})`,
+    "#c2410c",
+    nameHead,
+    plainRows(lapsed),
+    "None — everyone who has used the portal also signed in this week.",
+  )}
+  ${section(
+    `Never signed in (${never.length})`,
     "#b01c2e",
-    `<tr><th>Name</th><th>ID</th><th>Role</th><th class="num">Logins</th></tr>`,
-    plainRows(absent),
-    "None — everyone signed in at least once.",
+    nameHead,
+    plainRows(never),
+    "None — every account has signed in at least once.",
   )}
   ${section(
     `Worked (${worked.length})`,
@@ -432,7 +489,7 @@ export function renderPrintableReport(r: ActivityReport): string {
   )}
 
   <p class="foot">Illume Student Advisory Services — internal, confidential. Activity is measured from the
-    system audit log over the ${r.windowDays}-day window above.</p>
+    system audit log over the ${r.windowDays}-day window above; "never signed in" is measured against the full history.</p>
 </body></html>`;
 }
 
@@ -444,7 +501,8 @@ export async function buildReportPdf(r: ActivityReport): Promise<Buffer> {
 /** The static summary that goes in the email body (no scripts — mail-safe). */
 export function renderEmailSummary(r: ActivityReport): string {
   const idle = r.people.filter((p) => p.state === "LOGGED_IN");
-  const absent = r.people.filter((p) => p.state === "NO_SIGN_IN");
+  const lapsed = r.people.filter((p) => p.state === "DIDNT_SIGN_IN");
+  const never = r.people.filter((p) => p.state === "NEVER_LOGGED_IN");
   const line = (p: PersonActivity) =>
     `<tr><td style="padding:4px 10px 4px 0">${esc(p.name)}</td>
       <td style="padding:4px 10px;color:#64748b">${esc(p.employeeId ?? "—")}</td>
@@ -455,26 +513,33 @@ export function renderEmailSummary(r: ActivityReport): string {
          <p style="margin:0 0 6px;color:#64748b;font-size:13px">${note}</p>
          <table style="border-collapse:collapse;font-size:14px">${ps.map(line).join("")}</table>`
       : `<h3 style="margin:18px 0 6px;color:#0f3d5c;font-size:15px">${title} (0)</h3>
-         <p style="margin:0;color:#1c6b3a;font-size:13px">None — everyone was active.</p>`;
+         <p style="margin:0;color:#1c6b3a;font-size:13px">None.</p>`;
+
+  const stat = (bg: string, color: string, n: number, label: string) =>
+    `<td style="padding:7px 12px;background:${bg};border-radius:8px;color:${color};font-weight:700;font-size:18px">${n}<span style="font-weight:400;font-size:12px;display:block">${label}</span></td>`;
+  const gap = `<td style="width:6px"></td>`;
 
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f2335;max-width:640px">
     <h2 style="color:#0f3d5c;margin:0 0 2px">Weekly Staff Activity</h2>
     <p style="color:#64748b;margin:0 0 16px">${fmtDate(r.from)} – ${fmtDate(r.to)}</p>
     <table style="border-collapse:collapse;margin-bottom:8px">
       <tr>
-        <td style="padding:8px 16px;background:#e7f5ec;border-radius:8px;color:#1c6b3a;font-weight:700;font-size:18px">${r.totals.worked}<span style="font-weight:400;font-size:12px;display:block">worked</span></td>
-        <td style="width:8px"></td>
-        <td style="padding:8px 16px;background:#fdf3e0;border-radius:8px;color:#9a6a00;font-weight:700;font-size:18px">${r.totals.loggedIn}<span style="font-weight:400;font-size:12px;display:block">logged in, idle</span></td>
-        <td style="width:8px"></td>
-        <td style="padding:8px 16px;background:#fdeaec;border-radius:8px;color:#b01c2e;font-weight:700;font-size:18px">${r.totals.noSignIn}<span style="font-weight:400;font-size:12px;display:block">never signed in</span></td>
+        ${stat("#e7f5ec", "#1c6b3a", r.totals.worked, "worked")}
+        ${gap}
+        ${stat("#fdf3e0", "#9a6a00", r.totals.loggedIn, "logged in, idle")}
+        ${gap}
+        ${stat("#fdeee4", "#c2410c", r.totals.didntSignIn, "didn't sign in")}
+        ${gap}
+        ${stat("#fdeaec", "#b01c2e", r.totals.neverLoggedIn, "never signed in")}
       </tr>
     </table>
     <p style="font-size:13px;color:#64748b">Of ${r.totals.total} staff accounts. "Worked" means at least one real action — not just a login.</p>
     ${list("Logged in but did no work", idle, "Present in the system but recorded no action this week.")}
-    ${list("Never signed in", absent, "No login at all this week.")}
+    ${list("Didn't sign in last week", lapsed, "Has used the portal before, but did not sign in during this week.")}
+    ${list("Never signed in", never, "Has never once logged into the portal — the account is not yet activated.")}
     <p style="margin:22px 0 0;padding:12px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#475569">
       📎 The attached <b>PDF</b> lists everyone — who worked and exactly what they did,
-      who logged in without working, and who never signed in.</p>
+      who logged in without working, who didn't sign in last week, and who has never signed in at all.</p>
   </div>`;
 }
 
@@ -508,9 +573,10 @@ export async function sendWeeklyActivityReport(opts: {
 
   const pdf = await buildReportPdf(report);
   const stamp = report.to.toISOString().slice(0, 10);
+  const inactive = report.totals.loggedIn + report.totals.didntSignIn + report.totals.neverLoggedIn;
   const sent = await safeSend({
     to: recipients,
-    subject: `Weekly staff activity — ${report.totals.worked} worked, ${report.totals.loggedIn + report.totals.noSignIn} inactive`,
+    subject: `Weekly staff activity — ${report.totals.worked} worked, ${inactive} inactive`,
     html: renderEmailSummary(report),
     attachments: [
       { name: `activity-report-${stamp}.pdf`, content: pdf.toString("base64") },

@@ -38,7 +38,7 @@ async function main() {
   console.log(
     `[activity-report] ${report.from.toISOString().slice(0, 10)} -> ${report.to.toISOString().slice(0, 10)}  ` +
       `(${report.windowDays}d)  worked=${report.totals.worked}  logged-in-only=${report.totals.loggedIn}  ` +
-      `no-sign-in=${report.totals.noSignIn}  of ${report.totals.total}`,
+      `didnt-sign-in=${report.totals.didntSignIn}  never-signed-in=${report.totals.neverLoggedIn}  of ${report.totals.total}`,
   );
 
   if (outFile) {
