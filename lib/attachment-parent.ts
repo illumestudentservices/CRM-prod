@@ -2,6 +2,50 @@ import { db } from "@/lib/db";
 import type { AttachmentParentType, Role } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canSeeTask } from "@/lib/task-visibility";
+import { canAccessLead, accessibleInterest, institutionIdsForUser } from "@/lib/lead-access";
+
+/**
+ * The acting user's own region, needed by the lead/region scope check. The
+ * canAccessRow hook signature only carries userId + role, so the region is
+ * looked up here, the same way the TASK and EMPLOYEE_DOCUMENT hooks look up
+ * whatever they need.
+ */
+async function actorRegionId(userId: string): Promise<string | null> {
+  const u = await db.user.findUnique({ where: { id: userId }, select: { regionId: true } });
+  return u?.regionId ?? null;
+}
+
+/**
+ * Row gate shared by LEAD, LEAD_NOTE and INSTITUTION_INTEREST attachments.
+ * Reuses the exact entitlement rule the lead routes use (region for a manager,
+ * ownership for an ICR, assigned-institution for a client), so an attachment is
+ * never reachable by someone who could not open the lead itself.
+ */
+async function leadScopeAllows(
+  lead: { regionId: string | null; assignedICRId: string | null; institutionId: string | null },
+  actor: { userId: string; role: Role },
+): Promise<boolean> {
+  const regionId = await actorRegionId(actor.userId);
+  const institutionIds = await institutionIdsForUser(actor.userId, actor.role);
+  return canAccessLead(lead, actor.userId, regionId, actor.role, institutionIds);
+}
+
+/**
+ * Row gate for the institution-scoped parents (CLIENT_ISSUE, ENGAGEMENT_LOG,
+ * ACCOUNT_INTERVENTION). Mirrors `assertInstitutionVisible` in the
+ * institutions/[id] route exactly: institutions are org-wide for internal
+ * staff, but an INSTITUTION_CLIENT is confined to the institutions it is
+ * assigned to — so one partner can no longer read another's client files.
+ */
+async function institutionScopeAllows(
+  institutionId: string | null,
+  actor: { userId: string; role: Role },
+): Promise<boolean> {
+  if (actor.role !== "INSTITUTION_CLIENT") return true;
+  if (!institutionId) return false;
+  const ids = await institutionIdsForUser(actor.userId, actor.role);
+  return ids.includes(institutionId);
+}
 
 /**
  * Polymorphic attachments — parent existence + access gate.
@@ -276,6 +320,10 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "institutions",
     exists: async (id) =>
       (await db.clientIssue.findUnique({ where: { id }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const row = await db.clientIssue.findUnique({ where: { id }, select: { institutionId: true } });
+      return row ? institutionScopeAllows(row.institutionId, actor) : false;
+    },
   },
   RECRUITMENT_EVENT: {
     label: "Recruitment Event",
@@ -335,24 +383,47 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "institutions",
     exists: async (id) =>
       (await db.engagementLog.findUnique({ where: { id }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const row = await db.engagementLog.findUnique({ where: { id }, select: { institutionId: true } });
+      return row ? institutionScopeAllows(row.institutionId, actor) : false;
+    },
   },
   LEAD_NOTE: {
     label: "Lead Note",
     resource: "leads",
     exists: async (id) =>
       (await db.leadNote.findUnique({ where: { id }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const note = await db.leadNote.findUnique({
+        where: { id },
+        select: { lead: { select: { deletedAt: true, regionId: true, assignedICRId: true, institutionId: true } } },
+      });
+      if (!note || note.lead.deletedAt) return false;
+      return leadScopeAllows(note.lead, actor);
+    },
   },
   LEAD: {
     label: "Lead",
     resource: "leads",
     exists: async (id) =>
       (await db.lead.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const lead = await db.lead.findFirst({
+        where: { id, deletedAt: null },
+        select: { regionId: true, assignedICRId: true, institutionId: true },
+      });
+      return lead ? leadScopeAllows(lead, actor) : false;
+    },
   },
   INSTITUTION_INTEREST: {
     label: "Institution Interest",
     resource: "leads",
     exists: async (id) =>
       (await db.institutionInterest.findUnique({ where: { id }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const regionId = await actorRegionId(actor.userId);
+      return (await accessibleInterest(id, actor.userId, regionId, actor.role)) !== null;
+    },
   },
   RISK_REGISTER: {
     label: "Risk Register entry",
@@ -371,6 +442,10 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "institutions",
     exists: async (id) =>
       (await db.accountIntervention.findUnique({ where: { id }, select: { id: true } })) !== null,
+    canAccessRow: async (id, actor) => {
+      const row = await db.accountIntervention.findUnique({ where: { id }, select: { institutionId: true } });
+      return row ? institutionScopeAllows(row.institutionId, actor) : false;
+    },
   },
   QUARTERLY_BUSINESS_REVIEW: {
     label: "QBR",
