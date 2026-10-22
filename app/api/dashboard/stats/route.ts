@@ -30,6 +30,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // This is an internal KPI endpoint: the scope below is deliberately
+    // unscoped (org-wide) for every role that is not an ICR or a Regional
+    // Manager. That is correct for internal HQ roles, but an external
+    // INSTITUTION_CLIENT partner must never receive company-wide lead, event,
+    // source and institution counts. No part of the UI calls this on a
+    // partner's behalf, so refusing outright is safe and closes the leak.
+    if (session.user.role === "INSTITUTION_CLIENT") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { role, id: userId, regionId } = session.user;
     const now = new Date();
     const thisMonthStart = startOfMonth(now);
