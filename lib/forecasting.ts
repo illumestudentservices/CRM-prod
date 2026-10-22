@@ -292,15 +292,37 @@ export function canEditIcrValues(
  * The explicit self-review check matters because an RM can also be the ICR on
  * their own forecast, and role alone would let them review it.
  */
-export function canReview(
-  f: ForecastActors & { status: ForecastStatus },
+/**
+ * May THIS Regional Manager act on the forecast — a region/ownership check that
+ * role alone does not make. Without it any RM could review, adjust or advance
+ * any region's forecast by id (and, by submitting, stamp themselves as its RM).
+ *
+ * The rule: once a forecast has an RM it is that RM's alone; while it has none,
+ * only an RM in the forecast's own region may pick it up. The region test is
+ * inlined (rather than importing region-scope) to keep this module free of any
+ * database import, as its header promises.
+ */
+function rmMayAct(
+  f: { regionalManagerId: string | null; regionId: string | null },
   userId: string,
-  role: Role
+  actorRegionId: string | null
+): boolean {
+  if (f.regionalManagerId) return f.regionalManagerId === userId;
+  return !!actorRegionId && f.regionId === actorRegionId;
+}
+
+export function canReview(
+  f: ForecastActors & { status: ForecastStatus; regionId: string | null },
+  userId: string,
+  role: Role,
+  actorRegionId: string | null
 ): boolean {
   if (isLocked(f.status)) return false;
   if (f.icrId === userId) return false;
   if (role === "SUPER_ADMIN") return true;
-  return role === "REGIONAL_MANAGER" && isRmEditable(f.status);
+  if (role !== "REGIONAL_MANAGER") return false;
+  if (!isRmEditable(f.status)) return false;
+  return rmMayAct(f, userId, actorRegionId);
 }
 
 /**
@@ -313,18 +335,21 @@ export function canReview(
  * RM_REVIEWED a dead end, with the forecast stuck one step short of the VP.
  */
 export function canAdvanceAsRm(
-  f: ForecastActors & { status: ForecastStatus },
+  f: ForecastActors & { status: ForecastStatus; regionId: string | null },
   userId: string,
-  role: Role
+  role: Role,
+  actorRegionId: string | null
 ): boolean {
   if (isLocked(f.status)) return false;
   if (f.icrId === userId) return false;
   if (role !== "REGIONAL_MANAGER" && role !== "SUPER_ADMIN") return false;
-  return (
+  const statusOk =
     f.status === "SUBMITTED_TO_RM" ||
     f.status === "RETURNED_TO_RM" ||
-    f.status === "RM_REVIEWED"
-  );
+    f.status === "RM_REVIEWED";
+  if (!statusOk) return false;
+  if (role === "SUPER_ADMIN") return true;
+  return rmMayAct(f, userId, actorRegionId);
 }
 
 /** Spec §17. Acceptance is the VP's alone. */

@@ -55,7 +55,7 @@ export default async function ForecastPage({
     include: {
       institution: { select: { name: true, country: true } },
       market: { select: { name: true } },
-      icr: { select: { id: true, name: true, email: true } },
+      icr: { select: { id: true, name: true, email: true, regionId: true } },
       regionalManager: { select: { name: true } },
       vpReviewer: { select: { name: true } },
       segments: true,
@@ -75,7 +75,7 @@ export default async function ForecastPage({
   if (!seesAll && !isParticipant) notFound();
 
   const canIcr = canEditIcrValues(forecast, session.user.id, role);
-  const canRm = canReview(forecast, session.user.id, role);
+  const canRm = canReview({ ...forecast, regionId: forecast.icr.regionId }, session.user.id, role, session.user.regionId);
   const mode = canIcr ? "icr" : canRm ? "rm" : "read";
 
   const pipeline = await computePipeline({

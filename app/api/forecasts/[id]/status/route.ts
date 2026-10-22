@@ -55,6 +55,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       where: { id },
       select: {
         id: true, status: true, icrId: true, regionalManagerId: true,
+        icr: { select: { regionId: true } },
         institutionId: true, intakeYear: true, intakeMonth: true,
         confidenceScore: true, rationale: true,
         segments: {
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         );
       }
     } else if (rmMoves.includes(to)) {
-      if (!canAdvanceAsRm(forecast, session.user.id, role)) {
+      if (!canAdvanceAsRm({ ...forecast, regionId: forecast.icr.regionId }, session.user.id, role, session.user.regionId)) {
         return NextResponse.json(
           { error: "Only the Regional Manager can review this forecast." },
           { status: 403 }

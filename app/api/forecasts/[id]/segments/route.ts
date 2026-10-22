@@ -73,7 +73,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     const forecast = await db.forecast.findUnique({
       where: { id },
-      select: { id: true, status: true, icrId: true, regionalManagerId: true },
+      select: { id: true, status: true, icrId: true, regionalManagerId: true, icr: { select: { regionId: true } } },
     });
     if (!forecast) return NextResponse.json({ error: "Forecast not found" }, { status: 404 });
 
@@ -85,7 +85,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
 
     const asIcr = canEditIcrValues(forecast, session.user.id, role);
-    const asRm = canReview(forecast, session.user.id, role);
+    const asRm = canReview({ ...forecast, regionId: forecast.icr.regionId }, session.user.id, role, session.user.regionId);
 
     if (!asIcr && !asRm) {
       return NextResponse.json(
