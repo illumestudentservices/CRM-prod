@@ -186,7 +186,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { id: token.id as string },
             select: { mfaVerifiedSid: true },
           });
-          if (mfaProofSatisfied(token.sid, token.twoFactorPending, proof?.mfaVerifiedSid)) {
+          if (
+            mfaProofSatisfied(
+              token.sid as string | undefined,
+              token.twoFactorPending as boolean | undefined,
+              proof?.mfaVerifiedSid,
+            )
+          ) {
             token.twoFactorPending = false;
           }
         } catch (err) {
