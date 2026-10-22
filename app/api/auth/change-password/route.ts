@@ -14,7 +14,13 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Reject a half-authenticated (second-factor still pending) session: a caller
+  // holding only the password must not be able to rotate it — or, now that this
+  // route also stamps sessionsRevokedAt, use it to evict the real owner — before
+  // completing MFA. Every other sensitive 2FA route rejects the pending state too.
+  if (!session?.user || session.user.twoFactorPending) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   let body: unknown;
   try {

@@ -200,18 +200,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("[auth] 2FA verification proof check failed:", err);
         }
       }
-      // Password just rotated — refresh the stamp so the expiry redirect
-      // stops firing without making the user sign in again.
-      if (trigger === "update" && (session as Record<string, unknown>)?.passwordChanged === true) {
-        token.passwordChangedAt = Date.now();
-        token.mustChangePassword = false;
-      }
-
-      // Enrolment completed — clear the gate without forcing a re-login.
-      if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorEnrolled === true) {
-        token.twoFactorEnabled = true;
-        token.twoFactorPending = false;
-      }
+      // NOTE: there used to be `passwordChanged` and `twoFactorEnrolled` update
+      // branches here that flipped token flags on the client's say-so. Both were
+      // forgeable gate-bypasses: a caller holding only the password could POST
+      // update({ twoFactorEnrolled: true }) to clear `twoFactorPending` on an
+      // already-enrolled account and skip MFA entirely, and update({
+      // passwordChanged: true }) to clear a forced/expired password change.
+      // They are gone. `twoFactorEnabled` (and role, region, revocation) are now
+      // sourced from the database in the live-account check below; the pending
+      // gate is cleared ONLY by the server-verified `mfaProofSatisfied` branch
+      // above. The legitimate flows (enrolment via /api/auth/2fa/enable, a real
+      // password change) end by re-reading the database or re-authenticating, so
+      // nothing depends on a client-driven update() to move these flags.
 
       // Absolute session ceiling. Returning null invalidates the token, so the
       // next request is treated as unauthenticated and lands on /login.
