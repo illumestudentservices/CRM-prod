@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -6,6 +7,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
 import { logActivity } from "@/lib/activity-logger";
 import { findUserByEmail } from "@/lib/email-identity";
+import { mfaProofSatisfied } from "@/lib/mfa-session";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
@@ -149,6 +151,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // absolute. maxAge on its own is a rolling window that continued
         // activity would keep pushing out indefinitely.
         token.loginAt = Date.now();
+        // A fresh, unguessable id for THIS login. It stays inside the signed
+        // JWT and is the anchor the 2FA-verify route stamps against, so the
+        // pending gate below can only be lifted by a real server-side proof
+        // tied to this exact session — never by a client-sent flag.
+        token.sid = crypto.randomUUID();
         token.id = user.id;
         token.role = (user as { role: Role }).role;
         token.regionId = (user as { regionId: string | null }).regionId;
@@ -163,9 +170,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.twoFactorEnabled =
           (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
       }
-      // Client calls useSession().update({ twoFactorVerified: true }) after TOTP passes
-      if (trigger === "update" && (session as Record<string, unknown>)?.twoFactorVerified === true) {
-        token.twoFactorPending = false;
+      // Lift the second-factor gate — but ONLY on server-verified proof, never
+      // on the client's say-so. The verify route stamps `mfaVerifiedSid` on the
+      // user row equal to this token's `sid` after a real code passes; we clear
+      // `twoFactorPending` only when the stored stamp matches. A forged
+      // update({ twoFactorVerified: true }) finds no matching stamp and is inert.
+      if (
+        trigger === "update" &&
+        (session as Record<string, unknown>)?.twoFactorVerified === true &&
+        token.twoFactorPending &&
+        token.sid
+      ) {
+        try {
+          const proof = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: { mfaVerifiedSid: true },
+          });
+          if (mfaProofSatisfied(token.sid, token.twoFactorPending, proof?.mfaVerifiedSid)) {
+            token.twoFactorPending = false;
+          }
+        } catch (err) {
+          // Fail CLOSED: a DB blip must not become a way past the gate.
+          console.error("[auth] 2FA verification proof check failed:", err);
+        }
       }
       // Password just rotated — refresh the stamp so the expiry redirect
       // stops firing without making the user sign in again.
@@ -212,6 +239,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               sessionsRevokedAt: true,
               role: true,
               regionId: true,
+              twoFactorEnabled: true,
             },
           });
         } catch (err) {
@@ -235,6 +263,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         token.role = current.role;
         token.regionId = current.regionId;
+        // The database is the single source of truth for enrolment. If a forged
+        // update({ twoFactorEnrolled: true }) flipped the token in this same
+        // callback, this overwrites it back to reality — so the mandatory-setup
+        // gate in proxy.ts cannot be skipped without actually enrolling.
+        token.twoFactorEnabled = current.twoFactorEnabled;
       }
 
       return token;
@@ -248,6 +281,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.passwordChangedAt = (token.passwordChangedAt as number | null) ?? null;
         session.user.twoFactorPending = (token.twoFactorPending as boolean) ?? false;
         session.user.twoFactorEnabled = (token.twoFactorEnabled as boolean) ?? false;
+        // The verify route needs this login's id to stamp its proof against.
+        // Safe to expose: it is random, bound to the signed cookie, and grants
+        // nothing to anyone who does not already hold the session.
+        session.user.sid = token.sid as string | undefined;
       }
       return session;
     },

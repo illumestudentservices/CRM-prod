@@ -15,6 +15,8 @@ declare module "next-auth" {
       passwordChangedAt: number | null;
       twoFactorPending?: boolean;
       twoFactorEnabled?: boolean;
+      /** Per-login session id, used to prove a second factor was verified for THIS session. */
+      sid?: string;
     };
   }
 
@@ -39,5 +41,12 @@ declare module "next-auth/jwt" {
     twoFactorEnabled?: boolean;
     /** Epoch ms of sign-in, used to enforce an absolute session ceiling. */
     loginAt?: number;
+    /**
+     * Random id minted once per sign-in. The 2FA-verify route stamps this value
+     * onto the user row only after a real code passes, and the JWT callback
+     * clears `twoFactorPending` only when the stamp matches — so the pending
+     * gate can never be cleared by a client-asserted flag alone.
+     */
+    sid?: string;
   }
 }

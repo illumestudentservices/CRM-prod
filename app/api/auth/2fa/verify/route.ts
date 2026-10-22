@@ -14,6 +14,22 @@ const verifySchema = z.object({
 });
 
 /**
+ * Record server-side proof that THIS login passed its second factor, by writing
+ * the session's `sid` onto the user row. The JWT callback lifts the pending gate
+ * only when this stamp matches the token's `sid`, so the gate can never be
+ * cleared by a client-asserted flag alone. A session minted before this change
+ * carries no `sid`; such a user simply re-authenticates once.
+ */
+async function stampMfaVerified(userId: string, sid: string | undefined) {
+  if (!sid) return;
+  try {
+    await db.user.update({ where: { id: userId }, data: { mfaVerifiedSid: sid } });
+  } catch (err) {
+    console.error("[2fa/verify] failed to stamp verification proof:", err);
+  }
+}
+
+/**
  * POST /api/auth/2fa/verify
  * Called from /verify-2fa page after the user enters their TOTP or backup code.
  * Requires a session with twoFactorPending === true.
@@ -89,6 +105,7 @@ export async function POST(req: NextRequest) {
     const result = await verifyEmailOtp(session.user.id, cleanCode);
     if (result.ok) {
       await clearMfaFailures(session.user.id);
+      await stampMfaVerified(session.user.id, session.user.sid);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "email_otp" });
       return NextResponse.json({ success: true });
     }
@@ -104,6 +121,7 @@ export async function POST(req: NextRequest) {
     }
     if (await totpVerify(user.twoFactorSecret, cleanCode)) {
       await clearMfaFailures(session.user.id);
+      await stampMfaVerified(session.user.id, session.user.sid);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
       return NextResponse.json({ success: true });
     }
@@ -125,6 +143,7 @@ export async function POST(req: NextRequest) {
       data: { twoFactorBackupCodes: remaining },
     });
     await clearMfaFailures(session.user.id);
+    await stampMfaVerified(session.user.id, session.user.sid);
     void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, {
       method: "backup_code",
       codesRemaining: remaining.length,

@@ -82,6 +82,10 @@ export async function POST(req: NextRequest) {
           passwordChangedAt: new Date(),
           loginAttempts: 0,
           lockedUntil: null,
+          // A reset is how a locked-out or compromised owner takes their account
+          // back, so it must evict any session an attacker already holds. The
+          // owner logs in fresh afterwards and gets a token issued after this.
+          sessionsRevokedAt: new Date(),
         },
       });
       await tx.passwordResetToken.update({

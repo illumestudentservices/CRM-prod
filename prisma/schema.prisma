@@ -929,6 +929,15 @@ model User {
   /// anyone who already knows the password.
   mfaLockedUntil       DateTime?
 
+  /// Server-side proof that the current login completed its second factor.
+  ///
+  /// The sign-in mints a random `sid` inside the signed JWT; the 2FA-verify
+  /// route writes that same `sid` here ONLY after a real code passes. The JWT
+  /// callback lifts the `twoFactorPending` gate only when this value matches the
+  /// token's `sid`. Without it the gate was cleared on a client-asserted flag
+  /// alone, so anyone holding just the password could skip the second factor.
+  mfaVerifiedSid       String?
+
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

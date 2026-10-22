@@ -76,6 +76,12 @@ export async function POST(req: NextRequest) {
         passwordChangedAt: changedAt,
         loginAttempts: 0,
         lockedUntil: null,
+        // Evict every other session on this account. A password change is the
+        // standard response to a suspected compromise, so a stolen token must
+        // not survive it. The current browser signs out and back in right after
+        // (see app/change-password/page.tsx), landing a fresh token whose
+        // sign-in time is after this stamp.
+        sessionsRevokedAt: changedAt,
       },
     });
     await recordPasswordInHistory(session.user.id, hashed, tx);
