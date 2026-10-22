@@ -31,9 +31,20 @@ export async function GET(
           include: { institution: { select: { id: true, name: true } } },
         },
         expenses: { orderBy: { createdAt: "asc" } },
+        // Only the columns the event page actually shows. This used to be a
+        // full `include`, which returned every lead scalar — email, phone,
+        // date of birth, nationality, and the (encrypted) passport and visa
+        // fields — to anyone holding events:read, INSTITUTION_CLIENT partners
+        // included. The event view needs a name, a stage, the owner and a
+        // date, and nothing more.
         leads: {
           where: { deletedAt: null },
-          include: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            stage: true,
+            createdAt: true,
             assignedICR: { select: { id: true, name: true } },
             institution: { select: { id: true, name: true } },
           },
