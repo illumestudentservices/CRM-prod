@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName } from "@/lib/person-name";
+import { blindIndex } from "@/lib/field-crypto";
 
 /// Spec §2 — before creating a new Student Profile, search for matches.
 ///
@@ -83,7 +84,11 @@ export async function POST(req: NextRequest) {
     if (email && email.length > 3) orConditions.push({ email: { equals: email, mode: "insensitive" } });
     if (phone && phone.length > 5) orConditions.push({ phone: { equals: phone } });
     if (passportNumber && passportNumber.length >= 3) {
-      orConditions.push({ passportNumber: { equals: passportNumber, mode: "insensitive" } });
+      // passportNumber is encrypted at rest with a random IV, so it cannot be
+      // matched by equality. Look it up through its blind index instead — a
+      // deterministic, case- and whitespace-insensitive HMAC — which is exactly
+      // what the old `mode: "insensitive"` equality did, without decrypting.
+      orConditions.push({ passportNumberHash: blindIndex(passportNumber) });
     }
     if (dateOfBirth) {
       // Match date only (ignore time-of-day noise from timezone-shifted inputs).

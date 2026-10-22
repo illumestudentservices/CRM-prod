@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import { db, type PrismaTransaction } from "@/lib/db";
 import { PASSWORD_HISTORY_DEPTH } from "@/lib/password";
-import type { Prisma } from "@prisma/client";
 
 /**
  * Password reuse prevention.
@@ -43,7 +42,7 @@ export async function isPasswordReused(userId: string, plaintext: string): Promi
 export async function recordPasswordInHistory(
   userId: string,
   hash: string,
-  client: Prisma.TransactionClient | typeof db = db
+  client: PrismaTransaction = db
 ): Promise<void> {
   await client.passwordHistory.create({ data: { userId, hash } });
 

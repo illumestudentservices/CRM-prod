@@ -1198,6 +1198,11 @@ model Lead {
   /// government-issued unique key). Nullable because most walk-ins won't
   /// provide it, but where present it's the primary dedup key.
   passportNumber     String?
+  /// One-way blind index (HMAC) of the passport number, maintained by the
+  /// field-encryption extension so duplicate matching can look a passport up
+  /// without decrypting. Not the value — it cannot be reversed. See
+  /// lib/lead-encryption.ts.
+  passportNumberHash String?
   interestedProgram  String
   faculty            String?
   studyLevel         StudyLevel
@@ -1386,6 +1391,8 @@ model Lead {
   @@index([stage])
   @@index([assignedICRId])
   @@index([institutionId])
+  /// Blind-index lookup for passport duplicate matching (find-matches route).
+  @@index([passportNumberHash])
   /// Supports the inactivity cron and the "days in stage" sort.
   @@index([stage, deletedAt])
   @@index([stageEnteredAt])
