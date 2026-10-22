@@ -7,13 +7,20 @@ import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
 import { logActivity } from "@/lib/activity-logger";
 import { findUserByEmail } from "@/lib/email-identity";
-import { mfaProofSatisfied } from "@/lib/mfa-session";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 30;
 
 /** Hard ceiling on a browser session: 48 hours from sign-in. */
 const SESSION_MAX_AGE_SECONDS = 48 * 60 * 60;
+
+/**
+ * How long a stamped 2FA proof stays usable. The verify route stamps it and the
+ * client calls update() within milliseconds, so this is generous; it exists so
+ * a stamp that is never consumed (the user closed the tab) cannot be replayed
+ * with a stolen pending cookie minutes or hours later.
+ */
+const MFA_PROOF_TTL_MS = 5 * 60 * 1000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db) as never,
@@ -182,17 +189,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sid
       ) {
         try {
-          const proof = await db.user.findUnique({
-            where: { id: token.id as string },
-            select: { mfaVerifiedSid: true },
+          // Consume the proof atomically: clear both columns only where the
+          // stamp matches THIS session's sid AND is still fresh. updateMany is a
+          // single conditional UPDATE, so a replay — or a second tab, or a
+          // stolen pending cookie used later — finds nothing left to consume.
+          // The proof is therefore strictly single-use and time-bounded.
+          const consumed = await db.user.updateMany({
+            where: {
+              id: token.id as string,
+              mfaVerifiedSid: token.sid as string,
+              mfaVerifiedAt: { gt: new Date(Date.now() - MFA_PROOF_TTL_MS) },
+            },
+            data: { mfaVerifiedSid: null, mfaVerifiedAt: null },
           });
-          if (
-            mfaProofSatisfied(
-              token.sid as string | undefined,
-              token.twoFactorPending as boolean | undefined,
-              proof?.mfaVerifiedSid,
-            )
-          ) {
+          if (consumed.count === 1) {
             token.twoFactorPending = false;
           }
         } catch (err) {
@@ -208,7 +218,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // passwordChanged: true }) to clear a forced/expired password change.
       // They are gone. `twoFactorEnabled` (and role, region, revocation) are now
       // sourced from the database in the live-account check below; the pending
-      // gate is cleared ONLY by the server-verified `mfaProofSatisfied` branch
+      // gate is cleared ONLY by the server-verified proof-consume branch
       // above. The legitimate flows (enrolment via /api/auth/2fa/enable, a real
       // password change) end by re-reading the database or re-authenticating, so
       // nothing depends on a client-driven update() to move these flags.

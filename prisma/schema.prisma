@@ -937,6 +937,11 @@ model User {
   /// token's `sid`. Without it the gate was cleared on a client-asserted flag
   /// alone, so anyone holding just the password could skip the second factor.
   mfaVerifiedSid       String?
+  /// When `mfaVerifiedSid` was stamped. The JWT callback consumes the proof
+  /// (clears both columns) atomically and only honours it while fresh, so the
+  /// stamp is strictly single-use and cannot be replayed later with a stolen
+  /// pending cookie.
+  mfaVerifiedAt        DateTime?
 
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt

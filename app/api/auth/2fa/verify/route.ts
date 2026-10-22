@@ -23,7 +23,10 @@ const verifySchema = z.object({
 async function stampMfaVerified(userId: string, sid: string | undefined) {
   if (!sid) return;
   try {
-    await db.user.update({ where: { id: userId }, data: { mfaVerifiedSid: sid } });
+    await db.user.update({
+      where: { id: userId },
+      data: { mfaVerifiedSid: sid, mfaVerifiedAt: new Date() },
+    });
   } catch (err) {
     console.error("[2fa/verify] failed to stamp verification proof:", err);
   }
