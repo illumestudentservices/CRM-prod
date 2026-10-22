@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { totpVerify } from "@/lib/totp";
 import {
-  verifyEmailOtp, checkMfaLock, recordMfaFailure, clearMfaFailures,
+  verifyEmailOtp, reserveMfaAttempt, clearMfaFailures,
 } from "@/lib/mfa";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -76,9 +76,10 @@ export async function POST(req: NextRequest) {
   //
   // This route used to count nothing. Every factor below — authenticator code,
   // emailed code, backup code — could be guessed as often as a script liked by
-  // anyone holding the password. Checked FIRST so a locked account costs an
-  // attacker a bcrypt comparison of nothing at all.
-  const lock = await checkMfaLock(session.user.id);
+  // anyone holding the password. We RESERVE the attempt here, atomically and
+  // BEFORE any code is checked, so the ceiling holds even against a burst of
+  // parallel requests. A correct code resets the counter below.
+  const lock = await reserveMfaAttempt(session.user.id);
   if (lock.locked) {
     return NextResponse.json(
       {
@@ -154,20 +155,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, usedBackupCode: true, codesRemaining: remaining.length });
   }
 
-  // Nothing matched. Counted ONCE here rather than at each factor above, so a
-  // single wrong entry is one strike and not two or three just because the
-  // route tried several things with it.
-  const afterFailure = await recordMfaFailure(session.user.id);
-  if (afterFailure.locked) {
-    return NextResponse.json(
-      {
-        error: `Too many incorrect codes. Try again in ${Math.ceil(afterFailure.retryAfterSeconds / 60)} minute(s).`,
-        lockedOut: true,
-        retryAfterSeconds: afterFailure.retryAfterSeconds,
-      },
-      { status: 429, headers: { "Retry-After": String(afterFailure.retryAfterSeconds) } }
-    );
-  }
+  // Nothing matched. This attempt was already counted when it was reserved at
+  // the top of the handler, so there is nothing to record here — a run of wrong
+  // codes trips the lock on the next request, when reserveMfaAttempt refuses.
 
   // The caller is already past the password, so naming the reason tells them
   // nothing they could not work out by waiting — and saying "invalid" to

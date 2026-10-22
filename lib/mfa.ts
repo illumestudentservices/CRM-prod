@@ -244,32 +244,55 @@ export async function checkMfaLock(userId: string, now = new Date()): Promise<Mf
 }
 
 /**
- * Counts one failed attempt and locks the account if that reaches the ceiling.
+ * Atomically RESERVE one second-factor attempt, BEFORE any code is checked, and
+ * report whether the account is locked.
  *
- * Returns the resulting state so the caller can tell the user how long to wait
- * instead of leaving them retrying into a wall.
+ * Why before, and why atomic: a TOTP code is cheap to verify, so counting the
+ * failure *after* the check (the old recordMfaFailure, a read-then-write) let a
+ * burst of parallel guesses all pass a stale lock check and all verify a code
+ * before any increment landed — the 10-try ceiling never bit, and the only real
+ * limit was the 6-digit code space. A single conditional UPDATE makes the
+ * ceiling hold under concurrency: the Nth concurrent request either gets a
+ * distinct incremented count or is refused.
+ *
+ * The attempt is counted whether the code then proves right or wrong; a correct
+ * code resets the counter (clearMfaFailures), so a legitimate user who mistypes
+ * a few times and then succeeds is never penalised.
  */
-export async function recordMfaFailure(userId: string, now = new Date()): Promise<MfaLockState> {
+export async function reserveMfaAttempt(userId: string, now = new Date()): Promise<MfaLockState> {
+  // Count this attempt only while under the ceiling and not inside a live lock.
+  // updateMany is one atomic conditional UPDATE, so concurrent callers cannot
+  // each read "0 attempts" and overwrite one another.
+  const reserved = await db.user.updateMany({
+    where: {
+      id: userId,
+      mfaAttempts: { lt: MFA_MAX_ATTEMPTS },
+      OR: [{ mfaLockedUntil: null }, { mfaLockedUntil: { lte: now } }],
+    },
+    data: { mfaAttempts: { increment: 1 } },
+  });
+  if (reserved.count === 1) return { locked: false };
+
+  // Refused: either a live lock, or the ceiling is already reached. Report an
+  // active lock as-is; otherwise set the lock now and reset the counter so the
+  // account starts clean when the window expires (rather than re-locking on the
+  // next attempt).
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { mfaAttempts: true },
+    select: { mfaLockedUntil: true },
   });
-  const attempts = (user?.mfaAttempts ?? 0) + 1;
-
-  if (attempts >= MFA_MAX_ATTEMPTS) {
-    const until = new Date(now.getTime() + MFA_LOCKOUT_MS);
-    // The counter resets at the same time as the lock is set, so that when the
-    // window expires the account starts clean rather than locking again on the
-    // very next mistake.
-    await db.user.update({
-      where: { id: userId },
-      data: { mfaAttempts: 0, mfaLockedUntil: until },
-    });
-    return { locked: true, retryAfterSeconds: Math.ceil(MFA_LOCKOUT_MS / 1000) };
+  if (user?.mfaLockedUntil && user.mfaLockedUntil.getTime() > now.getTime()) {
+    return {
+      locked: true,
+      retryAfterSeconds: Math.ceil((user.mfaLockedUntil.getTime() - now.getTime()) / 1000),
+    };
   }
-
-  await db.user.update({ where: { id: userId }, data: { mfaAttempts: attempts } });
-  return { locked: false };
+  const until = new Date(now.getTime() + MFA_LOCKOUT_MS);
+  await db.user.update({
+    where: { id: userId },
+    data: { mfaAttempts: 0, mfaLockedUntil: until },
+  });
+  return { locked: true, retryAfterSeconds: Math.ceil(MFA_LOCKOUT_MS / 1000) };
 }
 
 /**

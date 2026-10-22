@@ -81,11 +81,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
-          const newAttempts = (user.loginAttempts ?? 0) + 1;
-          console.log(`[auth] Failed attempt ${newAttempts}/${MAX_ATTEMPTS} for ${email}`);
-
+          // Atomic increment: parallel password guesses each advance the counter
+          // rather than overwriting one another, so the five-strike lockout cannot
+          // be bypassed by firing attempts concurrently. (bcrypt cost 12 already
+          // bounds raw throughput, but the counter must still be correct.)
           try {
-            if (newAttempts >= MAX_ATTEMPTS) {
+            const updated = await db.user.update({
+              where: { id: user.id },
+              data: { loginAttempts: { increment: 1 } },
+              select: { loginAttempts: true },
+            });
+            console.log(`[auth] Failed attempt ${updated.loginAttempts}/${MAX_ATTEMPTS} for ${email}`);
+            if (updated.loginAttempts >= MAX_ATTEMPTS) {
               const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
               await db.user.update({
                 where: { id: user.id },
@@ -93,11 +100,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               });
               console.log(`[auth] Account LOCKED for ${email} until ${lockUntil}`);
               void notifyAccountLocked(user.email, user.name ?? user.email, lockUntil);
-            } else {
-              await db.user.update({
-                where: { id: user.id },
-                data: { loginAttempts: newAttempts },
-              });
             }
           } catch (err) {
             console.error("[auth] Failed to update login attempts:", err);
