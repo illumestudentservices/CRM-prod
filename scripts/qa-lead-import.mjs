@@ -154,6 +154,11 @@ check("template has the right header row", () => {
   assert.equal(firstLine, IMPORT_HEADERS.join(","));
   assert(csv.split(/\r?\n/).filter(Boolean).length === 2, "header + 1 example");
 });
+check("template pre-fills the recruiter's university", () => {
+  const csv = buildTemplateCsv({ university: "University of Windsor" });
+  const cells = csv.split(/\r?\n/)[1].split(",");
+  assert.equal(cells[LI.IMPORT_HEADERS.indexOf("university")], "University of Windsor");
+});
 
 // ─── Optional DB pass ─────────────────────────────────────────────────────────
 if (process.argv.includes("--db")) {

@@ -175,7 +175,7 @@ export function ImportLeadsClient({ admin, institutions }: Props) {
               {admin ? (
                 <>You can import for <strong>any university</strong>. Fill the <code>university</code> column on every row with a name that matches a university exactly.</>
               ) : institutions.length === 1 ? (
-                <>Your leads will be imported for <strong>{institutions[0].name}</strong>. You can leave the <code>university</code> column blank.</>
+                <>Your leads will be imported for <strong>{institutions[0].name}</strong>. The template already has your university filled into the <code>university</code> column — just add your leads below it. You can only import for this university.</>
               ) : institutions.length > 1 ? (
                 <>You represent more than one university, so fill the <code>university</code> column on every row with one of: {institutions.map((i) => <strong key={i.id}>{i.name}</strong>).reduce((acc, el, idx) => idx === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}.</>
               ) : (

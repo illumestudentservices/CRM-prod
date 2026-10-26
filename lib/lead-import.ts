@@ -262,10 +262,18 @@ export function resolveInstitutionForRow(
 
 // ─── Template ─────────────────────────────────────────────────────────────────
 
-/** Builds the downloadable CSV: a header row and one example row. */
-export function buildTemplateCsv(): string {
+/**
+ * Builds the downloadable CSV: a header row and one example row.
+ *
+ * When `university` is given (a recruiter who represents exactly one), it is
+ * pre-filled into the `university` column of the example row, so the person
+ * sees their university already on the sheet and keeps it on the rows they add.
+ */
+export function buildTemplateCsv(opts: { university?: string } = {}): string {
   const header = IMPORT_HEADERS.join(",");
-  const example = IMPORT_FIELDS.map((f) => csvCell(f.example)).join(",");
+  const example = IMPORT_FIELDS
+    .map((f) => csvCell(f.key === "university" && opts.university ? opts.university : f.example))
+    .join(",");
   return `${header}\r\n${example}\r\n`;
 }
 
