@@ -127,7 +127,13 @@ export async function POST(req: NextRequest) {
         {
           ...valid.data,
           institutionId: resolved.institutionId,
-          regionId: regionByInstitution.get(resolved.institutionId) ?? actorRegionId,
+          // A lead counts under the REP's region, so one university's leads split
+          // across the regions of its reps (a university can have reps in several
+          // regions). An admin imports on a university's behalf and has no rep
+          // region, so their leads fall back to the university's own region.
+          regionId: admin
+            ? (regionByInstitution.get(resolved.institutionId) ?? actorRegionId)
+            : (actorRegionId ?? regionByInstitution.get(resolved.institutionId) ?? null),
           // A recruiter owns what they import; an admin importing on behalf of a
           // university leaves it unassigned (the region's team picks it up).
           assignedICRId: admin ? null : userId,
