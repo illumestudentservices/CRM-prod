@@ -804,7 +804,8 @@ export function LeadForm({
               {!isEdit && <span className="text-red-500 ml-0.5">*</span>}
             </Label>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              Canadian anti-spam law requires permission before sending marketing email.
+              Anti-spam and data protection laws in Canada, the EU and the UK require
+              permission before sending marketing email.
             </p>
             <div className="flex flex-wrap gap-2 pt-0.5">
               {([
