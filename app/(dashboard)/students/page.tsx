@@ -1,4 +1,6 @@
 import * as React from "react";
+import Link from "next/link";
+import { Upload } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -7,6 +9,7 @@ import { regionScope } from "@/lib/region-scope";
 import { leadOwnerOptions } from "@/lib/assignable-users";
 import { PageHeader } from "@/components/shared/page-header";
 import { NoRegionBanner } from "@/components/shared/no-region-banner";
+import { Button } from "@/components/ui/button";
 import type { Role } from "@/lib/permissions";
 import { StudentsClientPage } from "./_components/students-client";
 import { MergeLeadsButton } from "./_components/merge-leads-button";
@@ -65,6 +68,7 @@ export default async function StudentsPage() {
   if (!(await effectiveHasPermission(session.user.role, "leads", "read"))) redirect("/dashboard");
 
   const { id: userId, role, regionId } = session.user;
+  const canImport = await effectiveHasPermission(session.user.role, "leads", "write");
 
   const { leads, sources, institutions, icrUsers, isManager } = await getLeadsData(
     userId,
@@ -80,17 +84,26 @@ export default async function StudentsPage() {
         description="Track and manage student leads through the recruitment funnel."
         breadcrumbs={[{ label: "Home", href: "/" }, { label: "Students" }]}
         actions={
-          role === "SUPER_ADMIN" ? (
-            <MergeLeadsButton
-              leads={leads.map((l) => ({
-                id: l.id,
-                firstName: l.firstName,
-                lastName: l.lastName,
-                email: l.email,
-                stage: l.stage,
-              }))}
-            />
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {canImport && (
+              <Button asChild variant="outline">
+                <Link href="/students/import">
+                  <Upload className="size-4" /> Import
+                </Link>
+              </Button>
+            )}
+            {role === "SUPER_ADMIN" && (
+              <MergeLeadsButton
+                leads={leads.map((l) => ({
+                  id: l.id,
+                  firstName: l.firstName,
+                  lastName: l.lastName,
+                  email: l.email,
+                  stage: l.stage,
+                }))}
+              />
+            )}
+          </div>
         }
       />
       <StudentsClientPage
