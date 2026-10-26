@@ -782,7 +782,6 @@ export function OfflineCaptureClient({
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Anti-spam and data protection laws in Canada, the EU and the UK require
                 permission before sending marketing email.
-                Ask the student directly — leaving this unanswered means we cannot email them.
               </p>
               <div className="flex flex-wrap gap-2 pt-0.5">
                 {([
