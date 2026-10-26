@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
 import type { Role } from "@/lib/permissions";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
+import { buildRegionPolicyResolver } from "@/lib/leave-policy-resolver";
 import {
   LEAVE_POLICIES,
   computeEntitlement,
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
       startDate: true,
       // Decides which parental types this employee is entitled to at all.
       gender: true,
-      user: { select: { id: true, name: true, image: true } },
+      user: { select: { id: true, name: true, image: true, regionId: true } },
       department: { select: { name: true } },
       leaveBalances: { where: { year } },
     },
@@ -76,8 +77,13 @@ export async function GET(req: NextRequest) {
   // screens built on it offered both. POST /api/hr/leave calls
   // checkGenderEligibility and refuses the mismatched one, so the employee was
   // being offered a choice the server would always reject.
-  const balances = employees.flatMap((emp) =>
-    leaveTypesForGender(emp.gender).map((leaveType) => {
+  // Each employee's balance uses THEIR region's policy. Loaded once up front so
+  // a long employee list does not hit the database per person.
+  const resolvePolicies = await buildRegionPolicyResolver();
+
+  const balances = employees.flatMap((emp) => {
+    const policies = resolvePolicies(emp.user.regionId);
+    return leaveTypesForGender(emp.gender).map((leaveType) => {
       const row = emp.leaveBalances.find((b) => b.leaveType === leaveType);
       const e = computeEntitlement(
         leaveType,
@@ -87,7 +93,8 @@ export async function GET(req: NextRequest) {
           pendingDays: row?.pendingDays ?? 0,
           adjustmentDays: row?.adjustmentDays ?? 0,
         },
-        asOf
+        asOf,
+        policies[leaveType]
       );
       return {
         id: row?.id ?? `${emp.id}:${leaveType}:${year}`,
@@ -113,8 +120,8 @@ export async function GET(req: NextRequest) {
           department: emp.department,
         },
       };
-    })
-  );
+    });
+  });
 
   // Decided here, not in the browser. The screen hides the control when this
   // is false, but the PATCH below is what actually enforces it.

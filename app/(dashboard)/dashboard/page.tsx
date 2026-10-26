@@ -33,6 +33,7 @@ import { ActionItemsCard, MyTasksCard } from "./_components/action-items";
 import { NoRegionBanner } from "@/components/shared/no-region-banner";
 import { NO_REGION } from "@/lib/region-scope";
 import { deriveLeaveBalances, LEAVE_TYPE_LABELS } from "@/lib/leave-policy";
+import { policiesForRegion } from "@/lib/leave-policy-resolver";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDate } from "@/lib/utils";
@@ -462,10 +463,11 @@ async function getERPDashboardData(userId: string, regionId?: string | null) {
       }),
     ]);
 
+  const leavePolicies = await policiesForRegion(regionId);
   return {
     employee: { jobTitle: employee.jobTitle, department: employee.department?.name },
     stats: { openTasks, pendingLeaves, directReports, teamPendingLeave },
-    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
+    leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender, undefined, leavePolicies),
     leaveRequests,
     holidays,
     assets,
@@ -526,8 +528,9 @@ async function getPersonalData(userId: string, regionId?: string | null) {
     }),
   ]);
 
+  const leavePolicies = await policiesForRegion(regionId);
   return {
-    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender) : [],
+    leaveBalances: employee ? deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender, undefined, leavePolicies) : [],
     leaveRequests, holidays, assets,
   };
 }

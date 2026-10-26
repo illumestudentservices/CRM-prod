@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
+import { policiesForRegion } from "@/lib/leave-policy-resolver";
 import type { Role } from "@/lib/permissions";
 import { regionScope } from "@/lib/region-scope";
 
@@ -180,8 +181,8 @@ async function getERPStats(userId: string, now: Date) {
   const employee = await db.employee.findUnique({
     where: { userId },
     // startDate drives the entitlement calculation; gender decides which
-    // parental types are offered at all.
-    select: { id: true, startDate: true, gender: true },
+    // parental types are offered at all; region selects the leave policy.
+    select: { id: true, startDate: true, gender: true, user: { select: { regionId: true } } },
   });
 
   if (!employee) {
@@ -217,6 +218,7 @@ async function getERPStats(userId: string, now: Date) {
       }),
     ]);
 
+  const leavePolicies = await policiesForRegion(employee.user.regionId);
   return NextResponse.json({
     data: {
       erp: {
@@ -224,7 +226,7 @@ async function getERPStats(userId: string, now: Date) {
         pendingLeaves,
         travelRequests,
         // Derived, never the stored totalDays column — see lib/leave-policy.
-        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender),
+        leaveBalances: deriveLeaveBalances(employee.startDate, leaveBalances, employee.gender, undefined, leavePolicies),
         currentMonth,
         currentYear,
       },

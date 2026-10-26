@@ -2,8 +2,11 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
+import { policiesForRegion, buildRegionPolicyResolver } from "@/lib/leave-policy-resolver";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
 import { HRDashboardStats } from "./_components/hr-dashboard-stats";
 import { HRTabsClient } from "./_components/hr-tabs-client";
 import { ACTIVE_EMPLOYEE, OWNED_BY_LIVE_EMPLOYEE } from "@/lib/hr-scope";
@@ -71,8 +74,9 @@ export default async function HRPage({
   }
 
   // Gender-filtered, so nobody is offered a leave type the server will refuse.
+  const myLeavePolicies = await policiesForRegion(session.user.regionId);
   const myLeaveBalances = me
-    ? deriveLeaveBalances(me.startDate, me.leaveBalances, me.gender).map((b) => ({
+    ? deriveLeaveBalances(me.startDate, me.leaveBalances, me.gender, undefined, myLeavePolicies).map((b) => ({
         leaveType: b.leaveType,
         totalDays: b.totalDays,
         availableDays: b.availableDays,
@@ -117,6 +121,7 @@ export default async function HRPage({
     select: {
       startDate: true,
       gender: true,
+      user: { select: { regionId: true } },
       leaveBalances: {
         where: { year: new Date().getUTCFullYear() },
         select: { leaveType: true, usedDays: true, pendingDays: true, adjustmentDays: true },
@@ -124,9 +129,11 @@ export default async function HRPage({
     },
   });
 
+  // Each employee's utilisation uses their region's policy; resolver loaded once.
+  const resolveLeavePolicies = await buildRegionPolicyResolver();
   const utilisation = new Map<string, { used: number; total: number }>();
   for (const emp of leaveEmployees) {
-    for (const b of deriveLeaveBalances(emp.startDate, emp.leaveBalances, emp.gender)) {
+    for (const b of deriveLeaveBalances(emp.startDate, emp.leaveBalances, emp.gender, undefined, resolveLeavePolicies(emp.user.regionId))) {
       const acc = utilisation.get(b.leaveType) ?? { used: 0, total: 0 };
       acc.used += b.usedDays;
       acc.total += b.totalDays;
@@ -151,7 +158,17 @@ export default async function HRPage({
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader title="HR & ERP" description="Workforce management, HR operations, and internal tools" />
+      <PageHeader
+        title="HR & ERP"
+        description="Workforce management, HR operations, and internal tools"
+        actions={
+          role === "SUPER_ADMIN" || role === "HR_MANAGER" ? (
+            <Button asChild variant="outline">
+              <Link href="/hr/leave-policies">Leave Policies</Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
       <HRDashboardStats
         deptHeadcount={deptHeadcount.map((d) => ({ name: d.name, count: d._count.employees }))}

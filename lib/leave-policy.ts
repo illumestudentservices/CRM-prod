@@ -411,9 +411,14 @@ export function computeEntitlement(
   leaveType: LeaveTypeKey,
   joiningDate: Date,
   consumed: { usedDays: number; pendingDays: number; adjustmentDays?: number },
-  asOf: Date = new Date()
+  asOf: Date = new Date(),
+  /**
+   * The policy to apply. Defaults to the global policy, so existing callers are
+   * unchanged; region-aware callers pass the resolved regional policy. The
+   * accrual MATHS is identical — only the numbers (days / waiting / cap) differ.
+   */
+  policy: LeavePolicy = LEAVE_POLICIES[leaveType]
 ): LeaveEntitlement {
-  const policy = LEAVE_POLICIES[leaveType];
   const accrual = computeAccrual(policy, joiningDate, asOf);
 
   // ★ THE CEILING APPLIES AFTER THE ADJUSTMENT, NOT BEFORE IT.
@@ -522,7 +527,12 @@ export function deriveLeaveBalances(
   joiningDate: Date,
   rows: StoredLeaveConsumption[],
   gender: Gender | null | undefined,
-  asOf: Date = new Date()
+  asOf: Date = new Date(),
+  /**
+   * The policy set to apply (per leave type). Defaults to the global policy;
+   * region-aware callers pass the policies resolved for the employee's region.
+   */
+  policies: Record<LeaveTypeKey, LeavePolicy> = LEAVE_POLICIES
 ): DerivedLeaveBalance[] {
   return leaveTypesForGender(gender).map((leaveType) => {
     const row = rows.find((r) => r.leaveType === leaveType);
@@ -534,7 +544,8 @@ export function deriveLeaveBalances(
         pendingDays: row?.pendingDays ?? 0,
         adjustmentDays: row?.adjustmentDays ?? 0,
       },
-      asOf
+      asOf,
+      policies[leaveType]
     );
     return {
       leaveType,

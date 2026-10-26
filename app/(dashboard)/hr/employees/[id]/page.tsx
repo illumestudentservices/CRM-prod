@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { deriveLeaveBalances } from "@/lib/leave-policy";
+import { policiesForRegion } from "@/lib/leave-policy-resolver";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,9 @@ export default async function EmployeeDetailPage({
   const EMPLOYMENT_LABELS: Record<string, string> = {
     FULL_TIME: "Full-time", PART_TIME: "Part-time", CONTRACT: "Contract", INTERN: "Intern",
   };
+
+  // This employee's region policy (default when their region has no override).
+  const leavePolicies = await policiesForRegion(employee.user.regionId);
 
   return (
     <div className="p-6 space-y-6">
@@ -245,7 +249,7 @@ export default async function EmployeeDetailPage({
           managerName: employee.manager?.user.name ?? null,
           directReports: employee.directReports,
         }}
-        leaveBalances={documentsOnly ? [] : deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender)}
+        leaveBalances={documentsOnly ? [] : deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender, undefined, leavePolicies)}
         isOwnProfile={isOwnProfile}
         documentsOnly={documentsOnly}
         worklogs={documentsOnly ? [] : employee.worklogs}

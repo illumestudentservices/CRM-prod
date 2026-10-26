@@ -1168,6 +1168,7 @@ model Region {
   /// Clients worked in this region, including those whose PRIMARY region is
   /// another one — see InstitutionRegion.
   institutionRegions InstitutionRegion[]
+  leavePolicies      LeavePolicy[]
   monthlyReports   MonthlyReport[]
   icrMonthlyReports IcrMonthlyReport[]
   weeklyActivities WeeklyActivity[]
@@ -2703,6 +2704,34 @@ model LeaveBalance {
 
   @@unique([employeeId, leaveType, year])
   @@map("leave_balances")
+}
+
+/// Per-region override of the leave policy's editable NUMBERS. The default
+/// policy lives in lib/leave-policy.ts; a row here overrides, for one region and
+/// leave type, the days accrued, the waiting period and the max balance. The
+/// accrual MODE and all other rules stay from the code default. An employee gets
+/// their region's override if present, otherwise the default — resolved live, so
+/// a change applies on the next balance computation (no job).
+model LeavePolicy {
+  id                 String    @id @default(uuid())
+  regionId           String
+  region             Region    @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  leaveType          LeaveType
+  /// Days accrued — per complete month for MONTHLY_ON_JOINING types, per year
+  /// for YEARLY_ON_DATE types (matches the default policy's accrual mode).
+  accrualDays        Float
+  waitingPeriodValue Int
+  /// "days" or "months" — matches lib/leave-policy.ts waitingPeriod.unit.
+  waitingPeriodUnit  String
+  /// Ceiling on accrued balance; null = uncapped.
+  maxBalance         Float?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  updatedById        String
+
+  @@unique([regionId, leaveType])
+  @@index([regionId])
+  @@map("leave_policies")
 }
 
 model LeaveRequest {

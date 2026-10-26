@@ -4,8 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { sendLeaveAppliedEmail } from "@/lib/email";
+import { policiesForRegion } from "@/lib/leave-policy-resolver";
 import {
-  LEAVE_POLICIES,
   computeEntitlement,
   startOfDayUTC,
   type LeaveTypeKey,
@@ -213,7 +213,10 @@ export async function POST(req: NextRequest) {
 
   const year = data.startDate.getUTCFullYear();
   const leaveType = data.leaveType;
-  const policy = LEAVE_POLICIES[leaveType];
+  // The applicant's region policy (falls back to the default when the region has
+  // no override). Enforced here, so a region's numbers govern what it can book.
+  const regionPolicies = await policiesForRegion(employee.user.regionId);
+  const policy = regionPolicies[leaveType];
 
   // Maternity and paternity depend on the gender recorded on the employee
   // profile. Enforced here rather than only in the UI, since the request body
@@ -280,7 +283,8 @@ export async function POST(req: NextRequest) {
             pendingDays: consumed?.pendingDays ?? 0,
             adjustmentDays: consumed?.adjustmentDays ?? 0,
           },
-          data.startDate
+          data.startDate,
+          policy
         );
 
         if (entitlement.inWaitingPeriod) {
