@@ -73,6 +73,9 @@ interface KPIFormState {
 
 interface KpiManagerProps {
   institutionId: string;
+  /** Hide add/edit/delete controls for viewers without institutions:write.
+   *  The API already rejects the writes; this stops them being offered. */
+  canWrite: boolean;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -170,7 +173,7 @@ function getProgressIndicatorClass(pct: number): string {
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function KpiManager({ institutionId }: KpiManagerProps) {
+export function KpiManager({ institutionId, canWrite }: KpiManagerProps) {
   const router = useRouter();
 
   const [selectedYear, setSelectedYear] = React.useState(currentYear);
@@ -412,14 +415,16 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
             {kpis.length} KPI{kpis.length !== 1 ? "s" : ""} tracked
           </span>
         </div>
-        <Button
-          size="sm"
-          className="gap-2 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
-          onClick={openAddDialog}
-        >
-          <Plus className="h-4 w-4" />
-          Add KPI
-        </Button>
+        {canWrite && (
+          <Button
+            size="sm"
+            className="gap-2 bg-[#1E3A5F] hover:bg-[#1E3A5F]/90"
+            onClick={openAddDialog}
+          >
+            <Plus className="h-4 w-4" />
+            Add KPI
+          </Button>
+        )}
       </div>
 
       {/* Error display */}
@@ -514,26 +519,28 @@ export function KpiManager({ institutionId }: KpiManagerProps) {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-                              onClick={() => openEditDialog(kpi)}
-                              title="Edit KPI"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
-                              onClick={() => setDeletingId(kpi.id)}
-                              title="Delete KPI"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          {canWrite && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                                onClick={() => openEditDialog(kpi)}
+                                title="Edit KPI"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400"
+                                onClick={() => setDeletingId(kpi.id)}
+                                title="Delete KPI"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Progress */}

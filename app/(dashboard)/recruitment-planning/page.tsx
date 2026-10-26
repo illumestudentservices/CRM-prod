@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
+import type { Role } from "@/lib/permissions";
 import { NewPlanButton } from "./_components/new-plan-button";
 import { PlanFilters } from "./_components/plan-filters";
 
@@ -38,6 +40,13 @@ export default async function RecruitmentPlanningPage({ searchParams }: Props) {
 
   const isIcr = session.user.role === "ICR";
   const isRegional = session.user.role === "REGIONAL_MANAGER";
+  // Only roles that can actually create a plan see the button; the API already
+  // enforces recruitment_planning:write.
+  const canCreatePlan = await effectiveHasPermission(
+    session.user.role as Role,
+    "recruitment_planning",
+    "write"
+  );
 
   /**
    * Who this user may see AT ALL. Every filter is applied INSIDE this, never
@@ -144,7 +153,7 @@ export default async function RecruitmentPlanningPage({ searchParams }: Props) {
           institutions={institutions}
           markets={markets}
         />
-        <NewPlanButton defaultIcrId={session.user.id} />
+        {canCreatePlan && <NewPlanButton defaultIcrId={session.user.id} />}
       </div>
 
       <p className="text-sm text-muted-foreground mb-3">

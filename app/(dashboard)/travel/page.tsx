@@ -15,6 +15,8 @@ export default async function TravelPage() {
   if (!(await effectiveHasPermission(role, "travel", "read"))) {
     redirect("/dashboard");
   }
+  // The API enforces travel:write; hide the create control from read-only roles.
+  const canWrite = await effectiveHasPermission(role, "travel", "write");
 
   // Fetch travel requests
   const travelRequests = await db.travelRequest.findMany({
@@ -69,6 +71,7 @@ export default async function TravelPage() {
       />
 
       <TravelClient
+        canWrite={canWrite}
         travelRequests={JSON.parse(JSON.stringify(travelRequests))}
         stats={{
           totalTrips,

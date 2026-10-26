@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { ListSearch } from "@/components/shared/list-search";
 import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
+import type { Role } from "@/lib/permissions";
 import { CampaignAttachmentsButton } from "./_components/campaign-attachments-button";
 import { CampaignForm } from "./_components/campaign-form";
 
@@ -22,6 +24,11 @@ interface Props {
 export default async function CampaignsPage({ searchParams }: Props) {
   const session = await auth();
   const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
+  // Creating a campaign POSTs to /api/campaigns, which enforces sources:write —
+  // hide the "Add Campaign" control from roles that only read.
+  const canWrite = session?.user
+    ? await effectiveHasPermission(session.user.role as Role, "sources", "write")
+    : false;
 
   const sp = (await searchParams) ?? {};
   const statusFilter = sp.status && sp.status !== "all" ? sp.status : null;
@@ -99,11 +106,13 @@ export default async function CampaignsPage({ searchParams }: Props) {
           {campaigns.length} of {total} campaigns
           {q && <span> · filtered by &quot;{q}&quot;</span>}
         </div>
-        <CampaignForm
-          partners={partners}
-          users={users.filter((u): u is { id: string; name: string } => u.name !== null)}
-          isSuperAdmin={isSuperAdmin}
-        />
+        {canWrite && (
+          <CampaignForm
+            partners={partners}
+            users={users.filter((u): u is { id: string; name: string } => u.name !== null)}
+            isSuperAdmin={isSuperAdmin}
+          />
+        )}
       </div>
 
       {/* The `q` parameter was honoured by the query below long before

@@ -279,12 +279,12 @@ export function InstitutionTabsClient({
 
       {/* Contracts */}
       <TabsContent value="contracts" className="mt-4">
-        <ContractList contracts={contracts} institutionId={institutionId} />
+        <ContractList contracts={contracts} institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
 
       {/* Engagement */}
       <TabsContent value="engagement" className="mt-4">
-        <EngagementLog logs={engagementLogs} institutionId={institutionId} />
+        <EngagementLog logs={engagementLogs} institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
 
       {/* KPIs */}
@@ -302,7 +302,7 @@ export function InstitutionTabsClient({
             tracks separately (e.g. quarterly enquiry targets).
           </p>
         </div>
-        <KpiManager institutionId={institutionId} />
+        <KpiManager institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
 
       {/* Documents */}

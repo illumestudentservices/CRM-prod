@@ -44,11 +44,14 @@ export function StakeholdersTabs({
   counsellors,
   markets,
   defaultTab,
+  canWrite,
 }: {
   schools: SchoolRow[];
   counsellors: CounsellorRow[];
   markets: Array<{ id: string; name: string }>;
   defaultTab: "schools" | "counsellors";
+  /** Hide the Add School / Add Counsellor controls when false. API also gates it. */
+  canWrite: boolean;
 }) {
   const [tab, setTab] = React.useState<"schools" | "counsellors">(defaultTab);
   // Neither table had any way to find a row. Both are hand-rolled, so they
@@ -102,11 +105,12 @@ export function StakeholdersTabs({
               ? `${shownSchools.length} of ${schools.length}`
               : `${shownCounsellors.length} of ${counsellors.length}`}
           </span>
-          {tab === "schools" ? (
-            <SchoolForm markets={markets} />
-          ) : (
-            <CounsellorForm schools={schoolOptions} />
-          )}
+          {canWrite &&
+            (tab === "schools" ? (
+              <SchoolForm markets={markets} />
+            ) : (
+              <CounsellorForm schools={schoolOptions} />
+            ))}
         </div>
       </div>
 

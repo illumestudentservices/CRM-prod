@@ -56,6 +56,9 @@ interface LogEntry {
 interface EngagementLogProps {
   logs: LogEntry[];
   institutionId: string;
+  /** Hide the "Add Engagement" control for viewers without institutions:write.
+   *  The API already rejects the write; this stops the button being offered. */
+  canWrite: boolean;
 }
 
 // ─── Icon map ──────────────────────────────────────────────────────────────
@@ -217,12 +220,14 @@ function AddEngagementDialog({ institutionId }: { institutionId: string }) {
 
 // ─── Timeline Component ────────────────────────────────────────────────────
 
-export function EngagementLog({ logs, institutionId }: EngagementLogProps) {
+export function EngagementLog({ logs, institutionId, canWrite }: EngagementLogProps) {
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <AddEngagementDialog institutionId={institutionId} />
-      </div>
+      {canWrite && (
+        <div className="flex justify-end">
+          <AddEngagementDialog institutionId={institutionId} />
+        </div>
+      )}
 
       {logs.length === 0 ? (
         <div className="text-center py-12 text-slate-400 dark:text-slate-500">

@@ -101,6 +101,11 @@ export default async function EventDetailPage({
   const canWriteParticipation = session?.user
     ? await effectiveHasPermission(session.user.role as Role, "recruitment_network", "write")
     : false;
+  // Expenses write to /api/events/[id]/expenses, which enforces events:write —
+  // hide the add control from roles that only read events.
+  const canWriteEvents = session?.user
+    ? await effectiveHasPermission(session.user.role as Role, "events", "write")
+    : false;
   if (!session?.user) redirect("/login");
 
   const { id } = await params;
@@ -329,7 +334,7 @@ export default async function EventDetailPage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">Cost Breakdown</CardTitle>
-              <ExpenseForm eventId={event.id} />
+              {canWriteEvents && <ExpenseForm eventId={event.id} />}
             </CardHeader>
             <CardContent className="p-0">
               {/* Category subtotals — spec §10 categories */}

@@ -30,6 +30,12 @@ export default async function StakeholdersPage({ searchParams }: Props) {
   ) {
     redirect("/dashboard");
   }
+  // The API enforces stakeholders:write; hide Add controls from read-only roles.
+  const canWrite = await effectiveHasPermission(
+    session.user.role as Role,
+    "stakeholders",
+    "write"
+  );
 
   const sp = (await searchParams) ?? {};
   const defaultTab = sp.tab === "counsellors" ? "counsellors" : "schools";
@@ -66,6 +72,7 @@ export default async function StakeholdersPage({ searchParams }: Props) {
         counsellors={counsellors}
         markets={markets}
         defaultTab={defaultTab}
+        canWrite={canWrite}
       />
     </div>
   );

@@ -96,6 +96,9 @@ interface TravelClientProps {
   travelRequests: TravelRequest[];
   stats: TravelStats;
   employees: EmployeeOption[];
+  /** Hide the "Create Travel Plan" control for roles without travel:write.
+   *  The API already rejects the create. */
+  canWrite: boolean;
 }
 
 // ─── Status Badge Styles ──────────────────────────────────────────────────────
@@ -158,6 +161,7 @@ export function TravelClient({
   travelRequests,
   stats,
   employees,
+  canWrite,
 }: TravelClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState("plans");
@@ -358,6 +362,7 @@ export function TravelClient({
               filename="travel-plans"
               title="Export Travel Plans"
             />
+            {canWrite && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
                 <Button size="sm">
@@ -647,6 +652,7 @@ export function TravelClient({
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
 
           {/* Travel Plans Table */}

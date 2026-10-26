@@ -64,6 +64,9 @@ interface Contract {
 interface ContractListProps {
   contracts: Contract[];
   institutionId: string;
+  /** Hide add/upload/delete controls for viewers without institutions:write.
+   *  The API already rejects the writes; this stops them being offered. */
+  canWrite: boolean;
 }
 
 function formatFileSize(bytes: number) {
@@ -276,10 +279,12 @@ function AttachmentSection({
   contractId,
   institutionId,
   initialAttachments,
+  canWrite,
 }: {
   contractId: string;
   institutionId: string;
   initialAttachments: Attachment[];
+  canWrite: boolean;
 }) {
   const [attachments, setAttachments] = React.useState<Attachment[]>(initialAttachments);
   const [uploading, setUploading] = React.useState(false);
@@ -336,23 +341,27 @@ function AttachmentSection({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          onChange={handleUpload}
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv,.zip"
-        />
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 h-7 text-xs"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-        >
-          <Upload className="h-3 w-3" />
-          {uploading ? "Uploading..." : "Attach File"}
-        </Button>
+        {canWrite && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv,.zip"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-7 text-xs"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+            >
+              <Upload className="h-3 w-3" />
+              {uploading ? "Uploading..." : "Attach File"}
+            </Button>
+          </>
+        )}
         {attachments.length > 0 && (
           <span className="text-xs text-slate-500 dark:text-slate-400">{attachments.length} file(s)</span>
         )}
@@ -375,13 +384,15 @@ function AttachmentSection({
               >
                 <Download className="h-3.5 w-3.5" />
               </a>
-              <button
-                onClick={() => handleDelete(att.id)}
-                className="text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Delete"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {canWrite && (
+                <button
+                  onClick={() => handleDelete(att.id)}
+                  className="text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -395,9 +406,11 @@ function AttachmentSection({
 function ContractRow({
   contract,
   institutionId,
+  canWrite,
 }: {
   contract: Contract;
   institutionId: string;
+  canWrite: boolean;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
@@ -434,6 +447,7 @@ function ContractRow({
                 contractId={contract.id}
                 institutionId={institutionId}
                 initialAttachments={contract.attachments ?? []}
+                canWrite={canWrite}
               />
             </div>
           </TableCell>
@@ -445,12 +459,14 @@ function ContractRow({
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function ContractList({ contracts, institutionId }: ContractListProps) {
+export function ContractList({ contracts, institutionId, canWrite }: ContractListProps) {
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <AddContractDialog institutionId={institutionId} />
-      </div>
+      {canWrite && (
+        <div className="flex justify-end">
+          <AddContractDialog institutionId={institutionId} />
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -479,6 +495,7 @@ export function ContractList({ contracts, institutionId }: ContractListProps) {
                     key={contract.id}
                     contract={contract}
                     institutionId={institutionId}
+                    canWrite={canWrite}
                   />
                 ))
               )}
