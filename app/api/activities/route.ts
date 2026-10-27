@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { generateFollowUpTasks } from "@/lib/auto-tasks";
 import { propagateActivityCompletion } from "@/lib/activity-propagation";
-import type { ActivityType } from "@prisma/client";
+import { activityVisibilityWhere } from "@/lib/activity-scope";
+import type { ActivityType, Role } from "@prisma/client";
 import { ACTIVITY_TYPES } from "@/lib/activity-types";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -128,6 +129,10 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       deletedAt: null,
+      // Field activity is personal: individual contributors see only what they
+      // logged; supervisors (managers, Super Admin, HQ) see everyone's. Matches
+      // the Field Operations page so the API cannot be used to read around it.
+      ...activityVisibilityWhere(session.user.role as Role, session.user.id),
       ...(type && { type }),
       ...(search && {
         OR: [

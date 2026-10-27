@@ -9,13 +9,18 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { ActivitiesClient } from "../activities/_components/activities-client";
 import { RoleDashboard } from "./_components/role-dashboard";
+import { activityVisibilityWhere } from "@/lib/activity-scope";
 import type { Role } from "@prisma/client";
 
-async function getActivities(sourceId?: string | null) {
+async function getActivities(
+  sourceId?: string | null,
+  scope: { userId?: string } = {}
+) {
   return db.activity.findMany({
-    // Source filter applied here (not client-side) so a partner's older
-    // activities are not lost behind the 100-row cap below.
-    where: { deletedAt: null, ...(sourceId ? { sourceId } : {}) },
+    // `scope` limits the list to what the viewer may see (own activities only,
+    // unless they are a field-ops supervisor). Source filter applied here (not
+    // client-side) so a partner's older activities are not lost behind the cap.
+    where: { deletedAt: null, ...scope, ...(sourceId ? { sourceId } : {}) },
     include: {
       user: { select: { id: true, name: true, image: true } },
       institution: { select: { id: true, name: true } },
@@ -28,13 +33,15 @@ async function getActivities(sourceId?: string | null) {
   });
 }
 
-async function getStats() {
+async function getStats(scope: { userId?: string } = {}) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Counts are scoped the same way as the list, or the tiles would say "500"
+  // over a list the viewer can only see three rows of.
   const [total, thisMonth, byType] = await Promise.all([
-    db.activity.count({ where: { deletedAt: null } }),
-    db.activity.count({ where: { deletedAt: null, date: { gte: startOfMonth } } }),
-    db.activity.groupBy({ by: ["type"], where: { deletedAt: null }, _count: true }),
+    db.activity.count({ where: { deletedAt: null, ...scope } }),
+    db.activity.count({ where: { deletedAt: null, ...scope, date: { gte: startOfMonth } } }),
+    db.activity.groupBy({ by: ["type"], where: { deletedAt: null, ...scope }, _count: true }),
   ]);
   return { total, thisMonth, byType: byType.map((b) => ({ type: b.type, count: b._count })) };
 }
@@ -121,9 +128,13 @@ export default async function FieldOperationsPage({
   const sp = (await searchParams) ?? {};
   const sourceFilter = sp.source && sp.source !== "all" ? sp.source : null;
 
+  // Field activity is personal: individual contributors (e.g. ICR) see only
+  // what they logged; supervisors (managers, Super Admin, HQ) see everyone's.
+  const scope = activityVisibilityWhere(session.user.role as Role, session.user.id);
+
   const [activities, stats, lookups, sourcePartner] = await Promise.all([
-    getActivities(sourceFilter),
-    getStats(),
+    getActivities(sourceFilter, scope),
+    getStats(scope),
     getLookups(),
     sourceFilter
       ? db.recruitmentPartner.findUnique({ where: { id: sourceFilter }, select: { name: true } })
