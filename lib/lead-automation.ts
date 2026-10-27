@@ -56,40 +56,44 @@ function daysAgo(n: number): Date {
 }
 
 /**
- * Who to escalate to. `User` has no manager relation, so this walks outward:
- * the lead's regional managers, then the creator's region, then super admins.
- * Returns an empty list rather than throwing — an unassigned lead should be
- * reported, not crash the run.
+ * Who to escalate to at 21 days. `User` has no manager relation, so this walks
+ * outward to the lead's regional managers (its own region first, then the
+ * creator's region) — AND every Super Admin is always added on top, so a stalled
+ * student is visible to the admins regardless of whether a Regional Manager was
+ * found. De-duplicated. Returns an empty list only if there are no admins and no
+ * RMs, which an unassigned-lead report then surfaces rather than crashing.
  */
 async function resolveEscalationTargets(lead: {
   regionId: string | null;
   createdById: string;
 }): Promise<string[]> {
-  if (lead.regionId) {
+  const ids = new Set<string>();
+
+  // Regional Managers: prefer the lead's own region, else the creator's.
+  let rmRegionId = lead.regionId;
+  if (!rmRegionId) {
+    const creator = await db.user.findUnique({
+      where: { id: lead.createdById },
+      select: { regionId: true },
+    });
+    rmRegionId = creator?.regionId ?? null;
+  }
+  if (rmRegionId) {
     const rms = await db.user.findMany({
-      where: { role: "REGIONAL_MANAGER", regionId: lead.regionId, isActive: true, deletedAt: null },
+      where: { role: "REGIONAL_MANAGER", regionId: rmRegionId, isActive: true, deletedAt: null },
       select: { id: true },
     });
-    if (rms.length) return rms.map((u) => u.id);
+    for (const u of rms) ids.add(u.id);
   }
 
-  const creator = await db.user.findUnique({
-    where: { id: lead.createdById },
-    select: { regionId: true },
-  });
-  if (creator?.regionId) {
-    const rms = await db.user.findMany({
-      where: { role: "REGIONAL_MANAGER", regionId: creator.regionId, isActive: true, deletedAt: null },
-      select: { id: true },
-    });
-    if (rms.length) return rms.map((u) => u.id);
-  }
-
+  // Super Admins always get the 21-day escalation too.
   const admins = await db.user.findMany({
     where: { role: "SUPER_ADMIN", isActive: true, deletedAt: null },
     select: { id: true },
   });
-  return admins.map((u) => u.id);
+  for (const u of admins) ids.add(u.id);
+
+  return [...ids];
 }
 
 export async function runLeadAutomation(
