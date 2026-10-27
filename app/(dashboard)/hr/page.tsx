@@ -62,13 +62,18 @@ export default async function HRPage({
       })) > 0
     : false;
 
-  // For employee self-service: redirect to their profile.
+  // For self-service roles: redirect to their own profile. An ICR gets the
+  // same HR & ERP experience as an EMPLOYEE here — their own record, leave,
+  // holidays, attendance, tasks and timesheets — and NOT the company-wide
+  // dashboard (org headcount, org-wide leave utilisation, performance scores)
+  // that this page renders for managers. ICRs are individual contributors, so
+  // they are treated exactly like EMPLOYEE on the HR & ERP module.
   //
   // The ?tab= is carried over. It used to be dropped, so the dashboard's own
   // "Annual Leave Left" card — which links to /hr?tab=leave — put an employee
   // on the Profile tab and left them to find Leave themselves. Every link into
   // this page that names a tab was affected the same way.
-  if (role === "EMPLOYEE" && me) {
+  if ((role === "EMPLOYEE" || role === "ICR") && me) {
     const keep = tab && TABS_SHARED_WITH_OWN_PROFILE.has(tab) ? `?tab=${tab}` : "";
     redirect(`/hr/employees/${me.id}${keep}`);
   }
