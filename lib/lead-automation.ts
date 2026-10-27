@@ -197,7 +197,16 @@ export async function runLeadAutomation(
 
     // Escalation
     summary.inactivityEscalations++;
-    const targets = await resolveEscalationTargets(lead);
+    // The assigned ICR is looped in alongside the managers and Super Admins:
+    // it is their student that has stalled, and they are the one who has to act
+    // on it — being skipped at 21 days is how an owner loses a student silently.
+    // De-duplicated with the escalation targets.
+    const targets = [
+      ...new Set([
+        ...(lead.assignedICRId ? [lead.assignedICRId] : []),
+        ...(await resolveEscalationTargets(lead)),
+      ]),
+    ];
     if (!targets.length) summary.unassigned.push(lead.id);
     if (dryRun) continue;
 
