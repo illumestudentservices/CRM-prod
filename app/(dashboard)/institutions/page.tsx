@@ -173,6 +173,10 @@ export default async function InstitutionsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await effectiveHasPermission(session.user.role, "institutions", "read"))) redirect("/dashboard");
+  // Creating a client POSTs to /api/institutions, which enforces
+  // institutions:write. Hide the "Add Client" control from read-only roles
+  // (e.g. ICR) so they are not shown a button the API will refuse.
+  const canWrite = await effectiveHasPermission(session.user.role, "institutions", "write");
 
   const [stats, institutions, regions, accountManagers] = await Promise.all([
     getInstitutionStats(),
@@ -213,7 +217,7 @@ export default async function InstitutionsPage() {
               filename="institutions"
               title="Institutions"
             />
-            <InstitutionForm regions={regions} />
+            {canWrite && <InstitutionForm regions={regions} />}
           </div>
         }
       />

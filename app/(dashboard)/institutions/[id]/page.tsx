@@ -166,21 +166,26 @@ export default async function InstitutionDetailPage({
           { label: institution.name },
         ]}
         actions={
-          <InstitutionForm
-            institution={{
-              id: institution.id,
-              name: institution.name,
-              country: institution.country,
-              type: institution.type,
-              website: institution.website,
-              primaryContact: institution.primaryContact,
-              accountStatus: institution.accountStatus,
-              notes: institution.notes,
-              region: institution.region,
-            }}
-            regions={regions}
-            mode="edit"
-          />
+          // Editing a client PATCHes /api/institutions/:id, which enforces
+          // institutions:write. Hide the Edit dialog from read-only roles
+          // (e.g. ICR) rather than show a button the API will refuse.
+          canWrite ? (
+            <InstitutionForm
+              institution={{
+                id: institution.id,
+                name: institution.name,
+                country: institution.country,
+                type: institution.type,
+                website: institution.website,
+                primaryContact: institution.primaryContact,
+                accountStatus: institution.accountStatus,
+                notes: institution.notes,
+                region: institution.region,
+              }}
+              regions={regions}
+              mode="edit"
+            />
+          ) : undefined
         }
       />
 
