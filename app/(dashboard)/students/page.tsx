@@ -62,13 +62,22 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ source?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!(await effectiveHasPermission(session.user.role, "leads", "read"))) redirect("/dashboard");
 
   const { id: userId, role, regionId } = session.user;
   const canImport = await effectiveHasPermission(session.user.role, "leads", "write");
+
+  // Pre-applied source filter, e.g. arriving from a recruitment partner's
+  // "Leads" tile. "all" is treated as absent so a cleared link is harmless.
+  const sp = (await searchParams) ?? {};
+  const initialSourceId = sp.source && sp.source !== "all" ? sp.source : null;
 
   const { leads, sources, institutions, icrUsers, isManager } = await getLeadsData(
     userId,
@@ -112,6 +121,7 @@ export default async function StudentsPage() {
         institutions={institutions}
         icrUsers={icrUsers}
         isManager={isManager}
+        initialSourceId={initialSourceId}
       />
     </div>
   );

@@ -11,9 +11,11 @@ import { ActivitiesClient } from "../activities/_components/activities-client";
 import { RoleDashboard } from "./_components/role-dashboard";
 import type { Role } from "@prisma/client";
 
-async function getActivities() {
+async function getActivities(sourceId?: string | null) {
   return db.activity.findMany({
-    where: { deletedAt: null },
+    // Source filter applied here (not client-side) so a partner's older
+    // activities are not lost behind the 100-row cap below.
+    where: { deletedAt: null, ...(sourceId ? { sourceId } : {}) },
     include: {
       user: { select: { id: true, name: true, image: true } },
       institution: { select: { id: true, name: true } },
@@ -103,17 +105,29 @@ async function getLookups() {
   };
 }
 
-export default async function FieldOperationsPage() {
+export default async function FieldOperationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ source?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!(await effectiveHasPermission(session.user.role as any, "field_operations", "read"))) {
     redirect("/dashboard");
   }
-  const [activities, stats, lookups] = await Promise.all([
-    getActivities(),
+  // Pre-applied source (recruitment partner) filter, e.g. from a partner's
+  // "Field Ops" tile. "all" treated as absent.
+  const sp = (await searchParams) ?? {};
+  const sourceFilter = sp.source && sp.source !== "all" ? sp.source : null;
+
+  const [activities, stats, lookups, sourcePartner] = await Promise.all([
+    getActivities(sourceFilter),
     getStats(),
     getLookups(),
+    sourceFilter
+      ? db.recruitmentPartner.findUnique({ where: { id: sourceFilter }, select: { name: true } })
+      : Promise.resolve(null),
   ]);
   return (
     <div className="p-6">
@@ -129,7 +143,16 @@ export default async function FieldOperationsPage() {
         role={session.user.role as Role}
         regionId={session.user.regionId ?? null}
       />
-      <ActivitiesClient activities={activities} stats={stats} lookups={lookups} />
+      <ActivitiesClient
+        activities={activities}
+        stats={stats}
+        lookups={lookups}
+        sourceFilter={
+          sourceFilter
+            ? { id: sourceFilter, name: sourcePartner?.name ?? "selected partner" }
+            : null
+        }
+      />
     </div>
   );
 }

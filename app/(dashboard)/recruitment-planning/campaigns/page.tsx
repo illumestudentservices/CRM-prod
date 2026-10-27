@@ -10,7 +10,7 @@ import { CampaignForm } from "./_components/campaign-form";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams?: Promise<{ status?: string; q?: string }>;
+  searchParams?: Promise<{ status?: string; q?: string; source?: string }>;
 }
 
 /**
@@ -32,6 +32,7 @@ export default async function CampaignsPage({ searchParams }: Props) {
 
   const sp = (await searchParams) ?? {};
   const statusFilter = sp.status && sp.status !== "all" ? sp.status : null;
+  const sourceFilter = sp.source && sp.source !== "all" ? sp.source : null;
   const q = sp.q ?? "";
 
   const [partners, users] = await Promise.all([
@@ -51,6 +52,7 @@ export default async function CampaignsPage({ searchParams }: Props) {
     where: {
       deletedAt: null,
       ...(statusFilter ? { status: statusFilter as never } : {}),
+      ...(sourceFilter ? { sourceId: sourceFilter } : {}),
       ...(q
         ? {
             OR: [
@@ -79,6 +81,23 @@ export default async function CampaignsPage({ searchParams }: Props) {
   const counts = Object.fromEntries(grouped.map((g) => [g.status ?? "UNSET", g._count._all]));
   const total = Object.values(counts).reduce((a: number, b) => a + (b as number), 0);
 
+  // Readable name for the active source filter, for the "filtered by" chip.
+  // Falls back to a loaded campaign's source (covers an inactive partner that
+  // is not in the active-partner dropdown list) then to a generic label.
+  const sourceName = sourceFilter
+    ? partners.find((p) => p.id === sourceFilter)?.name ??
+      campaigns.find((c) => c.source?.id === sourceFilter)?.source?.name ??
+      "selected partner"
+    : null;
+  // Preserve search + status when clearing only the source filter.
+  const clearSourceParams = new URLSearchParams();
+  if (q) clearSourceParams.set("q", q);
+  if (statusFilter) clearSourceParams.set("status", statusFilter);
+  const clearSourceQs = clearSourceParams.toString();
+  const clearSourceHref = clearSourceQs
+    ? `/recruitment-planning/campaigns?${clearSourceQs}`
+    : "/recruitment-planning/campaigns";
+
   const STATUS_BADGE: Record<string, string> = {
     PLANNED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
     APPROVED: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
@@ -102,9 +121,19 @@ export default async function CampaignsPage({ searchParams }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">
-          {campaigns.length} of {total} campaigns
-          {q && <span> · filtered by &quot;{q}&quot;</span>}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span>
+            {campaigns.length} of {total} campaigns
+            {q && <span> · filtered by &quot;{q}&quot;</span>}
+          </span>
+          {sourceName && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
+              Source: {sourceName}
+              <Link href={clearSourceHref} className="font-semibold hover:underline" aria-label="Clear source filter">
+                ✕
+              </Link>
+            </span>
+          )}
         </div>
         {canWrite && (
           <CampaignForm
@@ -125,10 +154,12 @@ export default async function CampaignsPage({ searchParams }: Props) {
         {STATUS_TABS.map((t) => {
           const active = (statusFilter ?? "all") === t.key;
           const count = t.key === "all" ? total : (counts[t.key] ?? 0);
-          // Carries the search term across. Without this, choosing a
-          // status tab silently throws away what was typed.
+          // Carries the search term and any source filter across. Without
+          // this, choosing a status tab silently throws away what was typed
+          // or which partner the list was scoped to.
           const tabParams = new URLSearchParams();
           if (q) tabParams.set("q", q);
+          if (sourceFilter) tabParams.set("source", sourceFilter);
           if (t.key !== "all") tabParams.set("status", t.key);
           const tabQs = tabParams.toString();
           const href = tabQs ? `/recruitment-planning/campaigns?${tabQs}` : "/recruitment-planning/campaigns";

@@ -124,10 +124,15 @@ export function ActivitiesClient({
   activities,
   stats,
   lookups,
+  sourceFilter = null,
 }: {
   activities: ActivityItem[];
   stats: Stats;
   lookups: Lookups;
+  /** When set, the list is already scoped server-side to this recruitment
+   *  partner (e.g. arriving from a partner's "Field Ops" tile). Drives the
+   *  chip + clear control below; null on the general Activities page. */
+  sourceFilter?: { id: string; name: string } | null;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -844,6 +849,25 @@ export function ActivitiesClient({
               </DialogContent>
             </Dialog>
           </div>
+
+          {/* Active source (recruitment partner) filter — the list is already
+              scoped server-side; this only shows which partner and offers a
+              one-click clear back to the full list. */}
+          {sourceFilter && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
+                Partner: {sourceFilter.name}
+                <button
+                  type="button"
+                  onClick={() => router.push("/field-operations")}
+                  className="font-semibold hover:underline"
+                  aria-label="Clear partner filter"
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          )}
 
           {/* Spec §3 (Field Operations) — status filter. Rows with a NULL
               status (pre-migration-019 data) group under "Unclassified". */}

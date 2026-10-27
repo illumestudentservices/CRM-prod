@@ -62,6 +62,9 @@ interface StudentsClientPageProps {
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
   isManager: boolean;
+  /** Pre-applied source (recruitment partner) filter, e.g. from a partner's
+   *  "Leads" tile. Null when no source was requested. */
+  initialSourceId?: string | null;
 }
 
 export function StudentsClientPage({
@@ -70,14 +73,26 @@ export function StudentsClientPage({
   institutions,
   icrUsers,
   isManager,
+  initialSourceId = null,
 }: StudentsClientPageProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<Tab>("kanban");
   const [search, setSearch] = React.useState("");
   const [stageFilter, setStageFilter] = React.useState<LeadStage | "ALL">("ALL");
   const [institutionFilter, setInstitutionFilter] = React.useState<string>("ALL");
+  const [sourceFilter, setSourceFilter] = React.useState<string>(initialSourceId ?? "ALL");
   const [icrFilter, setIcrFilter] = React.useState<string>("ALL");
   const [addModalOpen, setAddModalOpen] = React.useState(false);
+
+  // The source passed in the URL may be an inactive partner that isn't in the
+  // `sources` dropdown (which lists active partners only). Keep its name so the
+  // filter chip still reads sensibly rather than showing a bare id.
+  const activeSourceName = React.useMemo(() => {
+    if (sourceFilter === "ALL") return null;
+    const fromList = sources.find((s) => s.id === sourceFilter)?.name;
+    if (fromList) return fromList;
+    return initialLeads.find((l) => l.source?.id === sourceFilter)?.source?.name ?? null;
+  }, [sourceFilter, sources, initialLeads]);
 
   // Owners to offer in the ICR filter, derived from the leads themselves rather
   // than from `icrUsers` (which is only active users whose role is literally
@@ -121,6 +136,7 @@ export function StudentsClientPage({
       }
       if (stageFilter !== "ALL" && lead.stage !== stageFilter) return false;
       if (institutionFilter !== "ALL" && lead.institutionId !== institutionFilter) return false;
+      if (sourceFilter !== "ALL" && lead.sourceId !== sourceFilter) return false;
       if (icrFilter === UNASSIGNED) {
         if (lead.assignedICRId) return false;
       } else if (icrFilter !== "ALL" && lead.assignedICRId !== icrFilter) {
@@ -128,12 +144,13 @@ export function StudentsClientPage({
       }
       return true;
     });
-  }, [initialLeads, search, stageFilter, institutionFilter, icrFilter]);
+  }, [initialLeads, search, stageFilter, institutionFilter, sourceFilter, icrFilter]);
 
   const hasActiveFilters =
     search !== "" ||
     stageFilter !== "ALL" ||
     institutionFilter !== "ALL" ||
+    sourceFilter !== "ALL" ||
     icrFilter !== "ALL";
 
   const exportData = React.useMemo(
@@ -161,6 +178,7 @@ export function StudentsClientPage({
     setSearch("");
     setStageFilter("ALL");
     setInstitutionFilter("ALL");
+    setSourceFilter("ALL");
     setIcrFilter("ALL");
   }
 
@@ -268,6 +286,33 @@ export function StudentsClientPage({
               {institutions.map((inst) => (
                 <SelectItem key={inst.id} value={inst.id}>
                   {inst.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Source filter. Rendered whenever a source filter is in effect (e.g.
+            arriving from a partner's Leads tile) even if that partner is not in
+            the active-partner list, so it can always be seen and cleared. */}
+        {(sources.length > 0 || sourceFilter !== "ALL") && (
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger
+              aria-label="Filter by source"
+              className="h-8 w-[180px] text-sm bg-white dark:bg-slate-900"
+            >
+              <SelectValue placeholder="All Sources">
+                {sourceFilter === "ALL" ? "All Sources" : activeSourceName ?? "Selected source"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Sources</SelectItem>
+              {sourceFilter !== "ALL" && !sources.some((s) => s.id === sourceFilter) && (
+                <SelectItem value={sourceFilter}>{activeSourceName ?? "Selected source"}</SelectItem>
+              )}
+              {sources.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
                 </SelectItem>
               ))}
             </SelectContent>

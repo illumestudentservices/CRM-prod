@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { PartnerContactsPanel } from "./_components/partner-contacts-panel";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
@@ -26,10 +27,13 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         </p>
       </div>
 
+      {/* Each count drills into the records it summarises, filtered to this
+          partner. Without the links these were dead numbers — you could see a
+          partner had 42 leads but had no way to reach them from here. */}
       <div className="grid grid-cols-3 gap-4">
-        <Metric label="Leads" value={partner._count.leads} />
-        <Metric label="Campaigns" value={partner._count.campaigns} />
-        <Metric label="Field Ops" value={partner._count.activities} />
+        <Metric label="Leads" value={partner._count.leads} href={`/students?source=${partner.id}`} />
+        <Metric label="Campaigns" value={partner._count.campaigns} href={`/recruitment-planning/campaigns?source=${partner.id}`} />
+        <Metric label="Field Ops" value={partner._count.activities} href={`/field-operations?source=${partner.id}`} />
       </div>
 
       {partner.agentProfile && (
@@ -63,11 +67,25 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border rounded p-4">
+function Metric({ label, value, href }: { label: string; value: number; href?: string }) {
+  const inner = (
+    <>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
-    </div>
+    </>
+  );
+  if (!href) {
+    return <div className="border rounded p-4">{inner}</div>;
+  }
+  return (
+    <Link
+      href={href}
+      className="group block rounded border p-4 transition-colors hover:border-blue-400 hover:bg-muted/50 dark:hover:border-blue-500/50"
+    >
+      <div className="text-xs text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400">
+        {label} <span aria-hidden>→</span>
+      </div>
+      <div className="text-2xl font-semibold">{value}</div>
+    </Link>
   );
 }
