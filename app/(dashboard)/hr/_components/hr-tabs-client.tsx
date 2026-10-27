@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/shared/stat-card";
 import { cn } from "@/lib/utils";
 import { EmployeeTable } from "./employee-table";
 import { LeaveManager } from "./leave-manager";
 import { AttendanceTracker } from "./attendance-tracker";
-import { TaskBoard } from "./task-board";
 import { Announcements } from "./announcements";
 import { KnowledgeBaseView } from "./knowledge-base";
 import { HolidayManager } from "./holiday-manager";
@@ -62,6 +62,7 @@ export function HRTabsClient({
   // a trigger that isn't there. Non-HR staff come here for their own leave, so
   // that is where they land.
   const [activeTab, setActiveTab] = React.useState(isHR ? "employees" : "leave");
+  const router = useRouter();
 
   // Notification emails link to /hr?tab=account-requests and /hr?tab=offboarding,
   // so honour that rather than dropping the reviewer on the Employees tab and
@@ -71,12 +72,15 @@ export function HRTabsClient({
     if (tab) setActiveTab(tab);
   }, []);
 
+  // Tasks now live only on the dedicated Tasks page (sidebar → Tasks), not in a
+  // tab here. The Open Tasks stat stays as an at-a-glance count, but clicking it
+  // navigates to that page (`href`) instead of opening a tab that no longer exists.
   const statCards = [
     { title: "Total Employees", value: totalEmployees, icon: "Users" as const,       iconColor: "text-[#1E3A5F] dark:text-sky-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-sky-500/15", tab: "employees" },
     { title: "On Leave Today",  value: onLeaveToday,   icon: "CalendarOff" as const, iconColor: "text-amber-600 dark:text-amber-300",  iconBg: "bg-amber-50 dark:bg-amber-500/15",     tab: "leave" },
-    { title: "Open Tasks",      value: openTasks,      icon: "CheckSquare" as const, iconColor: "text-blue-600 dark:text-blue-300",   iconBg: "bg-blue-50 dark:bg-blue-500/15",      tab: "tasks" },
+    { title: "Open Tasks",      value: openTasks,      icon: "CheckSquare" as const, iconColor: "text-blue-600 dark:text-blue-300",   iconBg: "bg-blue-50 dark:bg-blue-500/15",      href: "/tasks" },
     { title: "Pending Leave",   value: pendingLeave,   icon: "Clock" as const,       iconColor: "text-violet-600 dark:text-violet-300", iconBg: "bg-violet-50 dark:bg-violet-500/15",    tab: "leave" },
-  ];
+  ] as const;
 
   return (
     <div className="space-y-4">
@@ -92,9 +96,9 @@ export function HRTabsClient({
             iconBg={card.iconBg}
             className={cn(
               "cursor-pointer transition-all",
-              activeTab === card.tab && "ring-2 ring-[#1E3A5F] ring-offset-1"
+              "tab" in card && activeTab === card.tab && "ring-2 ring-[#1E3A5F] ring-offset-1"
             )}
-            onClick={() => setActiveTab(card.tab)}
+            onClick={() => ("href" in card ? router.push(card.href) : setActiveTab(card.tab))}
           />
         ))}
       </div>
@@ -105,7 +109,6 @@ export function HRTabsClient({
           <TabsTrigger value="leave">Leave Management</TabsTrigger>
           <TabsTrigger value="holidays">Holidays</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           {/*
             Employees, Assets, Performance Reviews and Succession Planning all
@@ -156,9 +159,6 @@ export function HRTabsClient({
         </TabsContent>
         <TabsContent value="attendance" className="mt-4">
           <AttendanceTracker isHR={isHR} userId={userId} />
-        </TabsContent>
-        <TabsContent value="tasks" className="mt-4">
-          <TaskBoard userId={userId} isHR={isHR} />
         </TabsContent>
         <TabsContent value="announcements" className="mt-4">
           <Announcements isHR={isHR} userId={userId} />
