@@ -1,4 +1,7 @@
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +20,18 @@ export const dynamic = "force-dynamic";
  *                               partner + school + client population)
  */
 export default async function NetworkPerformancePage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  // Network Performance is a management reporting/analytics surface (agent,
+  // school and campaign rankings, relationship activity). ICR was removed from
+  // Reports and this page sits in the same reporting tier, so it is gated on
+  // reports:read. The parent recruitment_network route gate (proxy.ts) already
+  // excludes every role outside the network roles, so among those this removes
+  // exactly ICR — Partners stays open to them.
+  if (!(await effectiveHasPermission(session.user.role, "reports", "read"))) {
+    redirect("/recruitment-network/partners");
+  }
+
   const now = new Date();
   const from = new Date(now);
   from.setFullYear(from.getFullYear() - 1);

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 
 const TABS: Array<{ href: string; label: string }> = [
   { href: "/recruitment-network/partners", label: "Recruitment Partners" },
@@ -7,7 +9,17 @@ const TABS: Array<{ href: string; label: string }> = [
   { href: "/recruitment-network/performance", label: "Network Performance" },
 ];
 
-export default function RecruitmentNetworkLayout({ children }: { children: React.ReactNode }) {
+export default async function RecruitmentNetworkLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  // Network Performance is gated on reports:read (see performance/page.tsx), so
+  // a role that cannot open it — ICR — is not shown a dead tab for it.
+  const canSeePerformance = session?.user
+    ? await effectiveHasPermission(session.user.role, "reports", "read")
+    : false;
+  const tabs = TABS.filter(
+    (t) => t.href !== "/recruitment-network/performance" || canSeePerformance
+  );
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold">Recruitment Network</h1>
@@ -15,7 +27,7 @@ export default function RecruitmentNetworkLayout({ children }: { children: React
         Partners and network performance. Events and campaigns moved to Recruitment Planning.
       </p>
       <nav className="flex gap-2 border-b mb-4">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <Link
             key={t.href}
             href={t.href}
