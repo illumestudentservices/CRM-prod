@@ -161,6 +161,17 @@ async function main() {
   expect(await notifCount(worker.user.id, "TASK_DUE_IN_7_DAYS") === 1,
     "and it reaches the assignee");
 
+  // The reminder (and the digest email line built from the same string) carries
+  // the task's ticket number.
+  const dueTask = await db.task.findUnique({ where: { id: taskId }, select: { taskNumber: true } });
+  const ticket = `TSK-${String(dueTask.taskNumber).padStart(4, "0")}`;
+  const weekNotif = await db.notification.findFirst({
+    where: { userId: worker.user.id, type: "TASK_DUE_IN_7_DAYS" },
+    orderBy: { createdAt: "desc" }, select: { message: true },
+  });
+  expect(!!weekNotif?.message?.includes(ticket),
+    `*** the reminder carries the ticket number ${ticket} ***`, weekNotif?.message);
+
   s = await runTaskReminders({ now: runAt(3) });   // same morning, run twice
   expect(s.sentByStage.DUE_IN_7_DAYS === 0,
     "running the cron twice in one day sends nothing twice", JSON.stringify(s.sentByStage));

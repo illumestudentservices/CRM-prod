@@ -1829,6 +1829,7 @@ export async function sendTaskAssignedEmail(opts: {
       </table>
 
       ${infoTable([
+        ["Ticket", formatTaskNumber(opts.taskNumber)],
         ["Due date", opts.dueDate ?? "No deadline set"],
         ...(opts.category ? [["Category", opts.category] as [string, string]] : []),
         ["Raised by", opts.assignedByName],
@@ -1893,6 +1894,7 @@ export async function sendTaskUpdatedEmail(opts: {
       </table>
 
       ${infoTable([
+        ["Ticket", formatTaskNumber(opts.taskNumber)],
         ...(statusLabel ? [["Current status", statusLabel] as [string, string]] : []),
         ...(opts.priority ? [["Priority", opts.priority] as [string, string]] : []),
         ["Due date", opts.dueDate ?? "No deadline set"],
@@ -1930,7 +1932,8 @@ export async function sendTaskCommentEmail(opts: {
         ${opts.authorName} added a note
       </h1>
       <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
-        Hi ${opts.recipientName}, there is a new note on the task <strong>${opts.taskTitle}</strong>.
+        Hi ${opts.recipientName}, there is a new note on task
+        <strong>${formatTaskNumber(opts.taskNumber)}</strong> — <strong>${opts.taskTitle}</strong>.
       </p>
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid ${HAIRLINE};border-radius:10px;margin:20px 0 0;">

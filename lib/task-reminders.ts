@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { ReminderDigest } from "@/lib/reminder-digest";
+import { formatTaskNumber } from "@/lib/utils";
 import type { TaskReminderStage } from "@prisma/client";
 
 /**
@@ -216,6 +217,7 @@ export async function runTaskReminders(
     },
     select: {
       id: true,
+      taskNumber: true,
       title: true,
       dueDate: true,
       priority: true,
@@ -263,7 +265,7 @@ export async function runTaskReminders(
         await digest.add({
           userId,
           title: rung.label,
-          message: `${t.title} — ${describeDueDistance(daysOut)} (${formatTaskDate(t.dueDate)})`,
+          message: `[${formatTaskNumber(t.taskNumber)}] ${t.title} — ${describeDueDistance(daysOut)} (${formatTaskDate(t.dueDate)})`,
           type: `TASK_${rung.stage}`,
           link: `/tasks?taskId=${t.id}`,
           urgent: rung.urgent || t.priority === "URGENT",
@@ -287,6 +289,7 @@ export async function runTaskReminders(
     },
     select: {
       id: true,
+      taskNumber: true,
       title: true,
       dueDate: true,
       reminderDate: true,
@@ -319,8 +322,8 @@ export async function runTaskReminders(
           userId,
           title: "Task reminder",
           message: t.dueDate
-            ? `${t.title} — ${describeDueDistance(daysUntil(t.dueDate, now))} (${formatTaskDate(t.dueDate)})`
-            : t.title,
+            ? `[${formatTaskNumber(t.taskNumber)}] ${t.title} — ${describeDueDistance(daysUntil(t.dueDate, now))} (${formatTaskDate(t.dueDate)})`
+            : `[${formatTaskNumber(t.taskNumber)}] ${t.title}`,
           type: "TASK_REMINDER",
           link: `/tasks?taskId=${t.id}`,
           urgent: t.priority === "URGENT",
@@ -347,6 +350,7 @@ export async function runTaskReminders(
     },
     select: {
       id: true,
+      taskNumber: true,
       title: true,
       dueDate: true,
       assignee: { select: { user: { select: { id: true, name: true, regionId: true } } } },
@@ -380,7 +384,7 @@ export async function runTaskReminders(
         await digest.add({
           userId: escalateTo.id,
           title: "Overdue task escalated",
-          message: `${assignee.name ?? "A team member"} has an overdue task: ${t.title}`,
+          message: `${assignee.name ?? "A team member"} has an overdue task: [${formatTaskNumber(t.taskNumber)}] ${t.title}`,
           type: "TASK_ESCALATED",
           link: `/tasks?taskId=${t.id}`,
           urgent: true,
