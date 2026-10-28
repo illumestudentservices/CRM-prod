@@ -61,6 +61,10 @@ interface InstitutionsClientProps {
   accountManagers?: { id: string; name: string | null }[];
   /// Spec §1 (Clients) — Country filter dropdown (derived from the institutions list).
   stats: InstitutionStats;
+  /// When false, the figures (summary stat cards, health breakdown, and the
+  /// per-client counts/status) are hidden — read-only roles like ICR see the
+  /// client list and details only, not the commercial numbers.
+  showFigures?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -70,6 +74,7 @@ export function InstitutionsClient({
   regions,
   accountManagers = [],
   stats,
+  showFigures = true,
 }: InstitutionsClientProps) {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -127,7 +132,8 @@ export function InstitutionsClient({
 
   return (
     <div className="space-y-4">
-      {/* Stat Cards */}
+      {/* Stat Cards — figures, hidden from read-only roles like ICR. */}
+      {showFigures && (
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
           <StatCard
@@ -149,6 +155,7 @@ export function InstitutionsClient({
           />
         ))}
       </div>
+      )}
 
       {/*
         How the book of business is feeling, as a single strip.
@@ -159,7 +166,7 @@ export function InstitutionsClient({
         filter — clicking "Concerned" shows exactly those clients, which is the
         question this data gets opened for.
       */}
-      {stats.health && (
+      {showFigures && stats.health && (
         <div className="flex flex-wrap items-center gap-2" data-testid="health-summary">
           {HEALTH_ORDER.map((h) => {
             const count = stats.health![h];
@@ -335,6 +342,7 @@ export function InstitutionsClient({
                 // already treats as "who owns this client".
                 ownerName: institution.accountManagerName ?? null,
               }}
+              showFigures={showFigures}
             />
           ))
         )}

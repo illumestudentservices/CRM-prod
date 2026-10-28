@@ -112,6 +112,10 @@ export default async function InstitutionDetailPage({
     effectiveHasPermission(role, "institutions", "write"),
     hasCapability(role, "institutions.set_health"),
   ]);
+  // ICRs see a client's identity, details and contacts, but not its commercial
+  // figures (pipeline/lead counts, status, account health, contract value,
+  // renewal). Matches the client list, where the same numbers are hidden.
+  const showFigures = role !== "ICR";
 
   const { id } = await params;
 
@@ -191,14 +195,16 @@ export default async function InstitutionDetailPage({
 
       {/* Header Info */}
       <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={cn(
-            "inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border",
-            status.className
-          )}
-        >
-          {status.label}
-        </span>
+        {showFigures && (
+          <span
+            className={cn(
+              "inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border",
+              status.className
+            )}
+          >
+            {status.label}
+          </span>
+        )}
         <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
           <MapPin className="h-3.5 w-3.5" />
           {institution.country}
@@ -216,7 +222,7 @@ export default async function InstitutionDetailPage({
           </Link>
         )}
         <span className="text-sm text-slate-500 dark:text-slate-400">{institution.type}</span>
-        {institution.accountHealth !== "GREY" && (
+        {showFigures && institution.accountHealth !== "GREY" && (
           <span
             title={HEALTH_LABELS[institution.accountHealth].hint}
             className={cn(
@@ -228,13 +234,13 @@ export default async function InstitutionDetailPage({
             {HEALTH_LABELS[institution.accountHealth].full}
           </span>
         )}
-        {institution.contractValue != null && (
+        {showFigures && institution.contractValue != null && (
           <span className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
             <DollarSign className="h-3.5 w-3.5" />
             {formatCurrency(institution.contractValue)}
           </span>
         )}
-        {institution.renewalDate && (
+        {showFigures && institution.renewalDate && (
           <span className="inline-flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
             <CalendarClock className="h-3.5 w-3.5" />
             Renewal: {formatDate(institution.renewalDate)}
@@ -268,6 +274,7 @@ export default async function InstitutionDetailPage({
       {/* Tabs */}
       <InstitutionTabsClient
         institutionId={institution.id}
+        showFigures={showFigures}
         canWrite={canWrite}
         canSetHealth={canSetHealth}
         counts={{ ...institution._count }}

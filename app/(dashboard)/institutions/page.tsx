@@ -177,6 +177,10 @@ export default async function InstitutionsPage() {
   // institutions:write. Hide the "Add Client" control from read-only roles
   // (e.g. ICR) so they are not shown a button the API will refuse.
   const canWrite = await effectiveHasPermission(session.user.role, "institutions", "write");
+  // ICRs may browse the client list and open a client for its details and
+  // contacts, but the commercial figures (lead/contract counts, status, health)
+  // are not theirs to see. Hidden for ICR; shown to everyone else who can read.
+  const showFigures = session.user.role !== "ICR";
 
   const [stats, institutions, regions, accountManagers] = await Promise.all([
     getInstitutionStats(),
@@ -193,6 +197,9 @@ export default async function InstitutionsPage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Clients" }]}
         actions={
           <div className="flex items-center gap-2">
+            {/* Export carries the figure columns (lead/contract counts, status,
+                health), so it is hidden from roles that can't see figures. */}
+            {showFigures && (
             <ExportButton
               data={institutions.map((i) => ({
                 name:           i.name,
@@ -217,6 +224,7 @@ export default async function InstitutionsPage() {
               filename="institutions"
               title="Institutions"
             />
+            )}
             {canWrite && <InstitutionForm regions={regions} />}
           </div>
         }
@@ -225,6 +233,7 @@ export default async function InstitutionsPage() {
       {/* Stat Cards + Institution Grid with filters */}
       <InstitutionsClient
         stats={stats}
+        showFigures={showFigures}
         institutions={institutions.map((i) => ({
           id: i.id,
           name: i.name,

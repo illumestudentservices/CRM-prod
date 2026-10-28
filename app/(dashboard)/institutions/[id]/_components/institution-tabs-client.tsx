@@ -126,6 +126,10 @@ interface InstitutionTabsClientProps {
   strategicObjectives: string | null;
   /// Spec §2 (Clients) — student pipeline panel data (all leads with stage).
   leads: Array<{ id: string; stage: LeadStage }>;
+  /// When false, the figure tabs (Governance, Overview, Contracts, Engagement,
+  /// Issues, KPIs) are hidden — read-only roles like ICR get the details and
+  /// people only: Team, Contacts and Documents.
+  showFigures?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -146,21 +150,26 @@ export function InstitutionTabsClient({
   teamData,
   strategicObjectives,
   leads,
+  showFigures = true,
 }: InstitutionTabsClientProps) {
   return (
-    <Tabs defaultValue="governance">
+    <Tabs defaultValue={showFigures ? "governance" : "contacts"}>
       <TabsList className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex-wrap h-auto">
-        <TabsTrigger value="governance">Governance</TabsTrigger>
-        <TabsTrigger value="overview">Overview</TabsTrigger>
+        {showFigures && <TabsTrigger value="governance">Governance</TabsTrigger>}
+        {showFigures && <TabsTrigger value="overview">Overview</TabsTrigger>}
         <TabsTrigger value="team">Team</TabsTrigger>
-        <TabsTrigger value="contacts">Contacts ({counts.contacts})</TabsTrigger>
-        <TabsTrigger value="contracts">Contracts ({counts.contracts})</TabsTrigger>
-        <TabsTrigger value="engagement">Engagement ({counts.engagementLogs})</TabsTrigger>
-        <TabsTrigger value="issues">Issues</TabsTrigger>
-        <TabsTrigger value="kpis">KPIs</TabsTrigger>
+        <TabsTrigger value="contacts">Contacts{showFigures ? ` (${counts.contacts})` : ""}</TabsTrigger>
+        {showFigures && <TabsTrigger value="contracts">Contracts ({counts.contracts})</TabsTrigger>}
+        {showFigures && <TabsTrigger value="engagement">Engagement ({counts.engagementLogs})</TabsTrigger>}
+        {showFigures && <TabsTrigger value="issues">Issues</TabsTrigger>}
+        {showFigures && <TabsTrigger value="kpis">KPIs</TabsTrigger>}
         <TabsTrigger value="documents">Documents</TabsTrigger>
       </TabsList>
 
+      {/* Figure tabs (Governance, Issues, Overview) — hidden for read-only
+          roles like ICR, who see Team / Contacts / Documents only. */}
+      {showFigures && (
+      <>
       {/* Governance Dashboard */}
       <TabsContent value="governance" className="mt-4 space-y-6">
         {/* The rating and its interventions were modelled and had no way to be
@@ -222,6 +231,8 @@ export function InstitutionTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      </>
+      )}
 
       {/* Team */}
       <TabsContent value="team" className="mt-4">
@@ -277,6 +288,10 @@ export function InstitutionTabsClient({
         </Card>
       </TabsContent>
 
+      {/* Figure tabs (Contracts, Engagement, KPIs) — hidden for read-only
+          roles like ICR. */}
+      {showFigures && (
+      <>
       {/* Contracts */}
       <TabsContent value="contracts" className="mt-4">
         <ContractList contracts={contracts} institutionId={institutionId} canWrite={canWrite} />
@@ -304,6 +319,8 @@ export function InstitutionTabsClient({
         </div>
         <KpiManager institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
+      </>
+      )}
 
       {/* Documents */}
       <TabsContent value="documents" className="mt-4">

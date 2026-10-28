@@ -39,6 +39,10 @@ interface InstitutionCardProps {
     /// The Client Relations owner from the client list.
     ownerName?: string | null;
   };
+  /// When false, the card shows only the client's identity and details — no
+  /// figures (status, health, lead/contract counts, issues, renewal). Used to
+  /// keep commercial numbers off read-only roles like ICR.
+  showFigures?: boolean;
 }
 
 // ─── Status config ─────────────────────────────────────────────────────────
@@ -107,7 +111,7 @@ function getAvatarColor(name: string): string {
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function InstitutionCard({ institution }: InstitutionCardProps) {
+export function InstitutionCard({ institution, showFigures = true }: InstitutionCardProps) {
   const router = useRouter();
   const status = STATUS_CONFIG[institution.accountStatus];
   const avatarColor = getAvatarColor(institution.name);
@@ -205,7 +209,9 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
           )}
         </div>
 
-        {/* Status + the client list's happiness rating, side by side */}
+        {/* Status + the client list's happiness rating, side by side.
+            Figures (status, health) are hidden from read-only roles like ICR. */}
+        {showFigures && (
         <div className="flex flex-wrap items-center gap-1.5 mb-2">
           <span
             className={cn(
@@ -234,6 +240,7 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
             </span>
           )}
         </div>
+        )}
 
         {/* Regions worked. Truncated at three with a count, because Narxoz is
             worked in all six and a card is not a place for a wrapped list. */}
@@ -251,7 +258,7 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
             and a client in trouble looked exactly like one that was fine.
             Rendered only when there is something to say, so a healthy client
             stays visually quiet. */}
-        {(!!institution.openIssuesCount || renewalDays !== null) && (
+        {showFigures && (!!institution.openIssuesCount || renewalDays !== null) && (
           <div className="flex flex-wrap gap-1.5 mb-3" data-testid="client-attention">
             {!!institution.openIssuesCount && (
               <span
@@ -283,7 +290,8 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
           </div>
         )}
 
-        {/* Quick Stats */}
+        {/* Quick Stats — figures, hidden from read-only roles like ICR. */}
+        {showFigures && (
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col items-center bg-slate-50 dark:bg-slate-800 rounded-lg p-2 gap-1">
             <GraduationCap className="h-4 w-4 text-slate-400 dark:text-slate-500" />
@@ -307,6 +315,7 @@ export function InstitutionCard({ institution }: InstitutionCardProps) {
             <span className="text-[10px] text-slate-500 dark:text-slate-400">Contracts</span>
           </div>
         </div>
+        )}
 
         {/* Who to ask. The client list keeps a Client Relations owner per
             account and it was the first thing anyone looked up; it lived only
