@@ -57,7 +57,7 @@ try {
   // Priority control is an editable combobox for the creator.
   expect((await dialog.getByRole("combobox").count()) >= 2, "creator sees editable status + priority");
 
-  const composer = dialog.getByPlaceholder("Write a note… (Ctrl+Enter to send)");
+  const composer = dialog.getByPlaceholder(/Write a note/);
   await composer.fill(`UI note ${TAG}`);
   await composer.press("Control+Enter");
   // Wait for the note to render (only happens after the 201 response lands),

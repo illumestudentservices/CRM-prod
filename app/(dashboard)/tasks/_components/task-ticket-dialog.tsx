@@ -22,9 +22,9 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { formatDate, formatRelative, formatTaskNumber } from "@/lib/utils";
-import { Loader2, Send, Paperclip, MessageSquare } from "lucide-react";
+import { checkUploadSize, formatBytes, MAX_UPLOAD_MB } from "@/lib/uploads";
+import { Loader2, Send, Paperclip, MessageSquare, X, FileText, Download } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,11 +42,18 @@ export interface TicketTask {
   sourceActivity: { id: string; title: string; type: string } | null;
 }
 
+interface CommentAttachment {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+}
 interface Comment {
   id: string;
   body: string;
   createdAt: string;
   author: { id: string; name: string | null; image: string | null };
+  attachments: CommentAttachment[];
 }
 
 // ─── Config (kept in step with tasks-client.tsx) ──────────────────────────────
@@ -106,6 +113,8 @@ export function TaskTicketDialog({
   const [loadingThread, setLoadingThread] = useState(false);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -114,6 +123,7 @@ export function TaskTicketDialog({
     setPriority(task.priority);
     setDue(toDateInput(task.dueDate));
     setNote("");
+    setPendingFiles([]);
     setComments([]);
     setLoadingThread(true);
     fetch(`/api/tasks/${task.id}/comments`)
@@ -165,14 +175,31 @@ export function TaskTicketDialog({
     }
   }
 
+  function addFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const ok: File[] = [];
+    for (const f of Array.from(list)) {
+      const sizeCheck = checkUploadSize(f);
+      if (!sizeCheck.ok) { alert(sizeCheck.message ?? "File too large."); continue; }
+      ok.push(f);
+    }
+    if (ok.length) setPendingFiles((prev) => [...prev, ...ok]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function sendNote() {
-    if (!task || !note.trim() || sending) return;
+    if (!task || sending) return;
+    const text = note.trim();
+    if (!text && pendingFiles.length === 0) return;
     setSending(true);
     try {
+      // A file-only message carries the file names as its text, so the note is
+      // never empty (the API requires a body) and the thread still reads sensibly.
+      const body = text || pendingFiles.map((f) => f.name).join(", ");
       const res = await fetch(`/api/tasks/${task.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: note.trim() }),
+        body: JSON.stringify({ body }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -180,8 +207,28 @@ export function TaskTicketDialog({
         return;
       }
       const { comment } = await res.json();
+
+      // Upload each attached file against this note.
+      const uploaded: CommentAttachment[] = [];
+      for (const f of pendingFiles) {
+        const fd = new FormData();
+        fd.append("file", f);
+        const ur = await fetch(
+          `/api/attachments?parentType=TASK&parentId=${task.id}&commentId=${comment.id}`,
+          { method: "POST", body: fd }
+        );
+        if (ur.ok) {
+          const { data } = await ur.json();
+          uploaded.push({ id: data.id, name: data.name, size: data.size, mimeType: data.mimeType });
+        } else {
+          const e = await ur.json().catch(() => ({}));
+          alert(`"${f.name}": ${e.error ?? "upload failed"}`);
+        }
+      }
+      comment.attachments = uploaded;
       setComments((prev) => [...prev, comment]);
       setNote("");
+      setPendingFiles([]);
     } catch {
       alert("Network error");
     } finally {
@@ -318,6 +365,24 @@ export function TaskTicketDialog({
                       <p className="text-sm whitespace-pre-wrap text-slate-700 dark:text-slate-200 mt-0.5">
                         {c.body}
                       </p>
+                      {c.attachments?.length > 0 && (
+                        <div className="mt-1.5 space-y-1">
+                          {c.attachments.map((a) => (
+                            <a
+                              key={a.id}
+                              href={`/api/attachments/${a.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-xs text-[#1E3A5F] dark:text-cyan-300 hover:underline w-fit max-w-full"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{a.name}</span>
+                              <span className="text-muted-foreground shrink-0">({formatBytes(a.size)})</span>
+                              <Download className="h-3 w-3 shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -326,34 +391,67 @@ export function TaskTicketDialog({
             )}
           </ScrollArea>
 
+          {/* Pending attachments for the next note */}
+          {pendingFiles.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {pendingFiles.map((f, i) => (
+                <span
+                  key={`${f.name}-${i}`}
+                  className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800"
+                >
+                  <FileText className="h-3 w-3 text-slate-500" />
+                  <span className="max-w-[160px] truncate">{f.name}</span>
+                  <span className="text-muted-foreground">({formatBytes(f.size)})</span>
+                  <button
+                    type="button"
+                    onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-slate-400 hover:text-red-600"
+                    aria-label={`Remove ${f.name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Composer */}
           <div className="mt-2 flex items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              title={`Attach a file (max ${MAX_UPLOAD_MB} MB)`}
+              aria-label="Attach a file"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); sendNote(); }
               }}
-              placeholder="Write a note… (Ctrl+Enter to send)"
+              placeholder="Write a note, attach a file… (Ctrl+Enter to send)"
               rows={2}
               className="flex-1 resize-none"
             />
             <Button
               onClick={sendNote}
-              disabled={sending || !note.trim()}
+              disabled={sending || (!note.trim() && pendingFiles.length === 0)}
               className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-        </div>
-
-        {/* Attachments */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
-            <Paperclip className="h-3.5 w-3.5" /> Attachments
-          </p>
-          <AttachmentsPanel parentType="TASK" parentId={task.id} />
         </div>
       </DialogContent>
     </Dialog>

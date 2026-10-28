@@ -35,6 +35,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       body: true,
       createdAt: true,
       author: { select: { id: true, name: true, image: true } },
+      // Files sent with the note, shown inline in the thread.
+      attachments: {
+        where: { deletedAt: null },
+        select: { id: true, name: true, size: true, mimeType: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -70,6 +76,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       body: true,
       createdAt: true,
       author: { select: { id: true, name: true, image: true } },
+      attachments: { select: { id: true, name: true, size: true, mimeType: true } },
     },
   });
 

@@ -184,6 +184,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `${ctx.label} not found` }, { status: 404 });
   }
 
+  // Optional: attach the file to a specific task note. Only valid for a TASK,
+  // and the note must belong to this very task — otherwise a file could be
+  // hung off a comment on someone else's task that the uploader cannot see.
+  const commentId = url.searchParams.get("commentId");
+  if (commentId) {
+    if (parentType !== "TASK") {
+      return NextResponse.json({ error: "commentId is only valid for a task attachment" }, { status: 422 });
+    }
+    const comment = await db.taskComment.findFirst({
+      where: { id: commentId, taskId: parentId },
+      select: { id: true },
+    });
+    if (!comment) {
+      return NextResponse.json({ error: "Note not found on this task" }, { status: 404 });
+    }
+  }
+
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -215,6 +232,7 @@ export async function POST(req: NextRequest) {
       data: {
         parentType: parentType as AttachmentParentType,
         parentId,
+        ...(commentId ? { commentId } : {}),
         name: check.safeName!,
         mimeType: check.canonicalMime!,
         size: file.size,

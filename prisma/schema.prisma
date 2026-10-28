@@ -1721,6 +1721,8 @@ model TaskComment {
   author    User     @relation("TaskCommentAuthor", fields: [authorId], references: [id])
   body      String   @db.Text
   createdAt DateTime @default(now())
+  /// Files sent with this note (Attachment.commentId points back here).
+  attachments Attachment[]
 
   @@index([taskId, createdAt])
   @@map("task_comments")
@@ -4308,6 +4310,12 @@ model Attachment {
   /// the referenced row actually exists and that the caller can access it,
   /// so a broken parentId can't create an orphan attachment.
   parentId     String
+  /// When the attachment was sent AS PART OF a task note, this points at that
+  /// TaskComment so it can be shown inline with the message. NULL for every
+  /// other attachment (including task-level files not tied to a note). Only
+  /// meaningful when parentType is TASK.
+  commentId    String?
+  comment      TaskComment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
   name         String
   mimeType     String
   size         Int
@@ -4325,6 +4333,7 @@ model Attachment {
 
   @@index([parentType, parentId])
   @@index([uploadedById])
+  @@index([commentId])
   @@map("attachments")
 }
 
