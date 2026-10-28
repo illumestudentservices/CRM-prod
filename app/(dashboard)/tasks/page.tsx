@@ -118,7 +118,7 @@ export default async function TasksPage() {
         }
       />
       <MyDashboard />
-      <TasksClient tasks={tasks} employees={employees} />
+      <TasksClient tasks={tasks} employees={employees} currentUserId={session.user.id} />
     </div>
   );
 }

@@ -163,9 +163,11 @@ const TASK_PARENT_TYPES = [
 export function TasksClient({
   tasks,
   employees,
+  currentUserId,
 }: {
   tasks: TaskItem[];
   employees: EmployeeItem[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -662,7 +664,7 @@ export function TasksClient({
       </Dialog>
 
       {/* Ticket view — opened by clicking a task row */}
-      <TaskTicketDialog task={ticketTask} onOpenChange={(o) => !o && setTicketTask(null)} />
+      <TaskTicketDialog task={ticketTask} currentUserId={currentUserId} onOpenChange={(o) => !o && setTicketTask(null)} />
 
       {/* Tasks Table */}
       <Card>

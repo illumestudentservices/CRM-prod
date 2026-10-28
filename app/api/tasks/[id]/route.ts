@@ -53,6 +53,16 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const rel = await taskRelation(userId, id);
     if (!rel.canSee) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
+    // Priority and the due date belong to the person who raised the task — the
+    // assignee reports progress (status), they do not re-plan the work. Mirrors
+    // the assignee-is-status-only rule the HR task route already enforces.
+    if (!rel.isCreator && (parsed.data.priority !== undefined || parsed.data.dueDate !== undefined)) {
+      return NextResponse.json(
+        { error: "Only the person who raised this task can change its priority or due date." },
+        { status: 403 }
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patch: any = {};
     for (const [k, v] of Object.entries(parsed.data)) {

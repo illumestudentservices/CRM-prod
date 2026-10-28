@@ -74,13 +74,20 @@ try {
   expect(bodies.length === 2, "two notes present", `got ${bodies.length}`);
   expect(bodies[0]?.startsWith("Started on this"), "oldest note first");
 
-  // ── Ticket PATCH (status/priority/due) still works ──────────────────────
-  startSection("Editing details from the ticket still works");
-  r = await api(icr.jar, "PATCH", `/api/tasks/${task.id}`, {
-    status: "IN_PROGRESS", priority: "HIGH",
-    dueDate: new Date(Date.now() + 3 * 86400000).toISOString(),
-  });
-  expect(r.status === 200, "status/priority/due update accepted", `got ${r.status}: ${JSON.stringify(r.payload)?.slice(0,160)}`);
+  // ── Priority / due date are creator-only ────────────────────────────────
+  startSection("Only the creator may change priority / due date");
+  const future = new Date(Date.now() + 3 * 86400000).toISOString();
+  // Assignee (ICR) may still move status…
+  r = await api(icr.jar, "PATCH", `/api/tasks/${task.id}`, { status: "IN_PROGRESS" });
+  expect(r.status === 200, "assignee can change status", `got ${r.status}`);
+  // …but NOT priority or due date.
+  r = await api(icr.jar, "PATCH", `/api/tasks/${task.id}`, { priority: "HIGH" });
+  expect(r.status === 403, "assignee is blocked from changing priority", `got ${r.status}`);
+  r = await api(icr.jar, "PATCH", `/api/tasks/${task.id}`, { dueDate: future });
+  expect(r.status === 403, "assignee is blocked from changing due date", `got ${r.status}`);
+  // The creator (RM) can change both.
+  r = await api(rm.jar, "PATCH", `/api/tasks/${task.id}`, { priority: "HIGH", dueDate: future });
+  expect(r.status === 200, "creator can change priority + due date", `got ${r.status}: ${JSON.stringify(r.payload)?.slice(0,160)}`);
 } catch (e) {
   console.error("\n[fatal]", e?.stack || e);
   process.exitCode = 1;

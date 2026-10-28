@@ -84,9 +84,11 @@ function toDateInput(d: Date | string | null): string {
 
 export function TaskTicketDialog({
   task,
+  currentUserId,
   onOpenChange,
 }: {
   task: TicketTask | null;
+  currentUserId: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
@@ -126,8 +128,13 @@ export function TaskTicketDialog({
 
   if (!task) return null;
 
+  // Priority and the due date are the creator's to set; the assignee may only
+  // move status. Enforced on the server too (/api/tasks/[id]).
+  const isCreator = task.createdBy?.user.id === currentUserId;
+
   const detailsDirty =
-    status !== task.status || priority !== task.priority || due !== toDateInput(task.dueDate);
+    status !== task.status ||
+    (isCreator && (priority !== task.priority || due !== toDateInput(task.dueDate)));
 
   async function saveDetails() {
     if (!task) return;
@@ -135,8 +142,8 @@ export function TaskTicketDialog({
     try {
       const body: Record<string, unknown> = {};
       if (status !== task.status) body.status = status;
-      if (priority !== task.priority) body.priority = priority;
-      if (due !== toDateInput(task.dueDate)) {
+      if (isCreator && priority !== task.priority) body.priority = priority;
+      if (isCreator && due !== toDateInput(task.dueDate)) {
         body.dueDate = due ? new Date(`${due}T00:00:00`).toISOString() : null;
       }
       const res = await fetch(`/api/tasks/${task.id}`, {
@@ -232,20 +239,39 @@ export function TaskTicketDialog({
           </div>
           <div>
             <Label className="text-xs">Priority</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(PRIORITY_LABELS).map(([v, l]) => (
-                  <SelectItem key={v} value={v}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isCreator ? (
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRIORITY_LABELS).map(([v, l]) => (
+                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="h-9 flex items-center">
+                <Badge variant="outline" className={PRIORITY_BADGE[task.priority] || ""}>
+                  {PRIORITY_LABELS[task.priority] || task.priority}
+                </Badge>
+              </div>
+            )}
           </div>
           <div>
             <Label className="text-xs">Due date</Label>
-            <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            {isCreator ? (
+              <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            ) : (
+              <div className="h-9 flex items-center text-sm">
+                {task.dueDate ? formatDate(task.dueDate) : <span className="text-muted-foreground">No due date</span>}
+              </div>
+            )}
           </div>
         </div>
+        {!isCreator && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            Only the person who raised this task can change its priority or due date.
+          </p>
+        )}
         {detailsDirty && (
           <div className="flex justify-end">
             <Button
