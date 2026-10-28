@@ -153,7 +153,7 @@ export function InstitutionTabsClient({
   showFigures = true,
 }: InstitutionTabsClientProps) {
   return (
-    <Tabs defaultValue={showFigures ? "governance" : "contacts"}>
+    <Tabs defaultValue={showFigures ? "governance" : "team"}>
       <TabsList className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex-wrap h-auto">
         {showFigures && <TabsTrigger value="governance">Governance</TabsTrigger>}
         {showFigures && <TabsTrigger value="overview">Overview</TabsTrigger>}
