@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { leadListScope } from "@/lib/lead-access";
+import { activityVisibilityWhere } from "@/lib/activity-scope";
 
 /**
  * Records a task can be attached to, for a given parent type.
@@ -48,15 +50,35 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Capped and ordered by recency: a full student list is unusable in a
-  // dropdown, and a task is normally raised against something worked recently.
+  const { role, id: userId, regionId } = session.user;
+
+  // ★ Each parent type is gated on READ of its OWN resource, and the two
+  // person-scoped types (students, field ops) are additionally row-scoped.
+  //
+  // Holding tasks:read lets you RAISE a task, but it must never become a
+  // back door to data the role cannot otherwise see. Before this, the picker
+  // listed every lead (name, email, stage), every client, every market and so
+  // on to anyone who could open the task form — so an ICR, whose lead access is
+  // meant to be only their own students, could read the whole student body by
+  // opening the "Related record" dropdown. Each branch now asks the same
+  // permission that the record's own page asks, honouring the DB permission
+  // overrides (e.g. Market Intelligence removed from ICR), and falls back to an
+  // empty list rather than leaking.
+  const can = (resource: Parameters<typeof effectiveHasPermission>[1]) =>
+    effectiveHasPermission(role as Role, resource, "read");
+
+  // Capped and ordered by recency: a full list is unusable in a dropdown, and a
+  // task is normally raised against something worked recently.
   const TAKE = 300;
   let data: { id: string; name: string; hint?: string | null }[] = [];
 
   switch (type as SupportedParentType) {
     case "STUDENT": {
+      if (!(await can("leads"))) break;
       const rows = await db.lead.findMany({
-        where: { deletedAt: null },
+        // The same row scope the lead list and canAccessLead use: an ICR sees
+        // only their assigned students, an RM their region, admins all.
+        where: { deletedAt: null, ...(await leadListScope(role as Role, userId, regionId)) },
         select: { id: true, firstName: true, lastName: true, email: true, stage: true },
         orderBy: { updatedAt: "desc" },
         take: TAKE,
@@ -69,6 +91,7 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "INSTITUTION": {
+      if (!(await can("institutions"))) break;
       const rows = await db.institution.findMany({
         where: { deletedAt: null },
         select: { id: true, name: true, country: true },
@@ -79,6 +102,7 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "RECRUITMENT_EVENT": {
+      if (!(await can("events"))) break;
       const rows = await db.event.findMany({
         where: { deletedAt: null },
         select: { id: true, name: true, country: true },
@@ -89,6 +113,7 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "RECRUITMENT_PARTNER": {
+      if (!(await can("recruitment_network"))) break;
       const rows = await db.recruitmentPartner.findMany({
         where: { deletedAt: null, isActive: true },
         select: { id: true, name: true, country: true },
@@ -99,6 +124,7 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "MARKET": {
+      if (!(await can("markets"))) break;
       const rows = await db.market.findMany({
         select: { id: true, name: true, countryCode: true },
         orderBy: { name: "asc" },
@@ -108,8 +134,11 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "FIELD_OPERATION": {
+      if (!(await can("activities"))) break;
       const rows = await db.activity.findMany({
-        where: { deletedAt: null },
+        // Field ops are personal: an ICR sees only the ones they registered,
+        // supervisors see all. Same rule as lib/activity-scope.ts elsewhere.
+        where: { deletedAt: null, ...activityVisibilityWhere(role as Role, userId) },
         select: { id: true, title: true, type: true },
         orderBy: { date: "desc" },
         take: TAKE,
@@ -118,6 +147,8 @@ export async function GET(req: NextRequest) {
       break;
     }
     case "CLIENT_ISSUE": {
+      // Client issues are children of institutions and gated with them.
+      if (!(await can("institutions"))) break;
       const rows = await db.clientIssue.findMany({
         select: { id: true, title: true, severity: true },
         orderBy: { createdAt: "desc" },

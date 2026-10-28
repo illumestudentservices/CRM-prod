@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { bestEligibilityOutcome } from "@/lib/lead-gate";
 import type { Role } from "@/lib/permissions";
-import { inRegion } from "@/lib/region-scope";
+import { inRegion, regionScope } from "@/lib/region-scope";
 
 /**
  * Who may see and act on a lead.
@@ -56,6 +56,36 @@ export async function institutionIdsForUser(userId: string, role: Role): Promise
     select: { institutionId: true },
   });
   return rows.map((r) => r.institutionId);
+}
+
+/**
+ * The Prisma `where` that scopes a LIST of leads to what a user may see.
+ *
+ * MUST agree with canAccessLead() above — this is the many-row form of the same
+ * rule. Extracted here so the lead list (GET /api/leads) and anything else that
+ * surfaces leads (the task "related record" picker, for one) cannot drift into
+ * showing a different set than the single-record gate would allow. Fails closed:
+ * a role with no defined scope sees nothing, not everything.
+ */
+export async function leadListScope(
+  role: Role,
+  userId: string,
+  regionId: string | null
+): Promise<Record<string, unknown>> {
+  switch (role) {
+    case "SUPER_ADMIN":
+    case "HQ_EXECUTIVE":
+    case "HQ_ANALYTICS":
+      return {};
+    case "ICR":
+      return { assignedICRId: userId };
+    case "REGIONAL_MANAGER":
+      return regionScope(regionId);
+    case "INSTITUTION_CLIENT":
+      return { institutionId: { in: await institutionIdsForUser(userId, role) } };
+    default:
+      return { id: "__no_access__" };
+  }
 }
 
 /**

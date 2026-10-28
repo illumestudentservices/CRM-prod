@@ -9,8 +9,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
 import { LeadStage } from "@prisma/client";
 import { redactFields } from "@/lib/granular-permissions";
-import { institutionIdsForUser } from "@/lib/lead-access";
-import { regionScope } from "@/lib/region-scope";
+import { leadListScope } from "@/lib/lead-access";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { LEAD_TEMPERATURE_VALUES } from "@/lib/lead-options";
 
@@ -141,56 +140,9 @@ const listLeadsQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
-// ─── Role-based scope helper ──────────────────────────────────────────────────
-
-/**
- * Row scope for the lead list.
- *
- * This MUST agree with canAccessLead() in lib/lead-access.ts, which gates every
- * individual lead. It did not. The INSTITUTION_CLIENT branch returned {} with
- * the comment "handled at route level", but the route only checks whether the
- * caller holds leads:read — never which rows — so a client of the business
- * listed every student of every other client, program and destination
- * institution included. canAccessLead had already been fixed for the same bug
- * on the single-record path; the list was left behind.
- *
- * The `default:` branch was unscoped for the same reason. ACCOUNT_MANAGER,
- * ADMISSIONS_SUPPORT and VP_GLOBAL_SALES all hold leads:read and all land here,
- * so all three listed the entire table — while canAccessLead returns false for
- * them, meaning they could not open a single row of what they were shown. It
- * now fails closed, matching both canAccessLead and the identical decision in
- * app/api/institution-interests/route.ts.
- */
-async function buildScopeFilter(
-  role: Role,
-  userId: string,
-  regionId: string | null
-): Promise<Record<string, unknown>> {
-  switch (role) {
-    case "SUPER_ADMIN":
-    case "HQ_EXECUTIVE":
-    case "HQ_ANALYTICS":
-      return {};
-    case "ICR":
-      return { assignedICRId: userId };
-    case "REGIONAL_MANAGER":
-      // No region means no students, on the same reading as the
-      // INSTITUTION_CLIENT case below. This used to fall back to `{}`, which
-      // returned every student in every region. See lib/region-scope.ts.
-      return regionScope(regionId);
-    case "INSTITUTION_CLIENT": {
-      const allowed = await institutionIdsForUser(userId, role);
-      // No assignment means no students, not all of them. `in: []` matches
-      // nothing, which is the intended reading of "this client has no
-      // institutions yet".
-      return { institutionId: { in: allowed } };
-    }
-    default:
-      // Fail closed: a role holding leads:read but with no defined row scope
-      // sees nothing, rather than everything.
-      return { id: "__no_access__" };
-  }
-}
+// The lead-list row scope now lives in lib/lead-access.ts as leadListScope(),
+// so the picker and anything else that surfaces leads share one definition that
+// cannot drift from canAccessLead().
 
 // ─── GET /api/leads ───────────────────────────────────────────────────────────
 
@@ -222,7 +174,7 @@ export async function GET(req: NextRequest) {
     const { stage, institutionId, assignedICRId, regionId: filterRegionId, sourceId, country, nationality, search, page, limit, sortBy, sortOrder } =
       queryResult.data;
 
-    const scopeFilter = await buildScopeFilter(role as Role, userId, regionId);
+    const scopeFilter = await leadListScope(role as Role, userId, regionId);
 
     // ★ THE SCOPE IS MERGED WITH `AND`, NEVER BY SPREADING IT.
     //
