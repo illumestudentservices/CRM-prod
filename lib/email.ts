@@ -813,6 +813,45 @@ export async function sendLeadStageChangeEmail(opts: {
   });
 }
 
+// ─── 3b. LEAD CLOSED ──────────────────────────────────────────────────────────
+
+/**
+ * A lead reached a closed outcome (Lost, Deferred, Withdrawn, Visa Refused,
+ * Application Rejected). Sent to BOTH the assigned ICR and that ICR's manager,
+ * so the manager hears about a close without having to go looking. The manager
+ * copy is worded for a manager; the owner copy for the owner.
+ */
+export async function sendLeadClosedEmail(opts: {
+  to: string;
+  recipientName: string;
+  isManagerCopy: boolean;
+  leadName: string;
+  outcome: string;
+  closedBy: string;
+  details: string;
+  leadUrl: string;
+}) {
+  const intro = opts.isManagerCopy
+    ? `Hi ${opts.recipientName}, a lead handled by your team has been closed.`
+    : `Hi ${opts.recipientName}, a lead assigned to you has been closed.`;
+
+  await safeSend({
+    to: opts.to,
+    subject: `Lead Closed: ${opts.leadName} — ${opts.outcome}`,
+    html: wrapEmail("Lead Closed", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">Lead Closed</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">${intro}</p>
+      ${infoTable([
+        ["Student", opts.leadName],
+        ["Outcome", badge(opts.outcome, "#dc2626")],
+        ["Closed By", opts.closedBy],
+        ["Details", opts.details],
+      ])}
+      ${ctaButton("View Lead", opts.leadUrl)}
+    `),
+  });
+}
+
 // ─── 4. REPORT SUBMITTED ──────────────────────────────────────────────────────
 
 export async function sendReportSubmittedEmail(opts: {

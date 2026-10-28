@@ -235,17 +235,24 @@ export async function PATCH(
       },
     });
 
-    if (updatedLead.assignedICRId && updatedLead.assignedICRId !== userId) {
-      await db.notification.create({
-        data: {
-          userId: updatedLead.assignedICRId,
-          title: "Lead stage updated",
-          message: `"${displayName(updatedLead)}" moved to ${STAGE_LABELS[newStage]}`,
-          type: "STAGE_CHANGE",
-          link: `/students/${id}`,
-        },
-      });
+    if (updatedLead.assignedICRId) {
+      // In-app bell goes to the assigned ICR, UNLESS they are the one who made
+      // the change — nobody needs a notification about their own action.
+      if (updatedLead.assignedICRId !== userId) {
+        await db.notification.create({
+          data: {
+            userId: updatedLead.assignedICRId,
+            title: "Lead stage updated",
+            message: `"${displayName(updatedLead)}" moved to ${STAGE_LABELS[newStage]}`,
+            type: "STAGE_CHANGE",
+            link: `/students/${id}`,
+          },
+        });
+      }
 
+      // The email ALWAYS goes to the assigned ICR, even when the ICR moved
+      // their own lead — it is the record of the move they can keep or forward,
+      // which is a different job from the self-referential bell above.
       if (updatedLead.assignedICR?.email) {
         const changedByUser = await db.user.findUnique({
           where: { id: userId },

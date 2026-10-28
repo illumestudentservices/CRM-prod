@@ -7,6 +7,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { STAGE_LABELS } from "@/lib/lead-pipeline";
+import { displayName } from "@/lib/person-name";
 
 /**
  * Closing a lead: Lost, Deferred, or Application Rejected.
@@ -239,6 +240,44 @@ export async function POST(
         },
       }),
     ]);
+
+    // Tell the lead's ICR and that ICR's manager it was closed. Mirrors the
+    // new-lead rule: the assigned ICR owns the record, falling back to whoever
+    // closed it when production leaves a lead unassigned, and the manager is
+    // resolved from that owner. Fire-and-forget — a failed email must never
+    // undo a close that is already committed, and safeSend never throws.
+    void (async () => {
+      try {
+        const { sendLeadClosedEmail } = await import("@/lib/email");
+        const { resolveManager } = await import("@/lib/lead-notifications");
+        const ownerId = lead.assignedICRId ?? userId;
+        const [owner, manager, closedByUser] = await Promise.all([
+          db.user.findUnique({ where: { id: ownerId }, select: { email: true, name: true } }),
+          resolveManager(ownerId),
+          db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        ]);
+
+        const shared = {
+          leadName: displayName({ firstName: lead.firstName, lastName: lead.lastName }),
+          outcome: STAGE_LABELS[data.outcome],
+          closedBy: closedByUser?.name ?? "A team member",
+          details: description,
+          leadUrl: `${process.env.NEXTAUTH_URL ?? ""}/students/${id}`,
+        };
+
+        await Promise.all([
+          owner?.email
+            ? sendLeadClosedEmail({ to: owner.email, recipientName: owner.name ?? "there", isManagerCopy: false, ...shared })
+            : Promise.resolve(),
+          // Guarded against a manager who is also the owner — one person, one email.
+          manager && manager.email !== owner?.email
+            ? sendLeadClosedEmail({ to: manager.email, recipientName: manager.name, isManagerCopy: true, ...shared })
+            : Promise.resolve(),
+        ]);
+      } catch (err) {
+        console.error("[lead close notify] failed", err);
+      }
+    })();
 
     // Application Rejected is explicitly not the end of the road — the spec
     // asks that the ICR be prompted toward an alternative application rather
