@@ -58,14 +58,14 @@ try {
   r = await api(icr.jar, "POST", C, { body: "Started on this, will update tomorrow." });
   expect(r.status === 201 && r.payload?.comment?.id, "note accepted", `got ${r.status}`);
   await sleep(1500);
-  expect(emailed(newEmailLines(), rm.email, `New note on "${TAG} ticket task"`), "creator got the note email");
+  expect(emailed(newEmailLines(), rm.email, `on "${TAG} ticket task"`), "creator got the note email");
 
   // ── Creator replies → assignee emailed ──────────────────────────────────
   startSection("Creator replies → assignee emailed");
   r = await api(rm.jar, "POST", C, { body: "Thanks — let me know if you are blocked." });
   expect(r.status === 201, "reply accepted", `got ${r.status}`);
   await sleep(1500);
-  expect(emailed(newEmailLines(), icr.email, `New note on "${TAG} ticket task"`), "assignee got the reply email");
+  expect(emailed(newEmailLines(), icr.email, `on "${TAG} ticket task"`), "assignee got the reply email");
 
   // ── Thread now has both, in order ───────────────────────────────────────
   startSection("Thread returns both notes in order");

@@ -11,6 +11,16 @@ export function formatDate(date: Date | string | null | undefined): string {
   return format(new Date(date), "dd MMM yyyy");
 }
 
+/**
+ * A task's human-readable ticket number, e.g. 42 → "TSK-0042". Padded to four
+ * digits so the identifiers line up and sort sensibly as text; longer numbers
+ * grow past four digits. Used everywhere a task is shown or referenced.
+ */
+export function formatTaskNumber(n: number | null | undefined): string {
+  if (n == null) return "";
+  return `TSK-${String(n).padStart(4, "0")}`;
+}
+
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return "—";
   return format(new Date(date), "dd MMM yyyy, HH:mm");

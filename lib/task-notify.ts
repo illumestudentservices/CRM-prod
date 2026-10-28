@@ -74,7 +74,7 @@ export async function notifyManagerOfTaskUpdate(opts: {
 
     const task = await db.task.findUnique({
       where: { id: opts.taskId },
-      select: { id: true, title: true, status: true, dueDate: true, priority: true },
+      select: { id: true, taskNumber: true, title: true, status: true, dueDate: true, priority: true },
     });
     if (!task) return false;
 
@@ -118,6 +118,7 @@ export async function notifyManagerOfTaskUpdate(opts: {
       actorName,
       taskTitle: task.title,
       taskId: task.id,
+      taskNumber: task.taskNumber,
       changes: opts.changes,
       status: task.status,
       priority: task.priority ?? undefined,
@@ -152,6 +153,7 @@ export async function notifyTaskComment(opts: {
       where: { id: opts.taskId },
       select: {
         id: true,
+        taskNumber: true,
         title: true,
         assignee: { select: { user: { select: { id: true, name: true, email: true, isActive: true, deletedAt: true } } } },
         createdBy: { select: { user: { select: { id: true, name: true, email: true, isActive: true, deletedAt: true } } } },
@@ -195,6 +197,7 @@ export async function notifyTaskComment(opts: {
       recipientName: recipient.name ?? "there",
       authorName,
       taskTitle: task.title,
+      taskNumber: task.taskNumber,
       excerpt: opts.body.slice(0, 500),
       taskUrl: `${process.env.NEXTAUTH_URL ?? ""}/tasks?taskId=${task.id}`,
     });
@@ -235,6 +238,7 @@ export async function notifyTaskAssigned(opts: {
       where: { id: opts.taskId },
       select: {
         id: true,
+        taskNumber: true,
         title: true,
         description: true,
         dueDate: true,
@@ -283,6 +287,7 @@ export async function notifyTaskAssigned(opts: {
       recipientName: target.name ?? "there",
       taskTitle: task.title,
       taskId: task.id,
+      taskNumber: task.taskNumber,
       assignedByName: task.createdBy?.user?.name ?? "A colleague",
       dueDate: task.dueDate ? formatTaskDate(task.dueDate) : undefined,
       priority: task.priority,

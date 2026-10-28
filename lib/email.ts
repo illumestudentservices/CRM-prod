@@ -1,4 +1,5 @@
 import { stageHex, stageLabel } from "@/lib/lead-pipeline";
+import { formatTaskNumber } from "@/lib/utils";
 import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 import { staffGuideAttachment, STAFF_GUIDE_FILENAME } from "@/lib/staff-guide";
 
@@ -1789,6 +1790,7 @@ export async function sendTaskAssignedEmail(opts: {
   recipientName: string;
   taskTitle: string;
   taskId: string;
+  taskNumber: number;
   assignedByName: string;
   /// Already formatted for display, or undefined when the task has no deadline.
   dueDate?: string;
@@ -1803,7 +1805,7 @@ export async function sendTaskAssignedEmail(opts: {
 
   await safeSend({
     to: opts.to,
-    subject: `New task: ${opts.taskTitle}${opts.dueDate ? ` — due ${opts.dueDate}` : ""}`,
+    subject: `New task [${formatTaskNumber(opts.taskNumber)}]: ${opts.taskTitle}${opts.dueDate ? ` — due ${opts.dueDate}` : ""}`,
     html: wrapEmail(
       "New task assigned",
       `
@@ -1855,6 +1857,7 @@ export async function sendTaskUpdatedEmail(opts: {
   actorName: string;
   taskTitle: string;
   taskId: string;
+  taskNumber: number;
   changes: string[];
   status?: string;
   priority?: string;
@@ -1867,7 +1870,7 @@ export async function sendTaskUpdatedEmail(opts: {
 
   await safeSend({
     to: opts.to,
-    subject: `Task updated: ${opts.taskTitle}`,
+    subject: `Task updated [${formatTaskNumber(opts.taskNumber)}]: ${opts.taskTitle}`,
     html: wrapEmail(
       "Task updated",
       `
@@ -1913,12 +1916,13 @@ export async function sendTaskCommentEmail(opts: {
   recipientName: string;
   authorName: string;
   taskTitle: string;
+  taskNumber: number;
   excerpt: string;
   taskUrl: string;
 }) {
   await safeSend({
     to: opts.to,
-    subject: `New note on "${opts.taskTitle}"`,
+    subject: `New note [${formatTaskNumber(opts.taskNumber)}] on "${opts.taskTitle}"`,
     html: wrapEmail(
       "New note on a task",
       `

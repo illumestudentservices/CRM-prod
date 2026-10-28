@@ -61,21 +61,21 @@ try {
   let r = await api(editor.jar, "PATCH", `/api/hr/tasks/${t1.id}`, { status: "DONE" });
   expect(r.status === 200, "status change accepted", `got ${r.status}: ${JSON.stringify(r.payload)?.slice(0,160)}`);
   await sleep(1500);
-  expect(emailed(newEmailLines(), rm.email, `Task updated: ${TAG} complete-me`), "manager got the update email");
+  expect(emailed(newEmailLines(), rm.email, `${TAG} complete-me`), "manager got the update email");
 
   // ── 2. Change priority → manager emailed ────────────────────────────────
   startSection("Employee changes priority → manager emailed");
   r = await api(editor.jar, "PATCH", `/api/hr/tasks/${t2.id}`, { priority: "HIGH" });
   expect(r.status === 200, "priority change accepted", `got ${r.status}`);
   await sleep(1500);
-  expect(emailed(newEmailLines(), rm.email, `Task updated: ${TAG} edit-me`), "manager got the priority-change email");
+  expect(emailed(newEmailLines(), rm.email, `${TAG} edit-me`), "manager got the priority-change email");
 
   // ── 3. Change due date → manager emailed ────────────────────────────────
   startSection("Employee changes due date → manager emailed");
   r = await api(editor.jar, "PATCH", `/api/hr/tasks/${t2.id}`, { dueDate: new Date(Date.now() + 5 * 86400000).toISOString() });
   expect(r.status === 200, "due date change accepted", `got ${r.status}`);
   await sleep(1500);
-  expect(emailed(newEmailLines(), rm.email, `Task updated: ${TAG} edit-me`), "manager got the due-date-change email");
+  expect(emailed(newEmailLines(), rm.email, `${TAG} edit-me`), "manager got the due-date-change email");
 
   // ── 4. Minor edit (description) → NO email ───────────────────────────────
   startSection("Minor edit (description only) → manager NOT emailed");

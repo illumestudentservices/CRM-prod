@@ -2936,6 +2936,10 @@ model Task {
   /// `reminders` below, one row per notice actually sent.
   reminderSentAt   DateTime?
   reminders        TaskReminder[]
+  /// Human-readable, globally-unique ticket number (e.g. TSK-000123), assigned
+  /// by a DB sequence so every task — past and future — has one and they never
+  /// collide. Distinct from `id` (a UUID) which stays the internal key.
+  taskNumber       Int           @unique @default(autoincrement())
   /// The ticket-style notes thread between the task's assignee and its creator.
   comments         TaskComment[]
   /// Spec Tasks §8 — the reminder cron sets this when an overdue task was

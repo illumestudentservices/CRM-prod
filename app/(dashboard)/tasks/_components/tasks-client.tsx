@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTaskNumber } from "@/lib/utils";
 import {
   Plus,
   Loader2,
@@ -56,6 +56,7 @@ import { MessageSquare } from "lucide-react";
 
 interface TaskItem {
   id: string;
+  taskNumber: number;
   title: string;
   description: string | null;
   priority: string;
@@ -418,6 +419,7 @@ export function TasksClient({
 
             <ExportButton
               data={filtered.map((t) => ({
+                ticket: formatTaskNumber(t.taskNumber),
                 title: t.title,
                 status: STATUS_LABELS[t.status] ?? t.status,
                 priority: PRIORITY_LABELS[t.priority] ?? t.priority,
@@ -428,6 +430,7 @@ export function TasksClient({
                 createdAt: formatDate(t.createdAt),
               }))}
               columns={[
+                { key: "ticket", header: "Ticket" },
                 { key: "title", header: "Title" },
                 { key: "status", header: "Status" },
                 { key: "priority", header: "Priority" },
@@ -708,6 +711,7 @@ export function TasksClient({
                       <div className="flex items-start gap-1.5">
                         <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                         <div>
+                          <p className="text-[11px] font-mono text-muted-foreground leading-tight">{formatTaskNumber(task.taskNumber)}</p>
                           <p className="font-medium text-sm">{task.title}</p>
                           {task.description && (
                             <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">

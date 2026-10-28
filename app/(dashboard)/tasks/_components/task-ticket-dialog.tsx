@@ -23,13 +23,14 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
-import { formatDate, formatRelative } from "@/lib/utils";
+import { formatDate, formatRelative, formatTaskNumber } from "@/lib/utils";
 import { Loader2, Send, Paperclip, MessageSquare } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface TicketTask {
   id: string;
+  taskNumber: number;
   title: string;
   description: string | null;
   priority: string;
@@ -192,6 +193,7 @@ export function TaskTicketDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
+          <p className="text-xs font-mono text-muted-foreground">{formatTaskNumber(task.taskNumber)}</p>
           <DialogTitle className="flex items-start gap-2 pr-6">
             <span className="flex-1">{task.title}</span>
           </DialogTitle>
