@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assignableEmployees } from "@/lib/task-assignment";
+import type { Role } from "@/lib/permissions";
 import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { PageHeader } from "@/components/shared/page-header";
@@ -69,10 +70,12 @@ async function getVisibleTasks(userId: string) {
  * task has been written out. Built from the same helper the API enforces with,
  * so the list and the rule cannot drift apart.
  */
-async function getAssignableEmployees(userId: string) {
+async function getAssignableEmployees(userId: string, role: Role) {
+  // A super admin may assign to anyone, so they do not need an Employee record
+  // of their own to get the full roster.
   const me = await db.employee.findFirst({ where: { userId }, select: { id: true } });
-  if (!me) return [];
-  return assignableEmployees(me.id);
+  if (!me && role !== "SUPER_ADMIN") return [];
+  return assignableEmployees(me?.id ?? "", role);
 }
 
 export default async function TasksPage() {
@@ -84,7 +87,7 @@ export default async function TasksPage() {
 
   const [tasks, employees, templates] = await Promise.all([
     getVisibleTasks(session.user.id),
-    getAssignableEmployees(session.user.id),
+    getAssignableEmployees(session.user.id, session.user.role as Role),
     canWrite
       ? db.taskTemplate.findMany({
           orderBy: [{ isActive: "desc" }, { name: "asc" }],

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     // Firing a template is creating several tasks at once, so it answers to
     // the same rule — otherwise it would be the widest hole of the five.
     const assigneeId = parsed.data.assigneeId ?? employee.id;
-    const refusal = await refuseAssignment(employee.id, assigneeId);
+    const refusal = await refuseAssignment(employee.id, assigneeId, role as Role);
     if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
 
     const opts = {

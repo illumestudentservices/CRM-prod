@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     // the reminder job then has to guess a recipient for.
     const assigneeId = data.assigneeId ?? creator.id;
 
-    const refusal = await refuseAssignment(creator.id, assigneeId);
+    const refusal = await refuseAssignment(creator.id, assigneeId, role as Role);
     if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
 
     const task = await db.task.create({

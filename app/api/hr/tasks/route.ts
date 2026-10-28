@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
   // Same two rules as /api/tasks, and the same default: unassigned becomes
   // self-assigned rather than ownerless.
   const assigneeId = data.assigneeId ?? employee.id;
-  const refusal = await refuseAssignment(employee.id, assigneeId);
+  const refusal = await refuseAssignment(employee.id, assigneeId, session.user.role as Role);
   if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
 
   const task = await db.task.create({

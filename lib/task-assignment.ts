@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
+import type { Role } from "@/lib/permissions";
 
 /**
  * Who may be given a task, and by whom.
@@ -10,11 +11,14 @@ import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
  *   • you may give a task to someone who REPORTS DIRECTLY TO YOU
  *   • there is no third way
  *
- * No role is exempt, including SUPER_ADMIN. That is the point of it: a task is
- * a commitment made on somebody's behalf, and the person who answers for that
- * commitment is their line manager. An admin who needs a task done two levels
- * down asks the manager in between, which is also how the work would be chased
- * if it slipped.
+ * ★ EXCEPTION: a SUPER_ADMIN may assign a task to ANY active employee.
+ *
+ * The narrow rule exists because a task is a commitment made on somebody's
+ * behalf, and ordinarily the person who answers for it is their line manager.
+ * A super admin answers for the whole organisation, so they are the one role
+ * allowed to raise a task directly on anyone — otherwise an admin coordinating
+ * work across teams has to walk it down the management chain by hand. Every
+ * other role still asks the manager in between.
  *
  * ★ WHY THIS IS ENFORCED IN FIVE PLACES AND NOT ONE.
  *
@@ -42,7 +46,8 @@ export type AssignmentRefusal = { status: 403 | 404; error: string };
  */
 export async function refuseAssignment(
   creatorEmployeeId: string,
-  assigneeId: string
+  assigneeId: string,
+  actorRole?: Role
 ): Promise<AssignmentRefusal | null> {
   // Yourself. The common case, and the one that must never need a lookup.
   if (assigneeId === creatorEmployeeId) return null;
@@ -58,6 +63,10 @@ export async function refuseAssignment(
   if (!assignee) {
     return { status: 404, error: "That employee was not found." };
   }
+
+  // A super admin may assign to anyone active — checked AFTER existence so an
+  // admin still cannot assign to a departed colleague or a made-up id.
+  if (actorRole === "SUPER_ADMIN") return null;
 
   if (assignee.managerId === creatorEmployeeId) return null;
 
@@ -78,7 +87,15 @@ export async function refuseAssignment(
  * than no dropdown at all — it is a worse one, because the refusal arrives
  * after the person has written the task out.
  */
-export async function assignableEmployees(employeeId: string) {
+export async function assignableEmployees(employeeId: string, actorRole?: Role) {
+  // A super admin may pick anyone active, so their dropdown is the whole roster.
+  if (actorRole === "SUPER_ADMIN") {
+    return db.employee.findMany({
+      where: { ...ACTIVE_EMPLOYEE },
+      include: { user: { select: { id: true, name: true, image: true } } },
+      orderBy: { user: { name: "asc" } },
+    });
+  }
   const [self, reports] = await Promise.all([
     db.employee.findFirst({
       where: { id: employeeId, ...ACTIVE_EMPLOYEE },

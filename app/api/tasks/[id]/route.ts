@@ -116,7 +116,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       if (!actor) {
         return NextResponse.json({ error: "No Employee profile for the signed-in user" }, { status: 409 });
       }
-      const refusal = await refuseAssignment(actor.id, reassigningTo);
+      const refusal = await refuseAssignment(actor.id, reassigningTo, role as Role);
       if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
     }
 
