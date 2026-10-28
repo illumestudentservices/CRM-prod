@@ -126,9 +126,9 @@ interface InstitutionTabsClientProps {
   strategicObjectives: string | null;
   /// Spec §2 (Clients) — student pipeline panel data (all leads with stage).
   leads: Array<{ id: string; stage: LeadStage }>;
-  /// When false, the figure tabs (Governance, Overview, Contracts, Engagement,
-  /// Issues, KPIs) are hidden — read-only roles like ICR get the details and
-  /// people only: Team, Contacts and Documents.
+  /// When false, the figure/commercial tabs (Governance, Overview, Contracts,
+  /// Engagement, Issues, KPIs, Documents) are hidden — read-only roles like ICR
+  /// get the people only: Team and Contacts.
   showFigures?: boolean;
 }
 
@@ -163,11 +163,11 @@ export function InstitutionTabsClient({
         {showFigures && <TabsTrigger value="engagement">Engagement ({counts.engagementLogs})</TabsTrigger>}
         {showFigures && <TabsTrigger value="issues">Issues</TabsTrigger>}
         {showFigures && <TabsTrigger value="kpis">KPIs</TabsTrigger>}
-        <TabsTrigger value="documents">Documents</TabsTrigger>
+        {showFigures && <TabsTrigger value="documents">Documents</TabsTrigger>}
       </TabsList>
 
       {/* Figure tabs (Governance, Issues, Overview) — hidden for read-only
-          roles like ICR, who see Team / Contacts / Documents only. */}
+          roles like ICR, who see Team and Contacts only. */}
       {showFigures && (
       <>
       {/* Governance Dashboard */}
@@ -322,7 +322,8 @@ export function InstitutionTabsClient({
       </>
       )}
 
-      {/* Documents */}
+      {/* Documents — client files (contracts, agreements), hidden for ICR. */}
+      {showFigures && (
       <TabsContent value="documents" className="mt-4">
         <Card>
           <CardContent className="p-0">
@@ -366,6 +367,7 @@ export function InstitutionTabsClient({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
     </Tabs>
   );
 }

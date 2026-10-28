@@ -50,9 +50,9 @@ try {
     expect((await p.getByRole("tab", { name: t }).count()) === 0, `no '${t}' tab`);
   }
   expect((await p.getByRole("tab", { name: /^Contracts/ }).count()) === 0, "no Contracts tab");
+  expect((await p.getByRole("tab", { name: "Documents" }).count()) === 0, "no Documents tab");
   expect((await p.getByRole("tab", { name: "Team" }).count()) >= 1, "Team tab present");
   expect((await p.getByRole("tab", { name: /^Contacts/ }).count()) >= 1, "Contacts tab present");
-  expect((await p.getByRole("tab", { name: "Documents" }).count()) >= 1, "Documents tab present");
   await p.close();
 
   // ── REGIONAL_MANAGER control: figures shown ─────────────────────────
