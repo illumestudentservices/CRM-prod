@@ -136,7 +136,7 @@ const listLeadsQuerySchema = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  sortBy: z.enum(["createdAt", "updatedAt", "lastName", "stage"]).default("createdAt"),
+  sortBy: z.enum(["createdAt", "updatedAt", "lastName", "stage", "lastContactedAt", "lastProgressedAt"]).default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 

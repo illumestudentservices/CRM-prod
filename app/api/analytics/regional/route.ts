@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { NO_REGION } from "@/lib/region-scope";
 
 export async function GET(req: NextRequest) {
@@ -17,9 +18,12 @@ export async function GET(req: NextRequest) {
       regionId: string | null;
     };
 
-    // Only RM and above can access regional analytics
+    // Only RM and above can access regional analytics — AND the granular
+    // analytics:read permission, so a DB override revoking it actually blocks
+    // this route (the other two analytics endpoints already check both; this
+    // one previously relied on the role array alone).
     const allowedRoles: Role[] = ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER"];
-    if (!allowedRoles.includes(role)) {
+    if (!allowedRoles.includes(role) || !(await effectiveHasPermission(role, "analytics", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -69,7 +73,9 @@ export async function GET(req: NextRequest) {
             select: { id: true, name: true, email: true },
           })
         ),
-      db.lead.groupBy({ by: ["sourceId"], where: { ...regionFilter, deletedAt: null, sourceId: { not: null } }, _count: { sourceId: true }, orderBy: { _count: { sourceId: "desc" } }, take: 10 }),
+      // Source performance is a YTD metric, matching icrPerformance below, so
+      // one screen is not half-YTD and half-all-time.
+      db.lead.groupBy({ by: ["sourceId"], where: { ...regionFilter, deletedAt: null, sourceId: { not: null }, createdAt: { gte: ytdStart } }, _count: { sourceId: true }, orderBy: { _count: { sourceId: "desc" } }, take: 10 }),
       db.event.findMany({ where: { ...regionFilter, deletedAt: null, date: { gte: now }, status: { in: ["PLANNED", "CONFIRMED"] } }, orderBy: { date: "asc" }, take: 10, select: { id: true, name: true, type: true, date: true, city: true, country: true, status: true } }),
       db.monthlyReport.findMany({ where: { ...(regionId ? { regionId } : {}), status: { in: ["PENDING_REVIEW", "REGIONAL_APPROVED"] }, deletedAt: null }, orderBy: { submittedAt: "asc" }, take: 20, include: { icr: { select: { id: true, name: true } }, institution: { select: { id: true, name: true } } } }),
     ]);
@@ -129,6 +135,7 @@ export async function GET(req: NextRequest) {
         deletedAt: null,
         stage: "ENROLLED",
         sourceId: { in: sourceIds },
+        createdAt: { gte: ytdStart },
       },
       _count: { sourceId: true },
     });

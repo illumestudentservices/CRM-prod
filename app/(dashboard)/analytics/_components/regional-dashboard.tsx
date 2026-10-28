@@ -272,8 +272,8 @@ export function RegionalDashboard() {
       {/* Source Performance */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Source Performance</CardTitle>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Lead generation by source in this region</p>
+          <CardTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">Source Performance (YTD)</CardTitle>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Lead generation by source in this region, this year</p>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -316,7 +316,7 @@ export function RegionalDashboard() {
                       open: true,
                       title: `Leads from ${entry.name as string}`,
                       description: "Students acquired through this source",
-                      filters: { search: entry.name as string },
+                      filters: entry.sourceId ? { sourceId: entry.sourceId as string } : { search: entry.name as string },
                     })
                   }
                 />
@@ -332,7 +332,9 @@ export function RegionalDashboard() {
                       open: true,
                       title: `Enrolled leads from ${entry.name as string}`,
                       description: "Students enrolled through this source",
-                      filters: { search: entry.name as string, stage: "ENROLLED" },
+                      filters: entry.sourceId
+                        ? { sourceId: entry.sourceId as string, stage: "ENROLLED" }
+                        : { search: entry.name as string, stage: "ENROLLED" },
                     })
                   }
                 />
@@ -361,7 +363,7 @@ export function RegionalDashboard() {
                 {data.upcomingEvents.map((event) => (
                   <button
                     key={event.id}
-                    onClick={() => router.push(`/events`)}
+                    onClick={() => router.push(`/events/${event.id}`)}
                     className="w-full text-left flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded px-2 -mx-2 transition-colors"
                   >
                     <div className="min-w-0">

@@ -178,18 +178,22 @@ export function ExecutiveDashboard({
   const [drill, setDrill] = useState<DrillDown>(CLOSED_DRILL);
   const [execData, setExecData] = useState<ExecutiveData | null>(null);
   const [execLoading, setExecLoading] = useState(true);
+  const [execError, setExecError] = useState<string | null>(null);
 
   // Fetch executive command centre data (not date-range dependent)
   useEffect(() => {
     async function fetchExecData() {
       setExecLoading(true);
+      setExecError(null);
       try {
         const res = await fetch("/api/analytics/executive");
-        if (res.ok) {
-          const json = await res.json();
-          setExecData(json);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setExecData(json);
       } catch (e) {
+        // Previously only console.error'd — a failed load left the Command
+        // Centre silently blank with no explanation.
+        setExecError("Failed to load the executive command centre.");
         console.error("Failed to load executive data", e);
       } finally {
         setExecLoading(false);
@@ -253,11 +257,6 @@ export function ExecutiveDashboard({
     thisYear: m.current,
     lastYear: m.lastYear,
   }));
-
-  const combinedExportData = [
-    ...trendExportData,
-    ...marketsExportData.map((m) => ({ month: "", thisYear: 0, lastYear: 0, ...m })),
-  ];
 
   return (
     <div className="space-y-6">
@@ -638,7 +637,11 @@ export function ExecutiveDashboard({
       {/* ── Executive Command Centre Widgets ─────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {/* Revenue Widget */}
-        <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-emerald-500">
+        <Card
+          className="group hover:shadow-md transition-shadow border-t-4 border-t-emerald-500 cursor-pointer active:scale-[0.99]"
+          onClick={() => router.push("/institutions")}
+          title="Open Clients"
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/15">
@@ -684,7 +687,11 @@ export function ExecutiveDashboard({
         </Card>
 
         {/* Delivery Widget */}
-        <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-blue-500">
+        <Card
+          className="group hover:shadow-md transition-shadow border-t-4 border-t-blue-500 cursor-pointer active:scale-[0.99]"
+          onClick={() => router.push("/field-operations")}
+          title="Open Field Operations"
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/15">
@@ -758,7 +765,11 @@ export function ExecutiveDashboard({
         </Card>
 
         {/* Market Coverage Widget */}
-        <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-violet-500">
+        <Card
+          className="group hover:shadow-md transition-shadow border-t-4 border-t-violet-500 cursor-pointer active:scale-[0.99]"
+          onClick={() => router.push("/recruitment-network")}
+          title="Open Recruitment Network"
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-500/15">
@@ -842,7 +853,21 @@ export function ExecutiveDashboard({
                     {(execData?.teamPerformance.topICRs ?? []).map((icr, idx) => {
                       const maxLeads = execData?.teamPerformance.topICRs[0]?.leads ?? 1;
                       return (
-                        <div key={icr.id ?? idx} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          key={icr.id ?? idx}
+                          disabled={!icr.id}
+                          onClick={() =>
+                            icr.id &&
+                            setDrill({
+                              open: true,
+                              title: `Leads — ${icr.name}`,
+                              description: "Students owned by this team member",
+                              filters: { assignedICRId: icr.id },
+                            })
+                          }
+                          className="w-full text-left flex items-center gap-2 rounded px-1 -mx-1 py-0.5 enabled:hover:bg-slate-50 dark:enabled:hover:bg-slate-800/60 enabled:cursor-pointer transition-colors"
+                        >
                           <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                             idx === 0 ? "bg-amber-400 text-white" :
                             idx === 1 ? "bg-slate-300 text-white" :
@@ -863,7 +888,7 @@ export function ExecutiveDashboard({
                               />
                             </div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                     {(execData?.teamPerformance.topICRs ?? []).length === 0 && (
@@ -877,7 +902,11 @@ export function ExecutiveDashboard({
         </Card>
 
         {/* Risk Widget */}
-        <Card className="group hover:shadow-md transition-shadow border-t-4 border-t-rose-500">
+        <Card
+          className="group hover:shadow-md transition-shadow border-t-4 border-t-rose-500 cursor-pointer active:scale-[0.99]"
+          onClick={() => router.push("/risk-compliance")}
+          title="Open Risk & Compliance"
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-500/15">
@@ -959,9 +988,10 @@ export function ExecutiveDashboard({
         </Card>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300">
-          {error}
+      {(error || execError) && (
+        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-sm text-red-600 dark:text-red-300 space-y-1">
+          {error && <div>{error}</div>}
+          {execError && <div>{execError}</div>}
         </div>
       )}
 

@@ -98,7 +98,7 @@ export function ICRDashboard() {
           const now48h = Date.now() - 48 * 60 * 60 * 1000;
           const now7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-          const needsAttention = (leadsJson.leads ?? []).filter((lead: LeadAttention) => {
+          const needsAttention = (leadsJson.data ?? []).filter((lead: LeadAttention) => {
             const lastContact = lead.lastContactedAt ? new Date(lead.lastContactedAt).getTime() : 0;
             const lastProgress = lead.lastProgressedAt ? new Date(lead.lastProgressedAt).getTime() : 0;
             const notContacted48h = lastContact < now48h;
@@ -108,7 +108,7 @@ export function ICRDashboard() {
           setAttentionLeads(needsAttention.slice(0, 10));
 
           const srcMap: Record<string, number> = {};
-          for (const lead of leadsJson.leads ?? []) {
+          for (const lead of leadsJson.data ?? []) {
             if (lead.source?.name) {
               srcMap[lead.source.name] = (srcMap[lead.source.name] ?? 0) + 1;
             }
@@ -202,10 +202,14 @@ export function ICRDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="New This Month" value={loading ? "—" : newLeads} icon={Users} iconColor="text-[#0EA5E9]" iconBg="bg-[#0EA5E9]/10" loading={loading} />
-        <StatCard title="In Progress" value={loading ? "—" : inProgress} icon={TrendingUp} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" loading={loading} />
-        <StatCard title="Enrolled" value={loading ? "—" : enrolled} icon={GraduationCap} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" loading={loading} />
-        <StatCard title="Total (YTD)" value={loading ? "—" : totalLeads} icon={ListChecks} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" loading={loading} />
+        <StatCard title="New This Month" value={loading ? "—" : newLeads} icon={Users} iconColor="text-[#0EA5E9]" iconBg="bg-[#0EA5E9]/10" loading={loading}
+          onClick={() => setDrill({ open: true, title: "My New Leads", description: "Your leads at the New Lead stage", filters: { stage: "NEW_LEAD" } })} />
+        <StatCard title="In Progress" value={loading ? "—" : inProgress} icon={TrendingUp} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" loading={loading}
+          href="/students" />
+        <StatCard title="Enrolled" value={loading ? "—" : enrolled} icon={GraduationCap} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" loading={loading}
+          onClick={() => setDrill({ open: true, title: "My Enrolled Students", description: "Your leads that reached Enrolled", filters: { stage: "ENROLLED" } })} />
+        <StatCard title="Total (YTD)" value={loading ? "—" : totalLeads} icon={ListChecks} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" loading={loading}
+          href="/students" />
       </div>
 
       <div className="grid grid-cols-12 gap-4">

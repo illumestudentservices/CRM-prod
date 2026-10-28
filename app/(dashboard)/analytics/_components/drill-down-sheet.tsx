@@ -53,20 +53,31 @@ export function DrillDownSheet({
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const filtersKey = JSON.stringify(filters);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setFailed(false);
     const params = new URLSearchParams({ limit: "50", ...filters });
     fetch(`/api/leads?${params.toString()}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((json) => {
         setLeads(json.data ?? []);
         setTotal(json.meta?.total ?? (json.data ?? []).length);
       })
-      .catch(console.error)
+      .catch((e) => {
+        // A failed drill used to fall through to the empty "No leads found"
+        // state, which reads as "there are none" rather than "it broke".
+        setFailed(true);
+        setLeads([]);
+        console.error(e);
+      })
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, filtersKey]);
@@ -91,6 +102,10 @@ export function DrillDownSheet({
               {Array(6).fill(0).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-full" />
               ))}
+            </div>
+          ) : failed ? (
+            <div className="text-center py-16 text-red-500 dark:text-red-400">
+              <p className="text-sm">Couldn&apos;t load these records. Please try again.</p>
             </div>
           ) : leads.length === 0 ? (
             <div className="text-center py-16 text-slate-400 dark:text-slate-500">
