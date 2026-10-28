@@ -96,7 +96,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
               await db.user.update({
                 where: { id: user.id },
-                data: { loginAttempts: 0, lockedUntil: lockUntil },
+                // `sessionsRevokedAt` kills any still-open sessions for this
+                // account the moment it locks: the jwt live-check refuses every
+                // token issued before this stamp, so a locked-out account is
+                // signed out everywhere, not just blocked at the login form.
+                data: { loginAttempts: 0, lockedUntil: lockUntil, sessionsRevokedAt: new Date() },
               });
               console.log(`[auth] Account LOCKED for ${email} until ${lockUntil}`);
               void notifyAccountLocked(user.email, user.name ?? user.email, lockUntil);
