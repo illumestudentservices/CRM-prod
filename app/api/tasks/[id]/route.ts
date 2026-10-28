@@ -8,7 +8,7 @@ import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { taskRelation } from "@/lib/task-visibility";
 import { refuseAssignment } from "@/lib/task-assignment";
-import { notifyTaskAssigned } from "@/lib/task-notify";
+import { notifyTaskAssigned, notifyManagerOfTaskUpdate, summariseKeyTaskChanges } from "@/lib/task-notify";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     // startedAt).
     const existing = await db.task.findUnique({
       where: { id },
-      select: { status: true, startedAt: true, assigneeId: true },
+      select: { status: true, startedAt: true, assigneeId: true, priority: true, dueDate: true },
     });
     if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
@@ -136,6 +136,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         reason: "reassigned",
       });
     }
+
+    // Tell the editor's manager about the key change. Built from the APPLIED
+    // patch so stripped or computed fields are never reported, and compared
+    // against the pre-update row so a no-op PATCH says nothing.
+    void notifyManagerOfTaskUpdate({
+      taskId: updated.id,
+      actorUserId: userId,
+      changes: summariseKeyTaskChanges(patch, existing),
+    });
 
     return NextResponse.json(updated);
   } catch (err) {

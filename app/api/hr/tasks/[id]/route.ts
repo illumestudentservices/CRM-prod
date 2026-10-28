@@ -7,7 +7,7 @@ import type { Role } from "@/lib/permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { refuseAssignment } from "@/lib/task-assignment";
-import { notifyTaskAssigned } from "@/lib/task-notify";
+import { notifyTaskAssigned, notifyManagerOfTaskUpdate, summariseKeyTaskChanges } from "@/lib/task-notify";
 
 // HR_ROLES was removed on 2026-10-09. Being in HR is not a relationship to
 // a task, and it was the only thing standing between an HR account and every
@@ -128,6 +128,15 @@ export async function PATCH(
       reason: "reassigned",
     });
   }
+
+  // Tell the editor's manager about the key change. Summarised from the data
+  // actually applied (non-creators are stripped to status-only above) against
+  // the row as it was before this PATCH.
+  void notifyManagerOfTaskUpdate({
+    taskId: updated.id,
+    actorUserId: session.user.id,
+    changes: summariseKeyTaskChanges(updateData, task),
+  });
 
   return NextResponse.json({ task: updated });
 }

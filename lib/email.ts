@@ -1844,6 +1844,65 @@ export async function sendTaskAssignedEmail(opts: {
   });
 }
 
+/**
+ * Tells a manager their team member changed a task. Covers the key events only
+ * — completed, cancelled, reassigned, re-dated, re-prioritised — one line per
+ * change, so the manager can see what moved without opening the task.
+ */
+export async function sendTaskUpdatedEmail(opts: {
+  to: string;
+  managerName: string;
+  actorName: string;
+  taskTitle: string;
+  taskId: string;
+  changes: string[];
+  status?: string;
+  priority?: string;
+  /// Already formatted, or undefined when the task has no deadline.
+  dueDate?: string;
+  taskUrl: string;
+}) {
+  const changeLine = opts.changes.join("; ");
+  const statusLabel = opts.status ? opts.status.replace(/_/g, " ") : undefined;
+
+  await safeSend({
+    to: opts.to,
+    subject: `Task updated: ${opts.taskTitle}`,
+    html: wrapEmail(
+      "Task updated",
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:23px;font-weight:700;color:${INK};line-height:1.3;">
+        A task was updated
+      </h1>
+      <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.managerName}, ${opts.actorName} ${changeLine}.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid ${HAIRLINE};border-radius:10px;margin:20px 0 0;">
+        <tr>
+          <td style="padding:16px 20px;font-family:${FONT};">
+            <div style="font-size:16px;font-weight:700;color:${INK};line-height:1.4;">${opts.taskTitle}</div>
+            <ul style="margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.7;color:${MUTED};">
+              ${opts.changes.map((c) => `<li>${opts.actorName} ${c}</li>`).join("")}
+            </ul>
+          </td>
+        </tr>
+      </table>
+
+      ${infoTable([
+        ...(statusLabel ? [["Current status", statusLabel] as [string, string]] : []),
+        ...(opts.priority ? [["Priority", opts.priority] as [string, string]] : []),
+        ["Due date", opts.dueDate ?? "No deadline set"],
+        ["Updated by", opts.actorName],
+      ])}
+
+      ${ctaButton("Open the task", opts.taskUrl)}
+      `,
+      `${opts.actorName} updated: ${opts.taskTitle}`
+    ),
+  });
+}
+
 // ─── ADMIN ALERT (serious, hard-to-undo actions) ──────────────────────────────
 
 /**
