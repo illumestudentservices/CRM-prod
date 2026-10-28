@@ -132,6 +132,80 @@ export async function notifyManagerOfTaskUpdate(opts: {
 }
 
 /**
+ * A note was posted to a task's thread. Tells the OTHER person on the task —
+ * the manager (creator) when the assignee writes, the assignee when the manager
+ * writes — by email and in-app bell. A task where one person is both creator
+ * and assignee has nobody else to tell.
+ *
+ * Fire-and-forget; never throws.
+ */
+export async function notifyTaskComment(opts: {
+  taskId: string;
+  actorUserId?: string; // deprecated alias, kept for callers; prefer authorUserId
+  authorUserId?: string;
+  body: string;
+}): Promise<boolean> {
+  const authorUserId = opts.authorUserId ?? opts.actorUserId;
+  if (!authorUserId) return false;
+  try {
+    const task = await db.task.findUnique({
+      where: { id: opts.taskId },
+      select: {
+        id: true,
+        title: true,
+        assignee: { select: { user: { select: { id: true, name: true, email: true, isActive: true, deletedAt: true } } } },
+        createdBy: { select: { user: { select: { id: true, name: true, email: true, isActive: true, deletedAt: true } } } },
+      },
+    });
+    if (!task) return false;
+
+    const author =
+      task.assignee?.user?.id === authorUserId
+        ? task.assignee.user
+        : task.createdBy?.user?.id === authorUserId
+          ? task.createdBy.user
+          : null;
+    const authorName = author?.name ?? "A colleague";
+
+    // The counterpart: the task's other person. Deduped so a self-assigned task
+    // (creator === assignee) notifies nobody.
+    const candidates = [task.assignee?.user, task.createdBy?.user].filter(
+      (u): u is NonNullable<typeof u> => !!u && u.id !== authorUserId && u.isActive && !u.deletedAt
+    );
+    const recipient = candidates.find((u) => !!u.email) ?? candidates[0] ?? null;
+    if (!recipient) return false;
+
+    await db.notification
+      .create({
+        data: {
+          userId: recipient.id,
+          title: "New note on a task",
+          message: `${authorName}: ${opts.body.slice(0, 120)}`,
+          type: "TASK_COMMENT",
+          link: `/tasks?taskId=${task.id}`,
+        },
+      })
+      .catch(() => { /* the email is the record; the bell is a bonus */ });
+
+    if (!recipient.email) return false;
+
+    const { sendTaskCommentEmail } = await import("@/lib/email");
+    await sendTaskCommentEmail({
+      to: recipient.email,
+      recipientName: recipient.name ?? "there",
+      authorName,
+      taskTitle: task.title,
+      excerpt: opts.body.slice(0, 500),
+      taskUrl: `${process.env.NEXTAUTH_URL ?? ""}/tasks?taskId=${task.id}`,
+    });
+    return true;
+  } catch (err) {
+    console.error("[task-notify] comment notify failed for task", opts.taskId, err);
+    return false;
+  }
+}
+
+/**
  * The first notice in a task's life: an email the moment it lands on someone.
  *
  * ★ WHY THIS IS ONE FUNCTION AND NOT FOUR CALL SITES.

@@ -1903,6 +1903,52 @@ export async function sendTaskUpdatedEmail(opts: {
   });
 }
 
+/**
+ * A note was added to a task's thread — sent to the other person on the task so
+ * the conversation works like a ticket: you hear the moment the other side
+ * replies.
+ */
+export async function sendTaskCommentEmail(opts: {
+  to: string;
+  recipientName: string;
+  authorName: string;
+  taskTitle: string;
+  excerpt: string;
+  taskUrl: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `New note on "${opts.taskTitle}"`,
+    html: wrapEmail(
+      "New note on a task",
+      `
+      <h1 style="margin:0 0 10px;font-family:${FONT};font-size:23px;font-weight:700;color:${INK};line-height:1.3;">
+        ${opts.authorName} added a note
+      </h1>
+      <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
+        Hi ${opts.recipientName}, there is a new note on the task <strong>${opts.taskTitle}</strong>.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid ${HAIRLINE};border-radius:10px;margin:20px 0 0;">
+        <tr>
+          <td style="padding:16px 20px;font-family:${FONT};">
+            <div style="font-size:12px;font-weight:600;color:${MUTED};text-transform:uppercase;letter-spacing:.04em;">${opts.authorName}</div>
+            <div style="font-size:14px;line-height:1.65;color:${INK};margin-top:6px;white-space:pre-wrap;">${opts.excerpt}</div>
+          </td>
+        </tr>
+      </table>
+
+      ${ctaButton("Open the task", opts.taskUrl)}
+
+      <p style="margin:18px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">
+        Reply by opening the task and adding your own note.
+      </p>
+      `,
+      `${opts.authorName} added a note to: ${opts.taskTitle}`
+    ),
+  });
+}
+
 // ─── ADMIN ALERT (serious, hard-to-undo actions) ──────────────────────────────
 
 /**

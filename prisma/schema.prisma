@@ -986,6 +986,7 @@ model User {
 
   assignedLeads     Lead[]            @relation("AssignedICR")
   assignedInterests InstitutionInterest[] @relation("InterestAssignedICR")
+  taskComments      TaskComment[]     @relation("TaskCommentAuthor")
 
   // ─── Redesign back-refs (Phase 4–7) ─────────────────────────────────────
   managedMarkets      Market[]                 @relation("MarketRegionalManager")
@@ -1707,6 +1708,22 @@ model LeadNote {
   updatedAt DateTime @updatedAt
 
   @@map("lead_notes")
+}
+
+/// The notes thread on a task — a back-and-forth between the task's assignee
+/// and its creator (the manager). Append-only; access follows the task's own
+/// assignee/creator rule in lib/task-visibility.ts.
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("TaskCommentAuthor", fields: [authorId], references: [id])
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
 }
 
 model LeadDocument {
@@ -2919,6 +2936,8 @@ model Task {
   /// `reminders` below, one row per notice actually sent.
   reminderSentAt   DateTime?
   reminders        TaskReminder[]
+  /// The ticket-style notes thread between the task's assignee and its creator.
+  comments         TaskComment[]
   /// Spec Tasks §8 — the reminder cron sets this when an overdue task was
   /// escalated to the RM.
   escalatedAt      DateTime?

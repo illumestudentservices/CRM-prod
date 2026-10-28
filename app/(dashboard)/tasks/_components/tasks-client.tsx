@@ -49,6 +49,8 @@ import {
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
+import { TaskTicketDialog } from "./task-ticket-dialog";
+import { MessageSquare } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ interface TaskItem {
   description: string | null;
   priority: string;
   status: string;
+  category?: string | null;
   dueDate: Date | string | null;
   completedAt: Date | string | null;
   createdAt: Date | string;
@@ -169,6 +172,8 @@ export function TasksClient({
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [attachmentsTask, setAttachmentsTask] = useState<TaskItem | null>(null);
+  // The task opened as a ticket (details + notes thread).
+  const [ticketTask, setTicketTask] = useState<TaskItem | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -656,6 +661,9 @@ export function TasksClient({
         </DialogContent>
       </Dialog>
 
+      {/* Ticket view — opened by clicking a task row */}
+      <TaskTicketDialog task={ticketTask} onOpenChange={(o) => !o && setTicketTask(null)} />
+
       {/* Tasks Table */}
       <Card>
         <CardContent className="p-0">
@@ -688,16 +696,23 @@ export function TasksClient({
                 </TableRow>
               ) : (
                 filtered.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow
+                    key={task.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setTicketTask(task)}
+                  >
                     {/* Title */}
                     <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                            {task.description}
-                          </p>
-                        )}
+                      <div className="flex items-start gap-1.5">
+                        <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
 
@@ -715,7 +730,7 @@ export function TasksClient({
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="cursor-pointer">
+                          <button className="cursor-pointer" onClick={(e) => e.stopPropagation()}>
                             <Badge
                               variant="outline"
                               className={`${STATUS_BADGE[task.status] || ""} cursor-pointer hover:opacity-80`}
@@ -780,6 +795,7 @@ export function TasksClient({
                       {task.sourceActivity ? (
                         <Link
                           href={`/activities`}
+                          onClick={(e) => e.stopPropagation()}
                           className="text-sm text-[#0EA5E9] dark:text-cyan-400 hover:underline flex items-center gap-1"
                         >
                           <ExternalLink className="h-3 w-3" />
@@ -799,7 +815,7 @@ export function TasksClient({
 
                     {/* Actions */}
                     <TableCell>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="sm"
