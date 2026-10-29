@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -56,14 +57,46 @@ export function LeaveSection({
   isOwnProfile: boolean;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [form, setForm] = useState({ leaveType: DEFAULT_LEAVE_TYPE, startDate: "", endDate: "", reason: "" });
 
   async function loadRequests() {
     const res = await fetch(`/api/hr/leave?employeeId=${employeeId}`);
     const data = await res.json();
     setRequests(data.requests || []);
+  }
+
+  /**
+   * Withdraw a pending request. A submitted request can't be edited, so this is
+   * how someone corrects wrong dates: withdraw, then apply again. Uses the
+   * existing PATCH endpoint, which reverses the pending balance; router.refresh()
+   * re-pulls the server-rendered balances so the freed days show immediately.
+   */
+  async function withdraw(id: string) {
+    if (!confirm("Withdraw this leave request? This can't be undone — you'll need to apply again if you still want the time off.")) return;
+    setWithdrawingId(id);
+    try {
+      const res = await fetch(`/api/hr/leave/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CANCELLED" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "Couldn't withdraw", description: data.error ?? "Please try again.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Leave request withdrawn" });
+      await loadRequests();
+      router.refresh();
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setWithdrawingId(null);
+    }
   }
 
   useEffect(() => { loadRequests(); }, [employeeId]);
@@ -170,7 +203,21 @@ export function LeaveSection({
                   <p className="font-medium">{leaveTypeLabel(r.leaveType)}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(r.startDate)} — {formatDate(r.endDate)} ({r.days}d)</p>
                 </div>
-                <Badge variant={STATUS_VARIANTS[r.status] ?? "secondary"}>{r.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={STATUS_VARIANTS[r.status] ?? "secondary"}>{r.status}</Badge>
+                  {/* A request can't be edited — the way to fix wrong dates is to
+                      withdraw and re-apply. Own profile + pending only. */}
+                  {isOwnProfile && r.status === "PENDING" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={withdrawingId === r.id}
+                      onClick={() => withdraw(r.id)}
+                    >
+                      {withdrawingId === r.id ? "Withdrawing…" : "Withdraw"}
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
         </CardContent>
