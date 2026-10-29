@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { logActivity } from "@/lib/activity-logger";
 
 /**
@@ -58,6 +59,11 @@ export async function GET(
   }
 
   const { id: institutionId } = await params;
+
+  if (!(await assertInstitutionVisible(institutionId, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+  }
+
   const status = req.nextUrl.searchParams.get("status");
   const severity = req.nextUrl.searchParams.get("severity");
 
@@ -96,6 +102,10 @@ export async function POST(
   }
   const userId = session.user.id;
   const { id: institutionId } = await params;
+
+  if (!(await assertInstitutionVisible(institutionId, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+  }
 
   // Verify the institution exists so a client-side typo doesn't create a
   // ghost issue with an FK-invalid parent.

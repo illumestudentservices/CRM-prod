@@ -59,6 +59,34 @@ export async function institutionIdsForUser(userId: string, role: Role): Promise
 }
 
 /**
+ * Object-level tenancy for an institution and anything hanging off it
+ * (contracts, deliverables, issues, KPIs, documents, engagement, health…).
+ *
+ * `institutions:read` is a MODULE grant, not a row grant: it lets an
+ * INSTITUTION_CLIENT into the institutions area, but every `/institutions/:id`
+ * and `/institutions/:id/*` route must still prove the id is one of theirs.
+ * Without this a client assigned to University A could read University B's
+ * contract values, issues and documents just by swapping the id in the URL.
+ *
+ * Every other role is scoped at the query/region layer already, so this is a
+ * no-op for them and callers can invoke it unconditionally. It returns a
+ * boolean; callers answer a disallowed request with 404 (not 403) so the route
+ * never confirms an id exists to someone not entitled to know.
+ *
+ * `role` is typed as string so the many API routes that carry
+ * `session.user.role` as a plain string need no extra import to call this.
+ */
+export async function assertInstitutionVisible(
+  institutionId: string,
+  userId: string,
+  role: string,
+): Promise<boolean> {
+  if (role !== "INSTITUTION_CLIENT") return true;
+  const ids = await institutionIdsForUser(userId, role as Role);
+  return ids.includes(institutionId);
+}
+
+/**
  * The Prisma `where` that scopes a LIST of leads to what a user may see.
  *
  * MUST agree with canAccessLead() above — this is the many-row form of the same

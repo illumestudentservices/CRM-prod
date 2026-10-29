@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── PATCH /api/institutions/:id/deliverables/:deliverableId ──────────────
@@ -18,6 +19,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id, deliverableId } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "Deliverable not found" }, { status: 404 });
+    }
 
     const existing = await db.deliverable.findFirst({
       where: { id: deliverableId, institutionId: id },
@@ -72,6 +77,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id, deliverableId } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "Deliverable not found" }, { status: 404 });
+    }
 
     const existing = await db.deliverable.findFirst({
       where: { id: deliverableId, institutionId: id },

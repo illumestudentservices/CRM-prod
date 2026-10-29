@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { type KPICategory, type KPIPeriod } from "@prisma/client";
 import { trashRecord } from "@/lib/recycle-bin";
 
@@ -19,6 +20,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id, kpiId } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "KPI not found" }, { status: 404 });
+    }
 
     const existing = await db.clientKPI.findFirst({
       where: { id: kpiId, institutionId: id },
@@ -78,6 +83,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id, kpiId } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "KPI not found" }, { status: 404 });
+    }
 
     const existing = await db.clientKPI.findFirst({
       where: { id: kpiId, institutionId: id },

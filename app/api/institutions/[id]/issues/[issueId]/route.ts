@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { trashRecord } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -40,6 +41,10 @@ export async function PATCH(
   }
 
   const { id: institutionId, issueId } = await params;
+
+  if (!(await assertInstitutionVisible(institutionId, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Issue not found" }, { status: 404 });
+  }
 
   const existing = await db.clientIssue.findFirst({
     where: { id: issueId, institutionId },
@@ -117,6 +122,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id: institutionId, issueId } = await params;
+
+  if (!(await assertInstitutionVisible(institutionId, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Issue not found" }, { status: 404 });
+  }
 
   const existing = await db.clientIssue.findFirst({
     where: { id: issueId, institutionId },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { differenceInDays } from "date-fns";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
 import { logActivity } from "@/lib/activity-logger";
@@ -19,6 +20,10 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+    }
 
     const institution = await db.institution.findUnique({
       where: { id },
@@ -62,6 +67,10 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
+
+    if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+      return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+    }
 
     const institution = await db.institution.findUnique({
       where: { id },

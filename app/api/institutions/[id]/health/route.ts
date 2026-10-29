@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { assertInstitutionVisible } from "@/lib/lead-access";
 import { hasCapability } from "@/lib/granular-permissions";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -47,6 +48,10 @@ export async function GET(
   }
   const { id } = await params;
 
+  if (!(await assertInstitutionVisible(id, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+  }
+
   const inst = await db.institution.findUnique({
     where: { id },
     select: { id: true, accountHealth: true },
@@ -89,6 +94,10 @@ export async function PATCH(
   }
   const userId = session.user.id;
   const { id: institutionId } = await params;
+
+  if (!(await assertInstitutionVisible(institutionId, session.user.id, session.user.role))) {
+    return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+  }
 
   let body: unknown;
   try {
