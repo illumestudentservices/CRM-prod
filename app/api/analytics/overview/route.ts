@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { regionScope } from "@/lib/region-scope";
+import { institutionIdsForUser } from "@/lib/lead-access";
 
 /**
  * Parses a range boundary, treating a date-only value as the whole of that day.
@@ -26,7 +27,12 @@ function parseBoundary(param: string | null, fallback: Date, endOfDay: boolean):
   return Number.isNaN(d.getTime()) ? fallback : d;
 }
 
-function buildScopeFilter(role: Role, userId: string, regionId: string | null) {
+function buildScopeFilter(
+  role: Role,
+  userId: string,
+  regionId: string | null,
+  clientInstitutionIds: string[]
+) {
   switch (role) {
     case "ICR":
       return { assignedICRId: userId };
@@ -35,7 +41,16 @@ function buildScopeFilter(role: Role, userId: string, regionId: string | null) {
       // back to `{}`, which served a regionless manager analytics numerically
       // identical to a SUPER_ADMIN's. See lib/region-scope.ts.
       return regionScope(regionId);
+    case "INSTITUTION_CLIENT":
+      // An INSTITUTION_CLIENT is an EXTERNAL party. They used to fall into the
+      // org-wide `{}` default and received every region's leads, markets,
+      // sources and enrolment targets — rival clients' data included. Scope to
+      // the institutions they are actually assigned to; `in: []` (no
+      // assignments) matches nothing, which is correct.
+      return { institutionId: { in: clientInstitutionIds } };
     default:
+      // SUPER_ADMIN / HQ_EXECUTIVE / HQ_ANALYTICS / VP_GLOBAL_SALES etc. — internal
+      // HQ roles whose analytics are org-wide by design.
       return {};
   }
 }
@@ -71,14 +86,26 @@ export async function GET(req: NextRequest) {
     const startDate = parseBoundary(startDateParam, ytdStart, false);
     const endDate = parseBoundary(endDateParam, now, true);
 
-    const baseScope = buildScopeFilter(role, userId, userRegionId);
+    const isClient = role === "INSTITUTION_CLIENT";
+    const clientInstitutionIds = isClient ? await institutionIdsForUser(userId, role) : [];
+
+    const baseScope = buildScopeFilter(role, userId, userRegionId, clientInstitutionIds);
 
     // Override regionId if param provided (for HQ roles)
     if (regionIdParam && (role === "SUPER_ADMIN" || role === "HQ_EXECUTIVE" || role === "HQ_ANALYTICS")) {
       (baseScope as Record<string, unknown>).regionId = regionIdParam;
     }
     if (institutionIdParam) {
-      (baseScope as Record<string, unknown>).institutionId = institutionIdParam;
+      if (isClient) {
+        // A client may narrow to ONE of their OWN institutions, never to
+        // another's: a raw param must not overwrite the { in: theirIds } scope.
+        if (clientInstitutionIds.includes(institutionIdParam)) {
+          (baseScope as Record<string, unknown>).institutionId = institutionIdParam;
+        }
+        // else: ignore the param and keep the full { in: theirIds } scope.
+      } else {
+        (baseScope as Record<string, unknown>).institutionId = institutionIdParam;
+      }
     }
     // Narrow to one ICR. NEVER honoured for an ICR themselves: their scope
     // already pins `assignedICRId` to their own id, and letting the parameter
@@ -89,6 +116,12 @@ export async function GET(req: NextRequest) {
     if (icrIdParam && role !== "ICR") {
       (baseScope as Record<string, unknown>).assignedICRId = icrIdParam;
     }
+
+    // The institution constraint actually in force after scoping + any param.
+    // Reused so the enrolment-target query (which queries a different table and
+    // so can't just spread baseScope) honours the same tenancy: undefined for an
+    // org-wide HQ role, a single id when narrowed, or { in: ids } for a client.
+    const effectiveInstitution = (baseScope as { institutionId?: string | { in: string[] } }).institutionId;
 
     // The year the selected range refers to, used for enrolment targets. Taken
     // from the END of the range, so "Last Year" lines up with last year's
@@ -137,7 +170,7 @@ export async function GET(req: NextRequest) {
       // compared last year's enrolments against this year's targets — or, as on
       // the mirror where the only targets are 2024/2025, against nothing at all
       // while the card claimed none were configured.
-      db.enrollmentTarget.findMany({ where: { year: targetYear, ...(institutionIdParam ? { institutionId: institutionIdParam } : {}) }, include: { institution: { select: { id: true, name: true } } }, orderBy: { target: "desc" }, take: 15 }),
+      db.enrollmentTarget.findMany({ where: { year: targetYear, ...(effectiveInstitution !== undefined ? { institutionId: effectiveInstitution } : {}) }, include: { institution: { select: { id: true, name: true } } }, orderBy: { target: "desc" }, take: 15 }),
       // Lead temperature breakdown (Hot/Warm/Cold + unset), same scope + date as the funnel.
       db.lead.groupBy({ by: ["leadTemperature"], where: { ...baseScope, ...dateFilter, deletedAt: null }, _count: { leadTemperature: true } }),
     ]);
@@ -264,6 +297,9 @@ export async function GET(req: NextRequest) {
         deletedAt: null,
         ...(role === "REGIONAL_MANAGER" && userRegionId ? { regionId: userRegionId } : {}),
         ...(role === "ICR" ? { leads: { some: { assignedICRId: userId } } } : {}),
+        // A client counts only partners who actually source leads for THEIR
+        // institutions, never the org-wide partner roster.
+        ...(isClient ? { leads: { some: { institutionId: { in: clientInstitutionIds } } } } : {}),
       },
     });
 
@@ -280,14 +316,18 @@ export async function GET(req: NextRequest) {
     // recruitment calendar that hides everything still to come is the opposite
     // of useful for planning.
     const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
-    const eventsThisYear = await db.event.count({
-      where: {
-        deletedAt: null,
-        date: { gte: ytdStart, lt: yearEnd },
-        ...(role === "REGIONAL_MANAGER" && userRegionId ? { regionId: userRegionId } : {}),
-        ...(role === "ICR" ? { assignedICRId: userId } : {}),
-      },
-    });
+    // Events are an internal recruitment calendar with no institution link, so
+    // there is nothing to scope them to for an external client: they see none.
+    const eventsThisYear = isClient
+      ? 0
+      : await db.event.count({
+          where: {
+            deletedAt: null,
+            date: { gte: ytdStart, lt: yearEnd },
+            ...(role === "REGIONAL_MANAGER" && userRegionId ? { regionId: userRegionId } : {}),
+            ...(role === "ICR" ? { assignedICRId: userId } : {}),
+          },
+        });
 
     return NextResponse.json({
       totalLeadsYTD,
