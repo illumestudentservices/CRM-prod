@@ -42,6 +42,18 @@ import {
  *                              one above.
  */
 
+/**
+ * Build a mailto: href. The recipient goes in raw — a valid address has no
+ * characters that need escaping in a mailto path, and encoding "@" to "%40"
+ * breaks the recipient in Apple Mail on macOS. Only the optional subject is
+ * percent-encoded, because an "&" or "#" there would start a new parameter.
+ */
+function mailToHref(email: string, subject?: string): string {
+  return subject
+    ? `mailto:${email}?subject=${encodeURIComponent(subject)}`
+    : `mailto:${email}`;
+}
+
 export type EmailStudentProps = {
   email: string | null;
   studentName: string;
@@ -91,9 +103,13 @@ export function EmailStudentButton({
     ? `Your application with Illume — ${reference}`
     : "Your enquiry with Illume";
 
-  // encodeURIComponent, not a template literal: an ampersand or a hash in the
-  // subject would otherwise be read as another mailto parameter and truncate it.
-  const href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}`;
+  // The SUBJECT is encoded (an ampersand or hash in it would otherwise be read
+  // as another mailto parameter and truncate it). The ADDRESS is not: running
+  // encodeURIComponent on it turns "@" into "%40", which Apple Mail on macOS
+  // fails to decode — the compose window opens with a broken/empty recipient.
+  // A valid email contains no characters that need escaping in a mailto path,
+  // so it goes in raw. See mailToHref() below for the shared helper.
+  const href = mailToHref(email, subject);
 
   const declined = marketingConsent === false;
 
@@ -206,7 +222,7 @@ export function EmailStudentLink({
 
   return (
     <a
-      href={`mailto:${encodeURIComponent(email)}`}
+      href={mailToHref(email)}
       onClick={(e) => e.stopPropagation()}
       title={
         declined

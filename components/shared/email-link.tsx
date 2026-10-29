@@ -45,7 +45,10 @@ export function EmailLink({
 
   return (
     <a
-      href={`mailto:${encodeURIComponent(email)}`}
+      // Raw address, not encodeURIComponent(email): encoding turns "@" into
+      // "%40", which Apple Mail on macOS fails to decode and opens with a
+      // broken recipient. A valid address needs no escaping in a mailto path.
+      href={`mailto:${email}`}
       // The row or card around this is often itself a link or a click target;
       // without this, one click opens the record AND the mail client.
       onClick={(e) => e.stopPropagation()}
