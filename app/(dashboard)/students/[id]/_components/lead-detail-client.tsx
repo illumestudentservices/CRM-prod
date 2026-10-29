@@ -22,6 +22,13 @@ interface LeadDetailClientProps {
   sources: Pick<RecruitmentPartner, "id" | "name">[];
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
+  /**
+   * Whether this user may message leads on WhatsApp (whatsapp:write). The
+   * button is hidden otherwise — ICR, for one, no longer has WhatsApp, and a
+   * button that only ever 403s is worse than no button. The server still
+   * enforces it in POST /api/whatsapp/send; this just stops showing a dead one.
+   */
+  canWhatsApp: boolean;
 }
 
 /** `pipeline` distinguishes the form's own fields from the section's. */
@@ -112,6 +119,7 @@ export function LeadDetailClient({
   sources,
   institutions,
   icrUsers,
+  canWhatsApp,
 }: LeadDetailClientProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
@@ -140,7 +148,7 @@ export function LeadDetailClient({
 
   return (
     <>
-      <WhatsAppButton lead={lead} />
+      {canWhatsApp && <WhatsAppButton lead={lead} />}
 
       <Button
         variant="outline"

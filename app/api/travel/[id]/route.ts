@@ -37,6 +37,16 @@ export async function GET(
     return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
   }
 
+  // Object scope: holding travel:read is not the right to read ANY trip by id.
+  // Only the owner, or someone who may approve travel (HR/admin), may see it —
+  // mirroring how GET /api/travel scopes the list. 404, not 403, so a stranger
+  // cannot even confirm the id exists.
+  const canApproveTravel = await effectiveHasPermission(session.user.role, "travel", "approve");
+  const isOwner = travelRequest.employee.user?.id === session.user.id;
+  if (!isOwner && !canApproveTravel) {
+    return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
+  }
+
   return NextResponse.json({ travelRequest });
 }
 
@@ -57,8 +67,19 @@ export async function PATCH(
 
   const { id } = await params;
 
-  const existing = await db.travelRequest.findUnique({ where: { id } });
+  const existing = await db.travelRequest.findUnique({
+    where: { id },
+    include: { employee: { select: { user: { select: { id: true } } } } },
+  });
   if (!existing) {
+    return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
+  }
+
+  // Object scope + approval authority. travel:write lets you edit YOUR OWN trip,
+  // not any trip by id, and it must NOT let you approve one — that is travel:approve.
+  const canApproveTravel = await effectiveHasPermission(session.user.role, "travel", "approve");
+  const isOwner = existing.employee.user?.id === session.user.id;
+  if (!isOwner && !canApproveTravel) {
     return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
   }
 
@@ -99,6 +120,21 @@ export async function PATCH(
   if (notes !== undefined) updateData.notes = notes;
 
   if (status !== undefined) {
+    // Guard the enum ourselves — an unknown value would otherwise reach Prisma
+    // and surface as a 500 rather than a clean 400.
+    const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED", "COMPLETED"];
+    if (!VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "Invalid travel status." }, { status: 400 });
+    }
+    // Changing status is a management action: it needs travel:approve, NOT
+    // travel:write (which only lets the owner edit their own request's details).
+    if (!canApproveTravel) {
+      return NextResponse.json({ error: "You don't have permission to change a travel request's status." }, { status: 403 });
+    }
+    // And nobody signs off their own trip, approver or not.
+    if (isOwner && (status === "APPROVED" || status === "REJECTED")) {
+      return NextResponse.json({ error: "You can't approve or reject your own travel request." }, { status: 403 });
+    }
     updateData.status = status;
     if (status === "APPROVED") {
       updateData.approvedById = session.user.id;

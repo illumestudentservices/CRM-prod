@@ -41,6 +41,7 @@ import {
   CLOSED_STAGES,
 } from "@/lib/lead-pipeline";
 import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
+import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { loadLeadForGate } from "@/lib/lead-access";
 import { displayName } from "@/lib/person-name";
 import { temperatureBadgeClass, temperatureLabel } from "@/lib/lead-options";
@@ -256,6 +257,7 @@ export default async function LeadDetailPage({
           sources={sources}
           institutions={institutions}
           icrUsers={icrUsers}
+          canWhatsApp={await effectiveHasPermission(session.user.role, "whatsapp", "write")}
         />
       </div>
 
