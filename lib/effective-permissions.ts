@@ -34,18 +34,22 @@ export const getEffectivePermissions = cache(
       }
     }
 
-    // Apply DB overrides
-    try {
-      const overrides = await db.permissionOverride.findMany({ where: { role } });
-      for (const o of overrides) {
-        const res = o.resource as Resource;
-        const act = o.action as Action;
-        if (effective[res]) {
-          effective[res][act] = o.granted;
-        }
+    // Apply DB overrides.
+    //
+    // This read is NOT wrapped in a swallow-the-error catch, and that is
+    // deliberate. An override can REVOKE a permission the static matrix grants
+    // (granted:false) — an admin taking a right away. The old code caught any
+    // DB error here and "fell back to the static matrix silently", which
+    // quietly RESTORED every such revoked permission the moment the overrides
+    // table could not be read: a fail-OPEN authorization bug. We now let the
+    // error propagate so the gate below denies (fails closed) instead.
+    const overrides = await db.permissionOverride.findMany({ where: { role } });
+    for (const o of overrides) {
+      const res = o.resource as Resource;
+      const act = o.action as Action;
+      if (effective[res]) {
+        effective[res][act] = o.granted;
       }
-    } catch {
-      // DB unavailable — fall back to static matrix silently
     }
 
     return effective;
@@ -54,6 +58,13 @@ export const getEffectivePermissions = cache(
 
 /**
  * Async equivalent of hasPermission() that respects DB overrides.
+ *
+ * Fails CLOSED: if the effective permissions cannot be loaded (e.g. the
+ * overrides read threw), we cannot rule out that this permission was revoked,
+ * so the only safe answer is to deny. During a real DB outage the underlying
+ * data operation would fail anyway, so a spurious 403 here is strictly safer
+ * than silently honouring a right an admin had taken away. The failure is
+ * logged, never swallowed silently, so the outage is visible.
  */
 export async function effectiveHasPermission(
   role: Role,
@@ -63,9 +74,12 @@ export async function effectiveHasPermission(
   try {
     const perms = await getEffectivePermissions(role);
     return perms[resource]?.[action] ?? false;
-  } catch {
-    // Fallback to static matrix
-    return PERMISSION_MATRIX[role]?.[resource]?.includes(action) ?? false;
+  } catch (error) {
+    console.error(
+      `[effectiveHasPermission] denying ${role}/${resource}:${action} — could not load effective permissions`,
+      error
+    );
+    return false;
   }
 }
 
@@ -113,7 +127,20 @@ const NAV_RESOURCE_MAP: Record<string, { resource: Resource; action: Action } | 
  * Returns the set of nav keys visible to the given role, respecting DB overrides.
  */
 export async function getEffectiveNavKeys(role: Role): Promise<string[]> {
-  const perms = await getEffectivePermissions(role);
+  let perms: Record<Resource, Record<Action, boolean>>;
+  try {
+    perms = await getEffectivePermissions(role);
+  } catch (error) {
+    // Fail closed, as in effectiveHasPermission: if the overrides can't be read
+    // we don't know what was revoked, so show only the entries visible to every
+    // authenticated user (no resource gate) rather than rendering links a
+    // revoked role shouldn't see.
+    console.error(`[getEffectiveNavKeys] degrading to always-visible nav for ${role} — could not load effective permissions`, error);
+    return Object.entries(NAV_RESOURCE_MAP)
+      .filter(([, mapping]) => mapping === null)
+      .map(([key]) => key);
+  }
+
   const allowed: string[] = [];
 
   for (const [key, mapping] of Object.entries(NAV_RESOURCE_MAP)) {
