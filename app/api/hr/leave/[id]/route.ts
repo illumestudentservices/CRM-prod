@@ -66,7 +66,15 @@ export async function PATCH(
 
   // Permission checks
   if (action === "CANCELLED") {
-    if (!isSelf && !isHR) {
+    // Withdrawing a PENDING request: the employee themselves, or HR (the
+    // self-service Withdraw button). Withdrawing an already-APPROVED request:
+    // HR or the employee's manager only — NOT the employee, since an approval
+    // should not be undone silently by the person who benefits from it.
+    if (leaveRequest.status === "APPROVED") {
+      if (!isHR && !isManager) {
+        return NextResponse.json({ error: "Forbidden — only the employee's manager or an administrator can withdraw an approved leave." }, { status: 403 });
+      }
+    } else if (!isSelf && !isHR) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   } else {
@@ -75,7 +83,10 @@ export async function PATCH(
     }
   }
 
-  if (leaveRequest.status !== "PENDING") {
+  // Approve/Reject only act on a PENDING request. CANCELLED may also act on an
+  // APPROVED one (a withdrawal). Anything already CANCELLED/REJECTED is final.
+  const cancellable = leaveRequest.status === "PENDING" || leaveRequest.status === "APPROVED";
+  if (action === "CANCELLED" ? !cancellable : leaveRequest.status !== "PENDING") {
     return NextResponse.json(
       { error: `Leave request is already ${leaveRequest.status}` },
       { status: 422 }
@@ -120,8 +131,17 @@ export async function PATCH(
             pendingDays: { decrement: leaveRequest.days },
           },
         });
+      } else if (action === "CANCELLED" && leaveRequest.status === "APPROVED") {
+        // Withdrawing an APPROVED leave: the days were already moved into USED
+        // on approval, so give them back from used (not pending).
+        await tx.leaveBalance.update({
+          where: balanceWhere,
+          data: {
+            usedDays: { decrement: leaveRequest.days },
+          },
+        });
       } else {
-        // REJECTED or CANCELLED — reverse pending
+        // REJECTED, or a PENDING request withdrawn — reverse the pending hold.
         await tx.leaveBalance.update({
           where: balanceWhere,
           data: {

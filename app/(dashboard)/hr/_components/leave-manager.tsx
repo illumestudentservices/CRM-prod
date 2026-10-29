@@ -93,6 +93,25 @@ export function LeaveManager({
     }
   }
 
+  // Withdraw an already-APPROVED leave (HR/admin). Returns the days to the
+  // employee's balance; see PATCH /api/hr/leave/[id].
+  async function withdrawApproved(id: string) {
+    if (!confirm("Withdraw this approved leave? The days go back to the employee's balance. This can't be undone.")) return;
+    const res = await fetch(`/api/hr/leave/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "CANCELLED" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast({ title: "Approved leave withdrawn" });
+      load();
+      loadOnLeaveToday();
+    } else {
+      toast({ title: "Couldn't withdraw", description: data.error || "Please try again.", variant: "destructive" });
+    }
+  }
+
   /**
    * Every column carries a value, not only a rendering — see the note in
    * employee-table.tsx. Without an accessor a column is invisible to the
@@ -168,6 +187,11 @@ export function LeaveManager({
               <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
             </Button>
           </div>
+        ) : row.original.status === "APPROVED" ? (
+          <Button size="sm" variant="outline" className="h-7 text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/10"
+            onClick={() => withdrawApproved(row.original.id)}>
+            <XCircle className="h-3.5 w-3.5 mr-1" /> Withdraw
+          </Button>
         ) : null,
     }] : []),
   ];

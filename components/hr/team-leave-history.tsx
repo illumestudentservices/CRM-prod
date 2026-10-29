@@ -23,8 +23,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { History, ChevronDown } from "lucide-react";
+import { History, ChevronDown, XCircle } from "lucide-react";
 import { LEAVE_TYPE_LABELS } from "@/lib/leave-policy";
+import { useToast } from "@/hooks/use-toast";
 
 interface TeamLeaveRow {
   id: string;
@@ -59,9 +60,34 @@ function fmt(d: string) {
 const INITIAL_ROWS = 8;
 
 export function TeamLeaveHistory() {
+  const { toast } = useToast();
   const [rows, setRows] = useState<TeamLeaveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+
+  // A manager can withdraw an approved leave for a direct report; the days go
+  // back to that person's balance (see PATCH /api/hr/leave/[id]).
+  async function withdraw(id: string) {
+    if (!confirm("Withdraw this approved leave? The days go back to the employee's balance. This can't be undone.")) return;
+    setWithdrawingId(id);
+    try {
+      const res = await fetch(`/api/hr/leave/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CANCELLED" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "Couldn't withdraw", description: data.error ?? "Please try again.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Approved leave withdrawn" });
+      await load();
+    } finally {
+      setWithdrawingId(null);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -125,9 +151,23 @@ export function TeamLeaveHistory() {
                 </p>
               )}
             </div>
-            <Badge variant="outline" className={`shrink-0 ${STATUS_BADGE[r.status] ?? ""}`}>
-              {r.status.charAt(0) + r.status.slice(1).toLowerCase()}
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className={STATUS_BADGE[r.status] ?? ""}>
+                {r.status.charAt(0) + r.status.slice(1).toLowerCase()}
+              </Badge>
+              {r.status === "APPROVED" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={withdrawingId === r.id}
+                  className="h-7 text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/10"
+                  onClick={() => withdraw(r.id)}
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1" />
+                  {withdrawingId === r.id ? "Withdrawing…" : "Withdraw"}
+                </Button>
+              )}
+            </div>
           </div>
         ))}
 
