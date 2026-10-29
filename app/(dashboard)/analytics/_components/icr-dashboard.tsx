@@ -10,6 +10,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
+import { TemperatureWidget } from "./temperature-widget";
+import { temperatureLabel } from "@/lib/lead-options";
 import { displayName } from "@/lib/person-name";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
@@ -26,6 +28,7 @@ interface OverviewData {
   totalLeadsYTD: number;
   enrollmentsYTD: number;
   stageBreakdown: Record<string, number>;
+  temperatureBreakdown?: { HOT: number; WARM: number; COLD: number; UNSET: number };
 }
 
 interface LeadAttention {
@@ -210,6 +213,24 @@ export function ICRDashboard() {
           onClick={() => setDrill({ open: true, title: "My Enrolled Students", description: "Your leads that reached Enrolled", filters: { stage: "ENROLLED" } })} />
         <StatCard title="Total (YTD)" value={loading ? "—" : totalLeads} icon={ListChecks} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" loading={loading}
           href="/students" />
+      </div>
+
+      {/* Lead temperature */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-5">
+          <TemperatureWidget
+            breakdown={overview?.temperatureBreakdown}
+            loading={loading}
+            onPick={(t) =>
+              setDrill({
+                open: true,
+                title: `My ${temperatureLabel(t)} leads`,
+                description: "Your students at this temperature",
+                filters: { leadTemperature: t },
+              })
+            }
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4">

@@ -78,6 +78,8 @@ export async function GET(req: NextRequest) {
       db.lead.groupBy({ by: ["sourceId"], where: { ...regionFilter, deletedAt: null, sourceId: { not: null }, createdAt: { gte: ytdStart } }, _count: { sourceId: true }, orderBy: { _count: { sourceId: "desc" } }, take: 10 }),
       db.event.findMany({ where: { ...regionFilter, deletedAt: null, date: { gte: now }, status: { in: ["PLANNED", "CONFIRMED"] } }, orderBy: { date: "asc" }, take: 10, select: { id: true, name: true, type: true, date: true, city: true, country: true, status: true } }),
       db.monthlyReport.findMany({ where: { ...(regionId ? { regionId } : {}), status: { in: ["PENDING_REVIEW", "REGIONAL_APPROVED"] }, deletedAt: null }, orderBy: { submittedAt: "asc" }, take: 20, include: { icr: { select: { id: true, name: true } }, institution: { select: { id: true, name: true } } } }),
+      // Lead temperature breakdown (current snapshot, same region scope).
+      db.lead.groupBy({ by: ["leadTemperature"], where: { ...regionFilter, deletedAt: null }, _count: { leadTemperature: true } }),
     ]);
 
     const pipelineByStageRaw = regionalResults[0] as StageRow[];
@@ -85,6 +87,12 @@ export async function GET(req: NextRequest) {
     const sourceGroupsRaw = regionalResults[2] as SourceRow[];
     const upcomingEvents = regionalResults[3];
     const pendingReports = regionalResults[4];
+    const temperatureGroups = regionalResults[5] as Array<{ leadTemperature: string | null; _count: { leadTemperature: number } }>;
+    const temperatureBreakdown = { HOT: 0, WARM: 0, COLD: 0, UNSET: 0 };
+    for (const g of temperatureGroups) {
+      const key = g.leadTemperature ?? "UNSET";
+      if (key in temperatureBreakdown) temperatureBreakdown[key as keyof typeof temperatureBreakdown] += g._count.leadTemperature;
+    }
 
     // ── ICR performance ────────────────────────────────────────────────────
     type ICRGroupBy = { assignedICRId: string | null; _count: { assignedICRId: number } };
@@ -165,6 +173,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       pipelineByStage,
+      temperatureBreakdown,
       icrPerformance,
       sourcePerformance,
       upcomingEvents,

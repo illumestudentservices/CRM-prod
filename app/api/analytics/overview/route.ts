@@ -138,6 +138,8 @@ export async function GET(req: NextRequest) {
       // the mirror where the only targets are 2024/2025, against nothing at all
       // while the card claimed none were configured.
       db.enrollmentTarget.findMany({ where: { year: targetYear, ...(institutionIdParam ? { institutionId: institutionIdParam } : {}) }, include: { institution: { select: { id: true, name: true } } }, orderBy: { target: "desc" }, take: 15 }),
+      // Lead temperature breakdown (Hot/Warm/Cold + unset), same scope + date as the funnel.
+      db.lead.groupBy({ by: ["leadTemperature"], where: { ...baseScope, ...dateFilter, deletedAt: null }, _count: { leadTemperature: true } }),
     ]);
 
     const totalLeadsYTD = results[0] as number;
@@ -148,6 +150,14 @@ export async function GET(req: NextRequest) {
     const topMarketGroups = results[5] as MarketCount[];
     const topSourceGroups = results[6] as SourceCount[];
     const institutionTargets = results[7] as EnrollTarget[];
+    const temperatureGroups = results[8] as Array<{ leadTemperature: string | null; _count: { leadTemperature: number } }>;
+
+    // Hot/Warm/Cold counts, plus leads with none set yet.
+    const temperatureBreakdown = { HOT: 0, WARM: 0, COLD: 0, UNSET: 0 };
+    for (const g of temperatureGroups) {
+      const key = g.leadTemperature ?? "UNSET";
+      if (key in temperatureBreakdown) temperatureBreakdown[key as keyof typeof temperatureBreakdown] += g._count.leadTemperature;
+    }
 
     // ── Monthly breakdown ───────────────────────────────────────────────────
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -287,6 +297,7 @@ export async function GET(req: NextRequest) {
       eventsThisYear,
       leadsByMonth,
       stageBreakdown: stageMap,
+      temperatureBreakdown,
       topMarkets,
       topSources,
       institutionTargets: institutionTargetsFormatted,

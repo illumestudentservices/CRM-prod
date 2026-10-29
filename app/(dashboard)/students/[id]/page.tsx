@@ -43,6 +43,7 @@ import {
 import { evaluateStageGate, canOverrideGate } from "@/lib/lead-gate";
 import { loadLeadForGate } from "@/lib/lead-access";
 import { displayName } from "@/lib/person-name";
+import { temperatureBadgeClass, temperatureLabel } from "@/lib/lead-options";
 export { STAGE_COLORS, STAGE_LABELS };
 
 // ─── Detail row ───────────────────────────────────────────────────────────────
@@ -226,6 +227,16 @@ export default async function LeadDetailPage({
             >
               {STAGE_LABELS[lead.stage]}
             </span>
+            {lead.leadTemperature && (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                  temperatureBadgeClass(lead.leadTemperature)
+                )}
+              >
+                {temperatureLabel(lead.leadTemperature)}
+              </span>
+            )}
             {lead.isDuplicate && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">
                 <AlertTriangle className="h-3 w-3" />

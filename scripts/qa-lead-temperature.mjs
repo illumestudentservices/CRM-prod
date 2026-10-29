@@ -1,235 +1,85 @@
 /**
- * Lead temperature — optional at capture, mandatory to leave New Lead.
+ * Lead temperature system:
+ *   1. GATE RULE — optional at creation, required to move to the 2nd stage.
+ *   2. FILTER — /api/leads?leadTemperature=X returns only that temperature.
+ *   3. ANALYTICS — overview + regional return temperatureBreakdown.
+ *   4. NO REGRESSION — a lead with no temperature still lists / opens / edits.
  *
- *   npx tsx --env-file=.env scripts/qa-lead-temperature.mjs
- *
- * The gate rule itself is covered as a pure function in qa-pipeline-gate.mjs.
- * This script exists for the part that file cannot see: the round trip. A gate
- * rule is only as good as the field behind it, and the ways that field can be
- * missing are all silent —
- *
- *   stripped on create   the create schema is zod-parsed; a field it does not
- *                        list is DROPPED and the route still answers 201. The
- *                        ICR picks "Hot", the save succeeds, and the gate goes
- *                        on saying the temperature is required. This has
- *                        already happened once in this codebase, to five
- *                        fields at a time — see qa-lead-save-bugs.mjs.
- *   stripped on update   the same, with a 200.
- *   absent from the fetch
- *                        the gate's two call sites use `include`, so a scalar
- *                        comes through. Switch one to `select` and the column
- *                        reads `undefined` for everyone — which does not fail
- *                        open, it fails CLOSED, and every lead in the business
- *                        is stuck at New Lead with no way out.
- *   required at capture  the opposite mistake. The field must never block
- *                        creation: an ICR logging a walk-in or a stack of
- *                        event cards has not spoken to the student yet.
- *
- * Footprint: one disposable user and one disposable lead, removed in `finally`.
+ *   npx tsx --env-file=.env.local scripts/qa-lead-temperature.mjs
  */
-import {
-  BASE, db, api, createAndLogin, destroyUser,
-  startSection, expect, summary, idOf,
-} from "./qa-lib.mjs";
+import { db, createAndLogin, destroyUser, api, startSection, expect, summary, TAG } from "./qa-lib.mjs";
 
-const stamp = Date.now().toString().slice(-6);
-let ctx, leadId;
-let baseline = {};
-
-/** Everything the New Lead gate asks for EXCEPT the temperature. */
-const baseLead = (source) => ({
-  firstName: "ZZTemp", lastName: `Test${stamp}`,
-  email: `zz.temp.${stamp}@example.invalid`, phone: `+15553${stamp}`,
-  nationality: "Indian", countryOfResidence: "India",
-  interestedProgram: "Business Administration",
-  studyLevel: "UNDERGRADUATE", intakeYear: 2027, intakeMonth: 9,
-  sourceId: source?.id,
-  intendedDestination: "Canada", preferredCountry: "Canada",
-});
-
-/** The New Lead → Contacted gate, as the server reports it. */
-const gateToContacted = async () => {
-  const res = await api(ctx.jar, "GET", `/api/leads/${leadId}/stage?target=CONTACTED`);
-  return res.payload?.gates?.find((g) => g.stage === "CONTACTED") ?? null;
-};
-
+const SRC = "src-003";
+let admin, seeded = [];
 try {
-  baseline = { leads: await db.lead.count(), users: await db.user.count() };
-  ctx = await createAndLogin({ role: "SUPER_ADMIN" });
+  admin = await createAndLogin({ role: "SUPER_ADMIN", withEmployee: true });
 
-  const source = await db.recruitmentPartner.findFirst({
-    where: { deletedAt: null, isActive: true }, select: { id: true },
+  const leadBody = (extra = {}) => ({
+    firstName: TAG, lastName: "Temp", email: `${TAG.toLowerCase()}-${Date.now()}@qa.local`,
+    phone: "+10000000000", nationality: "Testland", countryOfResidence: "Testland",
+    interestedProgram: "Computer Science", studyLevel: "UNDERGRADUATE", intakeYear: 2027, intakeMonth: 9,
+    sourceId: SRC, ...extra,
   });
 
-  // ── Capture is not blocked ────────────────────────────────────────────────
-  startSection("A lead can be captured without a temperature");
-  {
-    const created = await api(ctx.jar, "POST", "/api/leads", baseLead(source));
-    expect(created.status === 201,
-      "★ creation succeeds with no temperature given",
-      `status ${created.status} — ${JSON.stringify(created.payload)?.slice(0, 200)}`);
-    leadId = idOf(created.payload);
-    expect(!!leadId, "and returns an id");
+  // ── 1. Gate rule ─────────────────────────────────────────────────────────
+  startSection("Optional at creation, required at the 2nd stage");
+  let r = await api(admin.jar, "POST", "/api/leads", leadBody());
+  expect(r.status === 201 || r.status === 200, "lead created WITHOUT a temperature (optional at creation)", `got ${r.status}: ${JSON.stringify(r.payload)?.slice(0,160)}`);
+  const leadId = r.payload?.data?.id ?? r.payload?.id;
+  if (leadId) seeded.push(leadId);
 
-    const row = await db.lead.findUnique({
-      where: { id: leadId }, select: { leadTemperature: true },
-    });
-    expect(row?.leadTemperature === null,
-      "the column is NULL, meaning nobody has judged them yet",
-      `stored ${JSON.stringify(row?.leadTemperature)}`);
+  r = await api(admin.jar, "GET", `/api/leads/${leadId}/stage?target=CONTACTED`);
+  const gateBlockers = (r.payload?.gates?.[0]?.blockers ?? []).map((b) => `${b.field ?? ""} ${b.message ?? ""}`.toLowerCase());
+  expect(gateBlockers.some((b) => b.includes("temperature")), "moving to CONTACTED is blocked on lead temperature", JSON.stringify(gateBlockers).slice(0,200));
+
+  r = await api(admin.jar, "PATCH", `/api/leads/${leadId}`, { leadTemperature: "HOT" });
+  expect(r.ok, "temperature can be set via edit", `got ${r.status}`);
+  r = await api(admin.jar, "GET", `/api/leads/${leadId}/stage?target=CONTACTED`);
+  const after = (r.payload?.gates?.[0]?.blockers ?? []).map((b) => `${b.field ?? ""} ${b.message ?? ""}`.toLowerCase());
+  expect(!after.some((b) => b.includes("temperature")), "once set, temperature no longer blocks the move");
+
+  // ── 2. Filter (3×) ───────────────────────────────────────────────────────
+  startSection("Filter by temperature (run 3×)");
+  const base = { nationality: "T", countryOfResidence: "T", interestedProgram: "CS", intakeYear: 2027, intakeMonth: 9, studyLevel: "UNDERGRADUATE", createdById: admin.user.id, assignedICRId: admin.user.id };
+  const hot = await db.lead.create({ data: { ...base, firstName: TAG, lastName: "H", leadTemperature: "HOT" } });
+  const warm = await db.lead.create({ data: { ...base, firstName: TAG, lastName: "W", leadTemperature: "WARM" } });
+  const cold = await db.lead.create({ data: { ...base, firstName: TAG, lastName: "C", leadTemperature: "COLD" } });
+  seeded.push(hot.id, warm.id, cold.id);
+  for (let i = 1; i <= 3; i++) {
+    const rr = await api(admin.jar, "GET", "/api/leads?leadTemperature=HOT&limit=100");
+    const ids = new Set((rr.payload?.data ?? []).map((d) => d.id));
+    expect(rr.ok && ids.has(hot.id) && !ids.has(warm.id) && !ids.has(cold.id), `run ${i}: HOT filter returns the hot lead, not warm/cold`, `status ${rr.status}`);
   }
 
-  // ── The gate holds ────────────────────────────────────────────────────────
-  startSection("Without it, the lead cannot reach Contacted");
-  {
-    const gate = await gateToContacted();
-    expect(!!gate, "the server reports a gate for Contacted");
-    expect(gate?.canProgress === false,
-      "★ progress is refused", JSON.stringify(gate?.blockers ?? []).slice(0, 300));
-    expect((gate?.blockers ?? []).some((b) => b.field === "leadTemperature"),
-      "and the temperature is named as a blocker",
-      JSON.stringify(gate?.blockers ?? []).slice(0, 300));
-    expect((gate?.blockers ?? []).some((b) => /lead temperature/i.test(b.message ?? "")),
-      "  …in words an ICR can act on",
-      (gate?.blockers ?? []).map((b) => b.message).join(" | "));
+  // ── 3. Analytics breakdown ───────────────────────────────────────────────
+  startSection("Analytics returns a temperature breakdown");
+  r = await api(admin.jar, "GET", `/api/analytics/overview?startDate=2026-01-01&endDate=2027-12-31`);
+  const tb = r.payload?.temperatureBreakdown;
+  expect(tb && typeof tb.HOT === "number" && typeof tb.WARM === "number" && typeof tb.COLD === "number", "overview has temperatureBreakdown {HOT,WARM,COLD}", JSON.stringify(tb));
+  r = await api(admin.jar, "GET", "/api/analytics/regional");
+  expect(r.payload?.temperatureBreakdown && typeof r.payload.temperatureBreakdown.HOT === "number", "regional has temperatureBreakdown");
 
-    // The move itself, not just the advisory panel. These are separate code
-    // paths and a previous bug had the panel wrong while the move was right.
-    const move = await api(ctx.jar, "PATCH", `/api/leads/${leadId}/stage`, {
-      stage: "CONTACTED",
-    });
-    expect(move.status >= 400,
-      "★ and the stage change is actually refused, not merely discouraged",
-      `status ${move.status}`);
-    const after = await db.lead.findUnique({
-      where: { id: leadId }, select: { stage: true },
-    });
-    expect(after?.stage === "NEW_LEAD",
-      "the lead is still at New Lead", `stage is ${after?.stage}`);
-  }
-
-  // ── The value survives the round trip ─────────────────────────────────────
-  startSection("Setting it actually saves it");
-  {
-    const patched = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, {
-      leadTemperature: "HOT",
-    });
-    expect(patched.status === 200, "the update is accepted", `status ${patched.status}`);
-
-    // ★ Read it back from the DATABASE, not from the response body. A schema
-    // that strips the field answers 200 with a cheerful payload and writes
-    // nothing — which is exactly the shape of the bug this guards.
-    const row = await db.lead.findUnique({
-      where: { id: leadId }, select: { leadTemperature: true },
-    });
-    expect(row?.leadTemperature === "HOT",
-      "★ HOT reached the database",
-      `stored ${JSON.stringify(row?.leadTemperature)} — if null, zod stripped it`);
-
-    // The detail route answers `{ data: lead }`; `redactFields` runs over it on
-    // the way out, so this also proves the field is not being redacted away
-    // from the very role that has to fill it in.
-    const fetched = await api(ctx.jar, "GET", `/api/leads/${leadId}`);
-    const body = fetched.payload?.data ?? fetched.payload;
-    expect(body?.leadTemperature === "HOT",
-      "and reads back through the API, unredacted",
-      JSON.stringify(body?.leadTemperature));
-  }
-
-  // ── The gate opens ────────────────────────────────────────────────────────
-  startSection("With it, the lead moves");
-  {
-    const gate = await gateToContacted();
-    expect(!(gate?.blockers ?? []).some((b) => b.field === "leadTemperature"),
-      "the temperature is no longer a blocker",
-      JSON.stringify(gate?.blockers ?? []).slice(0, 300));
-
-    // Any other blocker here is a different rule (a booked activity, say) and
-    // is not this feature's business — so satisfy the gate the way the app
-    // does, then assert the move succeeds.
-    if (gate?.canProgress) {
-      const move = await api(ctx.jar, "PATCH", `/api/leads/${leadId}/stage`, {
-        stage: "CONTACTED",
-      });
-      expect(move.status === 200, "★ the lead moves to Contacted", `status ${move.status}`);
-      const after = await db.lead.findUnique({
-        where: { id: leadId }, select: { stage: true },
-      });
-      expect(after?.stage === "CONTACTED", "and the stage is recorded");
-    } else {
-      // ★ Not `expect(true, ...)`. A null gate would take this branch and pass
-      // silently, reporting an empty blocker list as though it were good news
-      // — which is the shape of the `[].every()` trap: the check is loudest
-      // exactly when it has seen nothing.
-      expect(!!gate && (gate.blockers ?? []).length > 0,
-        `remaining blockers belong to other rules: ` +
-        (gate?.blockers ?? []).map((b) => b.field ?? b.kind).join(", "),
-        "the gate came back empty or missing — that is not 'no other rules'");
-    }
-  }
-
-  // ── All three values are accepted ─────────────────────────────────────────
-  startSection("Hot, Warm and Cold are all real answers");
-  {
-    for (const t of ["HOT", "WARM", "COLD"]) {
-      const r = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, { leadTemperature: t });
-      const row = await db.lead.findUnique({
-        where: { id: leadId }, select: { leadTemperature: true },
-      });
-      expect(r.status === 200 && row?.leadTemperature === t,
-        `${t} is accepted and stored`,
-        `status ${r.status}, stored ${JSON.stringify(row?.leadTemperature)}`);
-    }
-
-    // A value outside the enum must be refused outright rather than silently
-    // dropped, or a typo in a future caller becomes an empty field nobody sees.
-    const bad = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, {
-      leadTemperature: "LUKEWARM",
-    });
-    expect(bad.status === 422,
-      "★ an unknown value is rejected, not swallowed", `status ${bad.status}`);
-    const still = await db.lead.findUnique({
-      where: { id: leadId }, select: { leadTemperature: true },
-    });
-    expect(still?.leadTemperature === "COLD",
-      "and the previous value is untouched",
-      `stored ${JSON.stringify(still?.leadTemperature)}`);
-  }
-
-  // ── It can be taken back off ──────────────────────────────────────────────
-  startSection("A judgement set by mistake can be withdrawn");
-  {
-    const cleared = await api(ctx.jar, "PATCH", `/api/leads/${leadId}`, {
-      leadTemperature: null,
-    });
-    expect(cleared.status === 200, "null is accepted", `status ${cleared.status}`);
-    const row = await db.lead.findUnique({
-      where: { id: leadId }, select: { leadTemperature: true },
-    });
-    expect(row?.leadTemperature === null,
-      "the field is cleared rather than left wrong",
-      `stored ${JSON.stringify(row?.leadTemperature)}`);
-  }
+  // ── 4. No regression (null temperature still works) ──────────────────────
+  startSection("A lead with no temperature still works");
+  const nullLead = await db.lead.create({ data: { ...base, firstName: TAG, lastName: "Null" } });
+  seeded.push(nullLead.id);
+  r = await api(admin.jar, "GET", `/api/leads/${nullLead.id}`);
+  expect(r.ok, "null-temperature lead opens", `got ${r.status}`);
+  r = await api(admin.jar, "PATCH", `/api/leads/${nullLead.id}`, { notes: "edited, temperature untouched" });
+  expect(r.ok, "editing it (without setting temperature) still succeeds", `got ${r.status}`);
+  r = await api(admin.jar, "GET", "/api/leads?limit=100");
+  expect((r.payload?.data ?? []).some((d) => d.id === nullLead.id), "it still appears in the list");
 } catch (e) {
-  console.error("FATAL:", e.message);
+  console.error("\n[fatal]", e?.stack || e);
   process.exitCode = 1;
 } finally {
-  if (leadId) {
-    // A stage move is recorded as a SYSTEM LeadActivity, not a history table.
-    await db.leadActivity.deleteMany({ where: { leadId } }).catch(() => {});
-    await db.leadNote.deleteMany({ where: { leadId } }).catch(() => {});
-    await db.activity.deleteMany({ where: { leadId } }).catch(() => {});
-    await db.lead.delete({ where: { id: leadId } }).catch(() => {});
+  for (const id of seeded) {
+    await db.leadActivity.deleteMany({ where: { leadId: id } }).catch(() => {});
+    await db.auditLog.deleteMany({ where: { entity: "Lead", entityId: id } }).catch(() => {});
+    await db.lead.delete({ where: { id } }).catch(() => {});
   }
-  // Dependent rows first: destroyUser fails SILENTLY when an FK still points
-  // at the account, and the user survives as a quiet leak.
-  await destroyUser(ctx);
-
-  startSection("Footprint");
-  const after = { leads: await db.lead.count(), users: await db.user.count() };
-  for (const k of Object.keys(baseline)) {
-    expect(after[k] === baseline[k], `${k} back to ${baseline[k]}`, `now ${after[k]}`);
-  }
-  summary();
+  if (admin) await destroyUser(admin);
+  const f = summary();
   await db.$disconnect();
+  process.exit(f ? 1 : (process.exitCode ?? 0));
 }

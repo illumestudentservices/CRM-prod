@@ -36,6 +36,7 @@ import {
 import type { LeadWithRelations } from "./lead-card";
 import type { User } from "@prisma/client";
 import { displayName, initials } from "@/lib/person-name";
+import { LEAD_TEMPERATURES, temperatureBadgeClass, temperatureLabel } from "@/lib/lead-options";
 
 // ─── Stage helpers ─────────────────────────────────────────────────────────────
 
@@ -157,6 +158,13 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
   const router = useRouter();
   const [selectedLeads, setSelectedLeads] = React.useState<LeadWithRelations[]>([]);
   const [assignModalOpen, setAssignModalOpen] = React.useState(false);
+  const [tempFilter, setTempFilter] = React.useState<string>("ALL");
+
+  // Client-side temperature filter (the table is already fully loaded).
+  const shownLeads = React.useMemo(
+    () => (tempFilter === "ALL" ? leads : leads.filter((l) => l.leadTemperature === tempFilter)),
+    [leads, tempFilter],
+  );
 
   const columns: ColumnDef<LeadWithRelations>[] = [
     {
@@ -220,6 +228,21 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
         if (!filterValue) return true;
         return row.original.stage === filterValue;
       },
+    },
+    {
+      accessorKey: "leadTemperature",
+      header: "Temp",
+      cell: ({ getValue }) => {
+        const t = getValue() as string | null;
+        return t ? (
+          <Badge variant="outline" className={cn("text-xs font-medium", temperatureBadgeClass(t))}>
+            {temperatureLabel(t)}
+          </Badge>
+        ) : (
+          <span className="text-slate-300 dark:text-slate-600">—</span>
+        );
+      },
+      size: 90,
     },
     {
       id: "daysInStage",
@@ -327,24 +350,35 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
     },
   ];
 
-  const bulkActions =
-    selectedLeads.length > 0 ? (
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-2"
-        onClick={() => setAssignModalOpen(true)}
-      >
-        <UserCheck className="h-4 w-4" />
-        Assign ICR ({selectedLeads.length})
-      </Button>
-    ) : null;
+  const toolbarActions = (
+    <div className="flex items-center gap-2">
+      <Select value={tempFilter} onValueChange={setTempFilter}>
+        <SelectTrigger className="h-9 w-[150px]">
+          <SelectValue placeholder="Temperature" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All temperatures</SelectItem>
+          {LEAD_TEMPERATURES.map((t) => (
+            <SelectItem key={t.value} value={t.value}>
+              {temperatureLabel(t.value)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {selectedLeads.length > 0 && (
+        <Button size="sm" variant="outline" className="gap-2" onClick={() => setAssignModalOpen(true)}>
+          <UserCheck className="h-4 w-4" />
+          Assign ICR ({selectedLeads.length})
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <>
       <DataTable
         columns={columns}
-        data={leads}
+        data={shownLeads}
         /* Global search, not the name column alone: a one-column search
            answers "no results" for anything the reader can plainly see
            in another column. */
@@ -353,7 +387,7 @@ export function LeadListView({ leads, icrUsers = [] }: LeadListViewProps) {
         onRowClick={(lead) => router.push(`/students/${lead.id}`)}
         enableRowSelection
         onSelectionChange={setSelectedLeads}
-        actions={bulkActions}
+        actions={toolbarActions}
         emptyTitle="No leads found"
         emptyDescription="Try adjusting your filters or add a new lead."
       />

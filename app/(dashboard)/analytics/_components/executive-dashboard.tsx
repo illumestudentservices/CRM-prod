@@ -22,6 +22,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { ExportButton } from "@/components/shared/export-button";
 import { LeadsTrendChart } from "./leads-trend-chart";
 import { ConversionFunnel } from "./conversion-funnel";
+import { TemperatureWidget } from "./temperature-widget";
+import { temperatureLabel } from "@/lib/lead-options";
 import { DrillDownSheet } from "./drill-down-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChartTheme } from "@/hooks/use-chart-theme";
@@ -45,6 +47,7 @@ interface AnalyticsOverview {
   eventsThisYear: number;
   leadsByMonth: Array<{ month: string; current: number; lastYear: number }>;
   stageBreakdown: Record<string, number>;
+  temperatureBreakdown?: { HOT: number; WARM: number; COLD: number; UNSET: number };
   topMarkets: Array<{ country: string; leads: number; enrolled: number; conversionRate: number }>;
   topSources: Array<{ sourceId: string | null; name: string; leads: number; enrolled: number; conversionRate: number }>;
   institutionTargets: Array<{ institutionId: string; name: string; target: number; actual: number; attainment: number }>;
@@ -413,6 +416,24 @@ export function ExecutiveDashboard({
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Lead temperature */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-5">
+          <TemperatureWidget
+            breakdown={data?.temperatureBreakdown}
+            loading={loading}
+            onPick={(t) =>
+              setDrill({
+                open: true,
+                title: `${temperatureLabel(t)} leads`,
+                description: "Students at this temperature",
+                filters: { leadTemperature: t },
+              })
+            }
+          />
+        </div>
       </div>
 
       {/* Row 2: Top Markets + Top Sources */}

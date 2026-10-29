@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExportButton } from "@/components/shared/export-button";
 import { DrillDownSheet } from "./drill-down-sheet";
+import { TemperatureWidget } from "./temperature-widget";
+import { temperatureLabel } from "@/lib/lead-options";
 import { stageLabel, stageHex } from "@/lib/lead-pipeline";
 import { useChartTheme } from "@/hooks/use-chart-theme";
 import {
@@ -24,6 +26,7 @@ import {
 
 interface RegionalData {
   pipelineByStage: Array<{ stage: string; count: number }>;
+  temperatureBreakdown?: { HOT: number; WARM: number; COLD: number; UNSET: number };
   icrPerformance: Array<{ icrId: string; name: string; leads: number; enrolled: number; conversionRate: number }>;
   sourcePerformance: Array<{ sourceId: string | null; name: string; type: string; leads: number; enrolled: number; conversionRate: number }>;
   upcomingEvents: Array<{ id: string; name: string; type: string; date: string; city: string; country: string; status: string }>;
@@ -141,6 +144,24 @@ export function RegionalDashboard() {
             },
           ]}
         />
+      </div>
+
+      {/* Lead temperature */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-5">
+          <TemperatureWidget
+            breakdown={data?.temperatureBreakdown}
+            loading={loading}
+            onPick={(t) =>
+              setDrill({
+                open: true,
+                title: `${temperatureLabel(t)} leads`,
+                description: "Students in this region at this temperature",
+                filters: { leadTemperature: t },
+              })
+            }
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4">

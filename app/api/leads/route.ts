@@ -7,7 +7,7 @@ import { notifyNewLeads } from "@/lib/lead-notifications";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { displayName, nameOrder, nameSearchFilter } from "@/lib/person-name";
-import { LeadStage } from "@prisma/client";
+import { LeadStage, LeadTemperature } from "@prisma/client";
 import { redactFields } from "@/lib/granular-permissions";
 import { leadListScope } from "@/lib/lead-access";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
@@ -127,6 +127,7 @@ const listLeadsQuerySchema = z.object({
   // `where.stage`, and Prisma answered 500 for anything outside the enum —
   // so a hand-edited URL crashed the endpoint instead of 422-ing.
   stage: z.nativeEnum(LeadStage).optional(),
+  leadTemperature: z.nativeEnum(LeadTemperature).optional(),
   institutionId: z.string().optional(),
   assignedICRId: z.string().optional(),
   regionId: z.string().optional(),
@@ -171,7 +172,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { stage, institutionId, assignedICRId, regionId: filterRegionId, sourceId, country, nationality, search, page, limit, sortBy, sortOrder } =
+    const { stage, leadTemperature, institutionId, assignedICRId, regionId: filterRegionId, sourceId, country, nationality, search, page, limit, sortBy, sortOrder } =
       queryResult.data;
 
     const scopeFilter = await leadListScope(role as Role, userId, regionId);
@@ -205,6 +206,7 @@ export async function GET(req: NextRequest) {
         {
           deletedAt: null,
           ...(stage && { stage: stage as never }),
+          ...(leadTemperature && { leadTemperature }),
           ...(institutionId && { institutionId }),
           ...(assignedICRId && { assignedICRId }),
           ...(filterRegionId && { regionId: filterRegionId }),
@@ -241,6 +243,7 @@ export async function GET(req: NextRequest) {
           intakeYear: true,
           intakeMonth: true,
           stage: true,
+          leadTemperature: true,
           isDuplicate: true,
           // Returned so every screen that shows a student's ADDRESS can also
           // show whether they may be contacted. Without these the analytics
