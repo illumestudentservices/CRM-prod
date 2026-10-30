@@ -8,6 +8,7 @@ import {
   WEEKS_OF_MONTH,
   canViewWeeklyActivities,
 } from "@/lib/weekly-activities";
+import { NO_REGION } from "@/lib/region-scope";
 import { logActivity } from "@/lib/activity-logger";
 
 const querySchema = z.object({
@@ -64,7 +65,11 @@ export async function GET(req: NextRequest) {
     if (role === "ICR") {
       where.icrId = userId;
     } else if (role === "REGIONAL_MANAGER") {
-      if (regionId) where.regionId = regionId;
+      // A regionless manager matches NO region, not every one. The old
+      // `if (regionId)` dropped the filter when regionId was null, so a manager
+      // with no region was handed every ICR's weekly figures org-wide. See
+      // lib/region-scope.ts for why null means "nothing", not "everything".
+      where.regionId = regionId ?? NO_REGION;
       if (icrId) where.icrId = icrId;
     } else {
       // SUPER_ADMIN — all, optionally narrowed to one ICR
