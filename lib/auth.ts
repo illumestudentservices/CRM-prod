@@ -22,6 +22,17 @@ const SESSION_MAX_AGE_SECONDS = 48 * 60 * 60;
  */
 const MFA_PROOF_TTL_MS = 5 * 60 * 1000;
 
+/**
+ * A valid bcrypt hash used as a constant-time stand-in when there is no real
+ * password to check (unknown email, inactive/deleted account, or one currently
+ * locked). Comparing the submitted password against it makes every failed
+ * authorize() path pay for exactly one bcrypt comparison, so response time can
+ * no longer distinguish a real account from a fabricated one (timing-based user
+ * enumeration). Generated once at startup from a random value; its plaintext is
+ * never needed.
+ */
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomUUID(), 12);
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db) as never,
   session: {
@@ -68,17 +79,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        if (!user || !user.password) return null;
-        if (!user.isActive) return null;
-        if (user.deletedAt) return null;
+        // Is this an account we can actually check a password against? A missing
+        // user, one with no password hash, an inactive or deleted account, or one
+        // whose lockout window is still open — none of them should proceed, but
+        // all of them must take the SAME time as a real check (see below).
+        const usable =
+          !!user &&
+          !!user.password &&
+          user.isActive &&
+          !user.deletedAt &&
+          !(user.lockedUntil && user.lockedUntil > new Date());
 
-        // Check account lockout
-        if (user.lockedUntil && user.lockedUntil > new Date()) {
-          console.log(`[auth] Account locked: ${email}, until ${user.lockedUntil}`);
+        // Exactly one bcrypt comparison runs on every path. For an unusable
+        // account we compare against a fixed dummy hash and throw the result
+        // away, so the response time does not reveal whether the email exists,
+        // is active, or is locked — closing the timing user-enumeration channel.
+        const hashToCheck = usable && user && user.password ? user.password : DUMMY_PASSWORD_HASH;
+        const isValid = await bcrypt.compare(password, hashToCheck);
+
+        if (!usable || !user) {
+          // Non-existent / inactive / deleted / already-locked: there is no
+          // failed-attempt counter to advance, and we must not disclose which
+          // of those it was. Lockout of a real account still happens on the
+          // wrong-password branch below.
+          if (user && user.lockedUntil && user.lockedUntil > new Date()) {
+            console.log(`[auth] Account locked: ${email}, until ${user.lockedUntil}`);
+          }
           return null;
         }
-
-        const isValid = await bcrypt.compare(password, user.password);
 
         if (!isValid) {
           // Atomic increment: parallel password guesses each advance the counter
