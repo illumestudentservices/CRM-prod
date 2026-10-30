@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role, id: userId } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "reports", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -44,6 +44,26 @@ export async function POST(req: NextRequest) {
 
     const icrId = parsed.data.icrId ?? userId;
     const { institutionId, reportingMonth, reportingYear } = parsed.data;
+
+    // Scope the requested icrId the same way GET /api/reports scopes the report
+    // list (buildReportScopeFilter): this drafting aid composes an ICR's monthly
+    // performance figures, so unscoped it let a Regional Manager pull any ICR's
+    // numbers in any region, and an ICR anyone else's. An ICR is confined to
+    // their own figures; a Regional Manager to ICRs in their region; HQ and the
+    // other global report roles are unscoped by design (they see every report
+    // already).
+    if (role === "ICR") {
+      if (icrId !== userId) {
+        return NextResponse.json({ error: "You can only auto-populate your own report" }, { status: 403 });
+      }
+    } else if (role === "REGIONAL_MANAGER" && icrId !== userId) {
+      const target = await db.user.findUnique({ where: { id: icrId }, select: { regionId: true } });
+      // No region means no reach — see lib/region-scope.ts; a regionless manager
+      // matches nothing rather than everything.
+      if (!regionId || !target || target.regionId !== regionId) {
+        return NextResponse.json({ error: "That ICR is outside your region" }, { status: 403 });
+      }
+    }
 
     const from = new Date(reportingYear, reportingMonth - 1, 1);
     const to = new Date(reportingYear, reportingMonth, 0, 23, 59, 59);
