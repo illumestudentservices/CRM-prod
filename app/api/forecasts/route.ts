@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
     }
 
     const [icr, institution] = await Promise.all([
-      db.user.findFirst({ where: { id: d.icrId, deletedAt: null }, select: { id: true } }),
+      db.user.findFirst({ where: { id: d.icrId, deletedAt: null }, select: { id: true, regionId: true } }),
       db.institution.findFirst({
         where: { id: d.institutionId, deletedAt: null }, select: { id: true },
       }),
@@ -157,6 +157,28 @@ export async function POST(req: NextRequest) {
     if (!icr) return NextResponse.json({ error: "That ICR was not found." }, { status: 422 });
     if (!institution) {
       return NextResponse.json({ error: "That institution was not found." }, { status: 422 });
+    }
+
+    // Region scope for a Regional Manager. GET is region-scoped (an RM sees only
+    // forecasts for their own region's ICRs), but POST was not — so an RM could
+    // OPEN a forecast for an ICR in another region, and pin it to another
+    // region's manager. That is not cosmetic: the forecast then enters that
+    // region's numbers and review chain. An RM is confined to ICRs in their own
+    // region (a regionless manager reaches none), and may pin the forecast only
+    // to themselves. SUPER_ADMIN is unscoped; an ICR is already pinned to
+    // themselves above.
+    if (role === "REGIONAL_MANAGER") {
+      const { regionId } = session.user;
+      const openingForSelf = d.icrId === session.user.id;
+      if (!openingForSelf && (!regionId || icr.regionId !== regionId)) {
+        return NextResponse.json({ error: "That ICR is outside your region." }, { status: 403 });
+      }
+      if (d.regionalManagerId && d.regionalManagerId !== session.user.id) {
+        return NextResponse.json(
+          { error: "You can only open a forecast under your own management." },
+          { status: 403 }
+        );
+      }
     }
 
     // The unique key would reject this anyway, but a 409 naming the existing
