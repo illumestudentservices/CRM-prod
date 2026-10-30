@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { NAV_PERMISSIONS, type Role } from "@/lib/permissions";
+import { isPasswordExpired } from "@/lib/password";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -75,6 +76,29 @@ export default auth((req) => {
   // Already enrolled — no reason to sit on the setup page
   if (pathname === "/setup-2fa") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // ── Forced / expired password ───────────────────────────────────────────
+  //
+  // A user whose password is flagged for change (new account, admin reset) or
+  // has aged out of the rotation policy must set a new one before using the
+  // app. This was enforced ONLY in the dashboard layout — i.e. on pages — so a
+  // caller with a temporary or expired password could still drive the entire
+  // product through /api/* without ever changing it. The gate belongs here, in
+  // front of every non-public route, exactly like the 2FA gates above.
+  //
+  // The change-password page, and every endpoint the change actually needs
+  // (/api/auth/* — csrf, session, change-password, signout) are already allowed:
+  // /api/auth/* is a public route handled at the top of this file, and
+  // /change-password is the one page exempted below.
+  const mustChangePassword =
+    req.auth.user?.mustChangePassword === true ||
+    isPasswordExpired((req.auth.user?.passwordChangedAt as number | null) ?? null);
+  if (mustChangePassword && pathname !== "/change-password") {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Password change required" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/change-password", req.url));
   }
 
   // ── Module authorisation ───────────────────────────────────────────────
