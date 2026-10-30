@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { refuseAssignment } from "@/lib/task-assignment";
 import { logActivity } from "@/lib/activity-logger";
 
 const createActivityTaskSchema = z.object({
@@ -124,6 +125,17 @@ export async function POST(
   }
 
   const data = parsed.data;
+
+  // Who the task may be given to — the same rule POST /api/tasks enforces: a
+  // task is a commitment made on someone's behalf, so you may assign only to
+  // yourself or a direct report (SUPER_ADMIN to any active employee). This was
+  // the one task-creating route that skipped it, so activities:write let a
+  // caller drop work onto any employee by id. A null assignee leaves the task
+  // unassigned and has nothing to refuse.
+  if (data.assigneeId) {
+    const refusal = await refuseAssignment(employee.id, data.assigneeId, session.user.role);
+    if (refusal) return NextResponse.json({ error: refusal.error }, { status: refusal.status });
+  }
 
   const task = await db.task.create({
     data: {
