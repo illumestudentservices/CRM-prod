@@ -386,6 +386,26 @@ export async function redactFields<T>(role: Role, resource: string, data: T): Pr
   return strip(data) as T;
 }
 
+/**
+ * Strip the money off Contract rows for roles that may not read commercial
+ * terms. The commercial-sensitivity decision lives once, on the institutions
+ * `contractValue` field in FIELD_CATALOG; the Contract model simply names the
+ * same figure `value`, so it is governed by the same switch. Without this a
+ * role with institutions:read but not contractValue (ICR, ADMISSIONS_SUPPORT,
+ * INSTITUTION_CLIENT) read the contract amount through the contracts routes,
+ * which redactFields — keyed to the institution's own columns — never touched.
+ */
+export async function redactContractValue<T extends { value?: number | null }>(
+  role: Role,
+  contracts: T[]
+): Promise<T[]> {
+  if (await canReadField(role, "institutions", "contractValue")) return contracts;
+  return contracts.map((c) => {
+    const { value: _value, ...rest } = c;
+    return rest as T;
+  });
+}
+
 export interface FieldWriteCheck {
   ok: boolean;
   /** Fields present in the payload that this role may not write. */

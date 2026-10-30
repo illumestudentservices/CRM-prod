@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { redactContractValue } from "@/lib/granular-permissions";
 import { assertInstitutionVisible } from "@/lib/lead-access";
 import { differenceInDays } from "date-fns";
 import { readJsonBody, handleApiError } from "@/lib/api-validation";
@@ -48,7 +49,11 @@ export async function GET(
       daysUntilExpiry: differenceInDays(new Date(c.endDate), new Date()),
     }));
 
-    return NextResponse.json(contractsWithDays);
+    // The contract amount is commercial data: hide it from roles that may not
+    // read institutions.contractValue (same switch, different column name).
+    const visible = await redactContractValue(session.user.role, contractsWithDays);
+
+    return NextResponse.json(visible);
   } catch (error) {
     return handleApiError(error, "[GET /api/institutions/:id/contracts]");
   }

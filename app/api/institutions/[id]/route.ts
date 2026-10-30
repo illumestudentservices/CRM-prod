@@ -7,7 +7,7 @@ import { type AccountStatus } from "@prisma/client";
 import { trashRecord } from "@/lib/recycle-bin";
 import { assertInstitutionVisible } from "@/lib/lead-access";
 import type { Role } from "@/lib/permissions";
-import { redactFields, checkFieldWrites } from "@/lib/granular-permissions";
+import { redactFields, redactContractValue, checkFieldWrites } from "@/lib/granular-permissions";
 
 // ─── GET /api/institutions/:id ─────────────────────────────────────────────
 
@@ -73,6 +73,9 @@ export async function GET(
     // student fields.
     const safe = await redactFields(session.user.role as Role, "institutions", institution);
     safe.leads = await redactFields(session.user.role as Role, "leads", safe.leads);
+    // Nested Contract rows carry the same commercial amount as the institution's
+    // own contractValue column; redactFields only stripped the latter.
+    safe.contracts = await redactContractValue(session.user.role as Role, safe.contracts);
     return NextResponse.json(safe);
   } catch (error) {
     console.error("[GET /api/institutions/:id]", error);
