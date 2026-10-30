@@ -33,9 +33,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     const sug = await db.marketUpdateSuggestion.findUnique({
       where: { id },
-      select: { status: true, marketId: true, kind: true, originalText: true },
+      select: {
+        status: true, marketId: true, kind: true, originalText: true,
+        market: { select: { regionalManagerId: true } },
+      },
     });
     if (!sug) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Row scope. market_intelligence:approve is held by SUPER_ADMIN and every
+    // REGIONAL_MANAGER, and an approve/edit here writes straight into the
+    // market's intelligence fields (visaTrends, recommendations…). Without this
+    // any Regional Manager could edit a market they do not manage — another
+    // region's intelligence record. A manager is confined to the markets
+    // assigned to them; SUPER_ADMIN is unscoped. 404, not 403, so a suggestion
+    // id cannot be probed for existence.
+    if (role === "REGIONAL_MANAGER" && sug.market.regionalManagerId !== userId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     if (sug.status !== "PENDING") return NextResponse.json({ error: "Already reviewed" }, { status: 409 });
 
     if (parsed.data.decision === "EDITED" && !parsed.data.editedText) {
