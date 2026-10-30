@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditOrigin } from "@/lib/activity-logger";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { redactFields } from "@/lib/granular-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
 
 // ─── GET /api/sources/:id ──────────────────────────────────────────────────
@@ -45,7 +46,14 @@ export async function GET(
     const enrolledLeads = source.leads.filter((l) => l.stage === "ENROLLED").length;
     const conversionRate = totalLeads > 0 ? (enrolledLeads / totalLeads) * 100 : 0;
 
-    return NextResponse.json({ ...source, totalLeads, enrolledLeads, conversionRate });
+    // The leads are included whole, so passport number, date of birth, email
+    // and phone rode along for anyone with sources:read — including
+    // ACCOUNT_MANAGER / VP_GLOBAL_SALES / HQ_ANALYTICS, who may not read
+    // passport/DOB. Stats above are computed from `stage` (never redacted), so
+    // redact the leads for output after they are counted.
+    const leads = await redactFields(session.user.role, "leads", source.leads);
+
+    return NextResponse.json({ ...source, leads, totalLeads, enrolledLeads, conversionRate });
   } catch (error) {
     console.error("[GET /api/sources/:id]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -8,6 +8,7 @@ import { stripNullBytes } from "@/lib/sanitize-text";
 import { syncLeadFromInterests } from "@/lib/interest-sync";
 import { trashRecord } from "@/lib/recycle-bin";
 import { accessibleInterest } from "@/lib/lead-access";
+import { redactFields } from "@/lib/granular-permissions";
 import { ENROLMENT_STATUS_LABELS } from "@/lib/lead-options";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -76,6 +77,14 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       },
     });
     if (!interest) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // `lead: true` returns the whole student row. The row gate above decides who
+    // may open this interest, not which student columns they may read: an
+    // INSTITUTION_CLIENT reaching their own institution's interest, or an
+    // ACCOUNT_MANAGER / VP_GLOBAL_SALES / HQ_ANALYTICS, would otherwise receive
+    // the student's passport number, date of birth, email and phone. Redact the
+    // nested lead against the leads catalog so each role sees only its permitted
+    // fields (an ICR keeps them all).
+    interest.lead = await redactFields(role as Role, "leads", interest.lead);
     return NextResponse.json(interest);
   } catch (err) {
     console.error("[GET /api/institution-interests/[id]]", err);

@@ -62,9 +62,18 @@ export async function GET(
 
     // Field-level read control (Phase 10) — commercial terms are withheld from
     // roles that hold institutions:read but not the commercial fields.
-    return NextResponse.json(
-      await redactFields(session.user.role as Role, "institutions", institution)
-    );
+    //
+    // redactFields is shallow: it strips institution columns only, so the leads
+    // nested here were returned whole — every student's email, phone, date of
+    // birth and passport number, to anyone who can open the institution. An
+    // INSTITUTION_CLIENT (external partner) could read all of that for their own
+    // institution's students; ACCOUNT_MANAGER / VP_GLOBAL_SALES / HQ_ANALYTICS
+    // hold institutions:read but may not read passport/DOB. Redact the nested
+    // leads against the leads catalog so each role sees only its permitted
+    // student fields.
+    const safe = await redactFields(session.user.role as Role, "institutions", institution);
+    safe.leads = await redactFields(session.user.role as Role, "leads", safe.leads);
+    return NextResponse.json(safe);
   } catch (error) {
     console.error("[GET /api/institutions/:id]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
