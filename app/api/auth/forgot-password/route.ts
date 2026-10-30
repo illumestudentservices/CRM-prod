@@ -4,6 +4,7 @@ import { createMagicLink } from "@/lib/magic-link";
 import { sendMagicLinkEmail } from "@/lib/email";
 import { findUserByEmail } from "@/lib/email-identity";
 import { logActivity } from "@/lib/activity-logger";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email(),
@@ -26,6 +27,21 @@ export async function POST(req: NextRequest) {
   }
 
   const { email } = parsed.data;
+
+  // Rate limit BEFORE the user lookup, so it protects against bombing a victim's
+  // inbox and draining the email quota, and behaves identically whether or not
+  // the address exists (the 429 reveals request frequency, never account
+  // existence). Per-email caps messages to any one inbox; per-IP caps a single
+  // source hammering many addresses. There was no limit here at all before.
+  const ip = clientIp(req);
+  const emailOk = rateLimit(`fp:email:${email.toLowerCase()}`, 3, 15 * 60 * 1000);
+  const ipOk = rateLimit(`fp:ip:${ip}`, 20, 60 * 60 * 1000);
+  if (!emailOk || !ipOk) {
+    return NextResponse.json(
+      { error: "Too many password-reset requests. Please wait a while and try again." },
+      { status: 429 }
+    );
+  }
 
   try {
     // Case-insensitive, and deliberately the SAME lookup sign-in uses. If reset
