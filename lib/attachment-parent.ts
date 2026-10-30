@@ -3,6 +3,7 @@ import type { AttachmentParentType, Role } from "@prisma/client";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { canSeeTask } from "@/lib/task-visibility";
 import { canAccessLead, accessibleInterest, institutionIdsForUser } from "@/lib/lead-access";
+import { planInScope } from "@/lib/plan-access";
 
 /**
  * The acting user's own region, needed by the lead/region scope check. The
@@ -45,6 +46,32 @@ async function institutionScopeAllows(
   if (!institutionId) return false;
   const ids = await institutionIdsForUser(actor.userId, actor.role);
   return ids.includes(institutionId);
+}
+
+/**
+ * Row gate shared by MONTHLY_REPORT and ICR_MONTHLY_REPORT attachments, mirror
+ * of the canAccess functions on their own detail routes (reports/[id] and
+ * icr-reports/[id]). reports:read is held by roles that cannot open the report
+ * itself — an INSTITUTION_CLIENT above all — so without this the module gate
+ * let a partner list and download a report's attachments by id. An ICR sees
+ * their own report, a Regional Manager their region's; HQ/admin see all. The
+ * only difference between the two report kinds is that the ICR report also
+ * admits VP_GLOBAL_SALES, which its route does.
+ */
+async function reportScopeAllows(
+  report: { icrId: string; regionId: string | null },
+  actor: { userId: string; role: Role },
+  opts: { allowVp: boolean },
+): Promise<boolean> {
+  const { role, userId } = actor;
+  if (role === "SUPER_ADMIN" || role === "HQ_EXECUTIVE" || role === "HQ_ANALYTICS") return true;
+  if (opts.allowVp && role === "VP_GLOBAL_SALES") return true;
+  if (role === "ICR") return report.icrId === userId;
+  if (role === "REGIONAL_MANAGER") {
+    const rid = await actorRegionId(userId);
+    return rid != null && report.regionId === rid;
+  }
+  return false;
 }
 
 /**
@@ -357,18 +384,37 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "recruitment_planning",
     exists: async (id) =>
       (await db.quarterlyRecruitmentPlan.findUnique({ where: { id }, select: { id: true } })) !== null,
+    // Same plan tenancy the plans/[id] routes enforce: an ICR to their own
+    // plan, a Regional Manager to their region (via the plan's ICR). Without
+    // it, recruitment_planning:read let any holder reach another region's plan
+    // attachments by id.
+    canAccessRow: async (id, actor) =>
+      planInScope(id, actor.role, actor.userId, await actorRegionId(actor.userId)),
   },
   VARIATION_REQUEST: {
     label: "Variation Request",
     resource: "recruitment_planning",
     exists: async (id) =>
       (await db.variationRequest.findUnique({ where: { id }, select: { id: true } })) !== null,
+    // Scoped through the parent plan, like the variation routes.
+    canAccessRow: async (id, actor) => {
+      const v = await db.variationRequest.findUnique({ where: { id }, select: { planId: true } });
+      return v ? planInScope(v.planId, actor.role, actor.userId, await actorRegionId(actor.userId)) : false;
+    },
   },
   MONTHLY_REPORT: {
     label: "Monthly Report",
     resource: "reports",
     exists: async (id) =>
       (await db.monthlyReport.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
+    // Mirror of canAccessReport in reports/[id] (no VP_GLOBAL_SALES clause).
+    canAccessRow: async (id, actor) => {
+      const r = await db.monthlyReport.findFirst({
+        where: { id, deletedAt: null },
+        select: { icrId: true, regionId: true },
+      });
+      return r ? reportScopeAllows(r, actor, { allowVp: false }) : false;
+    },
   },
   ICR_MONTHLY_REPORT: {
     // §7 of the ICR report template — "Snapshots": up to five photos from
@@ -377,6 +423,14 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "reports",
     exists: async (id) =>
       (await db.icrMonthlyReport.findFirst({ where: { id, deletedAt: null }, select: { id: true } })) !== null,
+    // Mirror of canRead in icr-reports/[id] (VP_GLOBAL_SALES allowed there).
+    canAccessRow: async (id, actor) => {
+      const r = await db.icrMonthlyReport.findFirst({
+        where: { id, deletedAt: null },
+        select: { icrId: true, regionId: true },
+      });
+      return r ? reportScopeAllows(r, actor, { allowVp: true }) : false;
+    },
   },
   ENGAGEMENT_LOG: {
     label: "Engagement Log entry",
@@ -452,6 +506,15 @@ const CONTEXTS: Record<AttachmentParentType, ParentContext> = {
     resource: "reports",
     exists: async (id) =>
       (await db.quarterlyBusinessReview.findUnique({ where: { id }, select: { id: true } })) !== null,
+    // Mirror of qbr/[id]: an INSTITUTION_CLIENT holds reports:read, so without
+    // this one partner could read another client's review attachments by id.
+    // Confine a client to their own institution's QBR; internal staff are
+    // org-wide, as on the detail route.
+    canAccessRow: async (id, actor) => {
+      if (actor.role !== "INSTITUTION_CLIENT") return true;
+      const qbr = await db.quarterlyBusinessReview.findUnique({ where: { id }, select: { institutionId: true } });
+      return qbr ? institutionScopeAllows(qbr.institutionId, actor) : false;
+    },
   },
 };
 
