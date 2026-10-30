@@ -131,16 +131,53 @@ export async function POST(req: NextRequest) {
     }[];
   };
 
-  if (!employeeId || !destination || !purpose || !departDate || !returnDate) {
+  if (!destination || !purpose || !departDate || !returnDate) {
     return NextResponse.json(
-      { error: "Missing required fields: employeeId, destination, purpose, departDate, returnDate" },
+      { error: "Missing required fields: destination, purpose, departDate, returnDate" },
       { status: 422 }
     );
   }
 
-  // Verify employee exists
+  // Mass-assignment guard. employeeId came straight from the body, so any
+  // travel:write holder (EMPLOYEE, ICR and REGIONAL_MANAGER, not only HR/admin)
+  // could file a trip in a colleague's name — a real cost and an approval chain
+  // attached to someone who never asked for it, and a way to read that person's
+  // travel back through the created row. Only the travel-admin roles may raise
+  // travel for someone else; everyone else is pinned to their own employee
+  // record, exactly as GET narrows them to it.
+  const isTravelAdmin = TRAVEL_ADMIN_ROLES.includes(session.user.role as Role);
+  let targetEmployeeId: string;
+  if (isTravelAdmin) {
+    if (!employeeId) {
+      return NextResponse.json({ error: "employeeId is required" }, { status: 422 });
+    }
+    targetEmployeeId = employeeId;
+  } else {
+    const ownEmployee = await db.employee.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    if (!ownEmployee) {
+      return NextResponse.json(
+        { error: "You have no employee record, so you cannot raise travel." },
+        { status: 403 }
+      );
+    }
+    // A non-admin may omit employeeId (it is their own), but naming someone
+    // else is refused outright — 403, not a silent override, so the attempt is
+    // visible rather than quietly corrected.
+    if (employeeId && employeeId !== ownEmployee.id) {
+      return NextResponse.json(
+        { error: "You can only raise travel for yourself." },
+        { status: 403 }
+      );
+    }
+    targetEmployeeId = ownEmployee.id;
+  }
+
+  // Verify the target employee exists (an admin may pass any id).
   const employee = await db.employee.findUnique({
-    where: { id: employeeId },
+    where: { id: targetEmployeeId },
     select: { id: true, userId: true },
   });
   if (!employee) {
@@ -159,7 +196,7 @@ export async function POST(req: NextRequest) {
 
   const travelRequest = await db.travelRequest.create({
     data: {
-      employeeId,
+      employeeId: targetEmployeeId,
       destination,
       purpose,
       departDate: depart,
