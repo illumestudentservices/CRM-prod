@@ -15,8 +15,11 @@ import type { Role } from "@/lib/permissions";
  * DB-overridable. Kept identical to REQUESTER_ROLES in lib/account-requests.ts:
  * whoever can ask for a login created should be able to ask for one closed, and
  * a permissions tweak in settings should not silently widen either.
+ *
+ * HQ_EXECUTIVE added 2026-10-30 alongside the account-requests change, for the
+ * same business decision — HQ Executives own on/offboarding company-wide.
  */
-export const REQUESTER_ROLES = ["REGIONAL_MANAGER", "HR_MANAGER", "SUPER_ADMIN"] as const;
+export const REQUESTER_ROLES = ["REGIONAL_MANAGER", "HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"] as const;
 
 /** Roles that may approve or reject. */
 export const REVIEWER_ROLES = ["SUPER_ADMIN"] as const;
@@ -36,8 +39,12 @@ export function canReviewOffboardingRequest(role: string): boolean {
  * to their own region (see `employeeScopeFor`). This matters because
  * GET /api/hr/employees is HR-only, so the picker needs its own narrow endpoint
  * rather than reusing the full staff list.
+ *
+ * HQ_EXECUTIVE is here (added 2026-10-30): they are company-wide leadership with
+ * no single region to be scoped to, so — like HR — they choose from the whole
+ * roster. Targeting a SUPER_ADMIN is still blocked by canTargetRole.
  */
-export const FULL_ROSTER_ROLES = ["HR_MANAGER", "SUPER_ADMIN"] as const;
+export const FULL_ROSTER_ROLES = ["HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"] as const;
 
 /**
  * Which employees a requester may raise a departure for.

@@ -1949,6 +1949,9 @@ model Institution {
   // Timesheets — time booked against this client (migration 028)
   timesheetEntries          TimesheetEntry[] @relation("TimesheetEntryClient")
   transitionReports         TransitionReport[]
+
+  // Onboarding — a new joiner may report to this university (migration 043).
+  onboardingRequests        AccountRequest[] @relation("AccountRequestReportsTo")
   forecasts                 Forecast[]
 
   @@map("institutions")
@@ -3070,6 +3073,9 @@ model AccountRequest {
   startDate      DateTime
   gender         Gender?
   phone          String?
+  /// Where the joiner is based. Free text (nullable) — not every request has it,
+  /// and residence is informational for IT, not a controlled vocabulary.
+  countryOfResidence String?
   /// Why the account is needed. Required, so a reviewer is never left guessing
   /// at the business case.
   justification  String         @db.Text
@@ -3078,6 +3084,11 @@ model AccountRequest {
   region       Region?     @relation(fields: [regionId], references: [id])
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
+  /// The university (client Institution) this joiner will report to, if any.
+  /// Nullable — many roles are internal and report to no client. SetNull so
+  /// removing a client never deletes the hiring record that referenced it.
+  reportsToInstitutionId String?
+  reportsToInstitution   Institution? @relation("AccountRequestReportsTo", fields: [reportsToInstitutionId], references: [id], onDelete: SetNull)
 
   requestedById String
   requestedBy   User   @relation("AccountRequestRequester", fields: [requestedById], references: [id], onDelete: Cascade)

@@ -60,6 +60,7 @@ interface AccountRequest {
   startDate: string;
   gender: string | null;
   phone: string | null;
+  countryOfResidence: string | null;
   justification: string;
   reviewNotes: string | null;
   reviewedAt: string | null;
@@ -69,6 +70,7 @@ interface AccountRequest {
   reviewedBy: { id: string; name: string | null } | null;
   region: { id: string; name: string } | null;
   department: { id: string; name: string } | null;
+  reportsToInstitution: { id: string; name: string } | null;
 }
 
 const STATUS_VARIANT: Record<string, "warning" | "success" | "destructive"> = {
@@ -88,8 +90,10 @@ const EMPTY = {
   startDate: "",
   gender: "none",
   phone: "",
+  countryOfResidence: "",
   regionId: "none",
   departmentId: "none",
+  reportsToInstitutionId: "none",
   justification: "",
 };
 
@@ -100,6 +104,7 @@ export function AccountRequests() {
   const [canRequest, setCanRequest] = React.useState(false);
   const [regions, setRegions] = React.useState<{ id: string; name: string }[]>([]);
   const [departments, setDepartments] = React.useState<{ id: string; name: string }[]>([]);
+  const [institutions, setInstitutions] = React.useState<{ id: string; name: string }[]>([]);
 
   const [formOpen, setFormOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -130,6 +135,10 @@ export function AccountRequests() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setDepartments(d?.departments ?? []))
       .catch(() => {});
+    fetch("/api/hr/institutions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setInstitutions(d?.institutions ?? []))
+      .catch(() => {});
   }, [load]);
 
   const valid =
@@ -152,6 +161,8 @@ export function AccountRequests() {
           gender: form.gender === "none" ? null : form.gender,
           regionId: form.regionId === "none" ? null : form.regionId,
           departmentId: form.departmentId === "none" ? null : form.departmentId,
+          reportsToInstitutionId: form.reportsToInstitutionId === "none" ? null : form.reportsToInstitutionId,
+          countryOfResidence: form.countryOfResidence.trim() || null,
           phone: form.phone.trim() || null,
           startDate: new Date(`${form.startDate}T00:00:00.000Z`).toISOString(),
         }),
@@ -292,6 +303,8 @@ export function AccountRequests() {
         <Field label="Start date" value={formatDate(r.startDate)} />
         <Field label="Region" value={r.region?.name ?? "—"} />
         <Field label="Department" value={r.department?.name ?? "—"} />
+        <Field label="Reports to" value={r.reportsToInstitution?.name ?? "—"} />
+        <Field label="Country of residence" value={r.countryOfResidence ?? "—"} />
         {r.phone && <Field label="Phone" value={r.phone} />}
         {r.gender && <Field label="Gender" value={r.gender.toLowerCase()} />}
       </div>
@@ -540,13 +553,42 @@ export function AccountRequests() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                  placeholder="+1 902 555 0100"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Country of residence</Label>
+                <Input
+                  value={form.countryOfResidence}
+                  onChange={(e) => set("countryOfResidence", e.target.value)}
+                  placeholder="e.g. Nigeria"
+                />
+              </div>
+            </div>
+
             <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="+1 902 555 0100"
-              />
+              <Label>
+                Reports to — university{" "}
+                <span className="text-xs font-normal text-muted-foreground">(if any)</span>
+              </Label>
+              <Select value={form.reportsToInstitutionId} onValueChange={(v) => set("reportsToInstitutionId", v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {institutions.map((i) => (
+                    <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                The client university this joiner will work with. Leave as None for internal roles.
+              </p>
             </div>
 
             <div className="space-y-1.5">

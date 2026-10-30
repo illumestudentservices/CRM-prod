@@ -14,8 +14,12 @@ import type { Role } from "@/lib/permissions";
  * Hardcoded rather than read through effectiveHasPermission, which is
  * DB-overridable: who can ask IT to create a login is a security question, and
  * a permissions tweak in settings should not silently widen it.
+ *
+ * HQ_EXECUTIVE added 2026-10-30 (business decision): HQ Executives are
+ * company-wide leadership and now own onboarding (and offboarding) across the
+ * organisation, alongside Regional Managers and HR. SUPER_ADMIN still reviews.
  */
-export const REQUESTER_ROLES = ["REGIONAL_MANAGER", "HR_MANAGER", "SUPER_ADMIN"] as const;
+export const REQUESTER_ROLES = ["REGIONAL_MANAGER", "HR_MANAGER", "SUPER_ADMIN", "HQ_EXECUTIVE"] as const;
 
 /** Roles that may approve or reject. */
 export const REVIEWER_ROLES = ["SUPER_ADMIN"] as const;

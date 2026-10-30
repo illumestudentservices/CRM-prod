@@ -1393,6 +1393,8 @@ export async function sendAccountRequestEmail(opts: {
   region: string | null;
   department: string | null;
   phone: string | null;
+  countryOfResidence: string | null;
+  reportsToInstitution: string | null;
   justification: string;
   requestedByName: string;
   requestedByEmail: string;
@@ -1422,6 +1424,8 @@ export async function sendAccountRequestEmail(opts: {
         ["Start date", opts.startDate],
         ...(opts.region ? [["Region", opts.region] as [string, string]] : []),
         ...(opts.department ? [["Department", opts.department] as [string, string]] : []),
+        ...(opts.countryOfResidence ? [["Country of residence", opts.countryOfResidence] as [string, string]] : []),
+        ...(opts.reportsToInstitution ? [["Reports to", opts.reportsToInstitution] as [string, string]] : []),
         ...(opts.phone ? [["Phone", opts.phone] as [string, string]] : []),
         ["Requested by", `${opts.requestedByName} (${opts.requestedByEmail})`],
         ["Status", badge("Pending Review", "#f59e0b")],

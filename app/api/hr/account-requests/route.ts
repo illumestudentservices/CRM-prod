@@ -41,8 +41,11 @@ const createSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().nullable(),
   phone: z.string().max(40).optional().nullable(),
+  countryOfResidence: z.string().max(120).optional().nullable(),
   regionId: z.string().min(1).optional().nullable(),
   departmentId: z.string().min(1).optional().nullable(),
+  // The client university the joiner reports to, if any. Optional.
+  reportsToInstitutionId: z.string().min(1).optional().nullable(),
   // Required deliberately: a reviewer approving a login should never have to
   // guess why it was asked for.
   justification: z.string().min(10, "Please explain why this account is needed").max(2000),
@@ -71,6 +74,7 @@ export async function GET(req: NextRequest) {
       reviewedBy: { select: { id: true, name: true } },
       region: { select: { id: true, name: true } },
       department: { select: { id: true, name: true } },
+      reportsToInstitution: { select: { id: true, name: true } },
     },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 200,
@@ -110,6 +114,18 @@ export async function POST(req: NextRequest) {
   }
   const data = parsed.data;
   const personalEmail = data.personalEmail.trim().toLowerCase();
+
+  // If a reporting university was named, it must exist — a dangling id would
+  // break the queue's include and tell the requester nothing about why.
+  if (data.reportsToInstitutionId) {
+    const inst = await db.institution.findFirst({
+      where: { id: data.reportsToInstitutionId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!inst) {
+      return NextResponse.json({ error: "That university was not found." }, { status: 422 });
+    }
+  }
 
   // This used to look the address up in `users` to catch someone already
   // onboarded. That check is now near-useless — a personal address will not match
@@ -160,8 +176,10 @@ export async function POST(req: NextRequest) {
       startDate: new Date(data.startDate),
       gender: data.gender ?? null,
       phone: data.phone?.trim() || null,
+      countryOfResidence: data.countryOfResidence?.trim() || null,
       regionId: data.regionId ?? null,
       departmentId: data.departmentId ?? null,
+      reportsToInstitutionId: data.reportsToInstitutionId ?? null,
       justification: data.justification.trim(),
       requestedById: userId,
     },
@@ -169,6 +187,7 @@ export async function POST(req: NextRequest) {
       requestedBy: { select: { name: true, email: true } },
       region: { select: { name: true } },
       department: { select: { name: true } },
+      reportsToInstitution: { select: { name: true } },
     },
   });
 
@@ -202,6 +221,8 @@ export async function POST(req: NextRequest) {
     startDate: request.startDate.toISOString().slice(0, 10),
     region: request.region?.name ?? null,
     department: request.department?.name ?? null,
+    countryOfResidence: request.countryOfResidence,
+    reportsToInstitution: request.reportsToInstitution?.name ?? null,
     phone: request.phone,
     justification: request.justification,
     requestedByName: request.requestedBy?.name ?? "Unknown",
