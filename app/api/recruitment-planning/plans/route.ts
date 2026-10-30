@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { regionScopeVia } from "@/lib/region-scope";
+import { planScopeWhere } from "@/lib/plan-access";
 import { logActivity } from "@/lib/activity-logger";
 
 const blankToUndefined = (v: unknown) =>
@@ -19,15 +19,6 @@ const createSchema = z.object({
   reportingCurrency: z.string().length(3).default("USD"),
   objectives: z.any().optional(),
 });
-
-function scope(role: Role, userId: string, regionId: string | null) {
-  switch (role) {
-    case "ICR": return { icrId: userId };
-    // No region means no plans. See lib/region-scope.ts.
-    case "REGIONAL_MANAGER": return regionScopeVia("icr", regionId);
-    default: return {};
-  }
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     const rows = await db.quarterlyRecruitmentPlan.findMany({
       where: {
-        ...scope(role as Role, userId, regionId),
+        ...planScopeWhere(role as Role, userId, regionId),
         ...(quarter && { quarter: Number(quarter) }),
         ...(year && { year: Number(year) }),
         ...(status && { status: status as never }),

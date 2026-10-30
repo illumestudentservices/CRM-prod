@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { planInScope } from "@/lib/plan-access";
 import { hasCapability } from "@/lib/granular-permissions";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role, id: userId } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "approve"))) {
       return NextResponse.json({ error: "Forbidden — approval permission required" }, { status: 403 });
     }
@@ -38,8 +39,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 422 });
     }
 
-    const variation = await db.variationRequest.findUnique({ where: { id }, select: { status: true } });
+    const variation = await db.variationRequest.findUnique({ where: { id }, select: { status: true, planId: true } });
     if (!variation) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Row scope via the parent plan: a Regional Manager holds approve, so without
+    // this they could approve (and so commit budget on) a variation belonging to
+    // another region's plan. 404, not 403, so ids can't be enumerated.
+    if (!(await planInScope(variation.planId, role as Role, userId, regionId))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     if (variation.status !== "SUBMITTED") {
       return NextResponse.json({ error: "Only SUBMITTED variations can be reviewed" }, { status: 409 });
     }

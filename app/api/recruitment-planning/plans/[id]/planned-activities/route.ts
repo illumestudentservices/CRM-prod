@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { planInScope } from "@/lib/plan-access";
 import { logActivity } from "@/lib/activity-logger";
 
 /**
@@ -63,10 +64,14 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(await effectiveHasPermission(session.user.role as Role, "recruitment_planning", "read"))) {
+    const { role, id: userId, regionId } = session.user;
+    if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+    if (!(await planInScope(id, role as Role, userId, regionId))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const rows = await db.plannedFieldActivity.findMany({
       where: { planId: id },
       orderBy: { createdAt: "asc" },
@@ -82,10 +87,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(await effectiveHasPermission(session.user.role as Role, "recruitment_planning", "write"))) {
+    const { role, id: userId, regionId } = session.user;
+    if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+    if (!(await planInScope(id, role as Role, userId, regionId))) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
 
     const gate = await loadWritablePlan(id);
     if (gate.error) return gate.error;
@@ -138,10 +147,14 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(await effectiveHasPermission(session.user.role as Role, "recruitment_planning", "write"))) {
+    const { role, id: userId, regionId } = session.user;
+    if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
+    if (!(await planInScope(id, role as Role, userId, regionId))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const rowId = req.nextUrl.searchParams.get("rowId");
     if (!rowId) return NextResponse.json({ error: "rowId is required" }, { status: 400 });
 

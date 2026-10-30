@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { planScopeWhere } from "@/lib/plan-access";
 import { logActivity } from "@/lib/activity-logger";
 
 const updateSchema = z.object({
@@ -18,13 +19,16 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "read"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
-    const plan = await db.quarterlyRecruitmentPlan.findUnique({
-      where: { id },
+    // Object scope: holding recruitment_planning:read is a module grant, not the
+    // right to read ANY plan by id. Merge the same scope the list applies so an
+    // ICR / Regional Manager cannot read another region's plan. 404, not 403.
+    const plan = await db.quarterlyRecruitmentPlan.findFirst({
+      where: { id, ...planScopeWhere(role as Role, userId, regionId) },
       include: {
         icr: { select: { id: true, name: true, email: true } },
         regionalManager: { select: { id: true, name: true } },
@@ -54,13 +58,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { role, id: userId } = session.user;
+    const { role, id: userId, regionId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "recruitment_planning", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await ctx.params;
 
-    const plan = await db.quarterlyRecruitmentPlan.findUnique({ where: { id }, select: { status: true, icrId: true } });
+    // Object scope FIRST: a plan outside the user's region/ownership is a 404,
+    // so a Regional Manager cannot tamper with another region's plan.
+    const plan = await db.quarterlyRecruitmentPlan.findFirst({
+      where: { id, ...planScopeWhere(role as Role, userId, regionId) },
+      select: { status: true, icrId: true },
+    });
     if (!plan) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     // Ownership check FIRST — an ICR who does not own this plan should get 403
