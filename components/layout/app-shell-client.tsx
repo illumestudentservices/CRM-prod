@@ -391,6 +391,7 @@ export function AppShellClient({
         userName={userName}
         userEmail={userEmail}
         userImage={userImage}
+        canAccessSettings={role === "SUPER_ADMIN"}
         onLogout={handleLogout}
         onSearch={handleSearch}
         sidebarCollapsed={sidebarCollapsed}

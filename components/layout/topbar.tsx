@@ -29,6 +29,9 @@ interface TopbarProps {
   userName: string;
   userEmail: string;
   userImage?: string | null;
+  /** Whether to show the admin "Settings" item — true only for roles that can
+      actually open /settings (SUPER_ADMIN). */
+  canAccessSettings?: boolean;
   onLogout?: () => void;
   onSearch?: (query: string) => void;
   sidebarCollapsed?: boolean;
@@ -41,6 +44,7 @@ export function Topbar({
   userName,
   userEmail,
   userImage,
+  canAccessSettings = false,
   onLogout,
   onSearch,
   sidebarCollapsed = false,
@@ -177,12 +181,19 @@ export function Topbar({
                 Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                <Settings className="h-4 w-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
+            {/* System administration — /settings is SUPER_ADMIN-only and
+                redirects everyone else to /dashboard, so showing it to other
+                roles was a dead link. Gate it to who can actually open it.
+                Personal preferences (profile, 2FA, theme) live under Profile
+                (/account), which stays available to all. */}
+            {canAccessSettings && (
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onLogout}
