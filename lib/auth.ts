@@ -47,6 +47,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
     error: "/login",
   },
+  events: {
+    // Instant server-side revocation on explicit sign-out. JWT sessions are
+    // stateless, so by default a copy of the cookie captured before sign-out
+    // keeps working until the token's own expiry. Bumping sessionsRevokedAt
+    // makes the live-account check in the jwt() callback refuse every token
+    // issued before this moment — the signed-out token included — on its very
+    // next request, with no new column or table. It also ends the user's other
+    // active sessions, which for a staff tool holding student data is the safer
+    // default; a real sign-in afterwards carries a newer loginAt and is
+    // unaffected.
+    async signOut(message) {
+      const token = (message as { token?: { id?: unknown } }).token;
+      const userId = typeof token?.id === "string" ? token.id : null;
+      if (!userId) return;
+      try {
+        await db.user.updateMany({
+          where: { id: userId },
+          data: { sessionsRevokedAt: new Date() },
+        });
+      } catch (err) {
+        // Never let a revocation write failure throw out of sign-out — the
+        // cookie is cleared regardless; this only closes the replay window.
+        console.error("[auth] sign-out revocation failed:", err);
+      }
+    },
+  },
   providers: [
     Credentials({
       name: "credentials",
