@@ -48,23 +48,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   events: {
-    // Instant server-side revocation on explicit sign-out. JWT sessions are
-    // stateless, so by default a copy of the cookie captured before sign-out
-    // keeps working until the token's own expiry. Bumping sessionsRevokedAt
-    // makes the live-account check in the jwt() callback refuse every token
-    // issued before this moment — the signed-out token included — on its very
-    // next request, with no new column or table. It also ends the user's other
-    // active sessions, which for a staff tool holding student data is the safer
-    // default; a real sign-in afterwards carries a newer loginAt and is
+    // Instant server-side revocation on explicit sign-out — THIS DEVICE ONLY.
+    // JWT sessions are stateless, so by default a copy of the cookie captured
+    // before sign-out keeps working until the token's own expiry. We record the
+    // signed-out token's per-login `sid` in revoked_sessions; the jwt() callback
+    // below refuses exactly that sid on its next request, leaving the user's
+    // other devices signed in (password change / lockout still end every
+    // session via sessionsRevokedAt). A fresh sign-in gets a new sid and is
     // unaffected.
     async signOut(message) {
-      const token = (message as { token?: { id?: unknown } }).token;
+      const token = (message as { token?: { id?: unknown; sid?: unknown } }).token;
+      const sid = typeof token?.sid === "string" ? token.sid : null;
       const userId = typeof token?.id === "string" ? token.id : null;
-      if (!userId) return;
+      if (!sid || !userId) return;
       try {
-        await db.user.updateMany({
-          where: { id: userId },
-          data: { sessionsRevokedAt: new Date() },
+        // upsert, not create: a replayed sign-out of the same token must not
+        // throw on the primary key.
+        await db.revokedSession.upsert({
+          where: { sid },
+          create: { sid, userId },
+          update: {},
+        });
+        // A revoked sid cannot out-live the absolute session ceiling, after
+        // which the token is already dead by maxAge — so drop the old rows and
+        // keep the table small.
+        await db.revokedSession.deleteMany({
+          where: { revokedAt: { lt: new Date(Date.now() - SESSION_MAX_AGE_SECONDS * 1000) } },
         });
       } catch (err) {
         // Never let a revocation write failure throw out of sign-out — the
@@ -328,13 +337,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!current || !current.isActive || current.deletedAt) return null;
 
-        // Anything issued before the revocation stamp is refused.
+        // Anything issued before the revocation stamp is refused (password
+        // change and lockout bump this, ending every session).
         if (
           current.sessionsRevokedAt &&
           loginAt &&
           loginAt < current.sessionsRevokedAt.getTime()
         ) {
           return null;
+        }
+
+        // Per-device sign-out: this exact session's sid was revoked, so refuse
+        // it while leaving the user's other sessions alone. A separate indexed
+        // lookup; fail OPEN on a DB blip, like the user read above (the absolute
+        // ceiling still bounds any session).
+        if (token.sid) {
+          try {
+            const revoked = await db.revokedSession.findUnique({
+              where: { sid: token.sid as string },
+              select: { sid: true },
+            });
+            if (revoked) return null;
+          } catch (err) {
+            console.error("[auth] revoked-session check failed:", err);
+          }
         }
 
         token.role = current.role;

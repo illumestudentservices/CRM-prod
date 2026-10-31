@@ -942,6 +942,14 @@ model User {
   /// stamp is strictly single-use and cannot be replayed later with a stolen
   /// pending cookie.
   mfaVerifiedAt        DateTime?
+  /// TOTP replay guard (migration 044). Hash of the last authenticator code that
+  /// passed, plus when it did. A time-based code stays valid for up to ~90s, so
+  /// without this the same 6 digits could be presented again — e.g. replayed into
+  /// a second login — inside that window. The verify route refuses a code whose
+  /// hash matches this one while still inside the window. Only meaningful for
+  /// ~90s; the code itself is TOTP-invalid after that.
+  lastTotpHash         String?
+  lastTotpAt           DateTime?
 
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -3109,6 +3117,23 @@ model AccountRequest {
   @@index([status, createdAt])
   @@index([requestedById])
   @@map("account_requests")
+}
+
+/// One revoked session, keyed by the JWT's per-login `sid`. Sign-out inserts
+/// the current session's sid here; the auth jwt() callback refuses any token
+/// whose sid is listed, so sign-out kills ONLY that device's token (unlike
+/// bumping users.sessionsRevokedAt, which ends every session). Rows are pruned
+/// once older than the session ceiling, after which the token is dead by maxAge
+/// anyway. No FK to User — the row must survive just long enough to out-live the
+/// token, and time-based cleanup handles the rest.
+model RevokedSession {
+  sid       String   @id
+  userId    String
+  revokedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([revokedAt])
+  @@map("revoked_sessions")
 }
 
 enum AccountRequestStatus {
