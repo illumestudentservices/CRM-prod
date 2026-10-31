@@ -298,15 +298,21 @@ export function AccountRequests() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs">
+      {/* Every captured field, always shown (with an em dash when blank) and
+          never truncated — a reviewer needs to see exactly what the requester
+          entered, including the ones that used to be hidden when empty. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-xs">
         <Field label="Personal email" value={r.personalEmail} />
+        <Field label="Phone" value={r.phone || "—"} />
+        <Field label="Gender" value={r.gender ? r.gender[0] + r.gender.slice(1).toLowerCase() : "—"} />
+        <Field label="Job title" value={r.jobTitle} />
+        <Field label="Requested role" value={roleLabel(r.requestedRole)} />
+        <Field label="Employment type" value={EMPLOYMENT_TYPE_LABELS[r.employmentType] ?? r.employmentType} />
         <Field label="Start date" value={formatDate(r.startDate)} />
         <Field label="Region" value={r.region?.name ?? "—"} />
         <Field label="Department" value={r.department?.name ?? "—"} />
-        <Field label="Reports to" value={r.reportsToInstitution?.name ?? "—"} />
-        <Field label="Country of residence" value={r.countryOfResidence ?? "—"} />
-        {r.phone && <Field label="Phone" value={r.phone} />}
-        {r.gender && <Field label="Gender" value={r.gender.toLowerCase()} />}
+        <Field label="Reports to — university" value={r.reportsToInstitution?.name ?? "—"} />
+        <Field label="Country of residence" value={r.countryOfResidence || "—"} />
       </div>
 
       <div>
@@ -661,7 +667,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide">{label}</p>
-      <p className="text-xs text-slate-700 dark:text-slate-300 truncate">{value}</p>
+      <p className="text-xs text-slate-700 dark:text-slate-300 break-words">{value}</p>
     </div>
   );
 }
