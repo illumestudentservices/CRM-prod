@@ -134,7 +134,10 @@ const listLeadsQuerySchema = z.object({
   sourceId: z.string().optional(),
   country: z.string().optional(),        // filters countryOfResidence (exact, case-insensitive)
   nationality: z.string().optional(),    // filters nationality
-  search: z.string().optional(),
+  // Strip NUL bytes: a \u0000 in a Prisma `contains` reaches Postgres, which
+  // rejects it ("invalid byte sequence for encoding UTF8") and surfaces as a
+  // 500. Cleaning here fixes every downstream use of `search`.
+  search: z.string().optional().transform((s) => (s === undefined ? s : s.replace(/\u0000/g, ""))),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   sortBy: z.enum(["createdAt", "updatedAt", "lastName", "stage", "lastContactedAt", "lastProgressedAt"]).default("createdAt"),

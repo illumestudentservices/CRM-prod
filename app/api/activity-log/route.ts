@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { stripNullBytes } from "@/lib/sanitize-text";
 
 // ─── Private IP detection ─────────────────────────────────────────────────────
 
@@ -81,7 +82,8 @@ export async function GET(req: NextRequest) {
   const entity = searchParams.get("entity") || null;
   const action = searchParams.get("action") || null;
   const userId = searchParams.get("userId") || null;
-  const search = searchParams.get("search") || null;
+  // Strip NUL bytes before Prisma `contains` — Postgres rejects \u0000 (500).
+  const search = stripNullBytes(searchParams.get("search")) || null;
   const from   = searchParams.get("from") || null;
   const to     = searchParams.get("to") || null;
 

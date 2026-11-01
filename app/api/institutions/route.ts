@@ -10,6 +10,7 @@ import {
 } from "@/lib/api-validation";
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { redactFields } from "@/lib/granular-permissions";
+import { stripNullBytes } from "@/lib/sanitize-text";
 
 // ─── GET /api/institutions ─────────────────────────────────────────────────
 
@@ -23,7 +24,9 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") as AccountStatus | null;
     const country = searchParams.get("country");
     const regionId = searchParams.get("regionId");
-    const search = searchParams.get("search");
+    // Strip NUL bytes before the value reaches Prisma `contains` — Postgres
+    // rejects \u0000 and it would surface as a 500.
+    const search = stripNullBytes(searchParams.get("search"));
 
     // `institutions:read` is a module grant, not a row grant. An
     // INSTITUTION_CLIENT must only see the institutions they're assigned to,

@@ -5,6 +5,7 @@ import { auditOrigin } from "@/lib/activity-logger";
 import { type SourceType, SourceType as SourceTypeEnum } from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { stripNullBytes } from "@/lib/sanitize-text";
 import {
   readJsonBody, assertEnum, assertString, assertNumber, handleApiError,
 } from "@/lib/api-validation";
@@ -20,7 +21,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") as SourceType | null;
     const regionId = searchParams.get("regionId");
-    const search = searchParams.get("search");
+    // Strip NUL bytes before Prisma `contains` — Postgres rejects \u0000 (500).
+    const search = stripNullBytes(searchParams.get("search"));
     const isActive = searchParams.get("isActive");
 
     const sources = await db.recruitmentPartner.findMany({
