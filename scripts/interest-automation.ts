@@ -8,6 +8,7 @@
  * window. Once the split cutover is complete, remove lead-automation.ts.
  */
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { runInterestAutomation } from "@/lib/interest-automation";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -22,7 +23,8 @@ runInterestAutomation({ dryRun })
     );
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("[interest-automation] failed", err);
+    await reportAutomationFailure("interest-automation", err);
     process.exit(1);
   });

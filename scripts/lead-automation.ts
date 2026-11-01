@@ -10,6 +10,7 @@
 // Next.js loads .env itself; a standalone script does not, and without this
 // DATABASE_URL is undefined and Prisma fails on an empty password.
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { runLeadAutomation } from "@/lib/lead-automation";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -28,8 +29,9 @@ runLeadAutomation({ dryRun })
     );
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     // Non-zero exit so cron mail and monitoring notice a failed run.
     console.error("[lead-automation] FAILED", err);
+    await reportAutomationFailure("lead-automation", err);
     process.exit(1);
   });

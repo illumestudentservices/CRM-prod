@@ -10,6 +10,7 @@
  */
 // Next.js loads .env itself; a standalone script does not.
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { purgeExpiredUsers, RECOVERY_WINDOW_DAYS } from "@/lib/user-lifecycle";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -26,8 +27,9 @@ purgeExpiredUsers({ dryRun })
     s.skipped.forEach((u) => console.log(`  skipped: ${u.email} — ${u.reason}`));
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     // Non-zero exit so cron mail and monitoring notice a failed run.
     console.error("[purge-users] FAILED", err);
+    await reportAutomationFailure("purge-deleted-users", err);
     process.exit(1);
   });

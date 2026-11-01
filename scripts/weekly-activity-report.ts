@@ -14,6 +14,7 @@
  * Next.js loads .env itself; a standalone script does not.
  */
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { writeFileSync } from "node:fs";
 import {
   buildActivityReport,
@@ -71,7 +72,8 @@ async function main() {
 
 main()
   .then((code) => process.exit(code))
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("[activity-report] fatal", err);
+    await reportAutomationFailure("weekly-activity-report", err);
     process.exit(2);
   });

@@ -10,6 +10,7 @@
  * told about, without sending anything.
  */
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { runOffboardingCountdown } from "@/lib/offboarding-countdown";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -29,7 +30,8 @@ runOffboardingCountdown({ dryRun })
     }
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("[offboarding-countdown] FAILED:", err);
+    await reportAutomationFailure("offboarding-countdown", err);
     process.exit(1);
   });

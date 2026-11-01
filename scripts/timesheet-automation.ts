@@ -17,6 +17,7 @@
 // Next.js loads .env itself; a standalone script does not, and without this
 // DATABASE_URL is undefined and Prisma fails on an empty password.
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { runTimesheetAutomation } from "@/lib/timesheet-automation";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -41,10 +42,11 @@ runTimesheetAutomation({ dryRun })
     );
     process.exit(0);
   })
-  .catch((e) => {
+  .catch(async (e) => {
     // Print the code explicitly: a dead DB connection surfaces as a Prisma error
     // with an EMPTY message, and without this the log line says nothing at all.
     console.error("[timesheet-automation] FAILED", e?.code ?? "", e?.message ?? "(empty message)");
     console.error(e);
+    await reportAutomationFailure("timesheet-automation", e);
     process.exit(1);
   });

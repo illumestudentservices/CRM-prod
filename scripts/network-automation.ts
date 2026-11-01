@@ -9,6 +9,7 @@
  *   3. Contract renewal reminders at 180/120/90/60/30-day windows
  */
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import {
   recalcAgentTiers,
   recomputeRelationshipHealth,
@@ -45,6 +46,7 @@ const dryRun = process.argv.includes("--dry-run");
     process.exit(0);
   } catch (err) {
     console.error("[network-automation] failed", err);
+    await reportAutomationFailure("network-automation", err);
     process.exit(1);
   }
 })();

@@ -13,6 +13,7 @@
  * cron with nothing in the log but a transform error.
  */
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { sendDueDateReminders } from "@/lib/transition-notifications";
 import { db } from "@/lib/db";
 
@@ -24,6 +25,7 @@ sendDueDateReminders()
   })
   .catch(async (err) => {
     console.error("[transition-reminders] fatal", err);
+    await reportAutomationFailure("transition-reminders", err);
     await db.$disconnect().catch(() => {});
     process.exit(2);
   });

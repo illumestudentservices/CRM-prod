@@ -13,6 +13,7 @@
 // Next.js loads .env itself; a standalone script does not, and without this
 // DATABASE_URL is undefined and Prisma fails on an empty password.
 import "dotenv/config";
+import { reportAutomationFailure } from "@/lib/automation-failure";
 import { runHolidayReminders } from "@/lib/holiday-reminders";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -33,7 +34,8 @@ runHolidayReminders({ dryRun })
     }
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error("[holiday-reminders] FAILED:", err);
+    await reportAutomationFailure("holiday-reminders", err);
     process.exit(1);
   });

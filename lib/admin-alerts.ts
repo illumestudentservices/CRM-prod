@@ -51,7 +51,11 @@ export type AdminAlertAction =
   /** The entire staff directory left the system as a file. */
   | "STAFF_DIRECTORY_EXPORTED"
   /** A large batch of records was exported to a file from the browser. */
-  | "BULK_EXPORT_DOWNLOADED";
+  | "BULK_EXPORT_DOWNLOADED"
+  /** A scheduled (cron) job failed to complete. */
+  | "AUTOMATION_FAILED"
+  /** The database backup is missing, stale, or empty. */
+  | "BACKUP_UNHEALTHY";
 
 const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   RECYCLE_BIN_PURGED: {
@@ -93,6 +97,14 @@ const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   BULK_EXPORT_DOWNLOADED: {
     title: "Large data export downloaded",
     why: "A big batch of records was exported to a file from the browser. Confirm who did it and why — this is the shape of data exfiltration.",
+  },
+  AUTOMATION_FAILED: {
+    title: "Scheduled job failed",
+    why: "A daily automation did not complete. Reminders or maintenance it performs may not have run — check the server log and re-run if needed.",
+  },
+  BACKUP_UNHEALTHY: {
+    title: "Database backup problem",
+    why: "The most recent database backup is missing, stale, or empty. The system may currently have no usable restore point — investigate now.",
   },
 };
 
