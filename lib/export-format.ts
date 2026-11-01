@@ -71,7 +71,8 @@ export function escapeHtml(val: unknown): string {
 export function buildExportPdfHtml(
   data: Record<string, unknown>[],
   columns: ExportColumn[],
-  title: string
+  title: string,
+  exportedBy?: string
 ): string {
   const safeTitle = escapeHtml(title);
 
@@ -132,6 +133,7 @@ export function buildExportPdfHtml(
   </table>
   <div class="footer">
     &copy; ${new Date().getFullYear()} Illume Student Advisory Services &mdash; Confidential
+    ${exportedBy ? `<br/>Exported by ${escapeHtml(exportedBy)} on ${escapeHtml(new Date().toLocaleString("en-GB"))}` : ""}
   </div>
   <script>window.onload = function() { window.print(); }<\/script>
 </body>

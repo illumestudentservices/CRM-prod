@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSession } from "next-auth/react";
 import { Download, FileSpreadsheet, FileText, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,18 +68,45 @@ function triggerDownload(content: string, filename: string, mime: string) {
 function printAsPDF(
   data: Record<string, unknown>[],
   columns: ExportColumn[],
-  title: string
+  title: string,
+  exportedBy?: string
 ) {
   // The document is built in lib/export-format.ts, where every dynamic value
   // (cell, title, header) is HTML-escaped. Record values are user-controlled
   // and this window executes scripts, so escaping is what stops a stored name
-  // or note from running as code here.
-  const html = buildExportPdfHtml(data, columns, title);
+  // or note from running as code here. exportedBy stamps the PDF with who
+  // exported it, for traceability if the file leaves the building.
+  const html = buildExportPdfHtml(data, columns, title, exportedBy);
 
   const win = window.open("", "_blank");
   if (!win) { alert("Please allow pop-ups to export PDF."); return; }
   win.document.write(html);
   win.document.close();
+}
+
+/**
+ * Record an export to the server audit trail (who/what/format/rows). Client
+ * exports are built in-browser from already-fetched rows, so this beacon is the
+ * only signal that one happened. Fire-and-forget with keepalive so it survives
+ * the new window / navigation; never blocks or fails the export itself.
+ */
+function logExport(dataset: string, format: "csv" | "pdf", recordCount: number) {
+  try {
+    void fetch("/api/exports/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dataset, format, recordCount }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch { /* never let auditing break an export */ }
+}
+
+/** The signed-in user's identity for the PDF stamp, or undefined if unknown. */
+function useExportedBy(): string | undefined {
+  const { data } = useSession();
+  const u = data?.user as { name?: string | null; email?: string | null } | undefined;
+  if (!u) return undefined;
+  return u.email ? `${u.name ?? "User"} (${u.email})` : (u.name ?? undefined);
 }
 
 // ─── Single-dataset export button ─────────────────────────────────────────────
@@ -90,6 +118,7 @@ function SingleExport({
   title,
 }: Required<Pick<ExportButtonProps, "data" | "columns" | "filename" | "title">>) {
   const [busy, setBusy] = React.useState(false);
+  const exportedBy = useExportedBy();
 
   return (
     <DropdownMenu>
@@ -108,14 +137,14 @@ function SingleExport({
           className="gap-2 cursor-pointer"
           onClick={() => {
             setBusy(true);
-            try { triggerDownload(toCSV(data, columns), `${filename}_${Date.now()}.csv`, "text/csv;charset=utf-8;"); }
+            try { logExport(filename, "csv", data.length); triggerDownload(toCSV(data, columns), `${filename}_${Date.now()}.csv`, "text/csv;charset=utf-8;"); }
             finally { setBusy(false); }
           }}
         >
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
           Export as Excel / CSV
         </DropdownMenuItem>
-        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => printAsPDF(data, columns, title)}>
+        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => { logExport(filename, "pdf", data.length); printAsPDF(data, columns, title, exportedBy); }}>
           <FileText className="h-4 w-4 text-red-500" />
           Export as PDF
         </DropdownMenuItem>
@@ -130,12 +159,14 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
   const [busy, setBusy] = React.useState(false);
   const [step, setStep] = React.useState<"root" | "csv" | "pdf">("root");
   const [open, setOpen] = React.useState(false);
+  const exportedBy = useExportedBy();
 
   const totalRecords = exports.reduce((s, e) => s + e.data.length, 0);
 
   function handleCSV(section: ExportSection) {
     setBusy(true);
     try {
+      logExport(section.filename, "csv", section.data.length);
       triggerDownload(
         toCSV(section.data, section.columns),
         `${section.filename}_${Date.now()}.csv`,
@@ -149,7 +180,8 @@ function MultiExport({ exports, title }: { exports: ExportSection[]; title: stri
   }
 
   function handlePDF(section: ExportSection) {
-    printAsPDF(section.data, section.columns, `${title} — ${section.label}`);
+    logExport(section.filename, "pdf", section.data.length);
+    printAsPDF(section.data, section.columns, `${title} — ${section.label}`, exportedBy);
     setOpen(false);
     setStep("root");
   }
