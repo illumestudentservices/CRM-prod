@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { totpVerify } from "@/lib/totp";
+import { decryptField } from "@/lib/field-crypto";
 import {
   verifyEmailOtp, reserveMfaAttempt, clearMfaFailures,
 } from "@/lib/mfa";
@@ -124,7 +125,11 @@ export async function POST(req: NextRequest) {
     if (!user.twoFactorSecret) {
       return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
     }
-    if (await totpVerify(user.twoFactorSecret, cleanCode)) {
+    // Secret is encrypted at rest. decryptField passes a legacy plaintext
+    // secret through untouched, so this works before, during and after the
+    // one-time migration of existing rows.
+    const totpSecret = decryptField(user.twoFactorSecret);
+    if (await totpVerify(totpSecret, cleanCode)) {
       // ── Replay guard ───────────────────────────────────────────────────────
       // A TOTP code stays cryptographically valid for its whole step window
       // (~90s with the ±1 skew totpVerify allows). Without this, a code sniffed
@@ -134,7 +139,7 @@ export async function POST(req: NextRequest) {
       // code) and refuse the same fingerprint again inside the window. One
       // login only ever needs the code once; a double-submit is caught by the
       // already-verified short-circuit at the top of this handler.
-      const fp = crypto.createHash("sha256").update(`${user.twoFactorSecret}:${cleanCode}`).digest("hex");
+      const fp = crypto.createHash("sha256").update(`${totpSecret}:${cleanCode}`).digest("hex");
       const REPLAY_MS = 90_000;
       if (user.lastTotpHash === fp && user.lastTotpAt && Date.now() - user.lastTotpAt.getTime() < REPLAY_MS) {
         void logActivity(session.user.id, "2FA_REPLAY_BLOCKED", "USER", session.user.id, { method: "totp" });

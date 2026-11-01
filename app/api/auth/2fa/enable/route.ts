@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { totpVerify } from "@/lib/totp";
+import { encryptField } from "@/lib/field-crypto";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -116,7 +117,10 @@ export async function POST(req: NextRequest) {
     where: { id: session.user.id },
     data: {
       twoFactorEnabled: true,
-      twoFactorSecret: secret,
+      // Encrypted at rest (AES-256) so a database leak does not hand an
+      // attacker everyone's TOTP seeds. decryptField in the verify route reads
+      // it back; backup codes are already bcrypt-hashed.
+      twoFactorSecret: encryptField(secret),
       twoFactorBackupCodes: hashedBackupCodes,
     },
   });
