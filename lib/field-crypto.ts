@@ -65,13 +65,44 @@ function master(): Buffer {
 // Derived, cached. Distinct info labels keep the two derived keys independent.
 let encCache: Buffer | null = null;
 let macCache: Buffer | null = null;
+function deriveEnc(masterBuf: Buffer): Buffer {
+  return Buffer.from(
+    crypto.hkdfSync("sha256", masterBuf, Buffer.alloc(0), Buffer.from("illume:field-enc:v1"), 32),
+  );
+}
 function encKey(): Buffer {
-  if (!encCache) {
-    encCache = Buffer.from(
-      crypto.hkdfSync("sha256", master(), Buffer.alloc(0), Buffer.from("illume:field-enc:v1"), 32),
-    );
-  }
+  if (!encCache) encCache = deriveEnc(master());
   return encCache;
+}
+
+/**
+ * KEY ROTATION SUPPORT.
+ *
+ * FIELD_ENCRYPTION_KEY_OLD may hold one or more previous keys (comma-separated
+ * base64). encrypt always uses the current key; decrypt tries the current key
+ * first, then each old key. That makes rotation safe and zero-downtime:
+ *
+ *   1. set FIELD_ENCRYPTION_KEY = NEW, FIELD_ENCRYPTION_KEY_OLD = OLD, restart
+ *      — the app now writes NEW and still reads everything written with OLD;
+ *   2. run scripts/rotate-encryption-key.ts to re-encrypt every row under NEW
+ *      (and recompute the blind index, which is also key-derived);
+ *   3. drop FIELD_ENCRYPTION_KEY_OLD, restart.
+ *
+ * With FIELD_ENCRYPTION_KEY_OLD unset (the normal state) this is a no-op and
+ * decrypt behaves exactly as before.
+ */
+let legacyCache: Buffer[] | null = null;
+function legacyEncKeys(): Buffer[] {
+  if (legacyCache) return legacyCache;
+  const raw = process.env.FIELD_ENCRYPTION_KEY_OLD ?? "";
+  legacyCache = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((b64) => Buffer.from(b64, "base64"))
+    .filter((buf) => buf.length >= 32)
+    .map(deriveEnc);
+  return legacyCache;
 }
 function macKey(): Buffer {
   if (!macCache) {
@@ -107,9 +138,19 @@ export function decryptField(value: string): string {
   const iv = raw.subarray(0, 12);
   const tag = raw.subarray(12, 28);
   const ct = raw.subarray(28);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", encKey(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+  // Try the current key, then any rotated-out keys. GCM throws on the wrong key
+  // (tag mismatch), so a failed attempt simply falls through to the next.
+  let lastErr: unknown;
+  for (const key of [encKey(), ...legacyEncKeys()]) {
+    try {
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(tag);
+      return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("decryptField: no key could decrypt the value");
 }
 
 /**
