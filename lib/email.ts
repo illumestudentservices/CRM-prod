@@ -112,22 +112,13 @@ const PANEL = "#F8FAFC";
  * dropped and the pill lost its fill. A solid panel with a coloured border and
  * coloured text reads the same everywhere and cannot fail that way.
  */
-export function badge(text: string, color: string) {
-  return `<span style="display:inline-block;background:${PANEL};color:${color};font-family:${FONT};font-size:12px;font-weight:600;line-height:1;padding:5px 11px;border-radius:100px;border:1px solid ${color};mso-line-height-rule:exactly;">${text}</span>`;
-}
-
-export function infoRow(label: string, value: string) {
-  return `<tr>
-    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${MUTED};font-weight:600;white-space:nowrap;border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${label}</td>
-    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${INK};border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${value}</td>
-  </tr>`;
-}
-
 /**
  * Escapes text that came from a person before it is interpolated into a
- * template. Every other template here interpolates values the system
- * generated; announcements interpolate what somebody typed, and without this
- * anyone with announcements:write could post HTML into everyone's mail.
+ * template. All text cells and the email title now pass through this by
+ * default; a cell that is deliberately HTML (a badge, bold text) is marked
+ * with rawHtml() so it is NOT re-escaped. Before this, any field a user could
+ * set (a name, a note, a job title, a close reason) was interpolated raw into
+ * the HTML mail — HTML/link injection into every recipient's inbox.
  */
 export function escapeHtml(v: string): string {
   return v
@@ -138,7 +129,24 @@ export function escapeHtml(v: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function infoTable(rows: [string, string][]) {
+/** A table/row cell: a plain string (escaped) or trusted HTML via rawHtml(). */
+export type Cell = string | { html: string };
+/** Mark a value as already-safe HTML so infoRow/infoTable leave it untouched. */
+export const rawHtml = (html: string): { html: string } => ({ html });
+const renderCell = (v: Cell): string => (typeof v === "string" ? escapeHtml(v) : v.html);
+
+export function badge(text: string, color: string) {
+  return `<span style="display:inline-block;background:${PANEL};color:${color};font-family:${FONT};font-size:12px;font-weight:600;line-height:1;padding:5px 11px;border-radius:100px;border:1px solid ${color};mso-line-height-rule:exactly;">${escapeHtml(text)}</span>`;
+}
+
+export function infoRow(label: string, value: Cell) {
+  return `<tr>
+    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${MUTED};font-weight:600;white-space:nowrap;border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${escapeHtml(label)}</td>
+    <td style="padding:11px 16px;font-family:${FONT};font-size:13px;color:${INK};border-bottom:1px solid ${HAIRLINE};vertical-align:top;">${renderCell(value)}</td>
+  </tr>`;
+}
+
+export function infoTable(rows: [string, Cell][]) {
   // `overflow:hidden` to clip the corner radius does nothing in most clients,
   // so the border is put on the table itself rather than relying on the clip.
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${PANEL}" style="background:${PANEL};border-radius:10px;width:100%;margin:18px 0 26px;border:1px solid ${HAIRLINE};border-collapse:separate;">
@@ -158,7 +166,7 @@ export function ctaButton(text: string, href: string, color = NAVY) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 6px;">
     <tr>
       <td align="center" bgcolor="${color}" style="background:${color};border-radius:8px;">
-        <a href="${href}" style="display:inline-block;padding:14px 34px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;mso-padding-alt:14px 34px;">${text}</a>
+        <a href="${href}" style="display:inline-block;padding:14px 34px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;mso-padding-alt:14px 34px;">${escapeHtml(text)}</a>
       </td>
     </tr>
   </table>`;
@@ -208,7 +216,7 @@ export function wrapEmail(title: string, body: string, preheader?: string): stri
   <meta name="x-apple-disable-message-reformatting" />
   <meta name="color-scheme" content="light" />
   <meta name="supported-color-schemes" content="light" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
@@ -226,7 +234,7 @@ export function wrapEmail(title: string, body: string, preheader?: string): stri
 <body style="margin:0;padding:0;background:#F1F5F9;font-family:${FONT};-webkit-font-smoothing:antialiased;">
   <!-- Inbox preview line. Hidden in the body, shown beside the subject. Without
        it, clients pull the first words of the content, which is usually "Hi". -->
-  <div style="display:none;font-size:1px;color:#F1F5F9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader ?? title}</div>
+  <div style="display:none;font-size:1px;color:#F1F5F9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${escapeHtml(preheader ?? title)}</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F1F5F9" style="background:#F1F5F9;">
     <tr>
@@ -760,7 +768,7 @@ export async function sendSecurityAlertEmail(opts: {
       </p>
 
       ${infoTable([
-        ["Affected User", `<strong>${opts.targetName}</strong>`],
+        ["Affected User", rawHtml(`<strong>${escapeHtml(opts.targetName)}</strong>`)],
         ["Email", opts.targetEmail],
         ["Action By", opts.changedBy],
         ["Timestamp", timestamp],
@@ -805,7 +813,7 @@ export async function sendLeadStageChangeEmail(opts: {
       ${infoTable([
         ["Student", opts.leadName],
         ["Previous Stage", stageLabel(opts.previousStage)],
-        ["New Stage", badge(stageLabel(opts.newStage), color)],
+        ["New Stage", rawHtml(badge(stageLabel(opts.newStage), color))],
         ["Updated By", opts.changedBy],
         ...(opts.note ? [["Note", opts.note] as [string, string]] : []),
       ])}
@@ -844,7 +852,7 @@ export async function sendLeadClosedEmail(opts: {
       <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">${intro}</p>
       ${infoTable([
         ["Student", opts.leadName],
-        ["Outcome", badge(opts.outcome, "#dc2626")],
+        ["Outcome", rawHtml(badge(opts.outcome, "#dc2626"))],
         ["Closed By", opts.closedBy],
         ["Details", opts.details],
       ])}
@@ -873,7 +881,7 @@ export async function sendReportSubmittedEmail(opts: {
         ["ICR", opts.icrName],
         ["Institution", opts.institutionName],
         ["Period", opts.period],
-        ["Status", badge("Pending Review", "#f59e0b")],
+        ["Status", rawHtml(badge("Pending Review", "#f59e0b"))],
       ])}
       ${ctaButton("Review Report", opts.reportUrl)}
     `),
@@ -957,7 +965,7 @@ export async function sendIcrReportSubmittedEmail(opts: {
         ["ICR", opts.icrName],
         ["Period", opts.period],
         ["Institutions covered", String(opts.institutionCount)],
-        ["Status", badge("Pending Review", "#f59e0b")],
+        ["Status", rawHtml(badge("Pending Review", "#f59e0b"))],
       ])}
       ${ctaButton("Review Report", opts.reportUrl)}
     `),
@@ -989,7 +997,7 @@ export async function sendIcrReportStatusEmail(opts: {
       <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">${body}</p>
       ${infoTable([
         ["Period", opts.period],
-        ["Status", approved ? badge("Approved", "#22c55e") : badge("Returned", "#ef4444")],
+        ["Status", rawHtml(approved ? badge("Approved", "#22c55e") : badge("Returned", "#ef4444"))],
         ...(opts.comment ? [["Manager's comment", opts.comment] as [string, string]] : []),
       ])}
       ${ctaButton("View Report", opts.reportUrl)}
@@ -1022,7 +1030,7 @@ export async function sendLeaveDecisionEmail(opts: {
         ["From", opts.startDate],
         ["To", opts.endDate],
         ["Duration", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
-        ["Decision", badge(approved ? "Approved" : "Rejected", approved ? "#22c55e" : "#ef4444")],
+        ["Decision", rawHtml(badge(approved ? "Approved" : "Rejected", approved ? "#22c55e" : "#ef4444"))],
         ...(opts.note ? [["Reason", opts.note] as [string, string]] : []),
       ])}
       ${ctaButton("View Leave Details", opts.leaveUrl)}
@@ -1055,7 +1063,7 @@ export async function sendLeaveAppliedEmail(opts: {
         ["From", opts.startDate],
         ["To", opts.endDate],
         ["Duration", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
-        ["Status", badge("Pending Approval", "#f59e0b")],
+        ["Status", rawHtml(badge("Pending Approval", "#f59e0b"))],
         ...(opts.reason ? [["Reason", opts.reason] as [string, string]] : []),
       ])}
       ${ctaButton("Review Leave Request", opts.leaveUrl)}
@@ -1247,7 +1255,7 @@ export async function sendSectionEmail(opts: {
 }) {
   const messageBlock = opts.message
     ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${opts.senderName}</strong> says: ` : ""}${opts.message.replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${escapeHtml(opts.senderName)}</strong> says: ` : ""}${escapeHtml(opts.message).replace(/\n/g, "<br>")}</p>
       </div>`
     : "";
 
@@ -1324,7 +1332,7 @@ export async function sendFullReportEmail(opts: {
 
   const messageBlock = opts.message
     ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${opts.senderName}</strong> says: ` : ""}${opts.message.replace(/\n/g, "<br>")}</p>
+        <p style="margin:0;font-size:13px;color:#0369A1;line-height:1.6;">${opts.senderName ? `<strong>${escapeHtml(opts.senderName)}</strong> says: ` : ""}${escapeHtml(opts.message).replace(/\n/g, "<br>")}</p>
       </div>`
     : "";
 
@@ -1428,10 +1436,10 @@ export async function sendAccountRequestEmail(opts: {
         ...(opts.reportsToInstitution ? [["Reports to", opts.reportsToInstitution] as [string, string]] : []),
         ...(opts.phone ? [["Phone", opts.phone] as [string, string]] : []),
         ["Requested by", `${opts.requestedByName} (${opts.requestedByEmail})`],
-        ["Status", badge("Pending Review", "#f59e0b")],
+        ["Status", rawHtml(badge("Pending Review", "#f59e0b"))],
       ])}
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Justification</strong></p>
-      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${opts.justification}</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${escapeHtml(opts.justification)}</p>
       ${ctaButton("Review Request", opts.reviewUrl)}
     `),
   });
@@ -1462,7 +1470,7 @@ export async function sendAccountRequestDecisionEmail(opts: {
       </p>
       ${infoTable([
         ["New joiner", opts.candidateName],
-        ["Decision", opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444")],
+        ["Decision", rawHtml(opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444"))],
         ...(opts.notes ? [["Notes", opts.notes] as [string, string]] : []),
       ])}
       ${ctaButton("View Request", opts.requestUrl)}
@@ -1511,10 +1519,10 @@ export async function sendOffboardingRequestEmail(opts: {
         ["Last working day", opts.lastWorkingDay],
         ...(opts.forwardingEmail ? [["Forwarding email", opts.forwardingEmail] as [string, string]] : []),
         ["Requested by", `${opts.requestedByName} (${opts.requestedByEmail})`],
-        ["Status", badge("Pending Review", "#f59e0b")],
+        ["Status", rawHtml(badge("Pending Review", "#f59e0b"))],
       ])}
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Context</strong></p>
-      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${opts.notes}</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;white-space:pre-wrap;">${escapeHtml(opts.notes)}</p>
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:16px 0 4px;"><strong>Still to do by hand after approving</strong></p>
       <ul style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 16px;padding-left:20px;">
         ${opts.revocationSteps.map((s) => `<li>${s}</li>`).join("")}
@@ -1551,7 +1559,7 @@ export async function sendOffboardingRequestDecisionEmail(opts: {
       ${infoTable([
         ["Employee", opts.employeeName],
         ["Last working day", opts.lastWorkingDay],
-        ["Decision", opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444")],
+        ["Decision", rawHtml(opts.approved ? badge("Approved", "#22c55e") : badge("Declined", "#ef4444"))],
         ...(opts.notes ? [["Notes", opts.notes] as [string, string]] : []),
       ])}
       ${ctaButton("View Request", opts.requestUrl)}
@@ -1825,7 +1833,7 @@ export async function sendTaskAssignedEmail(opts: {
           <td style="padding:16px 20px;font-family:${FONT};">
             <div style="font-size:16px;font-weight:700;color:${INK};line-height:1.4;">${opts.taskTitle}</div>
             ${opts.description
-              ? `<div style="font-size:13px;line-height:1.6;color:${MUTED};margin-top:6px;">${opts.description}</div>`
+              ? `<div style="font-size:13px;line-height:1.6;color:${MUTED};margin-top:6px;">${escapeHtml(opts.description)}</div>`
               : ""}
             <div style="margin-top:12px;">${badge(opts.priority, urgent ? "#B45309" : NAVY)}</div>
           </td>
@@ -1999,14 +2007,14 @@ export async function sendAdminAlertEmail(opts: {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="background:${PANEL};border:1px solid #B45309;border-radius:10px;margin:0 0 24px;">
         <tr>
           <td style="padding:16px 20px;font-family:${FONT};">
-            <div style="font-size:15px;font-weight:700;color:#B45309;margin-bottom:4px;">${opts.title}</div>
-            <div style="font-size:13px;line-height:1.55;color:${MUTED};">${opts.why}</div>
+            <div style="font-size:15px;font-weight:700;color:#B45309;margin-bottom:4px;">${escapeHtml(opts.title)}</div>
+            <div style="font-size:13px;line-height:1.55;color:${MUTED};">${escapeHtml(opts.why)}</div>
           </td>
         </tr>
       </table>
 
       <p style="margin:0 0 4px;font-family:${FONT};font-size:15px;line-height:1.65;color:${BODY_TEXT};">
-        Hi ${opts.recipientName}, ${opts.summary}
+        Hi ${escapeHtml(opts.recipientName)}, ${escapeHtml(opts.summary)}
       </p>
 
       ${infoTable([
