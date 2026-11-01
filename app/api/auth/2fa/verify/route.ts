@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { totpVerify } from "@/lib/totp";
 import { decryptField } from "@/lib/field-crypto";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 import {
   verifyEmailOtp, reserveMfaAttempt, clearMfaFailures,
 } from "@/lib/mfa";
@@ -42,6 +43,15 @@ async function stampMfaVerified(userId: string, sid: string | undefined) {
  * which triggers the JWT callback to clear the pending flag.
  */
 export async function POST(req: NextRequest) {
+  // Per-IP cap, on top of the per-account lockout below: stops one source
+  // spraying code guesses across many accounts (the lockout is per account, so
+  // without this a single IP could try N codes each against unlimited accounts).
+  if (!rateLimit(`2fa-verify:${clientIp(req)}`, 30, 15 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "Too many attempts from this connection. Please wait a few minutes." },
+      { status: 429 }
+    );
+  }
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

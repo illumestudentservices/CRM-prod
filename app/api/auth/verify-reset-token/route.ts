@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { validatePassword } from "@/lib/password";
 import { isPasswordReused, recordPasswordInHistory, PASSWORD_REUSED_MESSAGE } from "@/lib/password-history";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   token: z.string().min(1),
@@ -12,6 +13,11 @@ const schema = z.object({
 
 // GET — validate token (check if valid/expired without consuming it)
 export async function GET(req: NextRequest) {
+  // Per-IP cap: tokens are high-entropy so brute force is already impractical,
+  // but nothing stopped one source hammering this check endpoint.
+  if (!rateLimit(`reset-verify:${clientIp(req)}`, 40, 15 * 60 * 1000)) {
+    return NextResponse.json({ valid: false, reason: "rate_limited" }, { status: 429 });
+  }
   const token = new URL(req.url).searchParams.get("token");
   if (!token) return NextResponse.json({ error: "Token required" }, { status: 400 });
 
@@ -34,6 +40,10 @@ export async function GET(req: NextRequest) {
 
 // POST — set new password using the magic link token
 export async function POST(req: NextRequest) {
+  // Per-IP cap on password-set attempts.
+  if (!rateLimit(`reset-set:${clientIp(req)}`, 20, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many attempts. Please wait a few minutes." }, { status: 429 });
+  }
   let body: unknown;
   try {
     body = await req.json();
