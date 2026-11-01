@@ -129,7 +129,12 @@ export async function recomputeRelationshipHealth(opts: { dryRun?: boolean } = {
 
 // ─── Contract renewal reminders ────────────────────────────────────────────
 // spec §6 — 180 / 120 / 90 / 60 / 30 day reminders before contract expiry.
-const RENEWAL_WINDOWS = [180, 120, 90, 60, 30];
+// Days-before-expiry milestones a renewal reminder fires on. MUST stay in
+// strict DESCENDING order: the institution-renewal path below does
+// `RENEWAL_WINDOWS.filter(w => daysLeft <= w).pop()` and relies on pop()
+// returning the TIGHTEST (smallest) matching window. `1` is the final
+// day-before nudge (urgent, since <= 60).
+const RENEWAL_WINDOWS = [180, 120, 90, 60, 30, 1];
 
 export interface RenewalReminderSummary {
   ranAt: string;
