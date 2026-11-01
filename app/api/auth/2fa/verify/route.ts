@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { totpVerify } from "@/lib/totp";
 import {
   verifyEmailOtp, reserveMfaAttempt, clearMfaFailures,
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { twoFactorSecret: true, twoFactorBackupCodes: true, mfaMethod: true },
+    select: { twoFactorSecret: true, twoFactorBackupCodes: true, mfaMethod: true, lastTotpHash: true, lastTotpAt: true },
   });
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -124,6 +125,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
     }
     if (await totpVerify(user.twoFactorSecret, cleanCode)) {
+      // ── Replay guard ───────────────────────────────────────────────────────
+      // A TOTP code stays cryptographically valid for its whole step window
+      // (~90s with the ±1 skew totpVerify allows). Without this, a code sniffed
+      // or shoulder-surfed during that window can be replayed on a second,
+      // parallel login the attacker holds. We fingerprint the accepted code
+      // (keyed by the user's secret so it never leaves this server as the raw
+      // code) and refuse the same fingerprint again inside the window. One
+      // login only ever needs the code once; a double-submit is caught by the
+      // already-verified short-circuit at the top of this handler.
+      const fp = crypto.createHash("sha256").update(`${user.twoFactorSecret}:${cleanCode}`).digest("hex");
+      const REPLAY_MS = 90_000;
+      if (user.lastTotpHash === fp && user.lastTotpAt && Date.now() - user.lastTotpAt.getTime() < REPLAY_MS) {
+        void logActivity(session.user.id, "2FA_REPLAY_BLOCKED", "USER", session.user.id, { method: "totp" });
+        return NextResponse.json(
+          { error: "That code was already used. Wait for your app to show the next one." },
+          { status: 400 }
+        );
+      }
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { lastTotpHash: fp, lastTotpAt: new Date() },
+      });
       await clearMfaFailures(session.user.id);
       await stampMfaVerified(session.user.id, session.user.sid);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
