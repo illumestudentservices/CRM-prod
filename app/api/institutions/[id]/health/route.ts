@@ -129,7 +129,7 @@ export async function PATCH(
 
   const inst = await db.institution.findUnique({
     where: { id: institutionId },
-    select: { id: true },
+    select: { id: true, name: true, accountHealth: true, accountManagerId: true, regionalManagerId: true },
   });
   if (!inst) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
@@ -183,6 +183,39 @@ export async function PATCH(
     // whether one was recorded is part of the event, not a detail.
     interventionId: result.intervention?.id ?? null,
   });
+
+  // Tell the people who answer for the client — the account manager and the
+  // regional manager — when health WORSENS. The intervention's action owner is
+  // already notified above; this is the relationship owners, who otherwise only
+  // learn their client is in trouble by happening to look. Only on a drop into
+  // AMBER/RED, so an improvement or a no-op change stays quiet.
+  const RANK: Record<string, number> = { GREY: 0, GREEN: 1, AMBER: 2, RED: 3 };
+  const worsened =
+    (RANK[d.health] ?? 0) > (RANK[inst.accountHealth] ?? 0) &&
+    (d.health === "AMBER" || d.health === "RED");
+  if (worsened) {
+    const alreadyNotified = result.intervention?.actionOwnerId ?? null;
+    const recipients = [...new Set(
+      [inst.accountManagerId, inst.regionalManagerId].filter(
+        (id): id is string => !!id && id !== userId && id !== alreadyNotified
+      )
+    )];
+    for (const rid of recipients) {
+      try {
+        await db.notification.create({
+          data: {
+            userId: rid,
+            title: `Client health dropped to ${d.health}: ${inst.name}`,
+            message: `${inst.name}'s account health changed from ${inst.accountHealth} to ${d.health}. Review the account.`,
+            type: "ACCOUNT_HEALTH",
+            link: `/institutions/${institutionId}?tab=health`,
+          },
+        });
+      } catch {
+        /* non-fatal — an alert must never fail the health change */
+      }
+    }
+  }
 
   return NextResponse.json({ data: result });
 }
