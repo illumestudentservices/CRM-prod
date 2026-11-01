@@ -1,6 +1,18 @@
 import { db, createAndLogin, destroyUser, api, Jar, BASE, TAG, startSection, expect, summary } from "./qa-lib.mjs";
 import { buildExportPdfHtml } from "@/lib/export-format";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// logActivity is fire-and-forget (the beacon returns before the audit write
+// lands), so poll briefly rather than assuming the row is there instantly.
+async function findAudit(userId: string, entityId: string) {
+  for (let i = 0; i < 12; i++) {
+    const row = await db.auditLog.findFirst({ where: { userId, action: "EXPORT", entity: "DataExport", entityId } });
+    if (row) return row;
+    await sleep(150);
+  }
+  return null;
+}
+
 async function main() {
   // Part A — PDF attribution stamp (escaped).
   startSection("PDF export attribution");
@@ -17,7 +29,7 @@ async function main() {
       const dataset = `QA Export ${TAG} ${run}`;
       let r = await api(admin.jar, "POST", "/api/exports/log", { dataset, format: "csv", recordCount: 42 });
       expect(r.ok, "authed export beacon accepted (200)", `got ${r.status}`);
-      const row = await db.auditLog.findFirst({ where: { userId: admin.user.id, action: "EXPORT", entity: "DataExport", entityId: dataset } });
+      const row = await findAudit(admin.user.id, dataset);
       expect(!!row, "an EXPORT audit row was written for the dataset", row ? "" : "no row");
 
       r = await api(new Jar(), "POST", "/api/exports/log", { dataset, format: "csv", recordCount: 1 });
@@ -28,7 +40,18 @@ async function main() {
       r = await api(admin.jar, "POST", "/api/exports/log", { dataset });
       expect(r.status === 422, "invalid body is rejected (422)", `got ${r.status}`);
     }
-    // Rate limit: per-user 120/hr. We already sent 3; push past 120.
+    startSection("bulk export alert");
+    {
+      const big = await api(admin.jar, "POST", "/api/exports/log", { dataset: `QA Bulk ${TAG}`, format: "csv", recordCount: 1000 });
+      expect(big.ok && big.payload?.bulk === true, "large export (1000 rows) flagged bulk", `got ${big.status} ${JSON.stringify(big.payload)}`);
+      const bigRow = await findAudit(admin.user.id, `QA Bulk ${TAG}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(!!bigRow && (bigRow.changes as any)?.bulk === true, "audit row records bulk=true", JSON.stringify(bigRow?.changes));
+      const small = await api(admin.jar, "POST", "/api/exports/log", { dataset: `QA Small ${TAG}`, format: "csv", recordCount: 5 });
+      expect(small.ok && small.payload?.bulk === false, "small export (5 rows) is NOT bulk", `got ${JSON.stringify(small.payload)}`);
+    }
+
+    // Rate limit: per-user 120/hr. We already sent 5; push past 120.
     startSection("export beacon rate limit");
     let limited = false;
     for (let i = 0; i < 125; i++) {

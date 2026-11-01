@@ -49,7 +49,9 @@ export type AdminAlertAction =
   /** The "work is still owned" block on revoking access was overridden. */
   | "OFFBOARDING_REVOKE_OVERRIDE"
   /** The entire staff directory left the system as a file. */
-  | "STAFF_DIRECTORY_EXPORTED";
+  | "STAFF_DIRECTORY_EXPORTED"
+  /** A large batch of records was exported to a file from the browser. */
+  | "BULK_EXPORT_DOWNLOADED";
 
 const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   RECYCLE_BIN_PURGED: {
@@ -87,6 +89,10 @@ const LABELS: Record<AdminAlertAction, { title: string; why: string }> = {
   OFFBOARDING_REVOKE_OVERRIDE: {
     title: "Access revocation override",
     why: "Access was revoked while work was still owned by that person, bypassing the block.",
+  },
+  BULK_EXPORT_DOWNLOADED: {
+    title: "Large data export downloaded",
+    why: "A big batch of records was exported to a file from the browser. Confirm who did it and why — this is the shape of data exfiltration.",
   },
 };
 
