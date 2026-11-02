@@ -7,20 +7,14 @@ import { Plus, LayoutGrid, List, Search, X, AlertTriangle, CloudOff } from "luci
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiSelectFilter, type MultiSelectOption } from "@/components/shared/multi-select-filter";
 import { KanbanBoard } from "./kanban-board";
 import { LeadListView } from "./lead-list-view";
 import { LeadForm } from "./lead-form";
 import type { LeadWithRelations } from "./lead-card";
 import type { RecruitmentPartner, Institution, User } from "@prisma/client";
-import type { LeadStage } from "@prisma/client";
 import { ALL_STAGES, STAGE_LABELS } from "@/lib/lead-pipeline";
+import { NO_REGION } from "@/lib/region-scope";
 import { ExportButton } from "@/components/shared/export-button";
 import { displayName } from "@/lib/person-name";
 import { OFFLINE_CAPTURE_WARNING } from "@/lib/offline-capture";
@@ -45,10 +39,10 @@ const LEAD_EXPORT_COLUMNS = [
   { key: "createdAt",         header: "Created At" },
 ];
 
-const STAGE_OPTIONS: { value: LeadStage | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All Stages" },
-  ...ALL_STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] })),
-]
+const STAGE_OPTIONS: MultiSelectOption[] = ALL_STAGES.map((s) => ({
+  value: s,
+  label: STAGE_LABELS[s],
+}));
 
 // Sentinel for "no ICR assigned". Never "" — Radix reserves the empty string for
 // the cleared state and throws when it is used as an item value.
@@ -78,49 +72,85 @@ export function StudentsClientPage({
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<Tab>("kanban");
   const [search, setSearch] = React.useState("");
-  const [stageFilter, setStageFilter] = React.useState<LeadStage | "ALL">("ALL");
-  const [institutionFilter, setInstitutionFilter] = React.useState<string>("ALL");
-  const [sourceFilter, setSourceFilter] = React.useState<string>(initialSourceId ?? "ALL");
-  const [icrFilter, setIcrFilter] = React.useState<string>("ALL");
+  // Each filter holds the picked values. An empty array means "no filter"
+  // (show everything), so a user can tick several stages, regions, etc. at once.
+  const [stageFilter, setStageFilter] = React.useState<string[]>([]);
+  const [institutionFilter, setInstitutionFilter] = React.useState<string[]>([]);
+  const [sourceFilter, setSourceFilter] = React.useState<string[]>(
+    initialSourceId ? [initialSourceId] : []
+  );
+  const [icrFilter, setIcrFilter] = React.useState<string[]>([]);
+  const [regionFilter, setRegionFilter] = React.useState<string[]>([]);
   const [addModalOpen, setAddModalOpen] = React.useState(false);
 
-  // The source passed in the URL may be an inactive partner that isn't in the
-  // `sources` dropdown (which lists active partners only). Keep its name so the
-  // filter chip still reads sensibly rather than showing a bare id.
-  const activeSourceName = React.useMemo(() => {
-    if (sourceFilter === "ALL") return null;
-    const fromList = sources.find((s) => s.id === sourceFilter)?.name;
-    if (fromList) return fromList;
-    return initialLeads.find((l) => l.source?.id === sourceFilter)?.source?.name ?? null;
-  }, [sourceFilter, sources, initialLeads]);
+  // Source options. A source arriving in the URL (e.g. from a partner's Leads
+  // tile) may be an inactive partner not in the `sources` list; keep it as an
+  // option, named from the leads themselves, so it can be seen and un-ticked.
+  const sourceOptions = React.useMemo<MultiSelectOption[]>(() => {
+    const nameById = new Map<string, string>();
+    for (const s of sources) nameById.set(s.id, s.name);
+    for (const l of initialLeads) if (l.source) nameById.set(l.source.id, l.source.name);
+    const known = new Set(sources.map((s) => s.id));
+    const opts: MultiSelectOption[] = sources.map((s) => ({ value: s.id, label: s.name }));
+    for (const id of sourceFilter) {
+      if (!known.has(id)) opts.push({ value: id, label: nameById.get(id) ?? "Selected source" });
+    }
+    return opts;
+  }, [sources, initialLeads, sourceFilter]);
 
-  // Owners to offer in the ICR filter, derived from the leads themselves rather
-  // than from `icrUsers` (which is only active users whose role is literally
-  // ICR). A lead assigned to a deactivated/offboarded ICR, or to someone whose
-  // role is not ICR, is otherwise impossible to filter for — and the dropdown
-  // disappears entirely whenever no ICR-role user exists, even though every
-  // lead on screen has an owner.
-  const { icrOptions, hasUnassigned } = React.useMemo(() => {
-    const byId = new Map<string, string>();
+  const institutionOptions = React.useMemo<MultiSelectOption[]>(
+    () => institutions.map((i) => ({ value: i.id, label: i.name })),
+    [institutions]
+  );
+
+  // ICR and Region options are derived from the leads themselves rather than
+  // from a passed-in list: a lead owned by a deactivated ICR, or sitting in a
+  // region the viewer isn't the manager of, must still be filterable, and the
+  // control must not vanish just because no active user holds that exact role.
+  const { icrOptions, hasUnassigned, regionOptions, hasNoRegion } = React.useMemo(() => {
+    const icrById = new Map<string, string>();
+    const regionById = new Map<string, string>();
     let unassigned = false;
+    let noRegion = false;
     for (const lead of initialLeads) {
-      if (!lead.assignedICRId) {
+      if (lead.assignedICRId) {
+        if (!icrById.has(lead.assignedICRId)) {
+          icrById.set(lead.assignedICRId, lead.assignedICR?.name ?? "Unknown user");
+        }
+      } else {
         unassigned = true;
-        continue;
       }
-      if (!byId.has(lead.assignedICRId)) {
-        byId.set(lead.assignedICRId, lead.assignedICR?.name ?? "Unknown user");
+      if (lead.regionId && lead.region) {
+        if (!regionById.has(lead.regionId)) regionById.set(lead.regionId, lead.region.name);
+      } else {
+        noRegion = true;
       }
     }
+    const sortByName = (a: { label: string }, b: { label: string }) =>
+      a.label.localeCompare(b.label);
     return {
-      icrOptions: [...byId.entries()]
-        .map(([id, name]) => ({ id, name }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      icrOptions: [...icrById.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort(sortByName),
       hasUnassigned: unassigned,
+      regionOptions: [...regionById.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort(sortByName),
+      hasNoRegion: noRegion,
     };
   }, [initialLeads]);
 
-  // Filtered leads
+  const icrSelectOptions = React.useMemo<MultiSelectOption[]>(
+    () => (hasUnassigned ? [...icrOptions, { value: UNASSIGNED, label: "Unassigned" }] : icrOptions),
+    [icrOptions, hasUnassigned]
+  );
+  const regionSelectOptions = React.useMemo<MultiSelectOption[]>(
+    () => (hasNoRegion ? [...regionOptions, { value: NO_REGION, label: "No region" }] : regionOptions),
+    [regionOptions, hasNoRegion]
+  );
+
+  // Filtered leads. Every array filter is "match any of the picked values";
+  // an empty array leaves that dimension unfiltered.
   const filteredLeads = React.useMemo(() => {
     return initialLeads.filter((lead) => {
       if (search) {
@@ -134,24 +164,23 @@ export function StudentsClientPage({
           (lead.institution?.name ?? "").toLowerCase().includes(q);
         if (!matches) return false;
       }
-      if (stageFilter !== "ALL" && lead.stage !== stageFilter) return false;
-      if (institutionFilter !== "ALL" && lead.institutionId !== institutionFilter) return false;
-      if (sourceFilter !== "ALL" && lead.sourceId !== sourceFilter) return false;
-      if (icrFilter === UNASSIGNED) {
-        if (lead.assignedICRId) return false;
-      } else if (icrFilter !== "ALL" && lead.assignedICRId !== icrFilter) {
+      if (stageFilter.length && !stageFilter.includes(lead.stage)) return false;
+      if (institutionFilter.length && !(lead.institutionId && institutionFilter.includes(lead.institutionId)))
         return false;
-      }
+      if (sourceFilter.length && !(lead.sourceId && sourceFilter.includes(lead.sourceId))) return false;
+      if (icrFilter.length && !icrFilter.includes(lead.assignedICRId ?? UNASSIGNED)) return false;
+      if (regionFilter.length && !regionFilter.includes(lead.regionId ?? NO_REGION)) return false;
       return true;
     });
-  }, [initialLeads, search, stageFilter, institutionFilter, sourceFilter, icrFilter]);
+  }, [initialLeads, search, stageFilter, institutionFilter, sourceFilter, icrFilter, regionFilter]);
 
   const hasActiveFilters =
     search !== "" ||
-    stageFilter !== "ALL" ||
-    institutionFilter !== "ALL" ||
-    sourceFilter !== "ALL" ||
-    icrFilter !== "ALL";
+    stageFilter.length > 0 ||
+    institutionFilter.length > 0 ||
+    sourceFilter.length > 0 ||
+    icrFilter.length > 0 ||
+    regionFilter.length > 0;
 
   const exportData = React.useMemo(
     () =>
@@ -176,11 +205,18 @@ export function StudentsClientPage({
 
   function clearFilters() {
     setSearch("");
-    setStageFilter("ALL");
-    setInstitutionFilter("ALL");
-    setSourceFilter("ALL");
-    setIcrFilter("ALL");
+    setStageFilter([]);
+    setInstitutionFilter([]);
+    setSourceFilter([]);
+    setIcrFilter([]);
+    setRegionFilter([]);
   }
+
+  // Show the Region filter only when more than one region is actually present
+  // on screen — a single-region viewer gains nothing from a one-entry control.
+  const showRegionFilter = regionSelectOptions.length > 1;
+  const showSourceFilter = sourceOptions.length > 0 || sourceFilter.length > 0;
+  const showIcrFilter = isManager && icrSelectOptions.length > 0;
 
   return (
     <div className="space-y-4">
@@ -259,86 +295,69 @@ export function StudentsClientPage({
         </div>
 
         {/* Stage filter */}
-        <Select
-          value={stageFilter}
-          onValueChange={(v) => setStageFilter(v as LeadStage | "ALL")}
-        >
-          <SelectTrigger className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900">
-            <SelectValue placeholder="All Stages" />
-          </SelectTrigger>
-          <SelectContent>
-            {STAGE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All Stages"
+          noun="stages"
+          options={STAGE_OPTIONS}
+          selected={stageFilter}
+          onChange={setStageFilter}
+          className="w-[160px]"
+          ariaLabel="Filter by stage"
+        />
 
         {/* Institution filter */}
-        {institutions.length > 0 && (
-          <Select value={institutionFilter} onValueChange={setInstitutionFilter}>
-            <SelectTrigger className="h-8 w-[180px] text-sm bg-white dark:bg-slate-900">
-              <SelectValue placeholder="All Institutions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Institutions</SelectItem>
-              {institutions.map((inst) => (
-                <SelectItem key={inst.id} value={inst.id}>
-                  {inst.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {institutionOptions.length > 0 && (
+          <MultiSelectFilter
+            allLabel="All Institutions"
+            noun="institutions"
+            options={institutionOptions}
+            selected={institutionFilter}
+            onChange={setInstitutionFilter}
+            className="w-[180px]"
+            ariaLabel="Filter by institution"
+          />
+        )}
+
+        {/* Region filter (only when several regions are in view) */}
+        {showRegionFilter && (
+          <MultiSelectFilter
+            allLabel="All Regions"
+            noun="regions"
+            options={regionSelectOptions}
+            selected={regionFilter}
+            onChange={setRegionFilter}
+            className="w-[160px]"
+            ariaLabel="Filter by region"
+          />
         )}
 
         {/* Source filter. Rendered whenever a source filter is in effect (e.g.
             arriving from a partner's Leads tile) even if that partner is not in
             the active-partner list, so it can always be seen and cleared. */}
-        {(sources.length > 0 || sourceFilter !== "ALL") && (
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger
-              aria-label="Filter by source"
-              className="h-8 w-[180px] text-sm bg-white dark:bg-slate-900"
-            >
-              <SelectValue placeholder="All Sources">
-                {sourceFilter === "ALL" ? "All Sources" : activeSourceName ?? "Selected source"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Sources</SelectItem>
-              {sourceFilter !== "ALL" && !sources.some((s) => s.id === sourceFilter) && (
-                <SelectItem value={sourceFilter}>{activeSourceName ?? "Selected source"}</SelectItem>
-              )}
-              {sources.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {showSourceFilter && (
+          <MultiSelectFilter
+            allLabel="All Sources"
+            noun="sources"
+            options={sourceOptions}
+            selected={sourceFilter}
+            onChange={setSourceFilter}
+            className="w-[180px]"
+            ariaLabel="Filter by source"
+          />
         )}
 
         {/* ICR filter (managers only — an ICR is already scoped to their own
             leads, so the dropdown would have exactly one entry for them) */}
-        {isManager && (icrOptions.length > 0 || hasUnassigned) && (
-          <Select value={icrFilter} onValueChange={setIcrFilter}>
-            <SelectTrigger
-              aria-label="Filter by assigned ICR"
-              className="h-8 w-[160px] text-sm bg-white dark:bg-slate-900"
-            >
-              <SelectValue placeholder="All ICRs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All ICRs</SelectItem>
-              {icrOptions.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}
-                </SelectItem>
-              ))}
-              {hasUnassigned && <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>}
-            </SelectContent>
-          </Select>
+        {showIcrFilter && (
+          <MultiSelectFilter
+            allLabel="All ICRs"
+            noun="ICRs"
+            options={icrSelectOptions}
+            selected={icrFilter}
+            onChange={setIcrFilter}
+            className="w-[160px]"
+            ariaLabel="Filter by assigned ICR"
+          />
         )}
 
         {/* Clear filters */}

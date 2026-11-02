@@ -37,6 +37,7 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
         assignedICR: { select: { id: true, name: true, image: true } },
         institution: { select: { id: true, name: true } },
         source: { select: { id: true, name: true } },
+        region: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
     }),

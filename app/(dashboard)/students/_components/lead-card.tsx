@@ -21,6 +21,7 @@ export type LeadWithRelations = Lead & {
   assignedICR: Pick<User, "id" | "name" | "image"> | null;
   institution: Pick<Institution, "id" | "name"> | null;
   source: Pick<RecruitmentPartner, "id" | "name"> | null;
+  region: { id: string; name: string } | null;
 };
 
 const STUDY_LEVEL_LABELS: Record<string, string> = {
