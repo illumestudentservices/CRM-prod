@@ -1,20 +1,30 @@
 "use client";
 
 import * as React from "react";
-import { Building2, Search, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Building2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MultiSelectFilter, type MultiSelectOption } from "@/components/shared/multi-select-filter";
 import { StatCard } from "@/components/shared/stat-card";
 import { InstitutionCard } from "./institution-card";
 import { cn } from "@/lib/utils";
 import { HEALTH_LABELS, HEALTH_ORDER, HEALTH_PILL } from "@/lib/account-health";
 import type { AccountStatus, AccountHealth } from "@prisma/client";
+
+const STATUS_OPTIONS: MultiSelectOption[] = [
+  { value: "PROSPECT", label: "Prospect" },
+  { value: "ONBOARDING", label: "Onboarding" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "INACTIVE", label: "Inactive" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+const TYPE_OPTIONS: MultiSelectOption[] = [
+  { value: "University", label: "University" },
+  { value: "College", label: "College" },
+  { value: "Institute", label: "Institute" },
+  { value: "Other", label: "Other" },
+];
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -76,13 +86,16 @@ export function InstitutionsClient({
   stats,
   showFigures = true,
 }: InstitutionsClientProps) {
+  // Each filter holds the picked values; an empty array means "no filter"
+  // (show everything), so several statuses, regions, countries, etc. can be
+  // ticked at once.
   const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const [typeFilter, setTypeFilter] = React.useState("all");
-  const [regionFilter, setRegionFilter] = React.useState("all");
-  const [countryFilter, setCountryFilter] = React.useState("all");
-  const [accountManagerFilter, setAccountManagerFilter] = React.useState("all");
-  const [healthFilter, setHealthFilter] = React.useState("all");
+  const [statusFilter, setStatusFilter] = React.useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = React.useState<string[]>([]);
+  const [regionFilter, setRegionFilter] = React.useState<string[]>([]);
+  const [countryFilter, setCountryFilter] = React.useState<string[]>([]);
+  const [accountManagerFilter, setAccountManagerFilter] = React.useState<string[]>([]);
+  const [healthFilter, setHealthFilter] = React.useState<string[]>([]);
 
   // Derived country list from the loaded institutions — keeps the filter
   // tight to what's actually present.
@@ -92,26 +105,47 @@ export function InstitutionsClient({
     return Array.from(uniq).sort();
   }, [institutions]);
 
+  const regionOptions = React.useMemo<MultiSelectOption[]>(
+    () => regions.map((r) => ({ value: r.id, label: r.name })),
+    [regions]
+  );
+  const countryOptions = React.useMemo<MultiSelectOption[]>(
+    () => countries.map((c) => ({ value: c, label: c })),
+    [countries]
+  );
+  const healthOptions = React.useMemo<MultiSelectOption[]>(
+    () => HEALTH_ORDER.map((h) => ({ value: h, label: HEALTH_LABELS[h].sentiment })),
+    []
+  );
+  const accountManagerOptions = React.useMemo<MultiSelectOption[]>(
+    () => accountManagers.map((am) => ({ value: am.id, label: am.name ?? am.id })),
+    [accountManagers]
+  );
+
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
     return institutions.filter((inst) => {
       if (q && !inst.name.toLowerCase().includes(q) && !inst.country.toLowerCase().includes(q)) {
         return false;
       }
-      if (statusFilter !== "all" && inst.accountStatus !== statusFilter) return false;
-      if (typeFilter !== "all" && inst.type !== typeFilter) return false;
+      if (statusFilter.length && !statusFilter.includes(inst.accountStatus)) return false;
+      if (typeFilter.length && !typeFilter.includes(inst.type)) return false;
       // Matches ANY region the client is worked in, not only the primary one.
       // Filtering on the primary meant a Regional Manager for Southeast Asia
       // could not see Acadia — a client their region actively works — because
       // Africa happened to be the first region ticked when it was imported.
       // Falls back to the primary for rows that predate the join table.
-      if (regionFilter !== "all") {
+      if (regionFilter.length) {
         const worked = inst.regionIds?.length ? inst.regionIds : [inst.regionId];
-        if (!worked.includes(regionFilter)) return false;
+        if (!worked.some((w) => w && regionFilter.includes(w))) return false;
       }
-      if (countryFilter !== "all" && inst.country !== countryFilter) return false;
-      if (accountManagerFilter !== "all" && inst.accountManagerId !== accountManagerFilter) return false;
-      if (healthFilter !== "all" && (inst.accountHealth ?? "GREY") !== healthFilter) return false;
+      if (countryFilter.length && !countryFilter.includes(inst.country)) return false;
+      if (
+        accountManagerFilter.length &&
+        !(inst.accountManagerId && accountManagerFilter.includes(inst.accountManagerId))
+      )
+        return false;
+      if (healthFilter.length && !healthFilter.includes(inst.accountHealth ?? "GREY")) return false;
       return true;
     });
   }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter, healthFilter]);
@@ -145,11 +179,14 @@ export function InstitutionsClient({
             iconBg={card.iconBg}
             className={cn(
               card.status !== null && "cursor-pointer transition-all",
-              card.status !== null && statusFilter === card.status && "ring-2 ring-[#1E3A5F] ring-offset-1"
+              card.status !== null && statusFilter.includes(card.status) && "ring-2 ring-[#1E3A5F] ring-offset-1"
             )}
             onClick={
               card.status !== null
-                ? () => setStatusFilter(statusFilter === card.status ? "all" : (card.status ?? "all"))
+                ? () =>
+                    setStatusFilter((prev) =>
+                      prev.length === 1 && prev[0] === card.status ? [] : [card.status as string]
+                    )
                 : undefined
             }
           />
@@ -171,12 +208,14 @@ export function InstitutionsClient({
           {HEALTH_ORDER.map((h) => {
             const count = stats.health![h];
             if (!count) return null;
-            const on = healthFilter === h;
+            const on = healthFilter.includes(h);
             return (
               <button
                 key={h}
                 type="button"
-                onClick={() => setHealthFilter(on ? "all" : h)}
+                onClick={() =>
+                  setHealthFilter((prev) => (prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h]))
+                }
                 aria-pressed={on}
                 title={HEALTH_LABELS[h].hint}
                 className={cn(
@@ -190,10 +229,10 @@ export function InstitutionsClient({
               </button>
             );
           })}
-          {healthFilter !== "all" && (
+          {healthFilter.length > 0 && (
             <button
               type="button"
-              onClick={() => setHealthFilter("all")}
+              onClick={() => setHealthFilter([])}
               className="text-xs text-slate-500 dark:text-slate-400 hover:underline"
             >
               Clear
@@ -214,97 +253,73 @@ export function InstitutionsClient({
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[150px] text-sm">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="PROSPECT">Prospect</SelectItem>
-            <SelectItem value="ONBOARDING">Onboarding</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="INACTIVE">Inactive</SelectItem>
-            <SelectItem value="SUSPENDED">Suspended</SelectItem>
-            <SelectItem value="CLOSED">Closed</SelectItem>
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All Statuses"
+          noun="statuses"
+          options={STATUS_OPTIONS}
+          selected={statusFilter}
+          onChange={setStatusFilter}
+          className="h-9 w-[150px]"
+          ariaLabel="Filter by status"
+        />
 
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="h-9 w-[140px] text-sm">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="University">University</SelectItem>
-            <SelectItem value="College">College</SelectItem>
-            <SelectItem value="Institute">Institute</SelectItem>
-            <SelectItem value="Other">Other</SelectItem>
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All Types"
+          noun="types"
+          options={TYPE_OPTIONS}
+          selected={typeFilter}
+          onChange={setTypeFilter}
+          className="h-9 w-[140px]"
+          ariaLabel="Filter by type"
+        />
 
-        {regions.length > 0 && (
-          <Select value={regionFilter} onValueChange={setRegionFilter}>
-            <SelectTrigger className="h-9 w-[150px] text-sm">
-              <SelectValue placeholder="Region" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Regions</SelectItem>
-              {regions.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {regionOptions.length > 0 && (
+          <MultiSelectFilter
+            allLabel="All Regions"
+            noun="regions"
+            options={regionOptions}
+            selected={regionFilter}
+            onChange={setRegionFilter}
+            className="h-9 w-[150px]"
+            ariaLabel="Filter by region"
+          />
         )}
 
-        {countries.length > 0 && (
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="h-9 w-[150px] text-sm">
-              <SelectValue placeholder="Country" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Countries</SelectItem>
-              {countries.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {countryOptions.length > 0 && (
+          <MultiSelectFilter
+            allLabel="All Countries"
+            noun="countries"
+            options={countryOptions}
+            selected={countryFilter}
+            onChange={setCountryFilter}
+            className="h-9 w-[150px]"
+            ariaLabel="Filter by country"
+          />
         )}
 
         {/* The strip above is the quick way in; this exists so the health filter
             is discoverable in the same place as every other filter, and so it
             can select Not assessed, which the strip hides when nobody holds it. */}
-        <Select value={healthFilter} onValueChange={setHealthFilter}>
-          <SelectTrigger className="h-9 w-[160px] text-sm">
-            <SelectValue placeholder="Client HPI" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All HPI</SelectItem>
-            {HEALTH_ORDER.map((h) => (
-              <SelectItem key={h} value={h}>
-                {HEALTH_LABELS[h].sentiment}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All HPI"
+          noun="HPI"
+          options={healthOptions}
+          selected={healthFilter}
+          onChange={setHealthFilter}
+          className="h-9 w-[160px]"
+          ariaLabel="Filter by client HPI"
+        />
 
-        {accountManagers.length > 0 && (
-          <Select value={accountManagerFilter} onValueChange={setAccountManagerFilter}>
-            <SelectTrigger className="h-9 w-[170px] text-sm">
-              <SelectValue placeholder="Account Manager" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Account Managers</SelectItem>
-              {accountManagers.map((am) => (
-                <SelectItem key={am.id} value={am.id}>
-                  {am.name ?? am.id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {accountManagerOptions.length > 0 && (
+          <MultiSelectFilter
+            allLabel="All Account Managers"
+            noun="managers"
+            options={accountManagerOptions}
+            selected={accountManagerFilter}
+            onChange={setAccountManagerFilter}
+            className="h-9 w-[170px]"
+            ariaLabel="Filter by account manager"
+          />
         )}
       </div>
 
@@ -312,12 +327,12 @@ export function InstitutionsClient({
           manager and health were all able to shrink the grid without saying so,
           which reads as missing data rather than an active filter. */}
       {(search ||
-        statusFilter !== "all" ||
-        typeFilter !== "all" ||
-        regionFilter !== "all" ||
-        countryFilter !== "all" ||
-        accountManagerFilter !== "all" ||
-        healthFilter !== "all") && (
+        statusFilter.length > 0 ||
+        typeFilter.length > 0 ||
+        regionFilter.length > 0 ||
+        countryFilter.length > 0 ||
+        accountManagerFilter.length > 0 ||
+        healthFilter.length > 0) && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Showing {filtered.length} of {institutions.length} clients
         </p>
