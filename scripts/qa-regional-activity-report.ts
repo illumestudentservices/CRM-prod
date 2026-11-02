@@ -12,10 +12,15 @@
  *   npx tsx --env-file=.env.local scripts/qa-regional-activity-report.ts
  */
 import { db } from "@/lib/db";
-import { buildActivityReport, sendRegionalActivityReports } from "@/lib/activity-report";
+import {
+  buildActivityReport,
+  sendRegionalActivityReports,
+  sendOwnerRegionReports,
+} from "@/lib/activity-report";
 
 const AFRICA = "d46440e9-6cc3-4ab8-be49-8eac11f59e81";
 const CHINA = "4b339de8-84fb-4a12-9ee0-09dc4a0b3a0e";
+const LATAM = "ab39b516-f012-4aef-a427-3973bd6b86f9";
 
 let pass = 0, fail = 0;
 function expect(name: string, cond: boolean, extra = "") {
@@ -43,8 +48,9 @@ async function run() {
   const worked = await mkUser("worked", { regionId: AFRICA });
   const idle = await mkUser("idle", { regionId: AFRICA });
   const china = await mkUser("china", { regionId: CHINA });
+  const latam = await mkUser("latam", { regionId: LATAM });
   const rmNoRegion = await mkUser("rm-noregion", { role: "REGIONAL_MANAGER", regionId: null });
-  const userIds = [rm.id, worked.id, idle.id, china.id, rmNoRegion.id];
+  const userIds = [rm.id, worked.id, idle.id, china.id, latam.id, rmNoRegion.id];
 
   try {
     // Audit rows inside the 7-day window.
@@ -86,6 +92,28 @@ async function run() {
     expect("no-region RM is reported as skipped", skippedNoRegion.includes(rmNoRegion.email));
     expect("no-region RM is NOT a recipient of any region",
       results.every((r) => !r.recipients.includes(rmNoRegion.email)));
+
+    // ── 3. HQ owner spanning several regions (Annie — LATAM + China) ──────
+    const owners = await sendOwnerRegionReports({ dryRun: true });
+    const annie = owners.find((o) => o.email === "annie@illumestudentservices.ca");
+    expect("Annie's owner report is configured", !!annie);
+    expect("Annie's report is labelled Latin America & China",
+      annie?.label === "Latin America & China");
+    expect("Annie's regions both resolve (none missing)",
+      !!annie && annie.missingRegions.length === 0, `(missing: ${annie?.missingRegions.join(",")})`);
+    expect("Annie's report counts our LATAM + China seed users",
+      !!annie && annie.total >= 2, `(total ${annie?.total})`);
+    expect("owner dry run sent nothing", owners.every((o) => o.sent === false));
+
+    // Cross-check the span directly: a LATAM+China report includes both and not Africa.
+    const span = await buildActivityReport(7, new Date(), {
+      regionIds: [LATAM, CHINA],
+      scopeLabel: "Latin America & China",
+    });
+    const spanIds = new Set(span.people.map((p) => p.userId));
+    expect("LATAM+China report includes the China user", spanIds.has(china.id));
+    expect("LATAM+China report includes the LATAM user", spanIds.has(latam.id));
+    expect("LATAM+China report EXCLUDES the Africa 'worked' user", !spanIds.has(worked.id));
   } finally {
     await db.auditLog.deleteMany({ where: { userId: { in: userIds } } });
     await db.user.deleteMany({ where: { id: { in: userIds } } });

@@ -22,6 +22,7 @@ import {
   buildReportPdf,
   sendWeeklyActivityReport,
   sendRegionalActivityReports,
+  sendOwnerRegionReports,
 } from "@/lib/activity-report";
 
 function flagValue(name: string): string | undefined {
@@ -67,6 +68,10 @@ async function main() {
     if (skippedNoRegion.length) {
       console.log(`[activity-report] skipped (no region): ${skippedNoRegion.join(", ")}`);
     }
+    const owners = await sendOwnerRegionReports({ windowDays: days, dryRun: true });
+    for (const o of owners) {
+      console.log(`    ${o.label.padEnd(24)} ${String(o.total).padStart(3)} staff -> ${o.recipients.join(", ")}${o.missingRegions.length ? ` (missing: ${o.missingRegions.join(", ")})` : ""}`);
+    }
     return 0;
   }
 
@@ -89,6 +94,15 @@ async function main() {
     }
     if (skippedNoRegion.length) {
       console.log(`[activity-report] regional skipped (no region assigned): ${skippedNoRegion.join(", ")}`);
+    }
+
+    // HQ owners who span several regions (e.g. Annie — Latin America & China).
+    const owners = await sendOwnerRegionReports({ windowDays: days });
+    for (const o of owners) {
+      console.log(
+        `[activity-report] owner ${o.label}: ${o.sent ? "SENT" : "NOT SENT"} to ${o.recipients.join(", ")} (${o.total} staff)` +
+          (o.missingRegions.length ? ` — WARNING unresolved regions: ${o.missingRegions.join(", ")}` : ""),
+      );
     }
   }
 

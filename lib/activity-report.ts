@@ -92,16 +92,18 @@ const STAFF_WHERE = {
 export async function buildActivityReport(
   windowDays = 7,
   asOf = new Date(),
-  opts: { regionId?: string; scopeLabel?: string } = {},
+  opts: { regionId?: string; regionIds?: string[]; scopeLabel?: string } = {},
 ): Promise<ActivityReport> {
   const to = asOf;
   const from = new Date(to.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
-  // When regionId is given, the report covers only that region's staff — this
-  // is a Regional Manager's copy. `regionId` on the user is the single source
-  // of truth for "whose region a person belongs to".
+  // When scoped, the report covers only those regions' staff. A Regional
+  // Manager's copy is one region; an HQ owner (e.g. Latin America & China) can
+  // span several. `regionId` on the user is the single source of truth for
+  // "whose region a person belongs to".
+  const regionIds = opts.regionIds ?? (opts.regionId ? [opts.regionId] : []);
   const staff = await db.user.findMany({
-    where: opts.regionId ? { ...STAFF_WHERE, regionId: opts.regionId } : STAFF_WHERE,
+    where: regionIds.length ? { ...STAFF_WHERE, regionId: { in: regionIds } } : STAFF_WHERE,
     select: {
       id: true,
       name: true,
@@ -662,4 +664,71 @@ export async function sendRegionalActivityReports(opts: {
   }
 
   return { results, skippedNoRegion };
+}
+
+/**
+ * HQ owners who answer for SEVERAL regions and should get a weekly report
+ * spanning exactly those regions — even though their own account is not a
+ * single-region Regional Manager. Keyed by region NAME (resolved to ids at
+ * send time) so it stays correct across the test and production databases.
+ *
+ * Annie Li (Director – Client Relations) owns Latin America and China.
+ */
+const OWNER_REGION_RECIPIENTS: { email: string; label: string; regionNames: string[] }[] = [
+  {
+    email: "annie@illumestudentservices.ca",
+    label: "Latin America & China",
+    regionNames: ["Latin America", "China"],
+  },
+];
+
+export interface OwnerSendResult {
+  email: string;
+  label: string;
+  recipients: string[];
+  sent: boolean;
+  total: number;
+  /** Region names from the config that did not resolve to a region row. */
+  missingRegions: string[];
+}
+
+/**
+ * Send each configured HQ owner a report spanning the regions they own. Built
+ * off {@link OWNER_REGION_RECIPIENTS}; no-op when that list is empty.
+ */
+export async function sendOwnerRegionReports(opts: {
+  windowDays?: number;
+  dryRun?: boolean;
+} = {}): Promise<OwnerSendResult[]> {
+  if (OWNER_REGION_RECIPIENTS.length === 0) return [];
+
+  const wantedNames = [...new Set(OWNER_REGION_RECIPIENTS.flatMap((r) => r.regionNames))];
+  const regionRows = await db.region.findMany({
+    where: { name: { in: wantedNames } },
+    select: { id: true, name: true },
+  });
+  const idByName = new Map(regionRows.map((r) => [r.name, r.id]));
+
+  const results: OwnerSendResult[] = [];
+  for (const owner of OWNER_REGION_RECIPIENTS) {
+    const regionIds = owner.regionNames.map((n) => idByName.get(n)).filter((x): x is string => !!x);
+    const missingRegions = owner.regionNames.filter((n) => !idByName.has(n));
+    const report = await buildActivityReport(opts.windowDays ?? 7, new Date(), {
+      regionIds,
+      scopeLabel: owner.label,
+    });
+    let sent = false;
+    if (!opts.dryRun && regionIds.length > 0) {
+      sent = await emailReport(report, [owner.email]);
+    }
+    results.push({
+      email: owner.email,
+      label: owner.label,
+      recipients: [owner.email],
+      sent,
+      total: report.totals.total,
+      missingRegions,
+    });
+  }
+  return results;
 }
