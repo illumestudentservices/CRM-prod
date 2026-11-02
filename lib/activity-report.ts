@@ -77,6 +77,9 @@ export interface ActivityReport {
   generatedAt: Date;
   people: PersonActivity[];
   totals: { total: number; worked: number; loggedIn: number; didntSignIn: number; neverLoggedIn: number };
+  /** Set when the report covers a single region (a Regional Manager's copy);
+   *  shown in the title/subject. Absent for the org-wide Super Admin report. */
+  scopeLabel?: string;
 }
 
 /** Internal roles only — Institution Clients are partner logins, not staff. */
@@ -86,12 +89,19 @@ const STAFF_WHERE = {
   isActive: true,
 };
 
-export async function buildActivityReport(windowDays = 7, asOf = new Date()): Promise<ActivityReport> {
+export async function buildActivityReport(
+  windowDays = 7,
+  asOf = new Date(),
+  opts: { regionId?: string; scopeLabel?: string } = {},
+): Promise<ActivityReport> {
   const to = asOf;
   const from = new Date(to.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
+  // When regionId is given, the report covers only that region's staff — this
+  // is a Regional Manager's copy. `regionId` on the user is the single source
+  // of truth for "whose region a person belongs to".
   const staff = await db.user.findMany({
-    where: STAFF_WHERE,
+    where: opts.regionId ? { ...STAFF_WHERE, regionId: opts.regionId } : STAFF_WHERE,
     select: {
       id: true,
       name: true,
@@ -184,7 +194,7 @@ export async function buildActivityReport(windowDays = 7, asOf = new Date()): Pr
     neverLoggedIn: people.filter((p) => p.state === "NEVER_LOGGED_IN").length,
   };
 
-  return { from, to, windowDays, generatedAt: to, people, totals };
+  return { from, to, windowDays, generatedAt: to, people, totals, scopeLabel: opts.scopeLabel };
 }
 
 // ─── Rendering ───────────────────────────────────────────────────────────────
@@ -290,7 +300,7 @@ export function renderInteractiveReport(r: ActivityReport): string {
   .chip{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:12px}
   .foot{color:var(--muted);font-size:12px;margin-top:16px}
 </style></head><body><div class="wrap">
-  <h1>Staff Activity Report</h1>
+  <h1>Staff Activity Report${r.scopeLabel ? ` — ${esc(r.scopeLabel)}` : ""}</h1>
   <p class="sub">${fmtDate(r.from)} – ${fmtDate(r.to)} (${r.windowDays} days) · generated ${fmtDateTime(r.generatedAt)}</p>
   <div class="tiles">
     <div class="tile"><div class="n">${r.totals.total}</div><div class="l">Staff accounts</div></div>
@@ -447,7 +457,7 @@ export function renderPrintableReport(r: ActivityReport): string {
   .empty{color:#1c6b3a;font-size:11px;margin:2px 0 0}
   .foot{margin-top:18px;padding-top:8px;border-top:1px solid #e2e8f0;color:#64748b;font-size:9.5px}
 </style></head><body>
-  <h1>Staff Activity Report</h1>
+  <h1>Staff Activity Report${r.scopeLabel ? ` — ${esc(r.scopeLabel)}` : ""}</h1>
   <p class="sub">${fmtDate(r.from)} – ${fmtDate(r.to)} (${r.windowDays} days) · generated ${fmtDateTime(r.generatedAt)}</p>
   <div class="tiles">
     <div class="tile"><div class="n">${r.totals.total}</div><div class="l">STAFF ACCOUNTS</div></div>
@@ -520,7 +530,7 @@ export function renderEmailSummary(r: ActivityReport): string {
   const gap = `<td style="width:6px"></td>`;
 
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f2335;max-width:640px">
-    <h2 style="color:#0f3d5c;margin:0 0 2px">Weekly Staff Activity</h2>
+    <h2 style="color:#0f3d5c;margin:0 0 2px">Weekly Staff Activity${r.scopeLabel ? ` — ${esc(r.scopeLabel)}` : ""}</h2>
     <p style="color:#64748b;margin:0 0 16px">${fmtDate(r.from)} – ${fmtDate(r.to)}</p>
     <table style="border-collapse:collapse;margin-bottom:8px">
       <tr>
@@ -550,6 +560,28 @@ export interface SendResult {
 }
 
 /**
+ * Email one already-built report to the given recipients, PDF attached. The
+ * subject and the PDF filename pick up the region scope when there is one, so a
+ * Regional Manager's copy reads as theirs and does not collide with the org-wide
+ * report in an inbox.
+ */
+async function emailReport(report: ActivityReport, recipients: string[]): Promise<boolean> {
+  const pdf = await buildReportPdf(report);
+  const stamp = report.to.toISOString().slice(0, 10);
+  const inactive = report.totals.loggedIn + report.totals.didntSignIn + report.totals.neverLoggedIn;
+  const scopeSubject = report.scopeLabel ? ` (${report.scopeLabel})` : "";
+  const scopeFile = report.scopeLabel
+    ? "-" + report.scopeLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    : "";
+  return safeSend({
+    to: recipients,
+    subject: `Weekly staff activity${scopeSubject} — ${report.totals.worked} worked, ${inactive} inactive`,
+    html: renderEmailSummary(report),
+    attachments: [{ name: `activity-report${scopeFile}-${stamp}.pdf`, content: pdf.toString("base64") }],
+  });
+}
+
+/**
  * Build the report and email it to every active Super Admin, with the
  * interactive HTML attached.
  */
@@ -571,17 +603,63 @@ export async function sendWeeklyActivityReport(opts: {
     return { sent: false, recipients, report };
   }
 
-  const pdf = await buildReportPdf(report);
-  const stamp = report.to.toISOString().slice(0, 10);
-  const inactive = report.totals.loggedIn + report.totals.didntSignIn + report.totals.neverLoggedIn;
-  const sent = await safeSend({
-    to: recipients,
-    subject: `Weekly staff activity — ${report.totals.worked} worked, ${inactive} inactive`,
-    html: renderEmailSummary(report),
-    attachments: [
-      { name: `activity-report-${stamp}.pdf`, content: pdf.toString("base64") },
-    ],
+  const sent = await emailReport(report, recipients);
+  return { sent, recipients, report };
+}
+
+export interface RegionalSendResult {
+  regionId: string;
+  region: string;
+  recipients: string[];
+  sent: boolean;
+  /** Staff accounts in that region (the report's total). */
+  total: number;
+}
+
+/**
+ * Send each Regional Manager a copy of the weekly report covering ONLY their
+ * own region's staff — who worked, who only logged in, who didn't sign in, and
+ * who never has. One report is built per region and sent to every Regional
+ * Manager of that region (a region may have more than one).
+ *
+ * A Regional Manager with no region assigned is skipped — there is nothing to
+ * scope the report to — and that is returned so the caller can log it.
+ */
+export async function sendRegionalActivityReports(opts: {
+  windowDays?: number;
+  dryRun?: boolean;
+} = {}): Promise<{ results: RegionalSendResult[]; skippedNoRegion: string[] }> {
+  const rms = await db.user.findMany({
+    where: { role: "REGIONAL_MANAGER", deletedAt: null, isActive: true },
+    select: { email: true, regionId: true, region: { select: { name: true } } },
   });
 
-  return { sent, recipients, report };
+  const skippedNoRegion: string[] = [];
+  // Group recipients by region so a region worked by two managers is built once.
+  const byRegion = new Map<string, { name: string; emails: string[] }>();
+  for (const rm of rms) {
+    if (!rm.email) continue;
+    if (!rm.regionId) {
+      skippedNoRegion.push(rm.email);
+      continue;
+    }
+    const g = byRegion.get(rm.regionId) ?? { name: rm.region?.name ?? "Your region", emails: [] };
+    if (!g.emails.includes(rm.email)) g.emails.push(rm.email);
+    byRegion.set(rm.regionId, g);
+  }
+
+  const results: RegionalSendResult[] = [];
+  for (const [regionId, g] of byRegion) {
+    const report = await buildActivityReport(opts.windowDays ?? 7, new Date(), {
+      regionId,
+      scopeLabel: g.name,
+    });
+    let sent = false;
+    if (!opts.dryRun && g.emails.length > 0) {
+      sent = await emailReport(report, g.emails);
+    }
+    results.push({ regionId, region: g.name, recipients: g.emails, sent, total: report.totals.total });
+  }
+
+  return { results, skippedNoRegion };
 }

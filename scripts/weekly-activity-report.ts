@@ -21,6 +21,7 @@ import {
   renderInteractiveReport,
   buildReportPdf,
   sendWeeklyActivityReport,
+  sendRegionalActivityReports,
 } from "@/lib/activity-report";
 
 function flagValue(name: string): string | undefined {
@@ -57,6 +58,15 @@ async function main() {
     for (const p of report.people.filter((x) => x.state !== "WORKED")) {
       console.log(`    ${p.state.padEnd(11)} ${(p.employeeId ?? "----").padEnd(9)} ${p.name}`);
     }
+    // Show which Regional Managers would get a region-scoped copy.
+    const { results, skippedNoRegion } = await sendRegionalActivityReports({ windowDays: days, dryRun: true });
+    console.log("[activity-report] regional copies that WOULD be sent:");
+    for (const r of results) {
+      console.log(`    ${r.region.padEnd(16)} ${String(r.total).padStart(3)} staff -> ${r.recipients.join(", ")}`);
+    }
+    if (skippedNoRegion.length) {
+      console.log(`[activity-report] skipped (no region): ${skippedNoRegion.join(", ")}`);
+    }
     return 0;
   }
 
@@ -67,6 +77,21 @@ async function main() {
   console.log(
     `[activity-report] ${res.sent ? "SENT" : "NOT SENT"} to ${res.recipients.length} recipient(s): ${res.recipients.join(", ")}`,
   );
+
+  // Regional Managers each get a copy scoped to their own region. Skipped on a
+  // --test run, which is a targeted single-recipient check of the org report.
+  if (!testTo) {
+    const { results, skippedNoRegion } = await sendRegionalActivityReports({ windowDays: days });
+    for (const r of results) {
+      console.log(
+        `[activity-report] region ${r.region}: ${r.sent ? "SENT" : "NOT SENT"} to ${r.recipients.length} manager(s) (${r.total} staff): ${r.recipients.join(", ")}`,
+      );
+    }
+    if (skippedNoRegion.length) {
+      console.log(`[activity-report] regional skipped (no region assigned): ${skippedNoRegion.join(", ")}`);
+    }
+  }
+
   return res.sent ? 0 : 1;
 }
 
