@@ -42,10 +42,19 @@ export async function totpGenerate(secret: string): Promise<string> {
 }
 
 export async function totpVerify(secret: string, token: string): Promise<boolean> {
-  const result = await otplib.verify({
-    secret,
-    token,
-    epochTolerance: EPOCH_TOLERANCE_SECONDS,
-  });
-  return result?.valid === true;
+  // otplib THROWS on a malformed token (e.g. a non-6-digit value), and the
+  // verify route checks TOTP before falling through to backup codes — so an
+  // uncaught throw here turned every backup-code login (codes are 11 chars)
+  // into a 500. A malformed token is simply "not a valid TOTP": return false
+  // and let the caller try the next factor.
+  try {
+    const result = await otplib.verify({
+      secret,
+      token,
+      epochTolerance: EPOCH_TOLERANCE_SECONDS,
+    });
+    return result?.valid === true;
+  } catch {
+    return false;
+  }
 }

@@ -11,6 +11,27 @@ import {
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { logActivity } from "@/lib/activity-logger";
+import { recogniseDeviceOnLogin, DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE } from "@/lib/device-trust";
+
+/**
+ * Finish a successful login: tag/recognise the device (and alert on a new one),
+ * setting the device cookie when a fresh token was minted. Best-effort — the
+ * device check never blocks the login.
+ */
+async function loginSuccess(req: NextRequest, userId: string, payload: Record<string, unknown>) {
+  const res = NextResponse.json(payload);
+  const { cookieToSet } = await recogniseDeviceOnLogin(req, userId);
+  if (cookieToSet) {
+    res.cookies.set(DEVICE_COOKIE, cookieToSet, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: DEVICE_COOKIE_MAX_AGE,
+    });
+  }
+  return res;
+}
 
 const verifySchema = z.object({
   code: z.string().min(1).max(20),
@@ -123,7 +144,7 @@ export async function POST(req: NextRequest) {
       await clearMfaFailures(session.user.id);
       await stampMfaVerified(session.user.id, session.user.sid);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "email_otp" });
-      return NextResponse.json({ success: true });
+      return await loginSuccess(req, session.user.id, { success: true });
     }
     // A wrong emailed code still falls through to the backup-code check below:
     // backup codes work under both methods, and they are the escape hatch for
@@ -165,7 +186,7 @@ export async function POST(req: NextRequest) {
       await clearMfaFailures(session.user.id);
       await stampMfaVerified(session.user.id, session.user.sid);
       void logActivity(session.user.id, "2FA_VERIFIED", "USER", session.user.id, { method: "totp" });
-      return NextResponse.json({ success: true });
+      return await loginSuccess(req, session.user.id, { success: true });
     }
   }
 
@@ -190,7 +211,7 @@ export async function POST(req: NextRequest) {
       method: "backup_code",
       codesRemaining: remaining.length,
     });
-    return NextResponse.json({ success: true, usedBackupCode: true, codesRemaining: remaining.length });
+    return await loginSuccess(req, session.user.id, { success: true, usedBackupCode: true, codesRemaining: remaining.length });
   }
 
   // Nothing matched. This attempt was already counted when it was reserved at

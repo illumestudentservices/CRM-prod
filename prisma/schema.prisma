@@ -1030,6 +1030,7 @@ model User {
   engagementLogs    EngagementLog[]
   notifications     Notification[]
   auditLogs         AuditLog[]
+  knownDevices      KnownDevice[]
   announcements     Announcement[]       @relation("AnnouncementAuthor")
   accountRequests   AccountRequest[]  @relation("AccountRequestRequester")
   reviewedRequests  AccountRequest[]  @relation("AccountRequestReviewer")
@@ -1065,6 +1066,26 @@ model User {
 
   @@index([deletedAt, purgedAt])
   @@map("users")
+}
+
+/// A browser/device this user has signed in from before. Identified by a random
+/// token kept in a long-lived cookie (only its HMAC is stored here, so a DB leak
+/// can't impersonate a device). A login from a token not seen for this user is a
+/// "new device": we record it and email the user — except their very first
+/// device, which is trusted silently (onboarding is expected).
+model KnownDevice {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String
+  userAgent   String?
+  ipAddress   String?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([userId, tokenHash])
+  @@index([userId])
+  @@map("known_devices")
 }
 
 model Account {

@@ -1133,6 +1133,67 @@ export async function sendAccountLockedEmail(opts: {
 
 const MAX_FAILED_ATTEMPTS = 5;
 
+// ─── New-device sign-in alert ───────────────────────────────────────────────
+
+/** A short, human label for a device from its User-Agent string. */
+function describeDevice(ua: string | null | undefined): string {
+  if (!ua) return "Unknown device";
+  const os =
+    /Windows/i.test(ua) ? "Windows" :
+    /iPhone|iPad|iOS/i.test(ua) ? "iOS" :
+    /Mac OS X|Macintosh/i.test(ua) ? "macOS" :
+    /Android/i.test(ua) ? "Android" :
+    /Linux/i.test(ua) ? "Linux" : "";
+  const browser =
+    /Edg\//i.test(ua) ? "Edge" :
+    /OPR\/|Opera/i.test(ua) ? "Opera" :
+    /Chrome\//i.test(ua) ? "Chrome" :
+    /Firefox\//i.test(ua) ? "Firefox" :
+    /Safari\//i.test(ua) ? "Safari" : "";
+  const label = [browser, os].filter(Boolean).join(" on ");
+  return label || ua.slice(0, 80);
+}
+
+/**
+ * Tell a user their account was just signed into from a device we have not seen
+ * before. Goes only to the account owner — it is the first thing someone whose
+ * password has leaked would see, so it has to reach them, not an admin.
+ */
+export async function sendNewDeviceAlertEmail(opts: {
+  to: string;
+  name: string;
+  ip: string | null;
+  userAgent: string | null;
+  when: Date;
+}) {
+  const whenStr = opts.when.toLocaleString("en-GB", {
+    weekday: "short", day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+  });
+  await safeSend({
+    to: opts.to,
+    subject: "New sign-in to your Illume account",
+    html: wrapEmail("New sign-in", `
+      <div style="background:#fef9ec;border:1.5px solid #fde3a7;border-radius:10px;padding:16px 20px;margin-bottom:28px;">
+        <div style="font-size:20px;margin-bottom:6px;">🔐</div>
+        <div style="font-size:15px;font-weight:700;color:#b45309;margin-bottom:2px;">New device sign-in</div>
+        <div style="font-size:13px;color:#92400e;">Your account was just signed into from a device we haven't seen before.</div>
+      </div>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 18px;">
+        Hi ${escapeHtml(opts.name.split(" ")[0])}, we noticed a new sign-in to your Illume account. If this was you, no action is needed.
+      </p>
+      ${infoTable([
+        ["When", whenStr],
+        ["Device", describeDevice(opts.userAgent)],
+        ["IP address", opts.ip ?? "Unknown"],
+      ])}
+      <div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border-left:3px solid #dc2626;font-size:12px;color:#991b1b;line-height:1.6;margin-top:16px;">
+        <strong>Wasn't you?</strong> Change your password straight away and tell your administrator — someone else may have your login.
+      </div>
+    `),
+  });
+}
+
 // ─── Magic Link (set password) ────────────────────────────────────────────────
 
 export async function sendMagicLinkEmail(opts: {
