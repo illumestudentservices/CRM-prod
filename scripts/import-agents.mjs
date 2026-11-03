@@ -464,7 +464,19 @@ async function main() {
       where: { type: "AGENT", deletedAt: null },
       select: { id: true, name: true, country: true },
     });
-    const presentKey = new Map(present.map((p) => [`${norm(p.name)}::${norm(p.country)}`, p.id]));
+    // Existing agents carry the country in the name as a suffix — "Admission
+    // Overseas (India)" — added by backfill-partner-country-in-name.mjs. Strip
+    // that exact "(Country)" suffix before keying, or every already-imported
+    // agent looks missing and the import would duplicate the whole database.
+    const deSuffix = (name, country) => {
+      const c = (country ?? "").trim();
+      if (!c) return name;
+      const re = new RegExp("\\s*\\(" + c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\)\\s*$", "i");
+      return name.replace(re, "").trim();
+    };
+    const presentKey = new Map(
+      present.map((p) => [`${norm(deSuffix(p.name, p.country))}::${norm(p.country)}`, p.id])
+    );
 
     const toCreate = rows.filter((r) => !presentKey.has(`${norm(r.name)}::${norm(r.country)}`));
     const already = rows.length - toCreate.length;
