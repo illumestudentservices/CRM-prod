@@ -64,7 +64,7 @@ REGION_MANAGER = {
     # manager on record, so anyone in them was being left with no leave
     # approver and no way to be assigned work.
     "Latin America": "ILL-0021",   # Annie Li
-    "Middle East": "ILL-0001",     # Jamshid Mirzabekov
+    "Middle East": "ILL-0006",     # Duarte Dias (was Jamshid ILL-0001; changed 2026-11-04)
 }
 
 EMPLOYMENT_TYPE = {
