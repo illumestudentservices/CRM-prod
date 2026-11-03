@@ -1,20 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { EmailLink } from "@/components/shared/email-link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
 import type { InteractionType } from "@prisma/client";
 import { EnrollmentChart } from "./enrollment-chart";
 import { ContractList } from "./contract-list";
 import { EngagementLog } from "./engagement-log";
 import { GovernanceTab } from "./governance-tab";
 import { TeamTab } from "./team-tab";
+import { ContactsPanel } from "./contacts-panel";
+import { DocumentsPanel } from "./documents-panel";
 import { KpiManager } from "./kpi-manager";
 import { PipelinePanel } from "./pipeline-panel";
 import { AccountHealthCard } from "./account-health-card";
@@ -244,48 +239,7 @@ export function InstitutionTabsClient({
 
       {/* Contacts */}
       <TabsContent value="contacts" className="mt-4">
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Primary</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contacts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-400 dark:text-slate-500 py-8">
-                      No contacts added yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  contacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell className="font-medium">{contact.name}</TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.title ?? "—"}</TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">
-                      <EmailLink email={contact.email} kind="business" />
-                    </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-400">{contact.phone ?? "—"}</TableCell>
-                      <TableCell>
-                        {contact.isPrimary && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30 text-xs">
-                            Primary
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <ContactsPanel contacts={contacts} institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
 
       {/* Figure tabs (Contracts, Engagement, KPIs) — hidden for read-only
@@ -325,47 +279,7 @@ export function InstitutionTabsClient({
       {/* Documents — client files (contracts, agreements), hidden for ICR. */}
       {showFigures && (
       <TabsContent value="documents" className="mt-4">
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/80 dark:bg-slate-900/40">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-slate-400 dark:text-slate-500 py-8">
-                      No documents uploaded yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  documents.map((doc) => (
-                    <TableRow key={doc.id}>
-                      <TableCell className="font-medium">{doc.name}</TableCell>
-                      <TableCell>{doc.type}</TableCell>
-                      <TableCell>{formatDate(doc.uploadedAt)}</TableCell>
-                      <TableCell>
-                        <Link
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#1E3A5F] dark:text-blue-400 hover:underline text-sm"
-                        >
-                          Download
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <DocumentsPanel documents={documents} institutionId={institutionId} canWrite={canWrite} />
       </TabsContent>
       )}
     </Tabs>
