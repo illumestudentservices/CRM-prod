@@ -34,11 +34,22 @@ if (!file) {
 // Sheets to import, with each column's role. "blob" columns are free text that
 // hold several people's emails/phones mashed together — we pull the emails out
 // and keep the raw text in notes. A sheet absent here (High school) is skipped.
+const AFRICA = "the Africa Agent & School Database";
+const SEA = "the SEA agent database";
+const CHINA = "the China agent list";
 const SHEETS = {
-  "Africa AGENT Database": { name: "Consultancy", dept: "Department", first: "First name", last: "Last name", email: ["Email"], phone: "Contact Number", country: "Country", city: "City", vip: "VIP" },
-  "North Africa and Levant Region": { name: "Consultancy", dept: "Department", first: "First name", last: "Last name", email: ["Email"], phone: "Phone", country: "Country", city: "City", vip: "VIP" },
-  "Pakistan": { name: "Agent Name", email: ["Email IDS", "Contact"], blob: ["Contact"], fixedCountry: "Pakistan", vip: "VIP´s" },
-  "ME": { name: "Consultancy", email: ["Contact details"], blob: ["Contact details"], address: "Address", country: "Country", city: "City", vip: "VIP" },
+  // ── Africa Agent & School Database ──
+  "Africa AGENT Database": { source: AFRICA, name: "Consultancy", dept: "Department", first: "First name", last: "Last name", email: ["Email"], phone: "Contact Number", country: "Country", city: "City", vip: "VIP" },
+  "North Africa and Levant Region": { source: AFRICA, name: "Consultancy", dept: "Department", first: "First name", last: "Last name", email: ["Email"], phone: "Phone", country: "Country", city: "City", vip: "VIP" },
+  "Pakistan": { source: AFRICA, name: "Agent Name", email: ["Email IDS", "Contact"], blob: ["Contact"], fixedCountry: "Pakistan", vip: "VIP´s" },
+  "ME": { source: AFRICA, name: "Consultancy", email: ["Contact details"], blob: ["Contact details"], address: "Address", country: "Country", city: "City", vip: "VIP" },
+  // ── SEA agent database ──
+  "SEA": { source: SEA, name: "Consultancy", contact: "Contact Name", email: ["E-mail Id"], country: "Country", city: "City" },
+  // No agency column — every row is an IDP office contact, keyed by its country.
+  "IDP SEA": { source: SEA, fixedName: "IDP", first: "First Name", last: "Last name", dept: "Tittle", email: ["Email"], phone: "Phone", country: "Region" },
+  "Thai Agent": { source: SEA, name: "Agent", contact: "Contact", dept: "Position", email: ["Email"], fixedCountry: "Thailand" },
+  // ── China agent list ──
+  "Agent List China": { source: CHINA, name: "COMPANY (agency/school)", dept: "TYPE", contact: "Contact Name", email: ["Email"], phone: "Phone", country: "COUNTRY", city: "City" },
 };
 
 const COUNTRY_FIX = {
@@ -49,6 +60,17 @@ const COUNTRY_FIX = {
   dubai: "UAE",
   "u.a.e": "UAE",
   "u.a.e.": "UAE",
+  // IDP SEA "Region" column holds office codes, not countries.
+  "manila - php": "Philippines",
+  "cebu-php": "Philippines",
+  "hcm1- vn": "Vietnam",
+  "hn1-vn": "Vietnam",
+  "dn - vn": "Vietnam",
+  "dn-vn": "Vietnam",
+  "da nang and nha trang/vn": "Vietnam",
+  "phnompenh- cambodia": "Cambodia",
+  "jakarta - indo": "Indonesia",
+  indo: "Indonesia",
 };
 
 const REGION = {
@@ -64,6 +86,14 @@ const REGION = {
   turkey: "Middle East",
   // South Asia
   pakistan: "South Asia", india: "South Asia", bangladesh: "South Asia", "sri lanka": "South Asia", nepal: "South Asia",
+  // Southeast Asia
+  philippines: "Southeast Asia", thailand: "Southeast Asia", vietnam: "Southeast Asia", indonesia: "Southeast Asia",
+  malaysia: "Southeast Asia", cambodia: "Southeast Asia", myanmar: "Southeast Asia", laos: "Southeast Asia",
+  singapore: "Southeast Asia", brunei: "Southeast Asia", "timor-leste": "Southeast Asia",
+  // China
+  china: "China", taiwan: "China", "hong kong": "China",
+  // North America (a few SEA-sheet agencies list a Canada office)
+  canada: "North America", jamaica: "North America",
 };
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -113,9 +143,12 @@ function parse(book) {
 
   for (const [sheet, map] of Object.entries(SHEETS)) {
     const sheetData = book[sheet];
-    if (!sheetData) { problems.push({ kind: "SHEET_MISSING", sheet, name: "", detail: "sheet not found in workbook" }); continue; }
+    // The SHEETS map spans several workbooks; a sheet not in THIS file is simply
+    // not ours to process here, not a problem.
+    if (!sheetData) continue;
     const { header, rows: raw } = sheetData;
-    const iName = colExact(header, map.name);
+    const iName = map.name ? colExact(header, map.name) : -1;
+    const iContact = map.contact ? colExact(header, map.contact) : -1;
     const iCountry = map.country ? colExact(header, map.country) : -1;
     const iCity = map.city ? colExact(header, map.city) : -1;
     const iFirst = map.first ? colExact(header, map.first) : -1;
@@ -127,11 +160,11 @@ function parse(book) {
     const iEmails = (map.email ?? []).map((h) => colExact(header, h)).filter((j) => j >= 0);
     const iBlob = (map.blob ?? []).map((h) => colExact(header, h)).filter((j) => j >= 0);
 
-    if (iName < 0) { problems.push({ kind: "NO_NAME_COL", sheet, name: "", detail: `name column "${map.name}" not found` }); continue; }
+    if (iName < 0 && !map.fixedName) { problems.push({ kind: "NO_NAME_COL", sheet, name: "", detail: `name column "${map.name}" not found` }); continue; }
 
     for (const r of raw) {
       const at = (i) => (i >= 0 && i < r.length ? clean(r[i]) : "");
-      const name = at(iName);
+      const name = at(iName) || map.fixedName || "";
       if (!name) continue;
 
       let country = at(iCountry) || map.fixedCountry || "";
@@ -146,10 +179,10 @@ function parse(book) {
       const emails = emailsFrom([...iEmails.map((j) => at(j)), ...iBlob.map((j) => at(j))]);
       if (!emails.length) problems.push({ kind: "NO_EMAIL", sheet, name, detail: "no usable email" });
 
-      const personName = [at(iFirst), at(iLast)].filter(Boolean).join(" ").trim() || null;
+      const personName = ([at(iFirst), at(iLast)].filter(Boolean).join(" ").trim() || at(iContact)) || null;
 
       const notes = [
-        `Imported from the Africa Agent & School Database (sheet: ${sheet}).`,
+        `Imported from ${map.source ?? "the agent database"} (sheet: ${sheet}).`,
         iDept >= 0 && at(iDept) && `Department/role: ${at(iDept)}`,
         iAddress >= 0 && at(iAddress) && `Address: ${at(iAddress)}`,
         iVip >= 0 && at(iVip) && `VIP: ${at(iVip)}`,
