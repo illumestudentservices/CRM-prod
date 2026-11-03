@@ -10,6 +10,10 @@ const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 const createHolidaySchema = z.object({
   name: z.string().min(1, "Name is required"),
   date: z.string().transform((v) => new Date(v)),
+  // Optional end of a multi-day holiday (e.g. a week-long festival). When
+  // given, one holiday row is created per day from `date` to `endDate`
+  // inclusive. Omitted = a single day, exactly as before.
+  endDate: z.string().transform((v) => new Date(v)).optional().nullable(),
   description: z.string().optional().nullable(),
   regionId: z.string().min(1).optional().nullable(),
   isGlobal: z.boolean().default(false),
@@ -92,20 +96,58 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
-  const holiday = await db.holiday.create({
-    data: {
+  // Build the list of days this request covers. No end date = a single day.
+  const toUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const start = toUtcDay(data.date);
+  const end = data.endDate ? toUtcDay(data.endDate) : start;
+
+  if (end.getTime() < start.getTime()) {
+    return NextResponse.json({ error: "End date must be on or after the start date." }, { status: 422 });
+  }
+
+  const dates: Date[] = [];
+  for (let cur = new Date(start); cur.getTime() <= end.getTime(); cur.setUTCDate(cur.getUTCDate() + 1)) {
+    dates.push(new Date(cur));
+    if (dates.length > 60) {
+      // A guard against a mistyped year turning into thousands of rows.
+      return NextResponse.json({ error: "That range is over 60 days — please add it in smaller spans." }, { status: 422 });
+    }
+  }
+
+  // Single day: create and return the row (unchanged shape). Range: bulk create.
+  if (dates.length === 1) {
+    const holiday = await db.holiday.create({
+      data: {
+        name: data.name,
+        date: dates[0],
+        description: data.description ?? null,
+        regionId: data.regionId ?? null,
+        isGlobal: data.isGlobal,
+        createdById: session.user.id,
+      },
+      include: { region: { select: { id: true, name: true } } },
+    });
+    void logActivity(session.user.id, "CREATE", "Holiday", holiday.id, { route: "hr/holidays" });
+    return NextResponse.json({ holiday, count: 1 }, { status: 201 });
+  }
+
+  await db.holiday.createMany({
+    data: dates.map((d) => ({
       name: data.name,
-      date: data.date,
+      date: d,
       description: data.description ?? null,
       regionId: data.regionId ?? null,
       isGlobal: data.isGlobal,
       createdById: session.user.id,
-    },
-    include: {
-      region: { select: { id: true, name: true } },
-    },
+    })),
   });
-  void logActivity(session.user.id, "CREATE", "Holiday", holiday.id, { route: "hr/holidays" });
+  void logActivity(session.user.id, "CREATE", "Holiday", "range", {
+    route: "hr/holidays",
+    name: data.name,
+    from: start.toISOString().slice(0, 10),
+    to: end.toISOString().slice(0, 10),
+    count: dates.length,
+  });
 
-  return NextResponse.json({ holiday }, { status: 201 });
+  return NextResponse.json({ count: dates.length }, { status: 201 });
 }

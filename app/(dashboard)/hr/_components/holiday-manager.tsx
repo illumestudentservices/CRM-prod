@@ -58,6 +58,7 @@ export function HolidayManager({ isHR }: Props) {
   // Form state
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [regionId, setRegionId] = useState<string>("global");
 
@@ -86,6 +87,10 @@ export function HolidayManager({ isHR }: Props) {
       toast({ title: "Missing fields", description: "Name and date are required.", variant: "destructive" });
       return;
     }
+    if (endDate && endDate < date) {
+      toast({ title: "Check the dates", description: "End date must be on or after the start date.", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/hr/holidays", {
@@ -94,6 +99,7 @@ export function HolidayManager({ isHR }: Props) {
         body: JSON.stringify({
           name,
           date,
+          endDate: endDate || undefined,
           description: description || null,
           regionId: regionId === "global" ? null : regionId,
           isGlobal: regionId === "global",
@@ -104,9 +110,13 @@ export function HolidayManager({ isHR }: Props) {
         toast({ title: "Error", description: json.error || "Failed to add holiday", variant: "destructive" });
         return;
       }
-      toast({ title: "Holiday added", description: `${name} has been added.` });
+      const count = json.count ?? 1;
+      toast({
+        title: count > 1 ? "Holidays added" : "Holiday added",
+        description: count > 1 ? `${name}: ${count} days added.` : `${name} has been added.`,
+      });
       setShowAdd(false);
-      setName(""); setDate(""); setDescription(""); setRegionId("global");
+      setName(""); setDate(""); setEndDate(""); setDescription(""); setRegionId("global");
       loadHolidays();
     } finally {
       setSubmitting(false);
@@ -236,14 +246,28 @@ export function HolidayManager({ isHR }: Props) {
                 placeholder="e.g. Canada Day"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Date *</Label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{endDate ? "Start date *" : "Date *"}</Label>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>End date (optional)</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  min={date || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2">
+              For a multi-day holiday (e.g. a festival week), set an end date — one entry is created for each day.
+            </p>
             <div className="space-y-2">
               <Label>Region</Label>
               <Select value={regionId} onValueChange={setRegionId}>
