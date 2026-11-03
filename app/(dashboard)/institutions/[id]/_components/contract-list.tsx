@@ -128,16 +128,34 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── Schema ────────────────────────────────────────────────────────────────
 
+const CONTRACT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "MASTER_SERVICES", label: "Master Services" },
+  { value: "RECRUITMENT", label: "Recruitment" },
+  { value: "REPRESENTATION", label: "Representation" },
+  { value: "ADDENDUM", label: "Addendum" },
+  { value: "RENEWAL", label: "Renewal" },
+  { value: "MOU", label: "MOU" },
+  { value: "OTHER", label: "Other" },
+];
+
 const contractSchema = z.object({
   title: z.string().min(1, "Title is required"),
   value: z.coerce.number().positive().optional(),
+  currency: z.string().optional(),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   status: z.string().default("ACTIVE"),
+  type: z.string().optional(),
+  noticePeriodDays: z.coerce.number().int().positive().optional(),
+  ownerId: z.string().optional(),
+  documentUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  paymentStructure: z.string().optional(),
   notes: z.string().optional(),
 });
 
 type ContractFormValues = z.infer<typeof contractSchema>;
+
+interface OwnerOption { id: string; name: string; email: string; role: string }
 
 // ─── Add Contract Dialog ───────────────────────────────────────────────────
 
@@ -146,6 +164,16 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [owners, setOwners] = React.useState<OwnerOption[]>([]);
+
+  // Load the staff list for the Owner dropdown the first time the dialog opens.
+  React.useEffect(() => {
+    if (!open || owners.length > 0) return;
+    fetch("/api/institutions/owner-options")
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => setOwners(j.data ?? []))
+      .catch(() => { /* non-fatal — dropdown just stays empty */ });
+  }, [open, owners.length]);
 
   const {
     register,
@@ -155,7 +183,7 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
     formState: { errors },
   } = useForm<ContractFormValues>({
     resolver: zodResolver(contractSchema) as never,
-    defaultValues: { status: "ACTIVE" },
+    defaultValues: { status: "ACTIVE", currency: "USD" },
   });
 
   const onSubmit = async (data: ContractFormValues) => {
@@ -189,7 +217,7 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
           Add Contract
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Contract</DialogTitle>
         </DialogHeader>
@@ -203,8 +231,28 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="value">Contract Value (USD)</Label>
-            <Input id="value" type="number" step="0.01" {...register("value")} placeholder="0.00" />
+            <Label>Type</Label>
+            <Select onValueChange={(v) => setValue("type", v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {CONTRACT_TYPE_OPTIONS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="value">Contract Value</Label>
+              <Input id="value" type="number" step="0.01" {...register("value")} placeholder="0.00" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="currency">Currency</Label>
+              <Input id="currency" {...register("currency")} placeholder="USD" />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -228,22 +276,53 @@ function AddContractDialog({ institutionId }: { institutionId: string }) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select
+                defaultValue="ACTIVE"
+                onValueChange={(v) => setValue("status", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="EXPIRED">Expired</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="noticePeriodDays">Notice Period (days)</Label>
+              <Input id="noticePeriodDays" type="number" {...register("noticePeriodDays")} placeholder="e.g. 90" />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select
-              defaultValue="ACTIVE"
-              onValueChange={(v) => setValue("status", v)}
-            >
+            <Label>Owner</Label>
+            <Select onValueChange={(v) => setValue("ownerId", v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select owner" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="EXPIRED">Expired</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                {owners.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="documentUrl">Document Link</Label>
+            <Input id="documentUrl" type="url" {...register("documentUrl")} placeholder="https://… (signed contract)" />
+            {errors.documentUrl && <p className="text-xs text-red-500">{errors.documentUrl.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="paymentStructure">Payment Structure</Label>
+            <Textarea id="paymentStructure" {...register("paymentStructure")} rows={2} placeholder="e.g. 50% on signing, 50% on enrolment" />
           </div>
 
           <div className="space-y-1.5">

@@ -84,7 +84,10 @@ export async function POST(
     if (!institution || institution.deletedAt) return NextResponse.json({ error: "Institution not found" }, { status: 404 });
 
     const body = await readJsonBody(req);
-    const { title, value, startDate, endDate, status, notes } = body;
+    const {
+      title, value, startDate, endDate, status, notes,
+      type, currency, noticePeriodDays, paymentStructure, ownerId, documentUrl,
+    } = body;
 
     if (!title || !startDate || !endDate) {
       return NextResponse.json(
@@ -92,6 +95,13 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    // Only accept a known ContractType; anything else is stored as unset rather
+    // than erroring the whole create.
+    const CONTRACT_TYPES = ["MASTER_SERVICES", "RECRUITMENT", "REPRESENTATION", "ADDENDUM", "RENEWAL", "MOU", "OTHER"];
+    const notice = noticePeriodDays === undefined || noticePeriodDays === null || noticePeriodDays === ""
+      ? null
+      : Number.parseInt(String(noticePeriodDays), 10);
 
     const contract = await db.contract.create({
       data: {
@@ -102,6 +112,12 @@ export async function POST(
         endDate: new Date(endDate),
         status: status ?? "ACTIVE",
         notes: notes || null,
+        type: CONTRACT_TYPES.includes(type) ? type : null,
+        currency: currency || null,
+        noticePeriodDays: Number.isFinite(notice as number) ? notice : null,
+        paymentStructure: paymentStructure || null,
+        ownerId: ownerId || null,
+        documentUrl: documentUrl || null,
         createdById: session.user.id,
       },
     });
