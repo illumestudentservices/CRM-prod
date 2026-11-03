@@ -79,12 +79,20 @@ export default async function PartnersPage({ searchParams }: Props) {
       ? TYPE_GROUPS[activeTab].types[0]
       : { in: TYPE_GROUPS[activeTab].types as never };
 
-  // "all" is the filter bar's not-set sentinel; treat it as absent.
-  const pick = (v?: string) => (v && v !== "all" ? v : undefined);
-  const country = pick(sp.country);
-  const agreement = pick(sp.agreement);
-  const regionId = pick(sp.region);
-  const tier = pick(sp.tier);
+  // Filters are multi-select: a param holds comma-separated values, matched with
+  // `in`. "all"/empty is the not-set sentinel. Returns undefined when nothing is
+  // picked so the clause is dropped entirely.
+  const pickMany = (v?: string) => {
+    const arr = (v ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s && s !== "all");
+    return arr.length ? arr : undefined;
+  };
+  const countrySel = pickMany(sp.country);
+  const agreementSel = pickMany(sp.agreement);
+  const regionSel = pickMany(sp.region);
+  const tierSel = pickMany(sp.tier);
 
   // Active-only unless asked otherwise. Deactivated partners used to be
   // unreachable: the query hard-coded isActive true with nothing to override
@@ -96,12 +104,12 @@ export default async function PartnersPage({ searchParams }: Props) {
   const baseWhere = {
     deletedAt: null,
     ...(isActive === undefined ? {} : { isActive }),
-    ...(country ? { country } : {}),
-    ...(agreement ? { agreementStatus: agreement } : {}),
-    ...(regionId ? { regionId } : {}),
+    ...(countrySel ? { country: { in: countrySel } } : {}),
+    ...(agreementSel ? { agreementStatus: { in: agreementSel } } : {}),
+    ...(regionSel ? { regionId: { in: regionSel } } : {}),
     // Tier lives on the 1-1 agent profile, so this necessarily excludes every
     // partner that is not an agent — which is why the control says "Agent tier".
-    ...(tier ? { agentProfile: { tier: tier as never } } : {}),
+    ...(tierSel ? { agentProfile: { tier: { in: tierSel as never } } } : {}),
     ...(q
       ? {
           OR: [

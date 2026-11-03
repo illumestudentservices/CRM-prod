@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelectFilter, type MultiSelectOption } from "@/components/shared/multi-select-filter";
 
 /**
  * Filters for the recruitment partners list.
@@ -76,6 +77,10 @@ export function PartnerFilters({ countries, agreements, regions }: PartnerFilter
   const params = useSearchParams();
 
   const get = (k: string) => params.get(k) ?? ALL;
+  // A multi-select param is comma-separated; empty means "no filter".
+  const getMany = (k: string) =>
+    (params.get(k) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const setMany = (k: string, next: string[]) => apply({ [k]: next.length ? next.join(",") : null });
   const [search, setSearch] = React.useState(params.get("q") ?? "");
 
   // Keep the box in step when the URL changes from somewhere else — clearing
@@ -134,61 +139,53 @@ export function PartnerFilters({ countries, agreements, regions }: PartnerFilter
       </div>
 
       {countries.length > 0 && (
-        <Select value={get("country")} onValueChange={(v) => apply({ country: v })}>
-          <SelectTrigger className="h-9 w-[150px] text-sm" aria-label="Country">
-            <SelectValue placeholder="Country" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All countries</SelectItem>
-            {countries.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All countries"
+          noun="countries"
+          options={countries.map((c): MultiSelectOption => ({ value: c, label: c }))}
+          selected={getMany("country")}
+          onChange={(n) => setMany("country", n)}
+          className="h-9 w-[150px]"
+          ariaLabel="Country"
+        />
       )}
 
       {agreements.length > 0 && (
-        <Select value={get("agreement")} onValueChange={(v) => apply({ agreement: v })}>
-          <SelectTrigger className="h-9 w-[165px] text-sm" aria-label="Agreement status">
-            <SelectValue placeholder="Agreement" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All agreements</SelectItem>
-            {agreements.map((a) => (
-              <SelectItem key={a} value={a}>{humanise(a)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All agreements"
+          noun="agreements"
+          options={agreements.map((a): MultiSelectOption => ({ value: a, label: humanise(a) }))}
+          selected={getMany("agreement")}
+          onChange={(n) => setMany("agreement", n)}
+          className="h-9 w-[165px]"
+          ariaLabel="Agreement status"
+        />
       )}
 
       {regions.length > 0 && (
-        <Select value={get("region")} onValueChange={(v) => apply({ region: v })}>
-          <SelectTrigger className="h-9 w-[150px] text-sm" aria-label="Region">
-            <SelectValue placeholder="Region" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All regions</SelectItem>
-            {regions.map((r) => (
-              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          allLabel="All regions"
+          noun="regions"
+          options={regions.map((r): MultiSelectOption => ({ value: r.id, label: r.name }))}
+          selected={getMany("region")}
+          onChange={(n) => setMany("region", n)}
+          className="h-9 w-[150px]"
+          ariaLabel="Region"
+        />
       )}
 
       {/* Tier lives on the agent profile, so picking one necessarily hides every
           partner that is not an agent. Labelled "Agent tier" rather than "Tier"
           so that is obvious before it is clicked, not after. */}
-      <Select value={get("tier")} onValueChange={(v) => apply({ tier: v })}>
-        <SelectTrigger className="h-9 w-[150px] text-sm" aria-label="Agent tier">
-          <SelectValue placeholder="Agent tier" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All tiers</SelectItem>
-          {TIERS.map((t) => (
-            <SelectItem key={t} value={t}>{humanise(t)}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <MultiSelectFilter
+        allLabel="All tiers"
+        noun="tiers"
+        options={TIERS.map((t): MultiSelectOption => ({ value: t, label: humanise(t) }))}
+        selected={getMany("tier")}
+        onChange={(n) => setMany("tier", n)}
+        className="h-9 w-[150px]"
+        ariaLabel="Agent tier"
+      />
 
       {/* Deactivated partners were previously unreachable: the query hard-coded
           isActive true and nothing offered a way past it. Active stays the
