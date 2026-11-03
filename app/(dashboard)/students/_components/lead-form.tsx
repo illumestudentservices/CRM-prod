@@ -668,6 +668,14 @@ export function LeadForm({
 
   const currentStudyLevel = watch("studyLevel");
   const currentSourceId = watch("sourceId");
+  // Searchable source list. "Direct Lead Source (No agent)" is pinned to the top
+  // and "No source" sits just below it; the ~hundreds of agents are searchable.
+  const DIRECT_SOURCE_NAME = "Direct Lead Source (No agent)";
+  const sourceOptions = React.useMemo(() => {
+    const direct = sources.filter((s) => s.name === DIRECT_SOURCE_NAME).map((s) => ({ value: s.id, label: s.name }));
+    const rest = sources.filter((s) => s.name !== DIRECT_SOURCE_NAME).map((s) => ({ value: s.id, label: s.name }));
+    return [...direct, { value: "none", label: "No source" }, ...rest];
+  }, [sources]);
   const currentInstitutionId = watch("institutionId");
   const currentAssignedICRId = watch("assignedICRId");
   const currentIntakeMonth = watch("intakeMonth");
@@ -1160,35 +1168,16 @@ export function LeadForm({
                   between the August purge and the agent import. */}
               <FormField name="sourceId" label="Source" neededToProgress error={errors.sourceId?.message}>
                 {sources.length > 0 ? (
-                  <Select
+                  <Combobox
+                    options={sourceOptions}
                     value={currentSourceId ?? "none"}
-                    onValueChange={(v) =>
-                      setValue("sourceId", v === "none" ? undefined : v)
+                    onChange={(v) =>
+                      setValue("sourceId", v === "none" ? undefined : v, { shouldDirty: true })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select source..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {/* "Direct Lead Source (No agent)" is pinned to the very
-                          top for leads that came in directly, not via an agent. */}
-                      {sources
-                        .filter((s) => s.name === "Direct Lead Source (No agent)")
-                        .map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                      <SelectItem value="none">No source</SelectItem>
-                      {sources
-                        .filter((s) => s.name !== "Direct Lead Source (No agent)")
-                        .map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select source..."
+                    searchPlaceholder="Search sources…"
+                    emptyText="No source matches that."
+                  />
                 ) : (
                   <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                     No lead sources have been set up yet. An administrator needs to add
