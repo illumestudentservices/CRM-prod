@@ -309,14 +309,17 @@ function parse(book) {
         }
       }
 
-      if (!country) {
-        problems.push({ kind: "NO_COUNTRY", sheet, name, detail: "country blank and not inferable" });
-        continue;
-      }
-      const regionName = REGION[country.toLowerCase()];
-      if (!regionName) {
-        problems.push({ kind: "NO_REGION", sheet, name, detail: `country "${country}" maps to no region` });
-        continue;
+      // Unmappable region (blank country, or a country with no Illume region) is
+      // kept and tagged "(Global)" in the name, not dropped (user rule). The
+      // original country, if any, goes into the notes.
+      let regionName = country ? REGION[country.toLowerCase()] : null;
+      let global = false;
+      const originalCountry = country;
+      if (!country || !regionName) {
+        global = true;
+        regionName = null;
+        problems.push({ kind: "FILED_AS_GLOBAL", sheet, name, detail: country ? `country "${country}" has no region` : "country blank" });
+        country = "Global"; // required field; backfill then suffixes the name "(Global)"
       }
       if (!emails.length) problems.push({ kind: "NO_EMAIL", sheet, name, detail: "no usable email address" });
       for (const b of broken) {
@@ -335,6 +338,7 @@ function parse(book) {
         countryRaw.toLowerCase() === "pakistan/australia" && "Also operates from Australia.",
         names.length > 1 && `Contacts listed: ${names.join(", ")}.`,
         broken.length && `Unusable address in the source sheet, left uncorrected: ${broken.join(", ")}.`,
+        global && `Region not determined — filed as Global${originalCountry ? ` (original country: ${originalCountry})` : ""}.`,
         fixes.length && `Corrected on import: ${fixes.join("; ")}.`,
       ]
         .filter(Boolean)
@@ -429,7 +433,7 @@ async function main() {
     }
 
     // ── Regions ───────────────────────────────────────────────────────────
-    const wanted = [...new Set(rows.map((r) => r.regionName))];
+    const wanted = [...new Set(rows.map((r) => r.regionName).filter(Boolean))];
     const existing = await db.region.findMany({ select: { id: true, name: true } });
     const regionId = new Map(existing.map((r) => [r.name, r.id]));
     const missing = wanted.filter((n) => !regionId.has(n));

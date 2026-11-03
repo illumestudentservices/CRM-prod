@@ -172,9 +172,19 @@ function parse(book) {
       const fixes = [];
       if (fix) { fixes.push(`country "${country}" recorded as ${fix}`); country = fix; }
 
-      if (!country) { problems.push({ kind: "NO_COUNTRY", sheet, name, detail: "country blank" }); continue; }
-      const regionName = REGION[country.toLowerCase()];
-      if (!regionName) { problems.push({ kind: "NO_REGION", sheet, name, detail: `country "${country}" maps to no region` }); continue; }
+      // When the region can't be determined — blank country, or a country that
+      // maps to no Illume region (e.g. Korea, "Global") — keep the agent anyway,
+      // tagged "(Global)" in the name with no region, per the user's rule. The
+      // original country (if any) is preserved in the notes.
+      let regionName = country ? REGION[country.toLowerCase()] : null;
+      let global = false;
+      const originalCountry = country;
+      if (!country || !regionName) {
+        global = true;
+        regionName = null;
+        problems.push({ kind: "FILED_AS_GLOBAL", sheet, name, detail: country ? `country "${country}" has no region` : "country blank" });
+        country = "Global"; // required field; backfill then suffixes the name "(Global)"
+      }
 
       const emails = emailsFrom([...iEmails.map((j) => at(j)), ...iBlob.map((j) => at(j))]);
       if (!emails.length) problems.push({ kind: "NO_EMAIL", sheet, name, detail: "no usable email" });
@@ -187,11 +197,14 @@ function parse(book) {
         iAddress >= 0 && at(iAddress) && `Address: ${at(iAddress)}`,
         iVip >= 0 && at(iVip) && `VIP: ${at(iVip)}`,
         iBlob.length && iBlob.some((j) => at(j)) && `Raw contact details from sheet: ${iBlob.map((j) => at(j)).filter(Boolean).join(" | ")}`,
+        global && `Region not determined — filed as Global${originalCountry ? ` (original country: ${originalCountry})` : ""}.`,
         fixes.length && `Corrected on import: ${fixes.join("; ")}.`,
       ].filter(Boolean).join("\n");
 
       rows.push({
-        sheet, name, country, regionName,
+        sheet,
+        name,
+        country, regionName,
         city: known(at(iCity)),
         contactPerson: personName ?? (emails[0] ?? null),
         email: emails[0] ?? null,
@@ -269,7 +282,7 @@ async function main() {
 
     const existing = await db.region.findMany({ select: { id: true, name: true } });
     const regionId = new Map(existing.map((r) => [r.name, r.id]));
-    const missingRegions = [...new Set(rows.map((r) => r.regionName))].filter((n) => !regionId.has(n));
+    const missingRegions = [...new Set(rows.map((r) => r.regionName).filter(Boolean))].filter((n) => !regionId.has(n));
     if (missingRegions.length) { console.error(`STOP: these regions do not exist: ${missingRegions.join(", ")}`); process.exit(1); }
 
     const author = await db.user.findFirst({ where: { role: "SUPER_ADMIN", deletedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, email: true } });
