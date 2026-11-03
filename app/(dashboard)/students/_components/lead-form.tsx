@@ -1170,12 +1170,23 @@ export function LeadForm({
                       <SelectValue placeholder="Select source..." />
                     </SelectTrigger>
                     <SelectContent>
+                      {/* "Direct Lead Source (No agent)" is pinned to the very
+                          top for leads that came in directly, not via an agent. */}
+                      {sources
+                        .filter((s) => s.name === "Direct Lead Source (No agent)")
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
                       <SelectItem value="none">No source</SelectItem>
-                      {sources.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
+                      {sources
+                        .filter((s) => s.name !== "Direct Lead Source (No agent)")
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 ) : (
