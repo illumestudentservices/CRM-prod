@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -200,6 +200,13 @@ export function RiskComplianceClient({
   const [compTypeFilter, setCompTypeFilter] = React.useState<string>("all");
   const [compStatusFilter, setCompStatusFilter] =
     React.useState<string>("all");
+  // "Critical Risks" has no status equivalent (it is a score threshold), so it
+  // gets its own toggle that the risk list honours.
+  const [criticalOnly, setCriticalOnly] = React.useState(false);
+  // The tabs are controlled so a stat card can switch to the right tab AND set
+  // its filter in one click.
+  const [tab, setTab] = React.useState<string>("risks");
+  const tabsRef = React.useRef<HTMLDivElement>(null);
 
   // Dialog state
   const [riskDialogOpen, setRiskDialogOpen] = React.useState(false);
@@ -226,8 +233,34 @@ export function RiskComplianceClient({
     if (riskTypeFilter !== "all" && r.type !== riskTypeFilter) return false;
     if (riskStatusFilter !== "all" && r.status !== riskStatusFilter)
       return false;
+    if (criticalOnly && r.riskScore < 20) return false;
     return true;
   });
+
+  // ─── Stat-card → filter shortcuts ─────────────────────────────────────────
+  const scrollToTabs = () =>
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const showOpenRisks = () => {
+    setTab("risks"); setCriticalOnly(false); setRiskStatusFilter("OPEN"); setRiskTypeFilter("all"); scrollToTabs();
+  };
+  const showCriticalRisks = () => {
+    setTab("risks"); setCriticalOnly(true); setRiskStatusFilter("all"); setRiskTypeFilter("all"); scrollToTabs();
+  };
+  const showPendingCompliance = () => {
+    setTab("compliance"); setCompStatusFilter("PENDING"); setCompTypeFilter("all"); scrollToTabs();
+  };
+  const showOverdueCompliance = () => {
+    setTab("compliance"); setCompStatusFilter("OVERDUE"); setCompTypeFilter("all"); scrollToTabs();
+  };
+  // Shared affordance for the clickable stat cards.
+  const statCardCls = (active: boolean) =>
+    cn(
+      "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]",
+      active && "ring-2 ring-[#1E3A5F] dark:ring-[#0EA5E9]"
+    );
+  const onCardKey = (fn: () => void) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); }
+  };
 
   const filteredCompliance = complianceItems.filter((c) => {
     if (compTypeFilter !== "all" && c.complianceType !== compTypeFilter)
@@ -396,7 +429,13 @@ export function RiskComplianceClient({
     <div className="space-y-6">
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
+        <Card
+          role="button" tabIndex={0}
+          aria-pressed={tab === "risks" && !criticalOnly && riskStatusFilter === "OPEN"}
+          onClick={showOpenRisks} onKeyDown={onCardKey(showOpenRisks)}
+          title="Show open risks"
+          className={statCardCls(tab === "risks" && !criticalOnly && riskStatusFilter === "OPEN")}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center">
               <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-300" />
@@ -407,7 +446,13 @@ export function RiskComplianceClient({
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          role="button" tabIndex={0}
+          aria-pressed={tab === "risks" && criticalOnly}
+          onClick={showCriticalRisks} onKeyDown={onCardKey(showCriticalRisks)}
+          title="Show critical risks (score ≥ 20)"
+          className={statCardCls(tab === "risks" && criticalOnly)}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-red-50 dark:bg-red-500/15 flex items-center justify-center">
               <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-300" />
@@ -420,7 +465,13 @@ export function RiskComplianceClient({
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          role="button" tabIndex={0}
+          aria-pressed={tab === "compliance" && compStatusFilter === "PENDING"}
+          onClick={showPendingCompliance} onKeyDown={onCardKey(showPendingCompliance)}
+          title="Show pending compliance items"
+          className={statCardCls(tab === "compliance" && compStatusFilter === "PENDING")}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center">
               <ClipboardCheck className="h-5 w-5 text-blue-600 dark:text-blue-300" />
@@ -433,7 +484,13 @@ export function RiskComplianceClient({
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card
+          role="button" tabIndex={0}
+          aria-pressed={tab === "compliance" && compStatusFilter === "OVERDUE"}
+          onClick={showOverdueCompliance} onKeyDown={onCardKey(showOverdueCompliance)}
+          title="Show overdue compliance items"
+          className={statCardCls(tab === "compliance" && compStatusFilter === "OVERDUE")}
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-red-50 dark:bg-red-500/15 flex items-center justify-center">
               <Clock className="h-5 w-5 text-red-600 dark:text-red-300" />
@@ -449,7 +506,8 @@ export function RiskComplianceClient({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="risks">
+      <div ref={tabsRef} className="scroll-mt-4" />
+      <Tabs value={tab} onValueChange={setTab}>
         <div className="flex items-center justify-between">
         <TabsList>
           <TabsTrigger value="risks">Risk Register</TabsTrigger>
