@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatTaskNumber } from "@/lib/utils";
+import { cn, formatDate, formatTaskNumber } from "@/lib/utils";
 import {
   Plus,
   Loader2,
@@ -171,6 +171,8 @@ export function TasksClient({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tableRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -182,6 +184,24 @@ export function TasksClient({
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [activityLinkedOnly, setActivityLinkedOnly] = useState(false);
+  // Date-bucket view, driven by `?view=` (set from the "My Task Dashboard"
+  // tiles above): dueToday | overdue | dueThisWeek | waiting | completedThisWeek.
+  // These buckets are personal — scoped to the signed-in user's own tasks —
+  // mirroring /api/tasks/dashboard exactly so the list matches the tile count.
+  const [viewFilter, setViewFilter] = useState<string>(searchParams.get("view") ?? "");
+
+  // When a dashboard tile changes `?view=`, apply it and clear the status chip
+  // (each bucket carries its own status set). A click on a summary card clears
+  // the param instead, so this stays a no-op in that direction.
+  useEffect(() => {
+    const view = searchParams.get("view");
+    if (view) {
+      setViewFilter(view);
+      setStatusFilter("ALL");
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -234,12 +254,61 @@ export function TasksClient({
 
   // ── Filtering ─────────────────────────────────────────────────────────────
 
+  // Boundaries for the date buckets, computed once per render (mirrors
+  // /api/tasks/dashboard: start/end of today, +7 days, and -7 days).
+  const now = new Date();
+  const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(now); endOfDay.setHours(23, 59, 59, 999);
+  const endOfWeek = new Date(now); endOfWeek.setDate(endOfWeek.getDate() + 7); endOfWeek.setHours(23, 59, 59, 999);
+  const startOfWeek = new Date(now); startOfWeek.setDate(startOfWeek.getDate() - 7); startOfWeek.setHours(0, 0, 0, 0);
+  const OPEN_STATUSES = ["NOT_STARTED", "TODO", "IN_PROGRESS"];
+  const DONE_STATUSES = ["COMPLETED", "DONE"];
+
+  function matchesView(t: TaskItem): boolean {
+    if (!viewFilter) return true;
+    // Personal buckets: only the signed-in user's own assigned tasks.
+    if (t.assignee?.user?.id !== currentUserId) return false;
+    const due = t.dueDate ? new Date(t.dueDate) : null;
+    const completed = t.completedAt ? new Date(t.completedAt) : null;
+    switch (viewFilter) {
+      case "dueToday":
+        return OPEN_STATUSES.includes(t.status) && !!due && due >= startOfDay && due <= endOfDay;
+      case "overdue":
+        return OPEN_STATUSES.includes(t.status) && !!due && due < startOfDay;
+      case "dueThisWeek":
+        return OPEN_STATUSES.includes(t.status) && !!due && due >= startOfDay && due <= endOfWeek;
+      case "waiting":
+        return t.status === "WAITING_ON_EXTERNAL_PARTY";
+      case "completedThisWeek":
+        return DONE_STATUSES.includes(t.status) && !!completed && completed >= startOfWeek;
+      default:
+        return true;
+    }
+  }
+
   const filtered = tasks.filter((t) => {
     if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
     if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
     if (activityLinkedOnly && !t.sourceActivity) return false;
+    if (!matchesView(t)) return false;
     return true;
   });
+
+  const VIEW_LABELS: Record<string, string> = {
+    dueToday: "Due today",
+    overdue: "Overdue",
+    dueThisWeek: "Due this week",
+    waiting: "Waiting on external party",
+    completedThisWeek: "Completed this week",
+  };
+
+  // Click a summary card → filter the list by status, drop any dashboard view.
+  function selectStatus(status: string) {
+    setStatusFilter(status);
+    setViewFilter("");
+    if (searchParams.get("view")) router.replace("/tasks");
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   // ── Counts ────────────────────────────────────────────────────────────────
 
@@ -340,35 +409,51 @@ export function TasksClient({
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards — each filters the list below by status */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-muted-foreground">Total Tasks</p>
-            <p className="text-2xl font-bold">{counts.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-muted-foreground">To Do</p>
-            <p className="text-2xl font-bold text-slate-600 dark:text-slate-300">{counts.todo}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-muted-foreground">In Progress</p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {counts.inProgress}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-muted-foreground">Done</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{counts.done}</p>
-          </CardContent>
-        </Card>
+        {([
+          { key: "ALL", label: "Total Tasks", value: counts.total, valueCls: "" },
+          { key: "TODO", label: "To Do", value: counts.todo, valueCls: "text-slate-600 dark:text-slate-300" },
+          { key: "IN_PROGRESS", label: "In Progress", value: counts.inProgress, valueCls: "text-blue-600 dark:text-blue-400" },
+          { key: "DONE", label: "Done", value: counts.done, valueCls: "text-green-600 dark:text-green-400" },
+        ] as const).map((c) => {
+          const active = !viewFilter && statusFilter === c.key;
+          return (
+            <Card
+              key={c.key}
+              role="button"
+              tabIndex={0}
+              aria-pressed={active}
+              onClick={() => selectStatus(c.key)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectStatus(c.key); }
+              }}
+              className={cn(
+                "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.98]",
+                active && "ring-2 ring-[#1E3A5F] dark:ring-[#0EA5E9]"
+              )}
+              title={c.key === "ALL" ? "Show all tasks" : `Show ${STATUS_LABELS[c.key] ?? c.key} tasks`}
+            >
+              <CardContent className="pt-4 pb-4">
+                <p className="text-sm text-muted-foreground">{c.label}</p>
+                <p className={cn("text-2xl font-bold", c.valueCls)}>{c.value}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+
+      {/* Active dashboard-view banner (set from the "My Task Dashboard" tiles) */}
+      {viewFilter && (
+        <div className="flex items-center justify-between rounded-md border border-blue-200 dark:border-blue-500/30 bg-blue-50/60 dark:bg-blue-500/10 px-3 py-2 text-sm">
+          <span className="text-blue-800 dark:text-blue-200">
+            Showing <strong>{VIEW_LABELS[viewFilter] ?? viewFilter}</strong> ({filtered.length})
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => selectStatus("ALL")}>
+            Clear
+          </Button>
+        </div>
+      )}
 
       {/* Filter Row + Create Button */}
       <Card>
@@ -670,7 +755,7 @@ export function TasksClient({
       <TaskTicketDialog task={ticketTask} currentUserId={currentUserId} onOpenChange={(o) => !o && setTicketTask(null)} />
 
       {/* Tasks Table */}
-      <Card>
+      <Card ref={tableRef}>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
