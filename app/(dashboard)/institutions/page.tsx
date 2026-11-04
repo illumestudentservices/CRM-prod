@@ -147,6 +147,30 @@ async function getInstitutions() {
   });
 }
 
+/**
+ * Which institutions are "renewal due" — an ACTIVE contract expiring within 90
+ * days. Computed with the SAME rule as the "Renewal Due" stat card so the card
+ * count and the clicked-through filtered list always agree. Returned as a set of
+ * ids so the list can carry a per-row `renewalDue` flag.
+ */
+async function getRenewalDueIds() {
+  const now = new Date();
+  const renewalWindowMs = 90 * 24 * 60 * 60 * 1000;
+  const rows = await db.institution.findMany({
+    where: {
+      deletedAt: null,
+      contracts: {
+        some: {
+          OR: [{ statusEnum: "ACTIVE" }, { statusEnum: null, status: "ACTIVE" }],
+          endDate: { gte: now, lte: new Date(now.getTime() + renewalWindowMs) },
+        },
+      },
+    },
+    select: { id: true },
+  });
+  return new Set(rows.map((r) => r.id));
+}
+
 async function getRegions() {
   return db.region.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }
@@ -182,11 +206,12 @@ export default async function InstitutionsPage() {
   // are not theirs to see. Hidden for ICR; shown to everyone else who can read.
   const showFigures = session.user.role !== "ICR";
 
-  const [stats, institutions, regions, accountManagers] = await Promise.all([
+  const [stats, institutions, regions, accountManagers, renewalDueIds] = await Promise.all([
     getInstitutionStats(),
     getInstitutions(),
     getRegions(),
     getAccountManagers(),
+    getRenewalDueIds(),
   ]);
 
   return (
@@ -249,6 +274,9 @@ export default async function InstitutionsPage() {
           openIssuesCount: i._count.issues,
           accountHealth: i.accountHealth,
           renewalDate: i.renewalDate ? i.renewalDate.toISOString() : null,
+          // Same rule as the "Renewal Due" stat card (ACTIVE contract expiring
+          // within 90d), so clicking the card filters to exactly its count.
+          renewalDue: renewalDueIds.has(i.id),
           regionId: i.region?.id ?? null,
           regionName: i.region?.name ?? null,
           // Primary first, then the rest alphabetically, so the card's

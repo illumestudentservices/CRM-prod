@@ -41,6 +41,9 @@ export interface InstitutionRow {
   openIssuesCount?: number;
   accountHealth?: string | null;
   renewalDate?: string | null;
+  /// Set server-side with the same rule as the "Renewal Due" card (ACTIVE
+  /// contract expiring within 90 days) so the card and its filter agree.
+  renewalDue?: boolean;
   regionId: string | null;
   regionName: string | null;
   /// Every region worked, primary first. Drives both the card's region line and
@@ -96,6 +99,10 @@ export function InstitutionsClient({
   const [countryFilter, setCountryFilter] = React.useState<string[]>([]);
   const [accountManagerFilter, setAccountManagerFilter] = React.useState<string[]>([]);
   const [healthFilter, setHealthFilter] = React.useState<string[]>([]);
+  // Two card-driven toggles that aren't account statuses: "Renewal Due" (a
+  // computed contract alert) and "Open Issues" (clients with >0 open issues).
+  const [renewalDueOnly, setRenewalDueOnly] = React.useState(false);
+  const [openIssuesOnly, setOpenIssuesOnly] = React.useState(false);
 
   // Derived country list from the loaded institutions — keeps the filter
   // tight to what's actually present.
@@ -146,23 +153,50 @@ export function InstitutionsClient({
       )
         return false;
       if (healthFilter.length && !healthFilter.includes(inst.accountHealth ?? "GREY")) return false;
+      if (renewalDueOnly && !inst.renewalDue) return false;
+      if (openIssuesOnly && !((inst.openIssuesCount ?? 0) > 0)) return false;
       return true;
     });
-  }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter, healthFilter]);
+  }, [institutions, search, statusFilter, typeFilter, regionFilter, countryFilter, accountManagerFilter, healthFilter, renewalDueOnly, openIssuesOnly]);
 
+  // Each card is one of four kinds:
+  //  clear  — Total Clients: drop every card filter (was broken: it set the
+  //           status to the non-existent value "all", emptying the grid).
+  //  status — Active / Prospects: toggle an account-status filter.
+  //  renewal — Renewal Due: toggle the computed renewal-due filter.
+  //  issues — Open Issues: toggle "clients with open issues".
   const statCards = [
-    { title: "Total Clients", value: stats.total,      icon: "Building2" as const, iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "all" },
-    { title: "Active",        value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600 dark:text-green-300", iconBg: "bg-green-50 dark:bg-green-500/15",   status: "ACTIVE" },
-    // Spec §1 — Renewal Due is a computed alert from contract dates, not a
-    // client status. Clicking the card no longer filters by a RENEWAL_DUE
-    // enum value; it's information-only.
-    { title: "Renewal Due",   value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600 dark:text-amber-300", iconBg: "bg-amber-50 dark:bg-amber-500/15",   status: null as string | null },
-    { title: "Prospects",     value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500 dark:text-slate-300", iconBg: "bg-slate-50 dark:bg-slate-800",   status: "PROSPECT" },
-    // Spec §9 — Open Issues card (Clients module).
+    { title: "Total Clients", value: stats.total,      icon: "Building2" as const,   iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", kind: "clear" as const },
+    { title: "Active",        value: stats.active,     icon: "CheckCircle" as const, iconColor: "text-green-600 dark:text-green-300",  iconBg: "bg-green-50 dark:bg-green-500/15",   kind: "status" as const, status: "ACTIVE" },
+    { title: "Renewal Due",   value: stats.renewalDue, icon: "AlertCircle" as const, iconColor: "text-amber-600 dark:text-amber-300",  iconBg: "bg-amber-50 dark:bg-amber-500/15",   kind: "renewal" as const },
+    { title: "Prospects",     value: stats.prospects,  icon: "XCircle" as const,     iconColor: "text-slate-500 dark:text-slate-300", iconBg: "bg-slate-50 dark:bg-slate-800",      kind: "status" as const, status: "PROSPECT" },
     ...(stats.openIssues !== undefined
-      ? [{ title: "Open Issues", value: stats.openIssues, icon: "AlertCircle" as const, iconColor: "text-rose-600 dark:text-rose-300", iconBg: "bg-rose-50 dark:bg-rose-500/15", status: null as string | null }]
+      ? [{ title: "Open Issues", value: stats.openIssues, icon: "AlertCircle" as const, iconColor: "text-rose-600 dark:text-rose-300", iconBg: "bg-rose-50 dark:bg-rose-500/15", kind: "issues" as const }]
       : []),
   ];
+
+  function cardActive(card: (typeof statCards)[number]): boolean {
+    switch (card.kind) {
+      case "clear":   return statusFilter.length === 0 && !renewalDueOnly && !openIssuesOnly;
+      case "status":  return !renewalDueOnly && !openIssuesOnly && statusFilter.includes(card.status);
+      case "renewal": return renewalDueOnly;
+      case "issues":  return openIssuesOnly;
+    }
+  }
+  function cardClick(card: (typeof statCards)[number]) {
+    switch (card.kind) {
+      case "clear":
+        setStatusFilter([]); setRenewalDueOnly(false); setOpenIssuesOnly(false); break;
+      case "status":
+        setRenewalDueOnly(false); setOpenIssuesOnly(false);
+        setStatusFilter((prev) => (prev.length === 1 && prev[0] === card.status ? [] : [card.status]));
+        break;
+      case "renewal":
+        setStatusFilter([]); setOpenIssuesOnly(false); setRenewalDueOnly((v) => !v); break;
+      case "issues":
+        setStatusFilter([]); setRenewalDueOnly(false); setOpenIssuesOnly((v) => !v); break;
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -178,17 +212,10 @@ export function InstitutionsClient({
             iconColor={card.iconColor}
             iconBg={card.iconBg}
             className={cn(
-              card.status !== null && "cursor-pointer transition-all",
-              card.status !== null && statusFilter.includes(card.status) && "ring-2 ring-[#1E3A5F] ring-offset-1"
+              "cursor-pointer transition-all",
+              cardActive(card) && "ring-2 ring-[#1E3A5F] ring-offset-1"
             )}
-            onClick={
-              card.status !== null
-                ? () =>
-                    setStatusFilter((prev) =>
-                      prev.length === 1 && prev[0] === card.status ? [] : [card.status as string]
-                    )
-                : undefined
-            }
+            onClick={() => cardClick(card)}
           />
         ))}
       </div>
@@ -332,9 +359,13 @@ export function InstitutionsClient({
         regionFilter.length > 0 ||
         countryFilter.length > 0 ||
         accountManagerFilter.length > 0 ||
-        healthFilter.length > 0) && (
+        healthFilter.length > 0 ||
+        renewalDueOnly ||
+        openIssuesOnly) && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Showing {filtered.length} of {institutions.length} clients
+          {renewalDueOnly && " · renewal due"}
+          {openIssuesOnly && " · with open issues"}
         </p>
       )}
 
