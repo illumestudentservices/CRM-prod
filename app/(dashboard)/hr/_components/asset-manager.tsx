@@ -159,6 +159,10 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
   const [filterType, setFilterType] = useState("all");
   const [filterRegion, setFilterRegion] = useState("all");
   const [filterCondition, setFilterCondition] = useState("all");
+  // "Needs attention" spans several statuses AND two conditions, so a single
+  // status/condition value can't express it — it gets its own toggle, set by
+  // the stat card and honoured by the list below.
+  const [attentionOnly, setAttentionOnly] = useState(false);
 
   // Dialogs
   const [editing, setEditing] = useState<Asset | null>(null);
@@ -311,9 +315,17 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
       if (filterType !== "all" && a.type !== filterType) return false;
       if (filterRegion !== "all" && a.regionId !== filterRegion) return false;
       if (filterCondition !== "all" && (a.condition ?? "") !== filterCondition) return false;
+      if (
+        attentionOnly &&
+        !(
+          ASSET_STATUSES_NEEDING_ATTENTION.includes(a.status as AssetStatus) ||
+          a.condition === "DAMAGED" ||
+          a.condition === "POOR"
+        )
+      ) return false;
       return true;
     });
-  }, [assets, search, filterStatus, filterType, filterRegion, filterCondition]);
+  }, [assets, search, filterStatus, filterType, filterRegion, filterCondition, attentionOnly]);
 
   const stats = useMemo(() => ({
     total: assets.length,
@@ -328,30 +340,56 @@ export function AssetManager({ isHR }: { isHR: boolean }) {
 
   const anyFilter =
     !!search || filterStatus !== "all" || filterType !== "all" ||
-    filterRegion !== "all" || filterCondition !== "all";
+    filterRegion !== "all" || filterCondition !== "all" || attentionOnly;
 
   function clearFilters() {
     setSearch(""); setFilterStatus("all"); setFilterType("all");
-    setFilterRegion("all"); setFilterCondition("all");
+    setFilterRegion("all"); setFilterCondition("all"); setAttentionOnly(false);
   }
 
   return (
     <div className="space-y-4">
-      {/* Stats */}
+      {/* Stats — each card filters the device list below */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Devices", value: stats.total, color: "text-slate-700 dark:text-slate-200" },
-          { label: "In Use", value: stats.inUse, color: "text-green-600 dark:text-green-400" },
-          { label: "Spare", value: stats.spare, color: "text-blue-600 dark:text-blue-400" },
+          {
+            label: "Total Devices", value: stats.total, color: "text-slate-700 dark:text-slate-200",
+            active: !anyFilter,
+            onClick: () => clearFilters(),
+          },
+          {
+            label: "In Use", value: stats.inUse, color: "text-green-600 dark:text-green-400",
+            active: !attentionOnly && filterStatus === "IN_USE",
+            onClick: () => { setAttentionOnly(false); setFilterCondition("all"); setFilterStatus("IN_USE"); },
+          },
+          {
+            label: "Spare", value: stats.spare, color: "text-blue-600 dark:text-blue-400",
+            active: !attentionOnly && filterStatus === "SPARE",
+            onClick: () => { setAttentionOnly(false); setFilterCondition("all"); setFilterStatus("SPARE"); },
+          },
           // One number for "somebody needs to deal with this", covering both a
           // status (repair, lost, stolen) and a condition (poor, damaged) —
           // they are separate columns but the same to-do list.
-          { label: "Needs Attention", value: stats.attention, color: "text-amber-600 dark:text-amber-400" },
+          {
+            label: "Needs Attention", value: stats.attention, color: "text-amber-600 dark:text-amber-400",
+            active: attentionOnly,
+            onClick: () => { setFilterStatus("all"); setFilterCondition("all"); setAttentionOnly(true); },
+          },
         ].map((s) => (
-          <div key={s.label} className="p-3 rounded-lg border bg-card text-center">
+          <button
+            key={s.label}
+            type="button"
+            onClick={s.onClick}
+            aria-pressed={s.active}
+            title={`Filter devices: ${s.label}`}
+            className={cn(
+              "p-3 rounded-lg border bg-card text-center cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]",
+              s.active && "ring-2 ring-[#1E3A5F] dark:ring-[#0EA5E9]"
+            )}
+          >
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
             <p className="text-xs text-muted-foreground">{s.label}</p>
-          </div>
+          </button>
         ))}
       </div>
 
