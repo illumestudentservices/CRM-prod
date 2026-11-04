@@ -941,6 +941,7 @@ async function ExecutiveDashboard({
           icon="TrendingUp"
           iconColor="text-[#0EA5E9]"
           iconBg="bg-[#0EA5E9]/10"
+          href="/students"
         />
       </div>
 
@@ -1196,6 +1197,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="TrendingUp"
           iconColor="text-[#0EA5E9]"
           iconBg="bg-[#0EA5E9]/10"
+          href="/students?stage=NEW_LEAD"
         />
         <StatCard
           title="In Progress"
@@ -1203,6 +1205,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="ClipboardList"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
+          href="/students"
         />
         <StatCard
           title="Enrolled"
@@ -1223,6 +1226,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="AlertCircle"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
+          href="/students"
         />
         <StatCard
           title="Deadlines This Week"
@@ -1230,6 +1234,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="CalendarDays"
           iconColor="text-rose-600"
           iconBg="bg-rose-50"
+          href="/tasks?view=dueThisWeek"
         />
         <StatCard
           title="Stalled Students"

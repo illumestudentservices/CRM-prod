@@ -200,7 +200,9 @@ export function EventList({ events, stats }: EventListProps) {
     { title: "Total Events",            value: stats.total,                                           icon: "CalendarDays" as const, iconColor: "text-[#1E3A5F] dark:text-blue-300",  iconBg: "bg-[#1E3A5F]/10 dark:bg-blue-500/15", status: "all" },
     { title: "Upcoming",                value: stats.upcoming,                                        icon: "Clock" as const,        iconColor: "text-blue-600 dark:text-blue-300",   iconBg: "bg-blue-50 dark:bg-blue-500/15",      status: "PLANNED" },
     { title: "Total Leads from Events", value: stats.totalLeadsFromEvents,                            icon: "Users" as const,        iconColor: "text-violet-600 dark:text-violet-300", iconBg: "bg-violet-50 dark:bg-violet-500/15",    status: "COMPLETED" },
-    { title: "Avg ROI",                 value: stats.avgROI !== null ? formatPercent(stats.avgROI) : "—", icon: "TrendingUp" as const, iconColor: "text-green-600 dark:text-green-300", iconBg: "bg-green-50 dark:bg-green-500/15",  status: "" },
+    // ROI is only defined for COMPLETED events, so clicking it shows the events
+    // the figure is computed from (same target as "Total Leads from Events").
+    { title: "Avg ROI",                 value: stats.avgROI !== null ? formatPercent(stats.avgROI) : "—", icon: "TrendingUp" as const, iconColor: "text-green-600 dark:text-green-300", iconBg: "bg-green-50 dark:bg-green-500/15",  status: "COMPLETED" },
   ];
 
   const filtered = React.useMemo(() => {

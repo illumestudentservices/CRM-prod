@@ -852,8 +852,16 @@ export function ExecutiveDashboard({
               </div>
             ) : (
               <div className="space-y-4">
-                {/* KPI Achievement */}
-                <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-500/15 rounded-lg px-3 py-2">
+                {/* KPI Achievement — opens the HR performance reviews tab,
+                    where the per-person KPI targets behind this average live. */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push("/hr?tab=performance-reviews")}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push("/hr?tab=performance-reviews"); } }}
+                  title="View performance reviews"
+                  className="flex items-center justify-between bg-amber-50 dark:bg-amber-500/15 rounded-lg px-3 py-2 cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]"
+                >
                   <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Avg KPI Achievement</span>
                   <span className={`text-lg font-bold ${
                     (execData?.teamPerformance.kpiAchievementRate ?? 0) >= 70
