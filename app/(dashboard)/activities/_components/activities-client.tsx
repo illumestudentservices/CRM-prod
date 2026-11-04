@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -135,11 +135,67 @@ export function ActivitiesClient({
   sourceFilter?: { id: string; name: string } | null;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tableRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachmentsActivity, setAttachmentsActivity] = useState<ActivityItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // Extra filters the stat cards + the role dashboard above drive:
+  //  - viewFilter: date/status bucket (?view=), from the role-dashboard tiles
+  //  - typeFilter: activity type (?type= or a "by type" stat card)
+  const [viewFilter, setViewFilter] = useState<string>(searchParams.get("view") ?? "");
+  const [typeFilter, setTypeFilter] = useState<string>(searchParams.get("type") ?? "");
+
+  // When the URL carries ?view= / ?type= (a role-dashboard tile was clicked),
+  // apply it and drop the status chip so the two don't fight.
+  useEffect(() => {
+    const v = searchParams.get("view") ?? "";
+    const t = searchParams.get("type") ?? "";
+    if (v || t) {
+      setViewFilter(v);
+      setTypeFilter(t);
+      setStatusFilter("all");
+      tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Apply an in-component filter (stat card) and clear any ?view=/?type= in the
+  // URL so a later re-render's effect doesn't re-apply the old bucket.
+  function applyLocal(fn: () => void) {
+    fn();
+    if (searchParams.get("view") || searchParams.get("type")) router.replace(pathname);
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Boundaries for the date buckets (mirror getStats / role-dashboard windows).
+  // NOTE: the list rows carry `date`, not `actualDate`, so the "this week"
+  // buckets approximate with `date` — close enough to filter the list to the
+  // right category when a tile is clicked.
+  const nowTs = new Date();
+  const startOfMonthTs = new Date(nowTs.getFullYear(), nowTs.getMonth(), 1);
+  const weekAgoTs = new Date(nowTs.getTime() - 7 * 86_400_000);
+  const weekAheadTs = new Date(nowTs.getTime() + 7 * 86_400_000);
+  function matchesView(a: ActivityItem): boolean {
+    if (!viewFilter) return true;
+    const d = new Date(a.date);
+    switch (viewFilter) {
+      case "thisMonth": return d >= startOfMonthTs;
+      case "overdue": return (a.status === "PLANNED" || a.status === "IN_PROGRESS") && d < nowTs;
+      case "plannedWeek": return a.status === "PLANNED" && d >= weekAgoTs && d <= weekAheadTs;
+      case "upcoming": return a.status === "PLANNED" && d > nowTs;
+      case "completedWeek": return a.status === "COMPLETED" && d >= weekAgoTs;
+      case "completed": return a.status === "COMPLETED";
+      default: return true;
+    }
+  }
+  const VIEW_LABELS: Record<string, string> = {
+    thisMonth: "This month", overdue: "Overdue", plannedWeek: "Planned this week",
+    upcoming: "Upcoming", completedWeek: "Completed this week", completed: "Completed",
+  };
 
   // Form state
   const [type, setType] = useState<string>("SCHOOL_VISIT");
@@ -320,50 +376,94 @@ export function ActivitiesClient({
 
   return (
     <div className="space-y-6">
-      {/* Stat cards */}
+      {/* Stat cards — each filters the activity list below */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <ClipboardList className="h-5 w-5 text-slate-600 dark:text-slate-300" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Total Activities</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-cyan-50 dark:bg-cyan-500/15 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.thisMonth}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">This Month</p>
-            </div>
-          </CardContent>
-        </Card>
-        {stats.byType.slice(0, 2).map((bt) => {
-          const cfg = TYPE_CONFIG[bt.type];
+        {(() => {
+          const totalActive = !viewFilter && !typeFilter && statusFilter === "all";
+          const ring = "ring-2 ring-[#1E3A5F] dark:ring-[#0EA5E9]";
+          const base = "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]";
           return (
-            <Card key={bt.type}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
-                  {cfg && <cfg.icon className="h-5 w-5 text-slate-500 dark:text-slate-400" />}
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{bt.count}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{cfg?.label ?? bt.type}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <>
+              <Card
+                role="button" tabIndex={0} aria-pressed={totalActive} title="Show all activities"
+                onClick={() => applyLocal(() => { setViewFilter(""); setTypeFilter(""); setStatusFilter("all"); })}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); applyLocal(() => { setViewFilter(""); setTypeFilter(""); setStatusFilter("all"); }); } }}
+                className={`${base} ${totalActive ? ring : ""}`}
+              >
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <ClipboardList className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Total Activities</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card
+                role="button" tabIndex={0} aria-pressed={viewFilter === "thisMonth"} title="Show this month's activities"
+                onClick={() => applyLocal(() => { setViewFilter("thisMonth"); setTypeFilter(""); setStatusFilter("all"); })}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); applyLocal(() => { setViewFilter("thisMonth"); setTypeFilter(""); setStatusFilter("all"); }); } }}
+                className={`${base} ${viewFilter === "thisMonth" ? ring : ""}`}
+              >
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-cyan-50 dark:bg-cyan-500/15 flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-cyan-600 dark:text-cyan-300" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.thisMonth}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">This Month</p>
+                  </div>
+                </CardContent>
+              </Card>
+              {stats.byType.slice(0, 2).map((bt) => {
+                const cfg = TYPE_CONFIG[bt.type];
+                const active = typeFilter === bt.type;
+                return (
+                  <Card
+                    key={bt.type}
+                    role="button" tabIndex={0} aria-pressed={active} title={`Show ${cfg?.label ?? bt.type} activities`}
+                    onClick={() => applyLocal(() => { setTypeFilter(bt.type); setViewFilter(""); setStatusFilter("all"); })}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); applyLocal(() => { setTypeFilter(bt.type); setViewFilter(""); setStatusFilter("all"); }); } }}
+                    className={`${base} ${active ? ring : ""}`}
+                  >
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                        {cfg && <cfg.icon className="h-5 w-5 text-slate-500 dark:text-slate-400" />}
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{bt.count}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{cfg?.label ?? bt.type}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </>
           );
-        })}
+        })()}
       </div>
 
+      {/* Active view/type banner (set from a stat card or the role dashboard) */}
+      {(viewFilter || typeFilter) && (
+        <div className="flex items-center justify-between rounded-md border border-sky-200 dark:border-sky-500/30 bg-sky-50/60 dark:bg-sky-500/10 px-3 py-2 text-sm">
+          <span className="text-sky-800 dark:text-sky-200">
+            Showing{" "}
+            <strong>
+              {viewFilter ? (VIEW_LABELS[viewFilter] ?? viewFilter) : (TYPE_CONFIG[typeFilter]?.label ?? typeFilter)}
+            </strong>
+          </span>
+          <Button
+            variant="ghost" size="sm"
+            onClick={() => applyLocal(() => { setViewFilter(""); setTypeFilter(""); setStatusFilter("all"); })}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Log Activity button + table */}
-      <Card>
+      <Card ref={tableRef} className="scroll-mt-4">
         <CardContent className="p-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2">
@@ -929,9 +1029,11 @@ export function ActivitiesClient({
             <TableBody>
               {(() => {
                 const filtered = activities.filter((a) => {
-                  if (statusFilter === "all") return true;
-                  if (statusFilter === "UNSET") return a.status == null;
-                  return a.status === statusFilter;
+                  if (statusFilter === "UNSET") { if (a.status != null) return false; }
+                  else if (statusFilter !== "all" && a.status !== statusFilter) return false;
+                  if (typeFilter && a.type !== typeFilter) return false;
+                  if (!matchesView(a)) return false;
+                  return true;
                 });
                 if (filtered.length === 0) {
                   return (

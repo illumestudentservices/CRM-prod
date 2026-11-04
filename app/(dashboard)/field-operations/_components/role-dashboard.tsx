@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
 import { regionScope } from "@/lib/region-scope";
@@ -69,11 +70,11 @@ async function renderICRDashboard(userId: string, now: Date, weekAgo: Date, week
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
-      <Tile label="Planned this week" value={plannedThisWeek} tone="slate" />
-      <Tile label="Completed this week" value={completedThisWeek} tone="green" />
-      <Tile label="Upcoming" value={upcoming} tone="blue" />
-      <Tile label="Overdue" value={overdue} tone={overdue > 0 ? "red" : "slate"} />
-      <Tile label="Completion rate" value={`${completionRate}%`} tone="cyan" />
+      <Tile label="Planned this week" value={plannedThisWeek} tone="slate" href="/field-operations?view=plannedWeek" />
+      <Tile label="Completed this week" value={completedThisWeek} tone="green" href="/field-operations?view=completedWeek" />
+      <Tile label="Upcoming" value={upcoming} tone="blue" href="/field-operations?view=upcoming" />
+      <Tile label="Overdue" value={overdue} tone={overdue > 0 ? "red" : "slate"} href="/field-operations?view=overdue" />
+      <Tile label="Completion rate" value={`${completionRate}%`} tone="cyan" href="/field-operations?view=completed" />
     </div>
   );
 }
@@ -221,16 +222,16 @@ async function renderSeniorDashboard(now: Date) {
           Last 30 days — org-wide
         </p>
         <div className="grid grid-cols-2 gap-2">
-          <div>
+          <Link href="/field-operations?view=completed" className="block rounded p-1 -m-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
             <p className="text-2xl font-semibold tabular-nums text-slate-800 dark:text-slate-100">{totalCompleted30d}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">completed</p>
-          </div>
-          <div>
+          </Link>
+          <Link href="/field-operations?view=overdue" className="block rounded p-1 -m-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60">
             <p className={`text-2xl font-semibold tabular-nums ${totalOverdue > 0 ? "text-red-700 dark:text-red-400" : "text-slate-800 dark:text-slate-100"}`}>
               {totalOverdue}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">overdue</p>
-          </div>
+          </Link>
         </div>
       </div>
 
@@ -279,7 +280,7 @@ async function renderSeniorDashboard(now: Date) {
   );
 }
 
-function Tile({ label, value, tone }: { label: string; value: number | string; tone: "slate" | "green" | "blue" | "red" | "cyan" }) {
+function Tile({ label, value, tone, href }: { label: string; value: number | string; tone: "slate" | "green" | "blue" | "red" | "cyan"; href?: string }) {
   const toneCls: Record<string, string> = {
     slate: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:border-slate-700",
     green: "bg-green-50 text-green-800 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30",
@@ -287,10 +288,22 @@ function Tile({ label, value, tone }: { label: string; value: number | string; t
     red: "bg-red-50 text-red-800 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
     cyan: "bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30",
   };
-  return (
-    <div className={`rounded border p-3 ${toneCls[tone]}`}>
+  const inner = (
+    <>
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
       <p className="text-xs opacity-80 mt-0.5">{label}</p>
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link
+        href={href}
+        title={`Show ${label.toLowerCase()}`}
+        className={`block rounded border p-3 transition-shadow hover:shadow-md active:scale-[0.99] ${toneCls[tone]}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={`rounded border p-3 ${toneCls[tone]}`}>{inner}</div>;
 }
