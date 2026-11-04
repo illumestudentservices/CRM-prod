@@ -310,13 +310,17 @@ export function ReportDetailClient({
               />
             )}
           </div>
+          {/* Each count/figure deep-links to the records it is computed from,
+              scoped to this report's client. Lead-based figures open the student
+              pipeline filtered to the client (Enrolled also pins the stage);
+              event figures open the Events list. */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatCard title="Total Leads" value={showNum(kpi.totalLeads)} icon={Users} change={trendPercent(kpi.totalLeads, prevKpi?.totalLeads)} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" />
-            <StatCard title="Enrolled" value={showNum(kpi.enrolled)} icon={GraduationCap} change={trendPercent(kpi.enrolled, prevKpi?.enrolled)} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" />
-            <StatCard title="Conversion Rate" value={showPct(kpi.conversionRate)} icon={Target} change={pointDelta(kpi.conversionRate, prevKpi?.conversionRate)} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" />
-            <StatCard title="Contact Rate" value={showPct(kpi.contactRate)} icon={Phone} change={pointDelta(kpi.contactRate, prevKpi?.contactRate)} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" />
-            <StatCard title="Events" value={showNum(kpi.eventsCount)} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" />
-            <StatCard title="Event Cost" value={typeof kpi.totalEventCost !== "number" ? "—" : kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString("en-CA")}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" />
+            <StatCard title="Total Leads" value={showNum(kpi.totalLeads)} icon={Users} change={trendPercent(kpi.totalLeads, prevKpi?.totalLeads)} iconColor="text-[#1E3A5F]" iconBg="bg-[#1E3A5F]/10" href={`/students?institution=${report.institution.id}`} />
+            <StatCard title="Enrolled" value={showNum(kpi.enrolled)} icon={GraduationCap} change={trendPercent(kpi.enrolled, prevKpi?.enrolled)} iconColor="text-[#22C55E]" iconBg="bg-[#22C55E]/10" href={`/students?institution=${report.institution.id}&stage=ENROLLED`} />
+            <StatCard title="Conversion Rate" value={showPct(kpi.conversionRate)} icon={Target} change={pointDelta(kpi.conversionRate, prevKpi?.conversionRate)} iconColor="text-[#0369A1]" iconBg="bg-[#0369A1]/10" href={`/students?institution=${report.institution.id}`} />
+            <StatCard title="Contact Rate" value={showPct(kpi.contactRate)} icon={Phone} change={pointDelta(kpi.contactRate, prevKpi?.contactRate)} iconColor="text-[#8B5CF6]" iconBg="bg-[#8B5CF6]/10" href={`/students?institution=${report.institution.id}`} />
+            <StatCard title="Events" value={showNum(kpi.eventsCount)} icon={Calendar} change={trendPercent(kpi.eventsCount, prevKpi?.eventsCount)} iconColor="text-[#F59E0B]" iconBg="bg-[#F59E0B]/10" href="/events" />
+            <StatCard title="Event Cost" value={typeof kpi.totalEventCost !== "number" ? "—" : kpi.totalEventCost > 0 ? `$${kpi.totalEventCost.toLocaleString("en-CA")}` : "—"} icon={DollarSign} iconColor="text-[#64748b] dark:text-slate-400" iconBg="bg-slate-100 dark:bg-slate-800" href="/events" />
           </div>
         </div>
       )}

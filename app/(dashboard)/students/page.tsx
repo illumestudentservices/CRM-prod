@@ -66,7 +66,7 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ source?: string }>;
+  searchParams?: Promise<{ source?: string; stage?: string; institution?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -75,10 +75,13 @@ export default async function StudentsPage({
   const { id: userId, role, regionId } = session.user;
   const canImport = await effectiveHasPermission(session.user.role, "leads", "write");
 
-  // Pre-applied source filter, e.g. arriving from a recruitment partner's
-  // "Leads" tile. "all" is treated as absent so a cleared link is harmless.
+  // Pre-applied filters from a figure tile elsewhere (a partner's "Leads" tile,
+  // a dashboard "Enrolled" card, a client's pipeline tile, …). "all" is treated
+  // as absent so a cleared link is harmless.
   const sp = (await searchParams) ?? {};
   const initialSourceId = sp.source && sp.source !== "all" ? sp.source : null;
+  const initialStage = sp.stage && sp.stage !== "all" ? sp.stage : null;
+  const initialInstitutionId = sp.institution && sp.institution !== "all" ? sp.institution : null;
 
   const { leads, sources, institutions, icrUsers, isManager } = await getLeadsData(
     userId,
@@ -123,6 +126,8 @@ export default async function StudentsPage({
         icrUsers={icrUsers}
         isManager={isManager}
         initialSourceId={initialSourceId}
+        initialStage={initialStage}
+        initialInstitutionId={initialInstitutionId}
       />
     </div>
   );

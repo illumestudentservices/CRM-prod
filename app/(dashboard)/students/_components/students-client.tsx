@@ -59,6 +59,12 @@ interface StudentsClientPageProps {
   /** Pre-applied source (recruitment partner) filter, e.g. from a partner's
    *  "Leads" tile. Null when no source was requested. */
   initialSourceId?: string | null;
+  /** Pre-applied stage filter, e.g. from a dashboard "Enrolled" tile
+   *  (/students?stage=ENROLLED). Null when none requested. */
+  initialStage?: string | null;
+  /** Pre-applied client filter, e.g. from a client's pipeline tile
+   *  (/students?institution=<id>). Null when none requested. */
+  initialInstitutionId?: string | null;
 }
 
 export function StudentsClientPage({
@@ -68,14 +74,20 @@ export function StudentsClientPage({
   icrUsers,
   isManager,
   initialSourceId = null,
+  initialStage = null,
+  initialInstitutionId = null,
 }: StudentsClientPageProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<Tab>("kanban");
   const [search, setSearch] = React.useState("");
   // Each filter holds the picked values. An empty array means "no filter"
   // (show everything), so a user can tick several stages, regions, etc. at once.
-  const [stageFilter, setStageFilter] = React.useState<string[]>([]);
-  const [institutionFilter, setInstitutionFilter] = React.useState<string[]>([]);
+  const [stageFilter, setStageFilter] = React.useState<string[]>(
+    initialStage ? [initialStage] : []
+  );
+  const [institutionFilter, setInstitutionFilter] = React.useState<string[]>(
+    initialInstitutionId ? [initialInstitutionId] : []
+  );
   const [sourceFilter, setSourceFilter] = React.useState<string[]>(
     initialSourceId ? [initialSourceId] : []
   );
