@@ -41,7 +41,6 @@ const TYPE_GROUPS: Record<string, { label: string; types: string[] }> = {
   agents: { label: "Agents", types: ["AGENT"] },
   schools: { label: "Schools", types: ["SCHOOL"] },
   referral: { label: "Referral Partners", types: ["REFERRAL_PARTNER", "PARTNER"] },
-  education: { label: "Education Partners", types: ["EDUCATION_PARTNER"] },
 };
 
 const PARTNER_TAB_TYPES = ["AGENT", "SCHOOL", "REFERRAL_PARTNER", "PARTNER", "EDUCATION_PARTNER"];
@@ -186,12 +185,11 @@ export default async function PartnersPage({ searchParams }: Props) {
 
   // Pre-select the type based on the current tab so "Add" from the Agents
   // tab defaults to type=AGENT etc.
-  const tabTypeMap: Record<string, "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER" | "EDUCATION_PARTNER" | undefined> = {
+  const tabTypeMap: Record<string, "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER" | undefined> = {
     all: undefined,
     agents: "AGENT",
     schools: "SCHOOL",
     referral: "REFERRAL_PARTNER",
-    education: "EDUCATION_PARTNER",
   };
   const defaultType = tabTypeMap[activeTab];
 
@@ -210,7 +208,6 @@ export default async function PartnersPage({ searchParams }: Props) {
     agents: rawCounts.AGENT ?? 0,
     schools: rawCounts.SCHOOL ?? 0,
     referral: (rawCounts.REFERRAL_PARTNER ?? 0) + (rawCounts.PARTNER ?? 0),
-    education: rawCounts.EDUCATION_PARTNER ?? 0,
   };
 
   return (

@@ -36,7 +36,6 @@ const TYPE_OPTIONS = [
   { value: "SCHOOL", label: "School" },
   { value: "REFERRAL_PARTNER", label: "Referral Partner" },
   { value: "PARTNER", label: "Partner" },
-  { value: "EDUCATION_PARTNER", label: "Education Partner" },
 ] as const;
 
 // agreementStatus is a free-text column in the schema; these are the values
@@ -51,7 +50,7 @@ const AGREEMENT_OPTIONS = [
 
 const partnerSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["AGENT", "SCHOOL", "REFERRAL_PARTNER", "PARTNER", "EDUCATION_PARTNER"]),
+  type: z.enum(["AGENT", "SCHOOL", "REFERRAL_PARTNER", "PARTNER"]),
   country: z.string().min(1, "Country is required"),
   city: z.string().optional(),
   regionId: z.string().optional(),
@@ -87,7 +86,7 @@ export function PartnerForm({
    * When the user clicks "Add" while a tab is active, pre-select that tab's
    * type so agents-tab → AGENT etc. Not required.
    */
-  defaultType?: "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER" | "EDUCATION_PARTNER";
+  defaultType?: "AGENT" | "SCHOOL" | "REFERRAL_PARTNER" | "PARTNER";
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
