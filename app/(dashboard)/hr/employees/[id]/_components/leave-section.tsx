@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
+import { InLieuSection } from "@/components/hr/in-lieu-section";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import {
@@ -151,6 +152,17 @@ export function LeaveSection({
       */}
       {isOwnProfile && <TeamLeaveApprovals />}
       {isOwnProfile && <TeamLeaveHistory />}
+
+      {/* Leave in lieu — this profile is where an employee/ICR (redirected off
+          /hr) logs extra hours and sees their in-lieu balance. Own profile only;
+          on someone else's record it would be the wrong person's data. */}
+      {isOwnProfile && (
+        <InLieuSection
+          myEmployeeId={employeeId}
+          isHR={false}
+          onChanged={() => { loadRequests(); router.refresh(); }}
+        />
+      )}
 
       {/* Balances */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

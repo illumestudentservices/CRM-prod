@@ -75,6 +75,9 @@ interface ProfileData {
 
 interface EmployeeTabsClientProps {
   employeeId: string;
+  /** Tab to open first, read from ?tab= on the server so deep links (e.g.
+   *  ?tab=leave) render the right tab in SSR, before hydration. */
+  initialTab?: string;
   profile: ProfileData;
   leaveBalances: LeaveBalance[];
   isOwnProfile: boolean;
@@ -100,6 +103,7 @@ const TAB_VALUES = new Set([
 
 export function EmployeeTabsClient({
   employeeId,
+  initialTab,
   profile,
   leaveBalances,
   isOwnProfile,
@@ -119,7 +123,11 @@ export function EmployeeTabsClient({
    * meant to keep from them.
    */
   const [activeTab, setActiveTab] = React.useState(
-    documentsOnly ? "documents" : "profile",
+    documentsOnly
+      ? "documents"
+      : initialTab && TAB_VALUES.has(initialTab)
+        ? initialTab
+        : "profile",
   );
 
   // /hr?tab=leave redirects an EMPLOYEE here and carries the tab with it, so

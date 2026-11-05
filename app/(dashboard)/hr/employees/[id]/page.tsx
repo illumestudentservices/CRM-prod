@@ -16,10 +16,13 @@ import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 
 export default async function EmployeeDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const initialTab = (await searchParams)?.tab;
   const session = await auth();
   if (!session) redirect("/login");
 
@@ -213,6 +216,7 @@ export default async function EmployeeDetailPage({
       {/* Tabs */}
       <EmployeeTabsClient
         employeeId={employee.id}
+        initialTab={initialTab}
         /*
           ★ HIDING A TAB IS NOT WITHHOLDING THE DATA.
 
