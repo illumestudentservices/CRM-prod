@@ -144,7 +144,10 @@ export function LeaveManager({
       accessorFn: (row) => row.reason ?? "",
       header: "Reason",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+        <span
+          className="text-sm text-muted-foreground block max-w-[260px] whitespace-pre-wrap break-words"
+          title={row.original.reason ?? ""}
+        >
           {row.original.reason || "—"}
         </span>
       ),

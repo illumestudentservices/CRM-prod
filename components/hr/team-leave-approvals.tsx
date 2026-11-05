@@ -92,7 +92,7 @@ export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
                 {leaveTypeLabel(r.leaveType)} · {formatDate(r.startDate)} — {formatDate(r.endDate)} ({r.days}d)
               </p>
               {r.reason && (
-                <p className="text-xs text-muted-foreground truncate max-w-[420px]">{r.reason}</p>
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-w-[520px]">{r.reason}</p>
               )}
             </div>
             {/*

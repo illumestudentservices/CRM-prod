@@ -146,7 +146,7 @@ export function TeamLeaveHistory() {
                 {r.days} day{r.days === 1 ? "" : "s"}
               </p>
               {r.reason && (
-                <p className="text-xs text-muted-foreground mt-1 truncate max-w-[460px]">
+                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words max-w-[520px]">
                   {r.reason}
                 </p>
               )}
