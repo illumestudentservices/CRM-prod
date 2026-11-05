@@ -1242,7 +1242,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="Clock"
           iconColor="text-orange-600"
           iconBg="bg-orange-50"
-          href="/students"
+          href="#needs-attention"
         />
         <StatCard
           title="Open Tasks"
