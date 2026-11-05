@@ -1205,7 +1205,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="ClipboardList"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
-          href="/students"
+          href={`/students?stage=${IN_PROGRESS_STAGES.join(",")}`}
         />
         <StatCard
           title="Enrolled"
@@ -1226,7 +1226,7 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
           icon="AlertCircle"
           iconColor="text-amber-600"
           iconBg="bg-amber-50"
-          href="/students"
+          href="#needs-attention"
         />
         <StatCard
           title="Deadlines This Week"
@@ -1255,8 +1255,9 @@ async function ICRDashboard({ userId, regionId }: { userId: string; regionId?: s
       </div>
 
       {/* The two new cards lead the page: a dashboard should open with what
-          needs you, not with a list of what you already have. */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          needs you, not with a list of what you already have. The id is the
+          target of the "Needs Attention" tile above (same-page scroll). */}
+      <div id="needs-attention" className="grid grid-cols-1 xl:grid-cols-2 gap-6 scroll-mt-20">
         <ActionItemsCard items={actions.items} />
         <MyTasksCard tasks={actions.tasks} />
       </div>

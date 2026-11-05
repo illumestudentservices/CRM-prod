@@ -80,7 +80,11 @@ export default async function StudentsPage({
   // as absent so a cleared link is harmless.
   const sp = (await searchParams) ?? {};
   const initialSourceId = sp.source && sp.source !== "all" ? sp.source : null;
-  const initialStage = sp.stage && sp.stage !== "all" ? sp.stage : null;
+  // ?stage= may carry one stage or a comma-separated list (e.g. the dashboard's
+  // "In Progress" tile passes every in-progress stage).
+  const initialStages = sp.stage && sp.stage !== "all"
+    ? sp.stage.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
   const initialInstitutionId = sp.institution && sp.institution !== "all" ? sp.institution : null;
 
   const { leads, sources, institutions, icrUsers, isManager } = await getLeadsData(
@@ -126,7 +130,7 @@ export default async function StudentsPage({
         icrUsers={icrUsers}
         isManager={isManager}
         initialSourceId={initialSourceId}
-        initialStage={initialStage}
+        initialStages={initialStages}
         initialInstitutionId={initialInstitutionId}
       />
     </div>
