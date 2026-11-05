@@ -73,7 +73,7 @@ export default function LoginPage() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, resetField, setFocus, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema) as never,
     defaultValues: { email: "", password: "" },
   });
@@ -127,6 +127,11 @@ export default function LoginPage() {
         );
 
         setErrorMsg("Invalid email or password. Please try again.");
+
+        // Clear only the password (keep the email) so they can retype it
+        // without re-entering their address, and put the cursor back in it.
+        resetField("password");
+        setFocus("password");
 
         // Enrichment call was removed for pentest H-1 (2026-08-10). The
         // /api/auth/login-status endpoint used to return per-account
