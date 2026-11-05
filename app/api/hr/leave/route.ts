@@ -400,9 +400,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Email region manager (if different from direct manager)
+  // Email region manager (if different from direct manager) — but NOT when the
+  // applicant is themselves a Regional Manager. An RM's leave goes to their own
+  // manager only; copying the region's RM would otherwise CC a peer RM (or the
+  // RM themselves) on every RM's request. Non-RM staff are unchanged.
   const regionId = employee.user.regionId;
-  if (regionId) {
+  if (regionId && employee.user.role !== "REGIONAL_MANAGER") {
     db.user.findFirst({
       where: { role: "REGIONAL_MANAGER", regionId, isActive: true, deletedAt: null },
       select: { name: true, email: true },
