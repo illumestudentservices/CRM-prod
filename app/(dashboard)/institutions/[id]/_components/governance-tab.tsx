@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPercent } from "@/lib/utils";
@@ -39,6 +40,10 @@ interface GovernanceTabProps {
     date: string | Date;
     outcomes: string | null;
   }>;
+  /// This client's id — lets the Pipeline tile deep-link to its students.
+  institutionId?: string;
+  /// Switch the parent detail tabs (e.g. Open Issues → the Issues tab).
+  onOpenTab?: (tab: string) => void;
 }
 
 /**
@@ -76,7 +81,7 @@ const HEALTH_CONFIG: Record<
   },
 };
 
-export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: GovernanceTabProps) {
+export function GovernanceTab({ stats, accountHealth, kpis, recentActivities, institutionId, onOpenTab }: GovernanceTabProps) {
   const health = accountHealth ?? "GREY";
   const healthCfg = HEALTH_CONFIG[health];
   // Prefer the new dedicated open-issues count if present, else fall back to
@@ -87,27 +92,40 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="h-4 w-4 text-cyan-600" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Pipeline</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalLeads}</p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stats.enrolledCount} enrolled</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="h-4 w-4 text-blue-600" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Activities</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.activitiesCount}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">delivered</p>
-          </CardContent>
-        </Card>
-        {/* Spec §11 — Account Health replaces the (spec-forbidden) Budget card. */}
+        {/* Pipeline → this client's student pipeline */}
+        {(() => {
+          const pipelineBody = (
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-cyan-600" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">Pipeline</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalLeads}</p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stats.enrolledCount} enrolled</p>
+            </CardContent>
+          );
+          const hover = "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]";
+          return institutionId ? (
+            <Link href={`/students?institution=${institutionId}`} className="block" title="Open this client's student pipeline">
+              <Card className={hover}>{pipelineBody}</Card>
+            </Link>
+          ) : <Card>{pipelineBody}</Card>;
+        })()}
+        {/* Activities → the field operations list */}
+        <Link href="/field-operations" className="block" title="Open field operations">
+          <Card className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-blue-600" />
+                <span className="text-xs text-slate-500 dark:text-slate-400">Activities</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.activitiesCount}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">delivered</p>
+            </CardContent>
+          </Card>
+        </Link>
+        {/* Spec §11 — Account Health replaces the (spec-forbidden) Budget card.
+            A rating badge, not a figure — stays non-clickable. */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -120,7 +138,14 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities }: 
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{healthCfg.caption}</p>
           </CardContent>
         </Card>
-        <Card>
+        {/* Open Issues → the Issues tab */}
+        <Card
+          role="button" tabIndex={0}
+          onClick={() => onOpenTab?.("issues")}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenTab?.("issues"); } }}
+          title="Open the Issues tab"
+          className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]"
+        >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="h-4 w-4 text-amber-600" />

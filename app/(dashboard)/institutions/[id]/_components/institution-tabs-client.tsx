@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { InteractionType } from "@prisma/client";
@@ -72,6 +74,9 @@ interface TeamMember {
 
 interface InstitutionTabsClientProps {
   institutionId: string;
+  /** Tab to open first, read from ?tab= on the server so deep links render the
+   *  right tab even before hydration. */
+  initialTab?: string;
   /** institutions:write — may raise and update issues. */
   canWrite: boolean;
   /** institutions.set_health — may change the red/amber/green rating. */
@@ -131,6 +136,7 @@ interface InstitutionTabsClientProps {
 
 export function InstitutionTabsClient({
   institutionId,
+  initialTab,
   canWrite,
   canSetHealth,
   counts,
@@ -147,8 +153,17 @@ export function InstitutionTabsClient({
   leads,
   showFigures = true,
 }: InstitutionTabsClientProps) {
+  // Controlled so a figure tile can jump to another tab, and so a deep link
+  // like /institutions/<id>?tab=issues (e.g. from a governance "Open Issues"
+  // tile) opens the right tab.
+  const [tab, setTab] = React.useState<string>(initialTab ?? (showFigures ? "governance" : "team"));
+  // Fallback for client-side navigations that change ?tab without a full load.
+  React.useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t) setTab(t);
+  }, []);
   return (
-    <Tabs defaultValue={showFigures ? "governance" : "team"}>
+    <Tabs value={tab} onValueChange={setTab}>
       <TabsList className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex-wrap h-auto">
         {showFigures && <TabsTrigger value="governance">Governance</TabsTrigger>}
         {showFigures && <TabsTrigger value="overview">Overview</TabsTrigger>}
@@ -176,6 +191,8 @@ export function InstitutionTabsClient({
           accountHealth={governanceData.accountHealth ?? null}
           kpis={governanceData.kpis}
           recentActivities={governanceData.recentActivities}
+          institutionId={institutionId}
+          onOpenTab={setTab}
         />
       </TabsContent>
 
@@ -188,22 +205,33 @@ export function InstitutionTabsClient({
       <TabsContent value="overview" className="mt-4 space-y-6">
         {/* Spec §2 (Clients) — 8-stage pipeline panel. Sits above the summary
             tiles so an AM opening the tab sees the live pipeline immediately. */}
-        <PipelinePanel leads={leads} />
+        <PipelinePanel leads={leads} institutionId={institutionId} />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Total Leads", value: counts.leads, cls: "text-slate-900 dark:text-slate-100" },
-            { label: "Enrolled", value: enrolledCount, cls: "text-green-600 dark:text-green-400" },
-            { label: "Contracts", value: counts.contracts, cls: "text-slate-900 dark:text-slate-100" },
-            { label: "Activities", value: counts.activities, cls: "text-cyan-600 dark:text-cyan-400" },
-          ].map((s) => (
-            <Card key={s.label}>
+          {([
+            { label: "Total Leads", value: counts.leads, cls: "text-slate-900 dark:text-slate-100", href: `/students?institution=${institutionId}` },
+            { label: "Enrolled", value: enrolledCount, cls: "text-green-600 dark:text-green-400", href: `/students?institution=${institutionId}&stage=ENROLLED` },
+            { label: "Contracts", value: counts.contracts, cls: "text-slate-900 dark:text-slate-100", onClick: () => setTab("contracts") },
+            { label: "Activities", value: counts.activities, cls: "text-cyan-600 dark:text-cyan-400", href: "/field-operations" },
+          ] as const).map((s) => {
+            const inner = (
               <CardContent className="p-4 text-center">
                 <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{s.label}</p>
               </CardContent>
-            </Card>
-          ))}
+            );
+            const cardCls = "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]";
+            if ("href" in s) {
+              return <Link key={s.label} href={s.href} className="block"><Card className={cardCls}>{inner}</Card></Link>;
+            }
+            return (
+              <Card key={s.label} role="button" tabIndex={0} onClick={s.onClick}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); s.onClick(); } }}
+                className={cardCls}>
+                {inner}
+              </Card>
+            );
+          })}
         </div>
 
         {strategicObjectives && (
@@ -262,7 +290,7 @@ export function InstitutionTabsClient({
             appear above the manual KPI tracker. The disclaimer text is
             spec-mandated: "Based on student records maintained within Illume
             CRM." */}
-        <PipelinePanel leads={leads} />
+        <PipelinePanel leads={leads} institutionId={institutionId} />
         <div className="rounded-md border border-slate-200 bg-slate-50 dark:bg-slate-900/40 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
           <p className="font-medium text-slate-700 dark:text-slate-300">Manual KPI targets</p>
           <p className="mt-0.5">

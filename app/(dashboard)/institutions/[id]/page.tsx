@@ -98,8 +98,10 @@ async function getRegions() {
 
 export default async function InstitutionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -118,6 +120,7 @@ export default async function InstitutionDetailPage({
   const showFigures = role !== "ICR";
 
   const { id } = await params;
+  const initialTab = (await searchParams)?.tab;
 
   const [institution, regions] = await Promise.all([
     getInstitution(id),
@@ -274,6 +277,7 @@ export default async function InstitutionDetailPage({
       {/* Tabs */}
       <InstitutionTabsClient
         institutionId={institution.id}
+        initialTab={initialTab}
         showFigures={showFigures}
         canWrite={canWrite}
         canSetHealth={canSetHealth}

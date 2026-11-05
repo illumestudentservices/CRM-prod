@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { STAGE_LABELS, STAGE_BADGE_CLASSES } from "@/lib/lead-pipeline";
 import type { LeadStage } from "@prisma/client";
@@ -39,9 +40,12 @@ const CLOSED_STAGES: LeadStage[] = [
 
 interface PipelinePanelProps {
   leads: Array<{ id: string; stage: LeadStage }>;
+  /** When set, each stage tile links to the pipeline filtered to this client +
+   *  stage. Omitted on surfaces that render the panel without a client scope. */
+  institutionId?: string;
 }
 
-export function PipelinePanel({ leads }: PipelinePanelProps) {
+export function PipelinePanel({ leads, institutionId }: PipelinePanelProps) {
   const counts = new Map<LeadStage, number>();
   for (const l of leads) {
     counts.set(l.stage, (counts.get(l.stage) ?? 0) + 1);
@@ -65,11 +69,8 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
           {ACTIVE_STAGES.map((stage) => {
             const count = counts.get(stage) ?? 0;
             const pct = activeTotal > 0 ? Math.round((count / activeTotal) * 100) : 0;
-            return (
-              <div
-                key={stage}
-                className="rounded-md border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3"
-              >
+            const body = (
+              <>
                 <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   {STAGE_LABELS[stage]}
                 </p>
@@ -87,8 +88,22 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-              </div>
+              </>
             );
+            const cls = "rounded-md border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 p-3";
+            if (institutionId) {
+              return (
+                <Link
+                  key={stage}
+                  href={`/students?institution=${institutionId}&stage=${stage}`}
+                  title={`Open ${STAGE_LABELS[stage]} students for this client`}
+                  className={`${cls} block transition-shadow hover:shadow-md active:scale-[0.99]`}
+                >
+                  {body}
+                </Link>
+              );
+            }
+            return <div key={stage} className={cls}>{body}</div>;
           })}
         </div>
 
@@ -101,14 +116,14 @@ export function PipelinePanel({ leads }: PipelinePanelProps) {
               {CLOSED_STAGES.map((stage) => {
                 const count = counts.get(stage) ?? 0;
                 if (count === 0) return null;
-                return (
-                  <span
-                    key={stage}
-                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border bg-white text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700"
-                  >
-                    {STAGE_LABELS[stage]}
-                    <span className="font-semibold">{count}</span>
-                  </span>
+                const chipCls = "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border bg-white text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700";
+                const chipBody = (<>{STAGE_LABELS[stage]}<span className="font-semibold">{count}</span></>);
+                return institutionId ? (
+                  <Link key={stage} href={`/students?institution=${institutionId}&stage=${stage}`} className={`${chipCls} hover:shadow-sm`}>
+                    {chipBody}
+                  </Link>
+                ) : (
+                  <span key={stage} className={chipCls}>{chipBody}</span>
                 );
               })}
             </div>
