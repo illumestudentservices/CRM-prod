@@ -9,6 +9,7 @@ import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
 import { InLieuSection } from "@/components/hr/in-lieu-section";
 import { LeaveApproveButton } from "@/components/hr/leave-approve-button";
+import { LeaveRejectButton } from "@/components/hr/leave-reject-button";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -78,22 +79,6 @@ export function LeaveManager({
     load();
     loadOnLeaveToday();
   }, []);
-
-  async function updateStatus(id: string, action: "APPROVED" | "REJECTED") {
-    const res = await fetch(`/api/hr/leave/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      toast({ title: `Leave ${action.toLowerCase()}`, variant: action === "APPROVED" ? "default" : "destructive" });
-      load();
-      loadOnLeaveToday();
-    } else {
-      toast({ title: "Error", description: data.error || "Failed to update leave", variant: "destructive" });
-    }
-  }
 
   // Withdraw an already-APPROVED leave (HR/admin). Returns the days to the
   // employee's balance; see PATCH /api/hr/leave/[id].
@@ -181,10 +166,7 @@ export function LeaveManager({
         row.original.status === "PENDING" ? (
           <div className="flex gap-2">
             <LeaveApproveButton request={row.original} onDecided={load} />
-            <Button size="sm" variant="outline" className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"
-              onClick={() => updateStatus(row.original.id, "REJECTED")}>
-              <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
-            </Button>
+            <LeaveRejectButton requestId={row.original.id} onDecided={load} />
           </div>
         ) : row.original.status === "APPROVED" ? (
           <Button size="sm" variant="outline" className="h-7 text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40 dark:hover:bg-amber-500/10"

@@ -24,13 +24,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { leaveTypeLabel } from "@/lib/leave-policy";
 import { LeaveApproveButton } from "@/components/hr/leave-approve-button";
-import { XCircle, Users } from "lucide-react";
+import { LeaveRejectButton } from "@/components/hr/leave-reject-button";
+import { Users } from "lucide-react";
 
 interface TeamLeaveRequest {
   id: string;
@@ -45,10 +44,8 @@ interface TeamLeaveRequest {
 }
 
 export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
-  const { toast } = useToast();
   const [requests, setRequests] = useState<TeamLeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -65,29 +62,7 @@ export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function decide(id: string, action: "APPROVED" | "REJECTED") {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/hr/leave/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast({ title: "Could not update", description: data.error ?? "Please try again.", variant: "destructive" });
-        return;
-      }
-      toast({
-        title: action === "APPROVED" ? "Leave approved" : "Leave rejected",
-        variant: action === "APPROVED" ? "default" : "destructive",
-      });
-      await load();
-      onDecided?.();
-    } finally {
-      setBusyId(null);
-    }
-  }
+  const afterDecision = () => { load(); onDecided?.(); };
 
   // Nothing waiting is the common case for most of the company. Rendering an
   // empty "no requests" card on every employee's profile would be noise.
@@ -127,14 +102,8 @@ export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
             */}
             {r.canDecide && (
               <div className="flex gap-2 shrink-0">
-                <LeaveApproveButton request={r} onDecided={() => { load(); onDecided?.(); }} />
-                <Button
-                  size="sm" variant="outline" disabled={busyId === r.id}
-                  className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"
-                  onClick={() => decide(r.id, "REJECTED")}
-                >
-                  <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
-                </Button>
+                <LeaveApproveButton request={r} onDecided={afterDecision} />
+                <LeaveRejectButton requestId={r.id} onDecided={afterDecision} />
               </div>
             )}
           </div>
