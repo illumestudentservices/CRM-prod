@@ -1,4 +1,5 @@
 import { stageHex, stageLabel } from "@/lib/lead-pipeline";
+import { leaveTypeLabel } from "@/lib/leave-policy";
 import { formatTaskNumber } from "@/lib/utils";
 import { kpiNum, kpiPct, kpiMoney, type PartialKpi } from "@/lib/kpi-format";
 import { staffGuideAttachment, STAFF_GUIDE_FILENAME } from "@/lib/staff-guide";
@@ -1021,12 +1022,12 @@ export async function sendLeaveDecisionEmail(opts: {
   const approved = opts.action === "APPROVED";
   await safeSend({
     to: opts.to,
-    subject: `Leave Request ${approved ? "Approved" : "Rejected"} — ${opts.leaveType} Leave`,
+    subject: `Leave Request ${approved ? "Approved" : "Rejected"} — ${leaveTypeLabel(opts.leaveType)}`,
     html: wrapEmail(`Leave ${approved ? "Approved" : "Rejected"}`, `
       <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">Leave Request ${approved ? "Approved" : "Rejected"}</h2>
       <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.employeeName}, your leave request has been ${approved ? "approved" : "rejected"}.</p>
       ${infoTable([
-        ["Leave Type", opts.leaveType.replace(/_/g, " ")],
+        ["Leave Type", leaveTypeLabel(opts.leaveType)],
         ["From", opts.startDate],
         ["To", opts.endDate],
         ["Duration", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
@@ -1059,7 +1060,7 @@ export async function sendLeaveAppliedEmail(opts: {
       <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.managerName}, <strong>${opts.employeeName}</strong> has submitted a leave request that requires your review.</p>
       ${infoTable([
         ["Employee", opts.employeeName],
-        ["Leave Type", opts.leaveType.replace(/_/g, " ")],
+        ["Leave Type", leaveTypeLabel(opts.leaveType)],
         ["From", opts.startDate],
         ["To", opts.endDate],
         ["Duration", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
