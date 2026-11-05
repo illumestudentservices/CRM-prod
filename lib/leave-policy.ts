@@ -18,7 +18,7 @@
  * supplied by the business on 2026-07-29.
  */
 
-export type LeaveTypeKey = "VACATION_PAID" | "SICK" | "MATERNITY" | "PATERNITY";
+export type LeaveTypeKey = "VACATION_PAID" | "SICK" | "MATERNITY" | "PATERNITY" | "IN_LIEU";
 
 export type Gender = "MALE" | "FEMALE" | "OTHER";
 
@@ -38,7 +38,13 @@ export type Accrual =
       month: number;
       day: number;
       prorateFirstPeriod: boolean;
-    };
+    }
+  /**
+   * No schedule at all — the balance is earned ad hoc and lands as approved
+   * grants in LeaveBalance.adjustmentDays. Used by Leave in Lieu, where staff
+   * claim extra hours worked and a manager approves the credit.
+   */
+  | { mode: "GRANT_ONLY" };
 
 export interface LeavePolicy {
   leaveType: LeaveTypeKey;
@@ -138,9 +144,37 @@ export const LEAVE_POLICIES: Record<LeaveTypeKey, LeavePolicy> = {
     summary:
       "10 days credited on 1 January each year, available 1 month after you join. Your first year is prorated for the months remaining. Resets on 31 December; not carried forward or encashed.",
   },
+
+  // Earned by working extra hours, not accrued on a schedule. Staff submit the
+  // extra hours they worked; once a manager approves, the day-equivalent (8h =
+  // 1 day) is credited to the IN_LIEU balance as an adjustment. No waiting
+  // period — it's available as soon as it is earned. Resets on 31 December.
+  IN_LIEU: {
+    leaveType: "IN_LIEU",
+    label: "Leave in Lieu",
+    tracksBalance: true,
+    waitingPeriod: { value: 0, unit: "days" },
+    accrual: { mode: "GRANT_ONLY" },
+    maxBalance: null,
+    resetYearly: true,
+    carryForward: false,
+    encash: false,
+    eligibleGenders: null,
+    summary:
+      "Earned by working extra hours. Submit the extra hours you worked; once your manager approves, the equivalent days (8 hours = 1 day) are added to your balance. Resets on 31 December; not carried forward or encashed.",
+  },
 };
 
 export const LEAVE_TYPES = Object.keys(LEAVE_POLICIES) as LeaveTypeKey[];
+
+/**
+ * Leave types that accrue on a schedule, and so can be tuned per region on the
+ * HR policy screen. Grant-only types (Leave in Lieu) are excluded — there is no
+ * "days per month/year" to configure; their balance comes from approved grants.
+ */
+export const SCHEDULED_LEAVE_TYPES: LeaveTypeKey[] = LEAVE_TYPES.filter(
+  (t) => LEAVE_POLICIES[t].accrual.mode !== "GRANT_ONLY"
+);
 
 /**
  * Display labels and colours, derived from the policies above.
@@ -161,6 +195,7 @@ export const LEAVE_TYPE_COLORS: Record<LeaveTypeKey, string> = {
   SICK: "#EF4444",
   MATERNITY: "#EC4899",
   PATERNITY: "#8B5CF6",
+  IN_LIEU: "#F59E0B",
 };
 
 export const LEAVE_TYPE_BADGE_CLASSES: Record<LeaveTypeKey, string> = {
@@ -168,6 +203,7 @@ export const LEAVE_TYPE_BADGE_CLASSES: Record<LeaveTypeKey, string> = {
   SICK: "bg-red-100 text-red-700",
   MATERNITY: "bg-pink-100 text-pink-700",
   PATERNITY: "bg-violet-100 text-violet-700",
+  IN_LIEU: "bg-amber-100 text-amber-700",
 };
 
 /** Tolerates historical values still sitting in old rows or JSON payloads. */
@@ -298,6 +334,20 @@ export function computeAccrual(
       eligibleFrom,
       nextAccrualOn: eligibleFrom,
       inWaitingPeriod: true,
+      prorated: false,
+    };
+  }
+
+  if (policy.accrual.mode === "GRANT_ONLY") {
+    // Nothing is earned on a schedule: the entire balance arrives as approved
+    // grants in LeaveBalance.adjustmentDays, which computeEntitlement adds on
+    // top of this zero. No "next accrual" date — there is no schedule.
+    return {
+      accruedDays: 0,
+      creditsToDate: 0,
+      eligibleFrom,
+      nextAccrualOn: null,
+      inWaitingPeriod: false,
       prorated: false,
     };
   }

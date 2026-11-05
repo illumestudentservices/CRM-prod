@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ApplyLeaveDialog } from "@/components/hr/apply-leave-dialog";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
+import { InLieuSection } from "@/components/hr/in-lieu-section";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -207,6 +208,10 @@ export function LeaveManager({
       {/* Below the queue, not inside it: the queue empties, the record does
           not, and a manager most needs the history when nothing is pending. */}
       {!isHR && <TeamLeaveHistory />}
+
+      {/* Leave in lieu: log extra hours, approve the team's, see your own.
+          Self-contained — handles its own approvals queue and history. */}
+      <InLieuSection myEmployeeId={myEmployeeId} isHR={isHR} onChanged={load} />
 
       {/*
         The dashboard link is labelled "Apply for leave →" and lands here, so

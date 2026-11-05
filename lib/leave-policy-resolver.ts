@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import {
   LEAVE_POLICIES,
-  LEAVE_TYPES,
+  SCHEDULED_LEAVE_TYPES,
   type LeavePolicy,
   type LeaveTypeKey,
 } from "@/lib/leave-policy";
@@ -32,6 +32,9 @@ function summarize(p: LeavePolicy): string {
   const wait = `${p.waitingPeriod.value} ${p.waitingPeriod.unit}`;
   const cap = p.maxBalance != null ? ` Caps at ${p.maxBalance} days.` : "";
   const reset = p.resetYearly ? " Resets on 31 December." : "";
+  if (p.accrual.mode === "GRANT_ONLY") {
+    return `Earned by working extra hours, credited on manager approval.${reset}`;
+  }
   if (p.accrual.mode === "MONTHLY_ON_JOINING") {
     return `${p.accrual.days} day(s) earned for every complete month worked, available ${wait} after joining.${cap}${reset}`;
   }
@@ -39,6 +42,8 @@ function summarize(p: LeavePolicy): string {
 }
 
 function applyOverride(base: LeavePolicy, o: OverrideRow): LeavePolicy {
+  // Grant-only types have no schedule to override — leave them untouched.
+  if (base.accrual.mode === "GRANT_ONLY") return base;
   const merged: LeavePolicy = {
     ...base,
     waitingPeriod: {
@@ -116,9 +121,11 @@ export function defaultPolicyRow(leaveType: LeaveTypeKey): LeavePolicyRow {
   return {
     leaveType,
     label: p.label,
-    accrualMode: p.accrual.mode,
+    // The admin table only lists SCHEDULED_LEAVE_TYPES, so GRANT_ONLY never
+    // actually reaches here; the guards keep the types honest regardless.
+    accrualMode: p.accrual.mode === "GRANT_ONLY" ? "YEARLY_ON_DATE" : p.accrual.mode,
     isOverride: false,
-    accrualDays: p.accrual.days,
+    accrualDays: "days" in p.accrual ? p.accrual.days : 0,
     waitingPeriodValue: p.waitingPeriod.value,
     waitingPeriodUnit: p.waitingPeriod.unit,
     maxBalance: p.maxBalance,
@@ -138,7 +145,7 @@ export async function leavePolicyTable(): Promise<LeavePolicyTable> {
     byRegion.set(o.regionId, m);
   }
   const defaults = Object.fromEntries(
-    LEAVE_TYPES.map((t) => [t, defaultPolicyRow(t)])
+    SCHEDULED_LEAVE_TYPES.map((t) => [t, defaultPolicyRow(t)])
   ) as Record<LeaveTypeKey, LeavePolicyRow>;
 
   const regionData: LeavePolicyRegion[] = regions.map((r) => ({
@@ -146,7 +153,7 @@ export async function leavePolicyTable(): Promise<LeavePolicyTable> {
     name: r.name,
     code: r.code,
     policies: Object.fromEntries(
-      LEAVE_TYPES.map((t) => {
+      SCHEDULED_LEAVE_TYPES.map((t) => {
         const o = byRegion.get(r.id)?.get(t);
         const d = defaults[t];
         return [

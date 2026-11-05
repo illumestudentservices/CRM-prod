@@ -15,7 +15,10 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
-type LeaveType = "VACATION_PAID" | "SICK" | "MATERNITY" | "PATERNITY";
+// Mirrors LeaveTypeKey in lib/leave-policy. Leave in Lieu (IN_LIEU) is a valid
+// type but is NOT shown on this screen — it has no schedule to configure, so it
+// is left out of ORDER below.
+type LeaveType = "VACATION_PAID" | "SICK" | "MATERNITY" | "PATERNITY" | "IN_LIEU";
 interface Row {
   leaveType: LeaveType;
   label: string;

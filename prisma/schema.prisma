@@ -543,6 +543,9 @@ enum LeaveType {
   SICK
   MATERNITY
   PATERNITY
+  // Time off in lieu of extra hours worked. Not accrued on a schedule — the
+  // balance is built from approved InLieuRequest grants and resets each year.
+  IN_LIEU
 }
 
 enum Gender {
@@ -2560,6 +2563,7 @@ model Employee {
   leaveBalances      LeaveBalance[]
   successionPlans    SuccessionPlan[]    @relation("SuccessionEmployee")
   leaveRequests      LeaveRequest[]
+  inLieuRequests     InLieuRequest[]
   /// DEPRECATED by migration 028 — superseded by TimesheetEntry.
   /// Worklog had no create/update path anywhere in the app and zero rows: it
   /// was a read-only tab with no way to put data in it. Timesheets own employee
@@ -2802,6 +2806,35 @@ model LeaveRequest {
   updatedAt     DateTime    @updatedAt
 
   @@map("leave_requests")
+}
+
+/// A staff member's claim for time off in lieu of extra hours worked. On
+/// approval the `days` are credited to their IN_LIEU leave balance for `year`
+/// (via LeaveBalance.adjustmentDays); they then book the time off as an
+/// ordinary IN_LIEU LeaveRequest. Separate from LeaveRequest because the input
+/// is "hours worked on a day", not "a date range off".
+model InLieuRequest {
+  id            String      @id @default(uuid())
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  /// The day the extra work was done.
+  workDate      DateTime
+  /// Extra hours worked beyond the standard week.
+  hours         Float
+  /// Day-equivalent credited on approval (hours ÷ standard hours per day).
+  days          Float
+  reason        String?     @db.Text
+  status        LeaveStatus @default(PENDING)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?     @db.Text
+  /// Calendar year the credit belongs to, so the yearly reset is clean.
+  year          Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([employeeId, status])
+  @@map("in_lieu_requests")
 }
 
 model Attendance {
