@@ -26,6 +26,9 @@ const createLeaveSchema = z.object({
   startDate: z.string().transform((v) => new Date(v)),
   endDate: z.string().transform((v) => new Date(v)),
   reason: z.string().optional(),
+  // ICR-only: confirmation that the institution manager has been informed.
+  // Enforced below when the applicant is an ICR.
+  informedInstitution: z.boolean().optional(),
 });
 
 /** How a date reads in a notification or an email. */
@@ -142,7 +145,7 @@ export async function GET(req: NextRequest) {
           id: true,
           employeeId: true,
           managerId: true,
-          user: { select: { id: true, name: true, image: true } },
+          user: { select: { id: true, name: true, image: true, role: true } },
         },
       },
     },
@@ -191,7 +194,7 @@ export async function POST(req: NextRequest) {
   const employee = await db.employee.findUnique({
     where: { id: data.employeeId },
     include: {
-      user: { select: { id: true, name: true, regionId: true } },
+      user: { select: { id: true, name: true, regionId: true, role: true } },
       manager: {
         include: { user: { select: { id: true, name: true, email: true } } },
       },
@@ -199,6 +202,16 @@ export async function POST(req: NextRequest) {
   });
   if (!employee) {
     return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+  }
+
+  // ICR-only: an ICR must confirm they have informed the institution manager
+  // before leave can be booked. Enforced here, not just in the UI.
+  const isICR = employee.user.role === "ICR";
+  if (isICR && data.informedInstitution !== true) {
+    return NextResponse.json(
+      { error: "As an In-Country Representative, please confirm you have informed the institution manager about this leave." },
+      { status: 422 }
+    );
   }
 
   const isHR = HR_ROLES.includes(session.user.role as Role);
@@ -327,6 +340,7 @@ export async function POST(req: NextRequest) {
           days,
           reason: data.reason,
           status: "PENDING",
+          informedInstitution: isICR ? true : false,
         },
         include: {
           employee: { include: { user: { select: { id: true, name: true } } } },

@@ -81,6 +81,8 @@ interface EmployeeTabsClientProps {
   profile: ProfileData;
   leaveBalances: LeaveBalance[];
   isOwnProfile: boolean;
+  /** Whether this employee is an ICR — drives the extra leave checks. */
+  isICR?: boolean;
   /** A line manager, here only to file documents. Hides every other tab. */
   documentsOnly?: boolean;
   worklogs: Worklog[];
@@ -107,6 +109,7 @@ export function EmployeeTabsClient({
   profile,
   leaveBalances,
   isOwnProfile,
+  isICR = false,
   documentsOnly = false,
   worklogs,
   isHR,
@@ -200,7 +203,7 @@ export function EmployeeTabsClient({
       {/* LEAVE */}
       {!documentsOnly && (
       <TabsContent value="leave" className="mt-4">
-        <LeaveSection employeeId={employeeId} balances={leaveBalances} isOwnProfile={isOwnProfile} />
+        <LeaveSection employeeId={employeeId} balances={leaveBalances} isOwnProfile={isOwnProfile} isICR={isICR} />
       </TabsContent>
       )}
 

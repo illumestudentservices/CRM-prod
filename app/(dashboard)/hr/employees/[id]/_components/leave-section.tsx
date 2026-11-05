@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
@@ -52,10 +53,12 @@ export function LeaveSection({
   employeeId,
   balances: initialBalances,
   isOwnProfile,
+  isICR = false,
 }: {
   employeeId: string;
   balances: LeaveBalance[];
   isOwnProfile: boolean;
+  isICR?: boolean;
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -63,6 +66,7 @@ export function LeaveSection({
   const [showForm, setShowForm] = useState(false);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [form, setForm] = useState({ leaveType: DEFAULT_LEAVE_TYPE, startDate: "", endDate: "", reason: "" });
+  const [informedInstitution, setInformedInstitution] = useState(false);
 
   async function loadRequests() {
     const res = await fetch(`/api/hr/leave?employeeId=${employeeId}`);
@@ -130,7 +134,7 @@ export function LeaveSection({
     const res = await fetch("/api/hr/leave", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, employeeId }),
+      body: JSON.stringify({ ...form, employeeId, informedInstitution }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -139,6 +143,7 @@ export function LeaveSection({
     }
     toast({ title: "Leave request submitted" });
     setShowForm(false);
+    setInformedInstitution(false);
     loadRequests();
   }
 
@@ -281,10 +286,19 @@ export function LeaveSection({
               <Label>Reason</Label>
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} />
             </div>
+            {/* ICR-only: confirm the institution manager has been informed. */}
+            {isICR && (
+              <label className="flex items-start gap-2.5 cursor-pointer rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 p-3">
+                <Checkbox checked={informedInstitution} onCheckedChange={(v) => setInformedInstitution(v === true)} className="mt-0.5" />
+                <span className="text-sm text-amber-900 dark:text-amber-200">
+                  I confirm I have informed the institution manager about this leave.
+                </span>
+              </label>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={submitLeave} disabled={!form.startDate || !form.endDate}>Submit Request</Button>
+            <Button onClick={submitLeave} disabled={!form.startDate || !form.endDate || (isICR && !informedInstitution)}>Submit Request</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

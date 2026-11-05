@@ -11,6 +11,10 @@ const HR_ROLES: Role[] = ["HR_MANAGER", "SUPER_ADMIN"];
 const patchLeaveSchema = z.object({
   action: z.enum(["APPROVED", "REJECTED", "CANCELLED"]),
   rejectionNote: z.string().optional(),
+  // ICR-only approval checks (required when approving an ICR's leave).
+  coverageVerified: z.boolean().optional(),
+  workCovered: z.boolean().optional(),
+  coverageNote: z.string().optional(),
 });
 
 // ─── PATCH /api/hr/leave/[id] ─────────────────────────────────────────────────
@@ -31,7 +35,7 @@ export async function PATCH(
     include: {
       employee: {
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, role: true } },
           manager: { include: { user: { select: { id: true } } } },
         },
       },
@@ -62,7 +66,17 @@ export async function PATCH(
     );
   }
 
-  const { action, rejectionNote } = parsed.data;
+  const { action, rejectionNote, coverageVerified, workCovered, coverageNote } = parsed.data;
+
+  // ICR-only: approving an ICR's leave requires the manager to confirm both the
+  // institution representative is informed AND that work is covered.
+  const isICR = leaveRequest.employee.user.role === "ICR";
+  if (action === "APPROVED" && isICR && (coverageVerified !== true || workCovered !== true)) {
+    return NextResponse.json(
+      { error: "To approve an ICR's leave, confirm both that the institution representative is informed and that their work is covered." },
+      { status: 422 }
+    );
+  }
 
   // Permission checks
   if (action === "CANCELLED") {
@@ -109,6 +123,10 @@ export async function PATCH(
         approvedById: action !== "CANCELLED" ? session.user.id : undefined,
         approvedAt: action !== "CANCELLED" ? new Date() : undefined,
         rejectionNote: action === "REJECTED" ? rejectionNote : undefined,
+        // Record the ICR coverage confirmations on approval.
+        ...(action === "APPROVED" && isICR
+          ? { coverageVerified: true, workCovered: true, coverageNote: coverageNote || null }
+          : {}),
       },
     });
 

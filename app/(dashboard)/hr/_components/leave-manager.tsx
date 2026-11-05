@@ -8,10 +8,11 @@ import { ApplyLeaveDialog } from "@/components/hr/apply-leave-dialog";
 import { TeamLeaveApprovals } from "@/components/hr/team-leave-approvals";
 import { TeamLeaveHistory } from "@/components/hr/team-leave-history";
 import { InLieuSection } from "@/components/hr/in-lieu-section";
+import { LeaveApproveButton } from "@/components/hr/leave-approve-button";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckCircle, XCircle, UserCheck } from "lucide-react";
+import { XCircle, UserCheck } from "lucide-react";
 import { leaveTypeLabel } from "@/lib/leave-policy";
 
 interface LeaveRequest {
@@ -23,7 +24,7 @@ interface LeaveRequest {
   reason: string | null;
   status: string;
   createdAt: string;
-  employee: { user: { name: string | null }; employeeId: string };
+  employee: { user: { name: string | null; role?: string | null }; employeeId: string };
 }
 
 
@@ -179,10 +180,7 @@ export function LeaveManager({
       cell: ({ row }: { row: { original: LeaveRequest } }) =>
         row.original.status === "PENDING" ? (
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-green-600 border-green-300 dark:text-green-400 dark:border-green-500/40 dark:hover:bg-green-500/10"
-              onClick={() => updateStatus(row.original.id, "APPROVED")}>
-              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-            </Button>
+            <LeaveApproveButton request={row.original} onDecided={load} />
             <Button size="sm" variant="outline" className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"
               onClick={() => updateStatus(row.original.id, "REJECTED")}>
               <XCircle className="h-3.5 w-3.5 mr-1" /> Reject

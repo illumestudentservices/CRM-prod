@@ -29,7 +29,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
 import { leaveTypeLabel } from "@/lib/leave-policy";
-import { CheckCircle, XCircle, Users } from "lucide-react";
+import { LeaveApproveButton } from "@/components/hr/leave-approve-button";
+import { XCircle, Users } from "lucide-react";
 
 interface TeamLeaveRequest {
   id: string;
@@ -40,7 +41,7 @@ interface TeamLeaveRequest {
   reason: string | null;
   status: string;
   canDecide: boolean;
-  employee: { employeeId: string; user: { name: string | null } };
+  employee: { employeeId: string; user: { name: string | null; role?: string | null } };
 }
 
 export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
@@ -126,13 +127,7 @@ export function TeamLeaveApprovals({ onDecided }: { onDecided?: () => void }) {
             */}
             {r.canDecide && (
               <div className="flex gap-2 shrink-0">
-                <Button
-                  size="sm" variant="outline" disabled={busyId === r.id}
-                  className="h-7 text-green-600 border-green-300 dark:text-green-400 dark:border-green-500/40 dark:hover:bg-green-500/10"
-                  onClick={() => decide(r.id, "APPROVED")}
-                >
-                  <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                </Button>
+                <LeaveApproveButton request={r} onDecided={() => { load(); onDecided?.(); }} />
                 <Button
                   size="sm" variant="outline" disabled={busyId === r.id}
                   className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"

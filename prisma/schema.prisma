@@ -2802,6 +2802,18 @@ model LeaveRequest {
   approvedById  String?
   approvedAt    DateTime?
   rejectionNote String?     @db.Text
+  // ── ICR-only leave checks (spec: institution must be covered) ──────────────
+  /// Set by an ICR at apply: they confirm they have informed the institution
+  /// manager about the leave. Required to submit when the applicant is an ICR.
+  informedInstitution Boolean @default(false)
+  /// Set by the approving manager for an ICR's leave: the institution
+  /// representative being informed has been verified.
+  coverageVerified    Boolean @default(false)
+  /// Set by the approving manager for an ICR's leave: work is covered while the
+  /// ICR is away.
+  workCovered         Boolean @default(false)
+  /// Optional note the manager adds about the coverage arrangement.
+  coverageNote        String? @db.Text
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

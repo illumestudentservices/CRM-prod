@@ -255,6 +255,7 @@ export default async function EmployeeDetailPage({
         }}
         leaveBalances={documentsOnly ? [] : deriveLeaveBalances(employee.startDate, employee.leaveBalances, employee.gender, undefined, leavePolicies)}
         isOwnProfile={isOwnProfile}
+        isICR={employee.user.role === "ICR"}
         documentsOnly={documentsOnly}
         worklogs={documentsOnly ? [] : employee.worklogs}
         isHR={isHR}
