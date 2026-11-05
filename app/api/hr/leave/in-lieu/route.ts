@@ -29,7 +29,9 @@ function hoursToDays(hours: number): number {
 const createSchema = z.object({
   employeeId: z.string().min(1),
   workDate: z.string().transform((v) => new Date(v)),
-  hours: z.number().positive().max(24 * 14), // sanity cap (two weeks of hours)
+  // Optional end of the range when the extra work spanned several days.
+  workDateEnd: z.string().optional().transform((v) => (v ? new Date(v) : null)),
+  hours: z.number().positive().max(24 * 31), // sanity cap (a month of hours)
   reason: z.string().optional(),
 });
 
@@ -133,6 +135,14 @@ export async function POST(req: NextRequest) {
   if (Number.isNaN(data.workDate.getTime())) {
     return NextResponse.json({ error: "Invalid work date" }, { status: 422 });
   }
+  if (data.workDateEnd) {
+    if (Number.isNaN(data.workDateEnd.getTime())) {
+      return NextResponse.json({ error: "Invalid end date" }, { status: 422 });
+    }
+    if (data.workDateEnd < data.workDate) {
+      return NextResponse.json({ error: "End date must be on or after the start date." }, { status: 422 });
+    }
+  }
 
   const days = hoursToDays(data.hours);
   if (days <= 0) {
@@ -145,6 +155,7 @@ export async function POST(req: NextRequest) {
       data: {
         employeeId: data.employeeId,
         workDate: data.workDate,
+        workDateEnd: data.workDateEnd,
         hours: data.hours,
         days,
         reason: data.reason,
@@ -169,6 +180,10 @@ export async function POST(req: NextRequest) {
     return row;
   });
 
+  const workedLabel = data.workDateEnd
+    ? `${fmtDate(data.workDate)} – ${fmtDate(data.workDateEnd)}`
+    : fmtDate(data.workDate);
+
   // Email the manager (fire-and-forget; a mail outage must not fail the request).
   if (employee.manager?.user?.email) {
     sendInLieuRequestEmail({
@@ -177,7 +192,7 @@ export async function POST(req: NextRequest) {
       employeeName: employee.user.name ?? "Employee",
       hours: data.hours,
       days,
-      workDate: fmtDate(data.workDate),
+      workDate: workedLabel,
       reason: data.reason,
       url: `${process.env.NEXTAUTH_URL ?? ""}/hr?tab=leave`,
     });

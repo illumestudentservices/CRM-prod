@@ -2817,9 +2817,13 @@ model InLieuRequest {
   id            String      @id @default(uuid())
   employeeId    String
   employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  /// The day the extra work was done.
+  /// The day the extra work was done (start of the range).
   workDate      DateTime
-  /// Extra hours worked beyond the standard week.
+  /// End of the range when the extra work spanned several days. Null = one day.
+  /// Weekends and public holidays are allowed here — working them is exactly
+  /// how in-lieu is earned.
+  workDateEnd   DateTime?
+  /// Total extra hours worked across the range, beyond the standard week.
   hours         Float
   /// Day-equivalent credited on approval (hours ÷ standard hours per day).
   days          Float

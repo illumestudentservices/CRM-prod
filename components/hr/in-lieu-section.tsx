@@ -33,6 +33,7 @@ const HOURS_PER_DAY = 8;
 interface InLieuRequest {
   id: string;
   workDate: string;
+  workDateEnd: string | null;
   hours: number;
   days: number;
   reason: string | null;
@@ -44,6 +45,10 @@ interface InLieuRequest {
 const STATUS_VARIANT: Record<string, "warning" | "success" | "destructive" | "secondary"> = {
   PENDING: "warning", APPROVED: "success", REJECTED: "destructive", CANCELLED: "secondary",
 };
+
+/** "1 Nov" for a single day, or "1 Nov – 2 Nov" for a range. */
+const workedRange = (r: { workDate: string; workDateEnd: string | null }) =>
+  r.workDateEnd ? `${formatDate(r.workDate)} – ${formatDate(r.workDateEnd)}` : formatDate(r.workDate);
 
 export function InLieuSection({
   myEmployeeId,
@@ -66,6 +71,7 @@ export function InLieuSection({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [workDate, setWorkDate] = useState("");
+  const [workDateEnd, setWorkDateEnd] = useState("");
   const [hours, setHours] = useState("");
   const [reason, setReason] = useState("");
 
@@ -100,6 +106,7 @@ export function InLieuSection({
         body: JSON.stringify({
           employeeId: myEmployeeId,
           workDate,
+          workDateEnd: workDateEnd || undefined,
           hours: Number(hours),
           reason: reason || undefined,
         }),
@@ -111,7 +118,7 @@ export function InLieuSection({
       }
       toast({ title: "In-lieu request sent", description: "Your manager will review it." });
       setOpen(false);
-      setWorkDate(""); setHours(""); setReason("");
+      setWorkDate(""); setWorkDateEnd(""); setHours(""); setReason("");
       await load();
       onChanged?.();
     } finally {
@@ -156,7 +163,7 @@ export function InLieuSection({
           Leave in Lieu
         </CardTitle>
         {myEmployeeId && (
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setWorkDate(""); setHours(""); setReason(""); } }}>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setWorkDate(""); setWorkDateEnd(""); setHours(""); setReason(""); } }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Log extra hours</Button>
             </DialogTrigger>
@@ -165,15 +172,24 @@ export function InLieuSection({
                 <DialogTitle>Log extra hours (in lieu)</DialogTitle>
               </DialogHeader>
               <form onSubmit={submit} className="space-y-4 pt-1">
-                <div className="space-y-1.5">
-                  <Label htmlFor="il-date">Date worked <span className="text-red-500">*</span></Label>
-                  <Input id="il-date" type="date" value={workDate} required onChange={(e) => setWorkDate(e.target.value)} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="il-date">Worked from <span className="text-red-500">*</span></Label>
+                    <Input id="il-date" type="date" value={workDate} required onChange={(e) => setWorkDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="il-date-end">To (optional)</Label>
+                    <Input id="il-date-end" type="date" value={workDateEnd} min={workDate || undefined}
+                      onChange={(e) => setWorkDateEnd(e.target.value)} />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="il-hours">Extra hours worked <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="il-hours">Total extra hours worked <span className="text-red-500">*</span></Label>
                   <Input id="il-hours" type="number" min="0.5" step="0.5" value={hours} required
                     placeholder="e.g. 8" onChange={(e) => setHours(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">8 hours = 1 day. {dayPreview}</p>
+                  <p className="text-xs text-muted-foreground">
+                    8 hours = 1 day. {dayPreview} Weekends and holidays count too.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="il-reason">Reason</Label>
@@ -206,7 +222,7 @@ export function InLieuSection({
                     <span className="text-xs text-muted-foreground font-mono">{r.employee.employeeId}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {r.hours}h on {formatDate(r.workDate)} · {r.days} day(s) in lieu
+                    {r.hours}h on {workedRange(r)} · {r.days} day(s) in lieu
                   </p>
                   {r.reason && <p className="text-xs text-muted-foreground truncate max-w-[420px]">{r.reason}</p>}
                 </div>
@@ -241,7 +257,7 @@ export function InLieuSection({
               {mine.map((r) => (
                 <div key={r.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border text-sm">
                   <span className="text-muted-foreground">
-                    {r.hours}h on {formatDate(r.workDate)} · <span className="font-medium text-foreground">{r.days} day(s)</span>
+                    {r.hours}h on {workedRange(r)} · <span className="font-medium text-foreground">{r.days} day(s)</span>
                   </span>
                   <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>{r.status}</Badge>
                 </div>
@@ -260,7 +276,7 @@ export function InLieuSection({
           {rejectTarget && (
             <div className="space-y-3 pt-1">
               <p className="text-sm text-muted-foreground">
-                {rejectTarget.employee.user.name} · {rejectTarget.hours}h on {formatDate(rejectTarget.workDate)} ({rejectTarget.days} day(s))
+                {rejectTarget.employee.user.name} · {rejectTarget.hours}h on {workedRange(rejectTarget)} ({rejectTarget.days} day(s))
               </p>
               <div className="space-y-1.5">
                 <Label htmlFor="il-reject-note">Comment (optional)</Label>

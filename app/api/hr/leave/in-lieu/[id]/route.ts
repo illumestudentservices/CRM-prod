@@ -151,7 +151,9 @@ export async function PATCH(
       employeeName: request.employee.user.name ?? "Employee",
       hours: request.hours,
       days,
-      workDate: fmtDate(request.workDate),
+      workDate: request.workDateEnd
+        ? `${fmtDate(request.workDate)} – ${fmtDate(request.workDateEnd)}`
+        : fmtDate(request.workDate),
       action,
       note: action === "REJECTED" ? rejectionNote : undefined,
       url: `${process.env.NEXTAUTH_URL ?? ""}/hr/employees/${employeeId}?tab=leave`,

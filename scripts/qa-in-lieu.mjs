@@ -23,6 +23,12 @@ function weekday(n) {
   while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
   return d;
 }
+/** The next Saturday (UTC) — used to prove weekends are allowed to earn from. */
+function nextSaturday() {
+  const d = new Date(); d.setUTCHours(12, 0, 0, 0);
+  while (d.getUTCDay() !== 6) d.setUTCDate(d.getUTCDate() + 1);
+  return d;
+}
 
 async function runOnce(round) {
   console.log(`\n── round ${round} ──`);
@@ -33,13 +39,23 @@ async function runOnce(round) {
   const year = new Date().getUTCFullYear();
 
   try {
-    // 1. Log 16 extra hours → 2 days in lieu
+    // 1. Log 16 extra hours across a Sat–Sun range → 2 days in lieu.
+    //    Proves a weekend range is accepted (no working-day restriction).
+    const sat = nextSaturday();
+    const sun = new Date(sat); sun.setUTCDate(sun.getUTCDate() + 1);
     const create = await api(ctx.jar, "POST", "/api/hr/leave/in-lieu", {
-      employeeId: empId, workDate: iso(new Date()), hours: 16, reason: "QA weekend work",
+      employeeId: empId, workDate: iso(sat), workDateEnd: iso(sun), hours: 16, reason: "QA weekend event",
     });
-    expect("earn request created (201)", create.status === 201, `(status ${create.status})`);
+    expect("earn request over a weekend range created (201)", create.status === 201, `(status ${create.status})`);
     const reqId = create.payload?.request?.id;
     expect("earn request has 2 days (16h/8)", create.payload?.request?.days === 2, `(got ${create.payload?.request?.days})`);
+    const earnRow = await db.inLieuRequest.findUnique({ where: { id: reqId } });
+    expect("range end date stored", earnRow?.workDateEnd != null, `(got ${earnRow?.workDateEnd})`);
+    // reverse range is refused
+    const bad = await api(ctx.jar, "POST", "/api/hr/leave/in-lieu", {
+      employeeId: empId, workDate: iso(sun), workDateEnd: iso(sat), hours: 4,
+    });
+    expect("reverse range refused (422)", bad.status === 422, `(status ${bad.status})`);
 
     // 2. Approve → balance credited
     const approve = await api(ctx.jar, "PATCH", `/api/hr/leave/in-lieu/${reqId}`, { action: "APPROVED" });
