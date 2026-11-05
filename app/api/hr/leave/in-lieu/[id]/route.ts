@@ -4,6 +4,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { sendInLieuDecisionEmail } from "@/lib/email";
+
+const fmtDate = (d: Date) =>
+  d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
 
 /**
  * Decide an in-lieu earn request. On APPROVED the day-equivalent is credited to
@@ -139,6 +143,20 @@ export async function PATCH(
       },
     });
   });
+
+  // Email the employee on a decision (fire-and-forget).
+  if ((action === "APPROVED" || action === "REJECTED") && request.employee.user.email) {
+    sendInLieuDecisionEmail({
+      to: request.employee.user.email,
+      employeeName: request.employee.user.name ?? "Employee",
+      hours: request.hours,
+      days,
+      workDate: fmtDate(request.workDate),
+      action,
+      note: action === "REJECTED" ? rejectionNote : undefined,
+      url: `${process.env.NEXTAUTH_URL ?? ""}/hr/employees/${employeeId}?tab=leave`,
+    });
+  }
 
   const updated = await db.inLieuRequest.findUnique({ where: { id } });
   return NextResponse.json({ request: updated });

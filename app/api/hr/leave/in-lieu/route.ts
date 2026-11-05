@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { sendInLieuRequestEmail } from "@/lib/email";
 
 /**
  * Leave in Lieu — the "earn" flow.
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     where: { id: data.employeeId },
     include: {
       user: { select: { id: true, name: true } },
-      manager: { include: { user: { select: { id: true, name: true } } } },
+      manager: { include: { user: { select: { id: true, name: true, email: true } } } },
     },
   });
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
@@ -167,6 +168,20 @@ export async function POST(req: NextRequest) {
 
     return row;
   });
+
+  // Email the manager (fire-and-forget; a mail outage must not fail the request).
+  if (employee.manager?.user?.email) {
+    sendInLieuRequestEmail({
+      to: employee.manager.user.email,
+      managerName: employee.manager.user.name ?? "Manager",
+      employeeName: employee.user.name ?? "Employee",
+      hours: data.hours,
+      days,
+      workDate: fmtDate(data.workDate),
+      reason: data.reason,
+      url: `${process.env.NEXTAUTH_URL ?? ""}/hr?tab=leave`,
+    });
+  }
 
   void logActivity(session.user.id, "CREATE", "InLieuRequest", created.id, {
     route: "hr/leave/in-lieu",

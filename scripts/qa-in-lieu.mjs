@@ -73,6 +73,21 @@ async function runOnce(round) {
     // adjustment 2, used 1 → available 1
     expect("after taking 1 day, used=1", bal2?.usedDays === 1, `(got ${bal2?.usedDays})`);
     expect("adjustment still 2", bal2?.adjustmentDays === 2, `(got ${bal2?.adjustmentDays})`);
+
+    // 5. Reject a second earn request with an optional comment.
+    const earn2 = await api(ctx.jar, "POST", "/api/hr/leave/in-lieu", {
+      employeeId: empId, workDate: iso(new Date()), hours: 8,
+    });
+    const r2 = earn2.payload?.request?.id;
+    const note = "QA: not enough detail, please resubmit";
+    const rej = await api(ctx.jar, "PATCH", `/api/hr/leave/in-lieu/${r2}`, { action: "REJECTED", rejectionNote: note });
+    expect("reject ok", rej.ok, `(status ${rej.status})`);
+    const row = await db.inLieuRequest.findUnique({ where: { id: r2 } });
+    expect("rejected request stores the comment", row?.status === "REJECTED" && row?.rejectionNote === note, `(status ${row?.status}, note ${row?.rejectionNote})`);
+    const bal3 = await db.leaveBalance.findUnique({
+      where: { employeeId_leaveType_year: { employeeId: empId, leaveType: "IN_LIEU", year } },
+    });
+    expect("reject did not credit the balance", bal3?.adjustmentDays === 2, `(got ${bal3?.adjustmentDays})`);
   } finally {
     await db.leaveRequest.deleteMany({ where: { employeeId: empId } }).catch(() => {});
     await db.inLieuRequest.deleteMany({ where: { employeeId: empId } }).catch(() => {});

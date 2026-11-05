@@ -1071,6 +1071,68 @@ export async function sendLeaveAppliedEmail(opts: {
   });
 }
 
+// ─── Leave in lieu — notify manager on request ─────────────────────────────────
+
+export async function sendInLieuRequestEmail(opts: {
+  to: string;
+  managerName: string;
+  employeeName: string;
+  hours: number;
+  days: number;
+  workDate: string;
+  reason?: string;
+  url: string;
+}) {
+  await safeSend({
+    to: opts.to,
+    subject: `In-Lieu Request from ${opts.employeeName} — Action Required`,
+    html: wrapEmail("In-Lieu Request Pending Review", `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">Leave in Lieu — Action Required</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.managerName}, <strong>${opts.employeeName}</strong> logged extra hours and is requesting time off in lieu, which needs your review.</p>
+      ${infoTable([
+        ["Employee", opts.employeeName],
+        ["Date worked", opts.workDate],
+        ["Extra hours", `${opts.hours} hour${opts.hours !== 1 ? "s" : ""}`],
+        ["In lieu", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
+        ["Status", rawHtml(badge("Pending Approval", "#f59e0b"))],
+        ...(opts.reason ? [["Reason", opts.reason] as [string, string]] : []),
+      ])}
+      ${ctaButton("Review In-Lieu Request", opts.url)}
+    `),
+  });
+}
+
+// ─── Leave in lieu — notify employee on decision ───────────────────────────────
+
+export async function sendInLieuDecisionEmail(opts: {
+  to: string;
+  employeeName: string;
+  hours: number;
+  days: number;
+  workDate: string;
+  action: "APPROVED" | "REJECTED";
+  note?: string;
+  url: string;
+}) {
+  const approved = opts.action === "APPROVED";
+  await safeSend({
+    to: opts.to,
+    subject: `In-Lieu Request ${approved ? "Approved" : "Rejected"}`,
+    html: wrapEmail(`In-Lieu ${approved ? "Approved" : "Rejected"}`, `
+      <h2 style="color:#1E3A5F;font-size:22px;font-weight:700;margin:0 0 8px;">In-Lieu Request ${approved ? "Approved" : "Rejected"}</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${opts.employeeName}, your in-lieu request has been ${approved ? "approved" : "rejected"}.${approved ? ` ${opts.days} day${opts.days !== 1 ? "s" : ""} have been added to your in-lieu balance.` : ""}</p>
+      ${infoTable([
+        ["Date worked", opts.workDate],
+        ["Extra hours", `${opts.hours} hour${opts.hours !== 1 ? "s" : ""}`],
+        ["In lieu", `${opts.days} day${opts.days !== 1 ? "s" : ""}`],
+        ["Decision", rawHtml(badge(approved ? "Approved" : "Rejected", approved ? "#22c55e" : "#ef4444"))],
+        ...(opts.note ? [["Comment", opts.note] as [string, string]] : []),
+      ])}
+      ${ctaButton("View in HR", opts.url)}
+    `),
+  });
+}
+
 // ─── Account Locked ────────────────────────────────────────────────────────────
 
 export async function sendAccountLockedEmail(opts: {

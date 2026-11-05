@@ -58,6 +58,9 @@ export function InLieuSection({
   const [mine, setMine] = useState<InLieuRequest[]>([]);
   const [pending, setPending] = useState<InLieuRequest[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Reject flow: the request being rejected + an optional comment.
+  const [rejectTarget, setRejectTarget] = useState<InLieuRequest | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   // Log-hours form
   const [open, setOpen] = useState(false);
@@ -116,13 +119,13 @@ export function InLieuSection({
     }
   }
 
-  async function decide(id: string, action: "APPROVED" | "REJECTED") {
+  async function decide(id: string, action: "APPROVED" | "REJECTED", note?: string) {
     setBusyId(id);
     try {
       const res = await fetch(`/api/hr/leave/in-lieu/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...(note && note.trim() ? { rejectionNote: note.trim() } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -133,6 +136,7 @@ export function InLieuSection({
         title: action === "APPROVED" ? "In-lieu approved & credited" : "In-lieu rejected",
         variant: action === "APPROVED" ? "default" : "destructive",
       });
+      setRejectTarget(null); setRejectNote("");
       await load();
       onChanged?.();
     } finally {
@@ -215,7 +219,7 @@ export function InLieuSection({
                     </Button>
                     <Button size="sm" variant="outline" disabled={busyId === r.id}
                       className="h-7 text-red-600 border-red-300 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/10"
-                      onClick={() => decide(r.id, "REJECTED")}>
+                      onClick={() => { setRejectTarget(r); setRejectNote(""); }}>
                       <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
                     </Button>
                   </div>
@@ -246,6 +250,36 @@ export function InLieuSection({
           )}
         </div>
       </CardContent>
+
+      {/* Reject with an optional comment */}
+      <Dialog open={!!rejectTarget} onOpenChange={(v) => { if (!v) { setRejectTarget(null); setRejectNote(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject in-lieu request</DialogTitle>
+          </DialogHeader>
+          {rejectTarget && (
+            <div className="space-y-3 pt-1">
+              <p className="text-sm text-muted-foreground">
+                {rejectTarget.employee.user.name} · {rejectTarget.hours}h on {formatDate(rejectTarget.workDate)} ({rejectTarget.days} day(s))
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="il-reject-note">Comment (optional)</Label>
+                <Textarea id="il-reject-note" rows={3} value={rejectNote}
+                  placeholder="Why is this being rejected? (optional — shared with the employee)"
+                  onChange={(e) => setRejectNote(e.target.value)} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setRejectTarget(null); setRejectNote(""); }}>Cancel</Button>
+                <Button type="button" variant="destructive" disabled={busyId === rejectTarget.id}
+                  onClick={() => decide(rejectTarget.id, "REJECTED", rejectNote)}>
+                  {busyId === rejectTarget.id && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                  Reject
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
