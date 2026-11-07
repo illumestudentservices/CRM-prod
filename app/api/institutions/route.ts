@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       include: {
         region: { select: { id: true, name: true } },
         _count: {
-          select: { leads: true, contacts: true, contracts: true, users: true },
+          select: { leads: { where: { deletedAt: null } }, contacts: true, contracts: true, users: true },
         },
       },
       orderBy: { name: "asc" },

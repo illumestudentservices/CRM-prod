@@ -127,7 +127,7 @@ export default async function PartnersPage({ searchParams }: Props) {
     where,
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { leads: true, partnerContacts: true } },
+      _count: { select: { leads: { where: { deletedAt: null } }, partnerContacts: true } },
       agentProfile: {
         select: { tier: true, enrolments: true, offers: true, yieldRate: true },
       },

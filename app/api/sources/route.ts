@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       },
       include: {
         region: { select: { id: true, name: true } },
-        _count: { select: { leads: true } },
+        _count: { select: { leads: { where: { deletedAt: null } } } },
         leads: {
           where: { deletedAt: null },
           select: { stage: true },

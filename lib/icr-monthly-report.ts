@@ -616,7 +616,7 @@ async function buildEvents(icrId: string, year: number, month: number): Promise<
       name: true,
       date: true,
       totalCost: true,
-      _count: { select: { leads: true } },
+      _count: { select: { leads: { where: { deletedAt: null } } } },
     },
     orderBy: { date: "asc" },
   });

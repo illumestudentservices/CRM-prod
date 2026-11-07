@@ -38,7 +38,7 @@ export default async function EventsPage({ searchParams }: Props) {
     },
     orderBy: { date: "desc" },
     include: {
-      _count: { select: { participations: true, leads: true, expenses: true } },
+      _count: { select: { participations: true, leads: { where: { deletedAt: null } }, expenses: true } },
       assignedICR: { select: { id: true, name: true } },
       region: { select: { id: true, name: true } },
     },

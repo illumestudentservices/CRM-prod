@@ -34,7 +34,7 @@ export async function GET(
           orderBy: { createdAt: "desc" },
           take: 50,
         },
-        _count: { select: { leads: true, campaigns: true } },
+        _count: { select: { leads: { where: { deletedAt: null } }, campaigns: true } },
       },
     });
 

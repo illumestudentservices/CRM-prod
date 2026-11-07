@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         participations: {
           include: { institution: { select: { id: true, name: true } } },
         },
-        _count: { select: { leads: true, expenses: true } },
+        _count: { select: { leads: { where: { deletedAt: null } }, expenses: true } },
         leads: {
           where: { deletedAt: null },
           select: { stage: true },

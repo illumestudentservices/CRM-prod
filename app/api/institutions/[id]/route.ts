@@ -51,7 +51,7 @@ export async function GET(
         enrollmentTargets: { orderBy: { year: "asc" } },
         users: { include: { user: { select: { id: true, name: true, image: true } } } },
         _count: {
-          select: { leads: true, contacts: true, contracts: true, engagementLogs: true },
+          select: { leads: { where: { deletedAt: null } }, contacts: true, contracts: true, engagementLogs: true },
         },
       },
     });

@@ -15,7 +15,7 @@ export async function GET() {
 
   const regions = await db.region.findMany({
     include: {
-      _count: { select: { users: true, leads: true, institutions: true } },
+      _count: { select: { users: true, leads: { where: { deletedAt: null } }, institutions: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         code:        code.trim().toUpperCase(),
         description: description?.trim() || null,
       },
-      include: { _count: { select: { users: true, leads: true, institutions: true } } },
+      include: { _count: { select: { users: true, leads: { where: { deletedAt: null } }, institutions: true } } },
     });
     void logActivity(session.user.id, "CREATE", "Region", region.id, { route: "settings/regions" });
     return NextResponse.json({ region }, { status: 201 });
@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest) {
         ...(code !== undefined ? { code: code.trim().toUpperCase() } : {}),
         ...(description !== undefined ? { description: description.trim() || null } : {}),
       },
-      include: { _count: { select: { users: true, leads: true, institutions: true } } },
+      include: { _count: { select: { users: true, leads: { where: { deletedAt: null } }, institutions: true } } },
     });
     void logActivity(session.user.id, "UPDATE", "Region", region.id, {
       route: "settings/regions",

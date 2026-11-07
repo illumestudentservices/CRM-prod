@@ -82,7 +82,7 @@ export default async function NetworkPerformancePage() {
     where: { deletedAt: null, date: { gte: from } },
     orderBy: { date: "desc" },
     include: {
-      _count: { select: { leads: true, participations: true, expenses: true } },
+      _count: { select: { leads: { where: { deletedAt: null } }, participations: true, expenses: true } },
     },
     take: 25,
   });

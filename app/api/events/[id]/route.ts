@@ -50,7 +50,7 @@ export async function GET(
           },
           orderBy: { createdAt: "desc" },
         },
-        _count: { select: { leads: true, expenses: true } },
+        _count: { select: { leads: { where: { deletedAt: null } }, expenses: true } },
       },
     });
 

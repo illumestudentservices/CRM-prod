@@ -13,7 +13,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
     include: {
       partnerContacts: { where: { isActive: true }, orderBy: [{ isPrimary: "desc" }, { fullName: "asc" }] },
       agentProfile: true,
-      _count: { select: { leads: true, campaigns: true, activities: true } },
+      _count: { select: { leads: { where: { deletedAt: null } }, campaigns: true, activities: true } },
     },
   });
   if (!partner) notFound();
