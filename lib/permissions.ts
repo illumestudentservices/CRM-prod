@@ -79,7 +79,13 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   HQ_EXECUTIVE: {
     leads: ["read", "export"],
     sources: ["read", "export"],
-    institutions: ["read", "export"],
+    // HQ Executives (e.g. Ashley) are answerable for their clients and must be
+    // able to maintain the client record: edit the client card, status, regions
+    // and account health, add/edit/remove contacts, and log engagement notes —
+    // all of which gate on institutions:write. They are NOT given "delete":
+    // removing a whole client (and other destructive structural deletes —
+    // deliverables, issues, KPIs, contract attachments) stays with SUPER_ADMIN.
+    institutions: ["read", "write", "export"],
     events: ["read", "export"],
     reports: ["read", "approve", "export"],
     analytics: ["read", "export"],
