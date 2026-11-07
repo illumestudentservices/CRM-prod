@@ -77,7 +77,10 @@ async function getInstitution(id: string) {
       },
       _count: {
         select: {
-          leads: true,
+          // Exclude soft-deleted leads — otherwise the Governance "Pipeline"
+          // tile counts a deleted lead the pipeline panel (deletedAt: null)
+          // correctly hides, so the number and the panel disagree.
+          leads: { where: { deletedAt: null } },
           contacts: true,
           contracts: true,
           engagementLogs: true,
@@ -134,13 +137,23 @@ export default async function InstitutionDetailPage({
   const deliverablesCompleted = institution.deliverables.filter((d) => d.status === "COMPLETED").length;
   const deliverablesPending = institution.deliverables.filter((d) => d.status !== "COMPLETED").length;
 
-  const assignedUsers = institution.users.map((iu) => ({
-    id: iu.user.id,
-    name: iu.user.name,
-    email: iu.user.email,
-    role: iu.user.role,
-    image: iu.user.image,
-  }));
+  // The Team tab's "assigned users" = people actively assigned to the client,
+  // minus the account manager (shown in their own section, so they aren't
+  // listed twice) and minus external client contacts.
+  const assignedUsers = institution.users
+    .filter(
+      (iu) =>
+        iu.assignmentStatus === "ACTIVE" &&
+        iu.user.role !== "INSTITUTION_CLIENT" &&
+        iu.user.id !== institution.accountManagerId
+    )
+    .map((iu) => ({
+      id: iu.user.id,
+      name: iu.user.name,
+      email: iu.user.email,
+      role: iu.user.role,
+      image: iu.user.image,
+    }));
 
   const accountManager = institution.accountManager
     ? {

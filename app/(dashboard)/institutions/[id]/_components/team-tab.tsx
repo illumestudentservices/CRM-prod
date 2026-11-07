@@ -37,9 +37,15 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
+  // Recruiters on a client carry role ICR or EMPLOYEE (many recruiter accounts
+  // are still EMPLOYEE, pending the EMPLOYEE→ICR switch) — both belong under
+  // "ICRs". Without EMPLOYEE here, a recruiter like Leila fell into "Other".
+  const RECRUITER_ROLES = ["ICR", "EMPLOYEE"];
   const regionalManagers = assignedUsers.filter((u) => u.role === "REGIONAL_MANAGER");
-  const icrs = assignedUsers.filter((u) => u.role === "ICR");
-  const others = assignedUsers.filter((u) => !["REGIONAL_MANAGER", "ICR"].includes(u.role));
+  const icrs = assignedUsers.filter((u) => RECRUITER_ROLES.includes(u.role));
+  const others = assignedUsers.filter(
+    (u) => u.role !== "REGIONAL_MANAGER" && !RECRUITER_ROLES.includes(u.role)
+  );
 
   return (
     <div className="space-y-6">

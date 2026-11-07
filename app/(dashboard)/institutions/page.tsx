@@ -126,18 +126,16 @@ async function getInstitutions() {
               ],
             },
           },
-          // Everyone actively assigned to the client, whatever their role.
-          //
-          // This counted `user: { role: "ICR" }`, and PRODUCTION HAS NO
-          // ICR-ROLE USERS — it runs on SUPER_ADMIN, HQ_EXECUTIVE and
-          // REGIONAL_MANAGER — so the figure on every client card read 0 while
-          // the client plainly had people assigned. The assignment record is
-          // the fact being counted; the assignee's role is not part of it.
-          // External contacts are excluded, since they are not staff.
+          // The card pill is labelled "ICRs", so count the recruiters assigned
+          // to the client — not the account manager or regional managers.
+          // Recruiter accounts carry role ICR or EMPLOYEE (many are still
+          // EMPLOYEE, pending the EMPLOYEE→ICR switch); account managers are
+          // HQ_EXECUTIVE / SUPER_ADMIN / ACCOUNT_MANAGER, so restricting to
+          // ICR+EMPLOYEE excludes them and the "3 vs 2" (AM counted) goes away.
           users: {
             where: {
               assignmentStatus: "ACTIVE",
-              user: { role: { not: "INSTITUTION_CLIENT" } },
+              user: { role: { in: ["ICR", "EMPLOYEE"] } },
             },
           },
         },
