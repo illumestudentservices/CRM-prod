@@ -2561,6 +2561,7 @@ model Employee {
   costCentre           String?
 
   leaveBalances      LeaveBalance[]
+  leaveCarryovers    LeaveCarryover[]
   successionPlans    SuccessionPlan[]    @relation("SuccessionEmployee")
   leaveRequests      LeaveRequest[]
   inLieuRequests     InLieuRequest[]
@@ -2759,6 +2760,51 @@ model LeaveBalance {
 
   @@unique([employeeId, leaveType, year])
   @@map("leave_balances")
+}
+
+/// A one-off, controlled carry-over of unused paid leave from one year into an
+/// early booking window of the next — the exception to VACATION_PAID's standard
+/// "resets 31 December, not carried forward" rule.
+///
+/// Introduced for the SEA region: reps may move up to a capped number of their
+/// UNUSED `fromYear` paid-leave days forward so they can book an early-holiday
+/// paid leave in `toYear` within [windowStart, windowEnd] (Jan–Feb). The granted
+/// `days` are removed from the `fromYear` balance and added to the `toYear`
+/// balance as an adjustment, so the total leave liability is unchanged.
+///
+/// `bookingDeadline` is the book-by date (the `fromYear` year-end). After it,
+/// the expire job credits `bookedDays` (what was actually booked inside the
+/// window) and ERASES the remainder from the `toYear` balance — "use it or lose
+/// it". One row per (employee, leaveType, fromYear, toYear) keeps the grant
+/// idempotent.
+model LeaveCarryover {
+  id              String    @id @default(uuid())
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType @default(VACATION_PAID)
+  fromYear        Int
+  toYear          Int
+  /// Days carried forward at grant time (already capped).
+  days            Float
+  /// The booking window in `toYear` these days may be spent in (inclusive).
+  windowStart     DateTime  @db.Date
+  windowEnd       DateTime  @db.Date
+  /// Book-by date; unbooked days are erased after this (the `fromYear` year-end).
+  bookingDeadline DateTime  @db.Date
+  /// ACTIVE until the expire job runs, then EXPIRED.
+  status          String    @default("ACTIVE")
+  /// Filled by the expire job: how many carried days were actually booked in
+  /// the window (the part that is kept). The rest is erased.
+  bookedDays      Float     @default(0)
+  expiredAt       DateTime?
+  /// Who/what granted it — the region sweep records "carryover-grant".
+  grantedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([employeeId, leaveType, fromYear, toYear])
+  @@index([status, bookingDeadline])
+  @@map("leave_carryovers")
 }
 
 /// Per-region override of the leave policy's editable NUMBERS. The default
