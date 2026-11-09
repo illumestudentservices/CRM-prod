@@ -156,6 +156,10 @@ export default async function InstitutionDetailPage({
       name: iu.user.name,
       email: iu.user.email,
       role: iu.user.role,
+      // The per-client account role (e.g. an HQ Exec acting as Regional Manager
+      // on this client). Drives the Team tab grouping, elevating above the
+      // global role; null falls back to the global role.
+      accountRole: iu.accountRole,
       image: iu.user.image,
     }));
 

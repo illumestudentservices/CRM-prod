@@ -11,6 +11,8 @@ interface TeamMember {
   name: string | null;
   email: string;
   role: string;
+  /** Per-client account role (InstitutionUser.accountRole); may be null. */
+  accountRole?: string | null;
   image?: string | null;
 }
 
@@ -37,15 +39,24 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export function TeamTab({ accountManager, assignedUsers }: TeamTabProps) {
+  // A person's heading is decided by their PER-CLIENT account role first, then
+  // their global role — "elevate, don't demote". So an HQ Executive acting as a
+  // Regional Manager on this client (accountRole REGIONAL_MANAGER — e.g. Annie
+  // or Duarte) is shown under Regional Managers, while a real Regional Manager
+  // is never pushed out of that group just because a client labelled their
+  // account role as something else.
+  //
   // Recruiters on a client carry role ICR or EMPLOYEE (many recruiter accounts
   // are still EMPLOYEE, pending the EMPLOYEE→ICR switch) — both belong under
   // "ICRs". Without EMPLOYEE here, a recruiter like Leila fell into "Other".
   const RECRUITER_ROLES = ["ICR", "EMPLOYEE"];
-  const regionalManagers = assignedUsers.filter((u) => u.role === "REGIONAL_MANAGER");
-  const icrs = assignedUsers.filter((u) => RECRUITER_ROLES.includes(u.role));
-  const others = assignedUsers.filter(
-    (u) => u.role !== "REGIONAL_MANAGER" && !RECRUITER_ROLES.includes(u.role)
-  );
+  const isRegionalManager = (u: TeamMember) =>
+    u.accountRole === "REGIONAL_MANAGER" || u.role === "REGIONAL_MANAGER";
+  const isRecruiter = (u: TeamMember) =>
+    u.accountRole === "ICR" || RECRUITER_ROLES.includes(u.role);
+  const regionalManagers = assignedUsers.filter(isRegionalManager);
+  const icrs = assignedUsers.filter((u) => !isRegionalManager(u) && isRecruiter(u));
+  const others = assignedUsers.filter((u) => !isRegionalManager(u) && !isRecruiter(u));
 
   return (
     <div className="space-y-6">

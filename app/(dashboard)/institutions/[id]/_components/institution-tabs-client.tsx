@@ -69,6 +69,8 @@ interface TeamMember {
   name: string | null;
   email: string;
   role: string;
+  /** Per-client account role (InstitutionUser.accountRole); may be null. */
+  accountRole?: string | null;
   image?: string | null;
 }
 
