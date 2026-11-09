@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { safeSend } from "@/lib/email";
 import { generatePdfFromHtml } from "@/lib/pdf-generator";
+import { OWNER_REGION_RECIPIENTS } from "@/lib/region-owners";
 
 /**
  * Weekly activity report for Super Admins.
@@ -666,21 +667,8 @@ export async function sendRegionalActivityReports(opts: {
   return { results, skippedNoRegion };
 }
 
-/**
- * HQ owners who answer for SEVERAL regions and should get a weekly report
- * spanning exactly those regions — even though their own account is not a
- * single-region Regional Manager. Keyed by region NAME (resolved to ids at
- * send time) so it stays correct across the test and production databases.
- *
- * Annie Li (Director – Client Relations) owns Latin America and China.
- */
-const OWNER_REGION_RECIPIENTS: { email: string; label: string; regionNames: string[] }[] = [
-  {
-    email: "annie@illumestudentservices.ca",
-    label: "Latin America & China",
-    regionNames: ["Latin America", "China"],
-  },
-];
+// The HQ owner → regions config (Annie Li: Latin America + China) now lives in
+// lib/region-owners.ts, shared with client team membership so both stay in step.
 
 export interface OwnerSendResult {
   email: string;

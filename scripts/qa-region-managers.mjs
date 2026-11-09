@@ -37,6 +37,21 @@ async function run() {
   const rm2 = await mkRM(tag, "RM2", r2.id);
   // r3 deliberately has NO regional manager.
 
+  // HQ-owner mapping fixture (Annie → China). Reuse the real rows if present,
+  // otherwise seed them and remember to clean up only what we created.
+  let china = await db.region.findFirst({ where: { name: "China" }, select: { id: true } });
+  let chinaCreated = false;
+  if (!china) { china = await db.region.create({ data: { name: "China", code: `QCN${Date.now().toString().slice(-5)}` } }); chinaCreated = true; }
+  let annie = await db.user.findFirst({ where: { email: "annie@illumestudentservices.ca" }, select: { id: true } });
+  let annieCreated = false;
+  if (!annie) {
+    annie = await db.user.create({ data: {
+      email: "annie@illumestudentservices.ca", firstName: "Annie", lastName: "Li", name: "Annie Li",
+      password: await bcrypt.hash("x", 4), role: "HQ_EXECUTIVE", isActive: true, passwordChangedAt: new Date(),
+    }, select: { id: true } });
+    annieCreated = true;
+  }
+
   const created = [];
   try {
     for (let round = 1; round <= 3; round++) {
@@ -77,12 +92,22 @@ async function run() {
       expect("create with RM-less region 201", cr3.status === 201, `(${cr3.status})`);
       const teamCount = await db.institutionUser.count({ where: { institutionId: cr3.payload?.id } });
       expect("RM-less region adds nobody", teamCount === 0, `(${teamCount})`);
+
+      // HQ owner mapping (Annie → Latin America + China): a China client
+      // auto-adds Annie even though she is HQ_EXECUTIVE, not a Regional Manager.
+      const crc = await api(admin.jar, "POST", "/api/institutions", {
+        name: `QA RMClient-China ${tag} ${round}`, country: "T", type: "University", regionIds: [china.id],
+      });
+      created.push(crc.payload?.id);
+      expect("owner Annie auto-added for a China client", !!(await link(crc.payload?.id, annie.id)), "(Annie not on team)");
     }
   } finally {
     await db.institutionUser.deleteMany({ where: { institutionId: { in: created } } }).catch(() => {});
     await db.institution.deleteMany({ where: { id: { in: created } } }).catch(() => {});
     await db.user.deleteMany({ where: { id: { in: [rm1.id, rm2.id] } } }).catch(() => {});
+    if (annieCreated) await db.user.delete({ where: { id: annie.id } }).catch(() => {});
     await db.region.deleteMany({ where: { id: { in: [r1.id, r2.id, r3.id] } } }).catch(() => {});
+    if (chinaCreated) await db.region.delete({ where: { id: china.id } }).catch(() => {});
     await destroyUser(admin).catch(() => {});
     await db.$disconnect().catch(() => {});
   }

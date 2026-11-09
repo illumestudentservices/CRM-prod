@@ -1,4 +1,5 @@
 import type { PrismaTransaction } from "@/lib/db";
+import { OWNER_REGION_RECIPIENTS } from "@/lib/region-owners";
 
 /**
  * Keep a client's team in step with its regions: every region the client works
@@ -6,8 +7,10 @@ import type { PrismaTransaction } from "@/lib/db";
  *
  * "Regional Manager of a region" is the same definition the notifications and
  * reports use — an active User with role REGIONAL_MANAGER whose `regionId` is
- * that region (Region has no manager column). A region with no such user simply
- * contributes nobody.
+ * that region (Region has no manager column). In addition, an HQ region OWNER
+ * (lib/region-owners.ts — e.g. Annie Li owns Latin America + China, where there
+ * is no single-region RM) is added for the regions they own. A region with
+ * neither simply contributes nobody.
  *
  * ADD-ONLY. A manager already on the team is left exactly as they are — we never
  * flip a PAUSED/ENDED assignment back to ACTIVE, change their accountRole, or
@@ -28,7 +31,8 @@ export async function syncRegionalManagersForInstitution(
   const regions = regionIds.filter((r) => typeof r === "string" && r.length > 0);
   if (regions.length === 0) return 0;
 
-  const managers = await tx.user.findMany({
+  // Role-based Regional Managers for the selected regions.
+  const roleManagers = await tx.user.findMany({
     where: {
       role: "REGIONAL_MANAGER",
       isActive: true,
@@ -37,6 +41,26 @@ export async function syncRegionalManagersForInstitution(
     },
     select: { id: true, region: { select: { name: true } } },
   });
+
+  // HQ region owners (e.g. Annie Li for Latin America + China). Resolve which of
+  // the selected regions they own by NAME, then resolve the owner's account.
+  const selectedNames = new Set(
+    (await tx.region.findMany({ where: { id: { in: regions } }, select: { name: true } })).map((r) => r.name)
+  );
+  const ownerEmails = OWNER_REGION_RECIPIENTS
+    .filter((o) => o.regionNames.some((n) => selectedNames.has(n)))
+    .map((o) => o.email);
+  const ownerManagers = ownerEmails.length
+    ? await tx.user.findMany({
+        where: { email: { in: ownerEmails }, isActive: true, deletedAt: null },
+        select: { id: true, region: { select: { name: true } } },
+      })
+    : [];
+
+  // Union (an owner who also happens to be a role-RM is not added twice).
+  const byId = new Map<string, { id: string; region: { name: string } | null }>();
+  for (const m of [...roleManagers, ...ownerManagers]) byId.set(m.id, m);
+  const managers = [...byId.values()];
   if (managers.length === 0) return 0;
 
   // Which of them are already linked (in any status) — don't touch those.
