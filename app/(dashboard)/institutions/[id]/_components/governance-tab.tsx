@@ -111,8 +111,8 @@ export function GovernanceTab({ stats, accountHealth, kpis, recentActivities, in
             </Link>
           ) : <Card>{pipelineBody}</Card>;
         })()}
-        {/* Activities → the field operations list */}
-        <Link href="/field-operations" className="block" title="Open field operations">
+        {/* Activities → the field operations list, filtered to THIS client */}
+        <Link href={`/field-operations?institution=${institutionId}`} className="block" title="Open this client's activities">
           <Card className="cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99]">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">

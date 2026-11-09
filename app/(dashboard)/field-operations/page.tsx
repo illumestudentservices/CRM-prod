@@ -14,13 +14,19 @@ import type { Role } from "@prisma/client";
 
 async function getActivities(
   sourceId?: string | null,
-  scope: { userId?: string } = {}
+  scope: { userId?: string } = {},
+  institutionId?: string | null
 ) {
   return db.activity.findMany({
     // `scope` limits the list to what the viewer may see (own activities only,
-    // unless they are a field-ops supervisor). Source filter applied here (not
-    // client-side) so a partner's older activities are not lost behind the cap.
-    where: { deletedAt: null, ...scope, ...(sourceId ? { sourceId } : {}) },
+    // unless they are a field-ops supervisor). Source/client filters applied
+    // here (not client-side) so older rows are not lost behind the cap.
+    where: {
+      deletedAt: null,
+      ...scope,
+      ...(sourceId ? { sourceId } : {}),
+      ...(institutionId ? { institutionId } : {}),
+    },
     include: {
       user: { select: { id: true, name: true, image: true } },
       institution: { select: { id: true, name: true } },
@@ -33,15 +39,17 @@ async function getActivities(
   });
 }
 
-async function getStats(scope: { userId?: string } = {}) {
+async function getStats(scope: { userId?: string } = {}, institutionId?: string | null) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   // Counts are scoped the same way as the list, or the tiles would say "500"
-  // over a list the viewer can only see three rows of.
+  // over a list the viewer can only see three rows of. The client filter is
+  // folded in too, so the tiles match the filtered list.
+  const base = { deletedAt: null, ...scope, ...(institutionId ? { institutionId } : {}) };
   const [total, thisMonth, byType] = await Promise.all([
-    db.activity.count({ where: { deletedAt: null, ...scope } }),
-    db.activity.count({ where: { deletedAt: null, ...scope, date: { gte: startOfMonth } } }),
-    db.activity.groupBy({ by: ["type"], where: { deletedAt: null, ...scope }, _count: true }),
+    db.activity.count({ where: base }),
+    db.activity.count({ where: { ...base, date: { gte: startOfMonth } } }),
+    db.activity.groupBy({ by: ["type"], where: base, _count: true }),
   ]);
   return { total, thisMonth, byType: byType.map((b) => ({ type: b.type, count: b._count })) };
 }
@@ -115,7 +123,7 @@ async function getLookups() {
 export default async function FieldOperationsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ source?: string }>;
+  searchParams?: Promise<{ source?: string; institution?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -123,21 +131,25 @@ export default async function FieldOperationsPage({
   if (!(await effectiveHasPermission(session.user.role as any, "field_operations", "read"))) {
     redirect("/dashboard");
   }
-  // Pre-applied source (recruitment partner) filter, e.g. from a partner's
-  // "Field Ops" tile. "all" treated as absent.
+  // Pre-applied filters, e.g. from a partner's "Field Ops" tile (source) or a
+  // client's "Activities" tile (institution). "all" treated as absent.
   const sp = (await searchParams) ?? {};
   const sourceFilter = sp.source && sp.source !== "all" ? sp.source : null;
+  const institutionFilter = sp.institution && sp.institution !== "all" ? sp.institution : null;
 
   // Field activity is personal: individual contributors (e.g. ICR) see only
   // what they logged; supervisors (managers, Super Admin, HQ) see everyone's.
   const scope = activityVisibilityWhere(session.user.role as Role, session.user.id);
 
-  const [activities, stats, lookups, sourcePartner] = await Promise.all([
-    getActivities(sourceFilter, scope),
-    getStats(scope),
+  const [activities, stats, lookups, sourcePartner, institution] = await Promise.all([
+    getActivities(sourceFilter, scope, institutionFilter),
+    getStats(scope, institutionFilter),
     getLookups(),
     sourceFilter
       ? db.recruitmentPartner.findUnique({ where: { id: sourceFilter }, select: { name: true } })
+      : Promise.resolve(null),
+    institutionFilter
+      ? db.institution.findUnique({ where: { id: institutionFilter }, select: { name: true } })
       : Promise.resolve(null),
   ]);
   return (
@@ -161,6 +173,11 @@ export default async function FieldOperationsPage({
         sourceFilter={
           sourceFilter
             ? { id: sourceFilter, name: sourcePartner?.name ?? "selected partner" }
+            : null
+        }
+        institutionFilter={
+          institutionFilter
+            ? { id: institutionFilter, name: institution?.name ?? "selected client" }
             : null
         }
       />

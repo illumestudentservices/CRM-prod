@@ -125,6 +125,7 @@ export function ActivitiesClient({
   stats,
   lookups,
   sourceFilter = null,
+  institutionFilter = null,
 }: {
   activities: ActivityItem[];
   stats: Stats;
@@ -133,6 +134,9 @@ export function ActivitiesClient({
    *  partner (e.g. arriving from a partner's "Field Ops" tile). Drives the
    *  chip + clear control below; null on the general Activities page. */
   sourceFilter?: { id: string; name: string } | null;
+  /** When set, the list is already scoped server-side to this client, e.g.
+   *  arriving from a client's "Activities" tile. */
+  institutionFilter?: { id: string; name: string } | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -962,6 +966,24 @@ export function ActivitiesClient({
                   onClick={() => router.push("/field-operations")}
                   className="font-semibold hover:underline"
                   aria-label="Clear partner filter"
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          )}
+
+          {/* Active client filter — the list is already scoped server-side to
+              this client (arriving from its "Activities" tile). */}
+          {institutionFilter && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-0.5 text-xs text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300">
+                Client: {institutionFilter.name}
+                <button
+                  type="button"
+                  onClick={() => router.push("/field-operations")}
+                  className="font-semibold hover:underline"
+                  aria-label="Clear client filter"
                 >
                   ✕
                 </button>

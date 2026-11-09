@@ -212,7 +212,7 @@ export function InstitutionTabsClient({
             { label: "Total Leads", value: counts.leads, cls: "text-slate-900 dark:text-slate-100", href: `/students?institution=${institutionId}` },
             { label: "Enrolled", value: enrolledCount, cls: "text-green-600 dark:text-green-400", href: `/students?institution=${institutionId}&stage=ENROLLED` },
             { label: "Contracts", value: counts.contracts, cls: "text-slate-900 dark:text-slate-100", onClick: () => setTab("contracts") },
-            { label: "Activities", value: counts.activities, cls: "text-cyan-600 dark:text-cyan-400", href: "/field-operations" },
+            { label: "Activities", value: counts.activities, cls: "text-cyan-600 dark:text-cyan-400", href: `/field-operations?institution=${institutionId}` },
           ] as const).map((s) => {
             const inner = (
               <CardContent className="p-4 text-center">
