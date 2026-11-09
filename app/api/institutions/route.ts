@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       primaryContact,
       accountStatus,
       regionId,
+      regionIds,
       reportingFrequency,
       serviceScope,
       regionalManagerId,
@@ -102,23 +103,42 @@ export async function POST(req: NextRequest) {
     assertString(type, "type", { max: 100 });
     assertEnum(accountStatus, AccountStatusEnum, "accountStatus", { required: false });
 
-    const institution = await db.institution.create({
-      data: {
-        name,
-        legalName: legalName || null,
-        country,
-        type,
-        website: website || null,
-        primaryContact: primaryContact || null,
-        accountStatus: (accountStatus as AccountStatus) ?? "PROSPECT",
-        regionId: regionId || null,
-        // Spec §3 (Clients) — reporting cadence + service scope multi-select
-        reportingFrequency: reportingFrequency ?? null,
-        serviceScope: Array.isArray(serviceScope) ? serviceScope : [],
-        regionalManagerId: regionalManagerId || null,
-        notes: notes || null,
-        createdById: session.user.id,
-      },
+    // A client can work in several regions (InstitutionRegion), with one primary
+    // (the `regionId` column, the headline). The form sends `regionIds` with the
+    // primary first; older callers may still send a single `regionId`.
+    const regionList: string[] = Array.isArray(regionIds)
+      ? regionIds.filter((r): r is string => typeof r === "string" && r.length > 0)
+      : regionId
+        ? [regionId]
+        : [];
+    const primaryRegionId = regionList[0] ?? null;
+
+    const institution = await db.$transaction(async (tx) => {
+      const created = await tx.institution.create({
+        data: {
+          name,
+          legalName: legalName || null,
+          country,
+          type,
+          website: website || null,
+          primaryContact: primaryContact || null,
+          accountStatus: (accountStatus as AccountStatus) ?? "PROSPECT",
+          regionId: primaryRegionId,
+          // Spec §3 (Clients) — reporting cadence + service scope multi-select
+          reportingFrequency: reportingFrequency ?? null,
+          serviceScope: Array.isArray(serviceScope) ? serviceScope : [],
+          regionalManagerId: regionalManagerId || null,
+          notes: notes || null,
+          createdById: session.user.id,
+        },
+      });
+      if (regionList.length > 0) {
+        await tx.institutionRegion.createMany({
+          data: regionList.map((rid) => ({ institutionId: created.id, regionId: rid })),
+          skipDuplicates: true,
+        });
+      }
+      return created;
     });
 
     await db.auditLog.create({

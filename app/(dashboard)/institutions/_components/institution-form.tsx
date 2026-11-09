@@ -39,7 +39,12 @@ const institutionSchema = z.object({
   accountStatus: z
     .enum(["PROSPECT", "ONBOARDING", "ACTIVE", "INACTIVE", "SUSPENDED", "CLOSED"])
     .optional(),
-  regionId: z.string().optional(),
+  // A client can work in several regions. The array is ordered — the first
+  // entry is the primary region (the headline + default geo filter).
+  regionIds: z.array(z.string()).optional(),
+  // Contract renewal / expiry date (yyyy-mm-dd). Only roles that may write the
+  // commercial field see the input; others never send it.
+  renewalDate: z.string().optional(),
   reportingFrequency: z
     .enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "ANNUALLY", "AD_HOC"])
     .optional(),
@@ -102,14 +107,20 @@ interface InstitutionFormProps {
     serviceScope?: string[];
     notes: string | null;
     region?: Region | null;
+    /** All regions the client works in, primary first. */
+    regionIds?: string[];
+    /** Renewal / contract expiry date as yyyy-mm-dd (or null). */
+    renewalDate?: string | null;
   };
   regions: Region[];
   mode?: "create" | "edit";
+  /** Whether this role may write the renewal date (commercial field). */
+  canEditRenewalDate?: boolean;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
-export function InstitutionForm({ institution, regions, mode = "create" }: InstitutionFormProps) {
+export function InstitutionForm({ institution, regions, mode = "create", canEditRenewalDate = false }: InstitutionFormProps) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -133,7 +144,9 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
       primaryContact: institution?.primaryContact ?? "",
       accountStatus:
         (institution?.accountStatus as InstitutionFormValues["accountStatus"]) ?? "PROSPECT",
-      regionId: institution?.region?.id ?? "",
+      regionIds:
+        institution?.regionIds ?? (institution?.region ? [institution.region.id] : []),
+      renewalDate: institution?.renewalDate ?? "",
       reportingFrequency:
         (institution?.reportingFrequency as InstitutionFormValues["reportingFrequency"]) ??
         undefined,
@@ -156,6 +169,22 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
     });
   };
 
+  // Regions are an ORDERED selection: the first entry is the primary region
+  // (the headline). Toggling a region adds it to the end / removes it; a region
+  // can be promoted to primary without losing the rest of the selection.
+  const [regionSel, setRegionSel] = React.useState<string[]>(
+    institution?.regionIds ?? (institution?.region ? [institution.region.id] : [])
+  );
+  const syncRegions = (next: string[]) => {
+    setRegionSel(next);
+    setValue("regionIds", next, { shouldDirty: true });
+  };
+  const toggleRegion = (id: string) =>
+    syncRegions(regionSel.includes(id) ? regionSel.filter((r) => r !== id) : [...regionSel, id]);
+  const makePrimary = (id: string) =>
+    syncRegions([id, ...regionSel.filter((r) => r !== id)]);
+  const regionName = (id: string) => regions.find((r) => r.id === id)?.name ?? id;
+
   const onSubmit = async (data: InstitutionFormValues) => {
     setLoading(true);
     setError(null);
@@ -163,10 +192,16 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
       const url =
         mode === "edit" ? `/api/institutions/${institution!.id}` : "/api/institutions";
       const method = mode === "edit" ? "PATCH" : "POST";
+      // Build the payload. `regionIds` carries the ordered multi-region
+      // selection (primary first). Never send `renewalDate` from a role that
+      // can't write it — the API would reject the whole request for that field.
+      const payload: Record<string, unknown> = { ...data, regionIds: regionSel };
+      if (!canEditRenewalDate) delete payload.renewalDate;
+      else payload.renewalDate = data.renewalDate ? data.renewalDate : null;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, regionId: data.regionId === "none" ? undefined : data.regionId }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json();
@@ -371,26 +406,64 @@ export function InstitutionForm({ institution, regions, mode = "create" }: Insti
             </div>
           </div>
 
-          {/* Region */}
+          {/* Regions — a client can work in several. Multi-select; the first
+              one chosen is the primary (headline) region. */}
           <div className="space-y-1.5">
-            <Label>Region</Label>
-            <Select
-              defaultValue={institution?.region?.id ?? ""}
-              onValueChange={(v) => setValue("regionId", v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select region (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {regions.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Regions</Label>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Pick every region this client works in. The one marked{" "}
+              <span className="font-medium">Primary</span> is the headline — click
+              a selected region&apos;s star to make it primary.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {regions.map((r) => {
+                const active = regionSel.includes(r.id);
+                const isPrimary = regionSel[0] === r.id;
+                return (
+                  <span
+                    key={r.id}
+                    className={
+                      "inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors " +
+                      (active
+                        ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
+                        : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
+                    }
+                  >
+                    {active && (
+                      <button
+                        type="button"
+                        title={isPrimary ? "Primary region" : "Make primary"}
+                        onClick={() => makePrimary(r.id)}
+                        className={isPrimary ? "text-amber-400" : "text-slate-400 hover:text-amber-400"}
+                      >
+                        {isPrimary ? "★" : "☆"}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => toggleRegion(r.id)}>
+                      {r.name}
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+            {regionSel.length > 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Primary: <span className="font-medium">{regionName(regionSel[0])}</span>
+                {regionSel.length > 1 && ` · +${regionSel.length - 1} more`}
+              </p>
+            )}
           </div>
+
+          {/* Renewal date — commercial field, only for roles that can write it */}
+          {canEditRenewalDate && (
+            <div className="space-y-1.5">
+              <Label htmlFor="renewalDate">Renewal / Contract Expiry Date</Label>
+              <Input id="renewalDate" type="date" {...register("renewalDate")} />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Drives the &quot;Renewal Due&quot; alert. Leave blank to clear it.
+              </p>
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-1.5">

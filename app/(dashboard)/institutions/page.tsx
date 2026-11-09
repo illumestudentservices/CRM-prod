@@ -2,6 +2,7 @@ import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { canWriteField } from "@/lib/granular-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
 import { InstitutionForm } from "./_components/institution-form";
@@ -199,6 +200,9 @@ export default async function InstitutionsPage() {
   // institutions:write. Hide the "Add Client" control from read-only roles
   // (e.g. ICR) so they are not shown a button the API will refuse.
   const canWrite = await effectiveHasPermission(session.user.role, "institutions", "write");
+  // The renewal date is a commercial field with its own write-role list, so the
+  // form only shows it to roles that can actually save it.
+  const canEditRenewalDate = await canWriteField(session.user.role, "institutions", "renewalDate");
   // ICRs may browse the client list and open a client for its details and
   // contacts, but the commercial figures (lead/contract counts, status, health)
   // are not theirs to see. Hidden for ICR; shown to everyone else who can read.
@@ -248,7 +252,7 @@ export default async function InstitutionsPage() {
               title="Institutions"
             />
             )}
-            {canWrite && <InstitutionForm regions={regions} />}
+            {canWrite && <InstitutionForm regions={regions} canEditRenewalDate={canEditRenewalDate} />}
           </div>
         }
       />

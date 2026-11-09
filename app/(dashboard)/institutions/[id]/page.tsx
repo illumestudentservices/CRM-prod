@@ -12,7 +12,7 @@ import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { hasCapability } from "@/lib/granular-permissions";
+import { hasCapability, canWriteField } from "@/lib/granular-permissions";
 
 const STATUS_CONFIG: Record<AccountStatus, { label: string; className: string }> = {
   PROSPECT: { label: "Prospect", className: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
@@ -31,6 +31,9 @@ async function getInstitution(id: string) {
     where: { id },
     include: {
       region: { select: { id: true, name: true } },
+      // Every region the client works in (InstitutionRegion), so the edit form
+      // can show the full multi-region selection, not just the primary.
+      regions: { select: { regionId: true } },
       accountManager: { select: { id: true, name: true, email: true, role: true, image: true } },
       contacts: { orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
       contracts: {
@@ -113,9 +116,10 @@ export default async function InstitutionDetailPage({
   // permissions. `institutions.set_health` is checked separately from write:
   // the capability layer is subtractive, so holding write does not imply it.
   const role = session.user.role as Role;
-  const [canWrite, canSetHealth] = await Promise.all([
+  const [canWrite, canSetHealth, canEditRenewalDate] = await Promise.all([
     effectiveHasPermission(role, "institutions", "write"),
     hasCapability(role, "institutions.set_health"),
+    canWriteField(role, "institutions", "renewalDate"),
   ]);
   // ICRs see a client's identity, details and contacts, but not its commercial
   // figures (pipeline/lead counts, status, account health, contract value,
@@ -194,16 +198,31 @@ export default async function InstitutionDetailPage({
               institution={{
                 id: institution.id,
                 name: institution.name,
+                legalName: institution.legalName,
                 country: institution.country,
                 type: institution.type,
                 website: institution.website,
                 primaryContact: institution.primaryContact,
                 accountStatus: institution.accountStatus,
+                reportingFrequency: institution.reportingFrequency,
+                serviceScope: institution.serviceScope,
                 notes: institution.notes,
                 region: institution.region,
+                // Primary first, then the other regions — the form keeps this
+                // order and the first entry stays primary.
+                regionIds: [
+                  ...(institution.region ? [institution.region.id] : []),
+                  ...institution.regions
+                    .map((r) => r.regionId)
+                    .filter((rid) => rid !== institution.region?.id),
+                ],
+                renewalDate: institution.renewalDate
+                  ? institution.renewalDate.toISOString().slice(0, 10)
+                  : null,
               }}
               regions={regions}
               mode="edit"
+              canEditRenewalDate={canEditRenewalDate}
             />
           ) : undefined
         }

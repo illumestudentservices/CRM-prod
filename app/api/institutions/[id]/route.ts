@@ -116,6 +116,7 @@ export async function PATCH(
       primaryContact,
       accountStatus,
       regionId,
+      regionIds,
       notes,
       contractValue,
       renewalDate,
@@ -150,7 +151,21 @@ export async function PATCH(
       );
     }
 
-    const updated = await db.institution.update({
+    // A client can work in several regions. When the form sends `regionIds`
+    // (primary first), the primary becomes the `regionId` headline and the full
+    // set is synced into InstitutionRegion. `regionId` alone is still honoured.
+    const regionListProvided = Array.isArray(regionIds);
+    const regionList: string[] = regionListProvided
+      ? (regionIds as unknown[]).filter((r): r is string => typeof r === "string" && r.length > 0)
+      : [];
+    const primaryRegionId = regionListProvided
+      ? (regionList[0] ?? null)
+      : regionId !== undefined
+        ? regionId || null
+        : undefined;
+
+    const updated = await db.$transaction(async (tx) => {
+      const inst = await tx.institution.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
@@ -162,7 +177,7 @@ export async function PATCH(
         ...(accountStatus !== undefined && {
           accountStatus: accountStatus as AccountStatus,
         }),
-        ...(regionId !== undefined && { regionId: regionId || null }),
+        ...(primaryRegionId !== undefined && { regionId: primaryRegionId }),
         ...(notes !== undefined && { notes }),
         ...(contractValue !== undefined && { contractValue: contractValue !== null ? Number(contractValue) : null }),
         ...(renewalDate !== undefined && { renewalDate: renewalDate ? new Date(renewalDate) : null }),
@@ -181,6 +196,23 @@ export async function PATCH(
           regionalManagerId: regionalManagerId || null,
         }),
       },
+      });
+
+      // Sync the multi-region join to exactly `regionList`: drop the ones no
+      // longer selected, add the new ones, leave the kept ones (and their
+      // createdAt) untouched.
+      if (regionListProvided) {
+        await tx.institutionRegion.deleteMany({
+          where: { institutionId: id, regionId: { notIn: regionList.length ? regionList : ["__none__"] } },
+        });
+        if (regionList.length) {
+          await tx.institutionRegion.createMany({
+            data: regionList.map((rid) => ({ institutionId: id, regionId: rid })),
+            skipDuplicates: true,
+          });
+        }
+      }
+      return inst;
     });
 
     await db.auditLog.create({
