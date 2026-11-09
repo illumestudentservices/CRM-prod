@@ -10,7 +10,7 @@
  */
 import "dotenv/config";
 import { db } from "@/lib/db";
-import { syncRegionalManagersForInstitution } from "@/lib/institution-team";
+import { resolveRegionManagers, syncRegionalManagersForInstitution } from "@/lib/institution-team";
 
 function arg(name: string): string | undefined {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -44,11 +44,9 @@ async function main() {
       const added = await db.$transaction((tx) => syncRegionalManagersForInstitution(tx, inst.id, regionIds));
       if (added > 0) { totalAdded += added; clientsTouched++; console.log(`  ✓ ${inst.name} — added ${added} manager(s)`); }
     } else {
-      // Report-only: replicate the add-only computation without writing.
-      const managers = await db.user.findMany({
-        where: { role: "REGIONAL_MANAGER", isActive: true, deletedAt: null, regionId: { in: regionIds } },
-        select: { id: true, name: true },
-      });
+      // Report-only: same resolver as the apply path (role RMs + HQ owners),
+      // minus the write — so the preview exactly matches what --apply would do.
+      const managers = await resolveRegionManagers(db, regionIds);
       if (managers.length === 0) continue;
       const existing = await db.institutionUser.findMany({
         where: { institutionId: inst.id, userId: { in: managers.map((m) => m.id) } },
