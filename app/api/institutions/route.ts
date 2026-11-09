@@ -11,6 +11,7 @@ import {
 import { institutionIdsForUser } from "@/lib/lead-access";
 import { redactFields } from "@/lib/granular-permissions";
 import { stripNullBytes } from "@/lib/sanitize-text";
+import { syncRegionalManagersForInstitution } from "@/lib/institution-team";
 
 // ─── GET /api/institutions ─────────────────────────────────────────────────
 
@@ -137,6 +138,8 @@ export async function POST(req: NextRequest) {
           data: regionList.map((rid) => ({ institutionId: created.id, regionId: rid })),
           skipDuplicates: true,
         });
+        // Each selected region's Regional Manager joins the client's team.
+        await syncRegionalManagersForInstitution(tx, created.id, regionList);
       }
       return created;
     });

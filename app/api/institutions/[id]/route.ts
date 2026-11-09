@@ -8,6 +8,7 @@ import { trashRecord } from "@/lib/recycle-bin";
 import { assertInstitutionVisible } from "@/lib/lead-access";
 import type { Role } from "@/lib/permissions";
 import { redactFields, redactContractValue, checkFieldWrites } from "@/lib/granular-permissions";
+import { syncRegionalManagersForInstitution } from "@/lib/institution-team";
 
 // ─── GET /api/institutions/:id ─────────────────────────────────────────────
 
@@ -211,6 +212,9 @@ export async function PATCH(
             skipDuplicates: true,
           });
         }
+        // Add each selected region's Regional Manager to the team (add-only —
+        // deselecting a region does NOT remove its manager).
+        await syncRegionalManagersForInstitution(tx, id, regionList);
       }
       return inst;
     });
