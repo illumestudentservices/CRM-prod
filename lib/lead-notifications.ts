@@ -260,34 +260,22 @@ export async function notifyNewLeads(opts: {
           ? { ...opts.batch, created: ownerLeads.length }
           : undefined;
 
-        // Sent independently: safeSend never throws, so one address failing
-        // cannot stop the other being tried.
-        await Promise.all([
-          owner?.email
-            ? sendNewLeadEmail({
-                to: owner.email,
-                recipientName: owner.name ?? "there",
-                icrName,
-                isManagerCopy: false,
-                leads: rows,
-                batch,
-                listUrl,
-              })
-            : Promise.resolve(),
-          // Guarded against a manager who is also the owner — they would
-          // otherwise get the same event twice, once addressed to someone else.
-          manager && manager.email !== owner?.email
-            ? sendNewLeadEmail({
-                to: manager.email,
-                recipientName: manager.name,
-                icrName,
-                isManagerCopy: true,
-                leads: rows,
-                batch,
-                listUrl,
-              })
-            : Promise.resolve(),
-        ]);
+        // Only the lead's OWNER (the ICR who captured it) gets the email.
+        // Managers/RMs no longer receive a lead-capture email (user request
+        // 2026-11-09 — "RMs or managers do not need an email when ICRs upload a
+        // lead"); they still get the in-app bell notification below, which is
+        // their record of the capture.
+        if (owner?.email) {
+          await sendNewLeadEmail({
+            to: owner.email,
+            recipientName: owner.name ?? "there",
+            icrName,
+            isManagerCopy: false,
+            leads: rows,
+            batch,
+            listUrl,
+          });
+        }
 
         // In-app notification for the manager only. The owner has either just
         // done this themselves, or already gets a "new lead assigned" bell
