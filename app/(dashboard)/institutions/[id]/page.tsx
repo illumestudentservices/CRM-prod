@@ -10,7 +10,7 @@ import { HEALTH_LABELS, HEALTH_PILL } from "@/lib/account-health";
 import { InstitutionForm } from "../_components/institution-form";
 import { InstitutionTabsClient } from "./_components/institution-tabs-client";
 import { type AccountStatus } from "@prisma/client";
-import type { Role } from "@/lib/permissions";
+import { type Role, canSeeClientFigures } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { hasCapability, canWriteField } from "@/lib/granular-permissions";
 
@@ -124,7 +124,7 @@ export default async function InstitutionDetailPage({
   // ICRs see a client's identity, details and contacts, but not its commercial
   // figures (pipeline/lead counts, status, account health, contract value,
   // renewal). Matches the client list, where the same numbers are hidden.
-  const showFigures = role !== "ICR";
+  const showFigures = canSeeClientFigures(role);
 
   const { id } = await params;
   const initialTab = (await searchParams)?.tab;

@@ -2,6 +2,7 @@ import * as React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { canSeeClientFigures } from "@/lib/permissions";
 import { canWriteField } from "@/lib/granular-permissions";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/shared/page-header";
@@ -206,7 +207,7 @@ export default async function InstitutionsPage() {
   // ICRs may browse the client list and open a client for its details and
   // contacts, but the commercial figures (lead/contract counts, status, health)
   // are not theirs to see. Hidden for ICR; shown to everyone else who can read.
-  const showFigures = session.user.role !== "ICR";
+  const showFigures = canSeeClientFigures(session.user.role);
 
   const [stats, institutions, regions, accountManagers, renewalDueIds] = await Promise.all([
     getInstitutionStats(),

@@ -234,9 +234,13 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
   },
   HR_MANAGER: {
     leads: [],
-    sources: [],
-    institutions: [],
-    events: [],
+    // Full use of Recruitment Network, like ICR (opened to all internal staff
+    // 2026-11-09): recruitment partners are `sources`, its events are `events`.
+    sources: ["read", "write"],
+    // Read-only client visibility, like ICR — see the client list/details, no
+    // figures (hidden by canSeeClientFigures) and no write.
+    institutions: ["read"],
+    events: ["read", "write"],
     reports: [],
     analytics: [],
     executive_dashboard: [],
@@ -250,23 +254,29 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     whatsapp: [],
     markets: [],
     stakeholders: [],
-    activities: [],
+    // Full use of Field Operations, like ICR — the module's activity CRUD gates
+    // on `activities`.
+    activities: ["read", "write"],
     travel: ["read", "write", "delete", "approve", "export"],
     risk_compliance: [],
     knowledge: ["read", "write", "delete", "approve", "export"],
     tasks: ["read", "write"],
-    recruitment_network: [],
+    recruitment_network: ["read", "write"],
     recruitment_planning: ["read", "write"],
     icr_transition: [],
     forecasting: [],
     market_intelligence: [],
-    field_operations: [],
+    field_operations: ["read", "write"],
   },
   EMPLOYEE: {
     leads: [],
-    sources: [],
-    institutions: [],
-    events: [],
+    // Full use of Recruitment Network, like ICR (opened to all internal staff
+    // 2026-11-09): recruitment partners are `sources`, its events are `events`.
+    sources: ["read", "write"],
+    // Read-only client visibility, like ICR — see the client list/details, no
+    // figures (hidden by canSeeClientFigures) and no write.
+    institutions: ["read"],
+    events: ["read", "write"],
     reports: [],
     analytics: [],
     executive_dashboard: [],
@@ -280,17 +290,19 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     whatsapp: [],
     markets: [],
     stakeholders: [],
-    activities: [],
+    // Full use of Field Operations, like ICR — the module's activity CRUD gates
+    // on `activities`.
+    activities: ["read", "write"],
     travel: ["read", "write"],
     risk_compliance: [],
     knowledge: ["read"],
     tasks: ["read", "write"],
-    recruitment_network: [],
+    recruitment_network: ["read", "write"],
     recruitment_planning: [],
     icr_transition: [],
     forecasting: [],
     market_intelligence: [],
-    field_operations: [],
+    field_operations: ["read", "write"],
   },
   // Spec Clients §4 / Recruitment Planning §3 — Account Manager owns
   // client-facing commercial relationships and approves plans before client
@@ -406,6 +418,22 @@ export function canAccess(role: Role, resource: Resource): boolean {
   return actions.length > 0;
 }
 
+/**
+ * Roles that may VIEW clients but not their commercial figures — lead/contract
+ * counts, status and health pills, governance tiles. They get a bare
+ * list-and-details view of the client (identity + contacts), nothing more.
+ *
+ * ICR has always been figure-blind; HR_MANAGER and EMPLOYEE joined on
+ * 2026-11-09 when client read was opened to all internal staff "very limited,
+ * like ICR". Commercial FIELDS (contract value, renewal date) are redacted
+ * separately by the field catalog in lib/granular-permissions; this governs the
+ * aggregate figures the pages render.
+ */
+const CLIENT_FIGURE_BLIND_ROLES: Role[] = ["ICR", "HR_MANAGER", "EMPLOYEE"];
+export function canSeeClientFigures(role: Role): boolean {
+  return !CLIENT_FIGURE_BLIND_ROLES.includes(role);
+}
+
 export const NAV_PERMISSIONS: Record<string, Role[]> = {
   // Every role, deliberately. /dashboard is where proxy.ts sends anyone it
   // turns away from a module, so a role missing from this list is a role that
@@ -461,6 +489,10 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   icr_transition: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR", "ACCOUNT_MANAGER", "VP_GLOBAL_SALES"],
   // Spec 36: ICR forecasts, RM reviews, VP accepts, senior management reads.
   forecasting: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "VP_GLOBAL_SALES"],
+  // HR_MANAGER + EMPLOYEE added 2026-11-09: everyone, including ERP-only staff,
+  // may VIEW clients (read-only, no figures — see canSeeClientFigures). proxy.ts
+  // gates the route from this list, so they must appear here as well as holding
+  // institutions:["read"] in PERMISSION_MATRIX.
   institutions: [
     "SUPER_ADMIN",
     "HQ_EXECUTIVE",
@@ -468,6 +500,8 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "REGIONAL_MANAGER",
     "ICR",
     "INSTITUTION_CLIENT",
+    "HR_MANAGER",
+    "EMPLOYEE",
   ],
   analytics: [
     "SUPER_ADMIN",
@@ -520,7 +554,8 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   activity_log: ["SUPER_ADMIN"],
   recycle_bin:  ["SUPER_ADMIN"],
   // ─── Redesign nav (Phases 2–7) ───────────────────────────────────────────
-  recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  // HR_MANAGER + EMPLOYEE added 2026-11-09 — opened to all internal staff.
+  recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
   // ACCOUNT_MANAGER and VP_GLOBAL_SALES added 2026-08-15. Both hold
   // `recruitment_planning: ["read","approve","export"]` in PERMISSION_MATRIX and
   // both are NAMED STEPS in the plan approval chain — PR #62 routed
@@ -535,7 +570,8 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "ACCOUNT_MANAGER", "VP_GLOBAL_SALES",
   ],
   market_intelligence:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
-  field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  // HR_MANAGER + EMPLOYEE added 2026-11-09 — opened to all internal staff.
+  field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
 };
 
 export type { Role, Resource, Action };
