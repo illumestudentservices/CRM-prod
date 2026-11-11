@@ -122,19 +122,23 @@ export function EmailStudentButton({
           the DOM, so a test can assert WHERE it goes rather than only that a
           control exists. No target="_blank" — that is what would have left an
           empty tab behind once the mail handler takes over. */}
+      {/* Highlighted, not an outline: emailing the student is the primary action
+          a rep takes from this record, so it reads as a filled brand button
+          rather than a quiet secondary control. The declined-marketing variant
+          stays filled too — reps must still see it — but turns amber to carry
+          the "they said no to marketing" caution without hiding the button. */}
       {declined ? (
         <Button
-          variant="outline"
           size="sm"
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 bg-amber-500 text-white shadow hover:bg-amber-500/90 active:bg-amber-500/80 dark:bg-amber-600 dark:hover:bg-amber-600/90 dark:active:bg-amber-600/80"
           onClick={() => setConfirming(true)}
         >
           <Mail className="h-3.5 w-3.5" />
           Email {studentName.split(" ")[0]}
-          <AlertTriangle className="h-3.5 w-3.5 ml-auto text-amber-600" />
+          <AlertTriangle className="h-3.5 w-3.5 ml-auto" />
         </Button>
       ) : (
-        <Button asChild variant="outline" size="sm" className="w-full justify-start gap-2">
+        <Button asChild size="sm" className="w-full justify-start gap-2 shadow">
           <a href={href}>
             <Mail className="h-3.5 w-3.5" />
             Email {studentName.split(" ")[0]}
