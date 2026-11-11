@@ -57,6 +57,10 @@ export function HelpWidget() {
   const [answer, setAnswer] = React.useState<Answer | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
+  // The explicit "message IT support" escalation. Searching no longer emails
+  // anyone; this does, and only when the user presses Send.
+  const [detail, setDetail] = React.useState("");
+  const [sendState, setSendState] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
   const inputRef = React.useRef<HTMLInputElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
 
@@ -95,6 +99,10 @@ export function HelpWidget() {
   // trip even when the round trip is only a lookup.
   React.useEffect(() => {
     const q = query.trim();
+    // A new search is a new context — drop any half-written support message and
+    // its "sent"/"error" state so the button never shows a stale result.
+    setDetail("");
+    setSendState("idle");
     if (!q) {
       setAnswer(null);
       setFailed(false);
@@ -134,6 +142,23 @@ export function HelpWidget() {
     setOpen(false);
     setQuery("");
     router.push(route);
+  }
+
+  async function sendToSupport() {
+    const q = query.trim();
+    if (!q || sendState === "sending") return;
+    setSendState("sending");
+    try {
+      const res = await fetch("/api/assistant/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q, detail: detail.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setSendState("sent");
+    } catch {
+      setSendState("error");
+    }
   }
 
   return (
@@ -277,29 +302,49 @@ export function HelpWidget() {
                   </ul>
                 )}
 
-                {/* Escalation is automatic now — the server emails the owner
-                    on a miss, deduped and capped. Saying so matters: without
-                    it the user assumes nothing happened and either gives up or
-                    chases someone. The mailto stays for the case where they
-                    have context worth adding. */}
-                {answer.kind !== "found" && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    This has been reported automatically.{" "}
-                    <a
-                      href={`mailto:${"support"}@illumestudentservices.cloud?subject=${encodeURIComponent(
-                        "Illume Cloud — cannot find a feature"
-                      )}&body=${encodeURIComponent(
-                        `I was looking for: ${query}
-
-What I was trying to do:
-`
-                      )}`}
-                      className="underline hover:text-slate-800 dark:hover:text-slate-200"
-                    >
-                      Add more detail
-                    </a>{" "}
-                    if it helps.
-                  </p>
+                {/* Escalation is now EXPLICIT. Searching emails nobody (it runs
+                    as the user types, so auto-reporting every miss buried IT's
+                    inbox). When the widget could not take them somewhere, we
+                    offer a button that emails IT support only on a deliberate
+                    click — with room to add detail first. */}
+                {answer.kind !== "found" && answer.kind !== "stats" && (
+                  <div className="rounded-md border border-slate-100 p-2 dark:border-slate-800">
+                    {sendState === "sent" ? (
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                        Message sent to IT support. They&apos;ll get back to you by email.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                          Still can&apos;t find it? Send this to IT support.
+                        </p>
+                        <textarea
+                          value={detail}
+                          onChange={(e) => setDetail(e.target.value)}
+                          placeholder="Add any detail (optional) — what were you trying to do?"
+                          rows={2}
+                          className="mb-2 w-full resize-none rounded-md border border-slate-200 bg-transparent p-2 text-xs outline-none placeholder:text-slate-400 focus:border-slate-300 dark:border-slate-700 dark:focus:border-slate-600"
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={sendToSupport}
+                            disabled={sendState === "sending"}
+                            className={cn(
+                              "rounded-md bg-[#1E3A5F] px-3 py-1.5 text-xs font-medium text-white",
+                              "hover:bg-[#1E3A5F]/90 disabled:opacity-50"
+                            )}
+                          >
+                            {sendState === "sending" ? "Sending…" : "Send a message to IT support"}
+                          </button>
+                          {sendState === "error" && (
+                            <span className="text-xs text-red-600 dark:text-red-400">
+                              Could not send. Try again.
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             )}

@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import type { Role } from "@/lib/permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { answer } from "@/lib/assistant-search";
-import { reportUnanswered } from "@/lib/assistant-escalation";
 
 /**
  * In-app help: "where is X", "can I use X", "why can't I see X".
@@ -64,11 +63,14 @@ export async function POST(req: NextRequest) {
     // the security trail for "who changed what": a few hundred help searches a
     // week would bury the records it exists to preserve.
     //
-    // Grep with: pm2 logs illume-crm | grep HELP_MISS
-    // "stats" is a SUCCESS — the question was answered with figures. Treating
-    // anything that is not "found" as a failure logged every count question as a
-    // miss and would have emailed IT about questions the widget answered
-    // perfectly well.
+    // Grep with: journalctl -u illume-crm | grep HELP_MISS
+    //
+    // ★ SEARCHING NO LONGER EMAILS ANYONE. The widget searches as the user
+    // types, so auto-emailing the owner on every miss sent a message per
+    // keystroke-stub — IT asked for it to stop. Escalation is now an explicit
+    // "Send a message to IT support" button in the widget (POST
+    // /api/assistant/contact → sendSupportRequest). This stays a log line only.
+    // "stats" is a SUCCESS (answered with figures), so it is not a miss.
     const answered = result.kind === "found" || result.kind === "stats";
     if (!answered) {
       console.info(
@@ -80,16 +82,6 @@ export async function POST(req: NextRequest) {
           at: new Date().toISOString(),
         })
       );
-
-      // Email the owner. Deliberately not awaited into the response path: the
-      // person who asked should get their answer whether or not the mail goes
-      // out, and reportUnanswered swallows its own failures.
-      void reportUnanswered({
-        query: parsed.data.query,
-        role: session.user.role as Role,
-        kind: result.kind,
-        userEmail: session.user.email,
-      });
     }
 
     return NextResponse.json({ data: result });

@@ -4,6 +4,12 @@ import type { Role } from "@/lib/permissions";
 /**
  * Emails the product owner when the help widget cannot answer something.
  *
+ * ★ NOT CURRENTLY WIRED TO THE WIDGET (2026-11-11). The search route used to
+ * call this on every miss, but the widget searches as the user types, so it
+ * emailed IT per keystroke-stub. Searching now only logs `HELP_MISS`;
+ * escalation is the explicit `sendSupportRequest` below, on a button click.
+ * This is kept (and still unit-tested) as a ready digest/auto-report option.
+ *
  * The value is not the individual email — it is learning which words staff use
  * that the catalogue does not know, and which features they expect to exist.
  * Each one is either an alias to add or a gap to build.
@@ -147,9 +153,99 @@ export async function reportUnanswered(opts: {
   }
 }
 
+// ─── Explicit "message IT support" ───────────────────────────────────────────
+
+/**
+ * Sends a support message the user ASKED to send — the button in the help
+ * widget, not the automatic miss report above.
+ *
+ * The difference matters, and it is the whole point of this change: the widget
+ * used to email the owner on every unanswered keystroke (and it searches as you
+ * type), which buried the inbox. Now searching emails NOBODY; only this, on a
+ * deliberate click, does.
+ *
+ * Because it is user-initiated it does NOT dedupe — a person who clicks Send
+ * expects their message to go, and silently collapsing it into an earlier one
+ * would be a lie. It keeps only a generous per-process ceiling as an anti-abuse
+ * valve, so a script cannot turn the button into a flood. Never throws.
+ */
+const SUPPORT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const SUPPORT_MAX_PER_WINDOW = 100;
+let supportWindowStart = Date.now();
+let supportSentThisWindow = 0;
+
+export interface SupportRequestResult {
+  sent: boolean;
+  reason: "sent" | "not_configured" | "capped" | "error";
+}
+
+export async function sendSupportRequest(opts: {
+  query: string;
+  detail?: string | null;
+  role: Role;
+  userEmail?: string | null;
+  userName?: string | null;
+}): Promise<SupportRequestResult> {
+  if (!RECIPIENT) return { sent: false, reason: "not_configured" };
+
+  const now = Date.now();
+  if (now - supportWindowStart >= SUPPORT_WINDOW_MS) {
+    supportWindowStart = now;
+    supportSentThisWindow = 0;
+  }
+  if (supportSentThisWindow >= SUPPORT_MAX_PER_WINDOW) {
+    return { sent: false, reason: "capped" };
+  }
+  supportSentThisWindow += 1;
+
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const who = opts.userName || opts.role;
+  const detailRow = opts.detail?.trim()
+    ? `<tr><td style="padding:6px 10px 6px 0;color:#666;vertical-align:top">Their message</td><td style="padding:6px 0;white-space:pre-wrap">${esc(opts.detail.trim())}</td></tr>`
+    : "";
+
+  const html = `
+    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px">
+      <h2 style="margin:0 0 4px;font-size:17px">A staff member has messaged IT support</h2>
+      <p style="margin:0 0 16px;color:#555;font-size:13px">
+        Sent from the in-app help widget in Illume Cloud.
+      </p>
+      <table style="border-collapse:collapse;font-size:14px;width:100%">
+        <tr>
+          <td style="padding:6px 10px 6px 0;color:#666">They searched for</td>
+          <td style="padding:6px 0"><strong>${esc(opts.query)}</strong></td>
+        </tr>
+        ${detailRow}
+        <tr>
+          <td style="padding:6px 10px 6px 0;color:#666">From</td>
+          <td style="padding:6px 0">${esc(who)}${opts.userEmail ? ` &middot; <a href="mailto:${esc(opts.userEmail)}">${esc(opts.userEmail)}</a>` : ""}</td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0;color:#666;font-size:12px">
+        Reply directly to ${opts.userEmail ? esc(opts.userEmail) : "the sender"} to help them.
+      </p>
+    </div>`;
+
+  try {
+    await safeSend({
+      to: RECIPIENT,
+      subject: `Illume Cloud — IT support request from ${who}`,
+      html,
+    });
+    return { sent: true, reason: "sent" };
+  } catch (err) {
+    console.error("[assistant-support]", err);
+    return { sent: false, reason: "error" };
+  }
+}
+
 /** Test seam — lets the suite assert dedupe and cap without sending mail. */
 export function __resetEscalationState() {
   seen.clear();
   windowStart = Date.now();
   sentThisWindow = 0;
+  supportWindowStart = Date.now();
+  supportSentThisWindow = 0;
 }
