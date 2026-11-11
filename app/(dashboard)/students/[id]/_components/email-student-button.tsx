@@ -122,23 +122,30 @@ export function EmailStudentButton({
           the DOM, so a test can assert WHERE it goes rather than only that a
           control exists. No target="_blank" — that is what would have left an
           empty tab behind once the mail handler takes over. */}
-      {/* Highlighted, not an outline: emailing the student is the primary action
-          a rep takes from this record, so it reads as a filled brand button
-          rather than a quiet secondary control. The declined-marketing variant
-          stays filled too — reps must still see it — but turns amber to carry
-          the "they said no to marketing" caution without hiding the button. */}
+      {/* A GOLDEN button, so reps can't miss it: emailing the student is the
+          primary action on this record, so it is a filled gold control with a
+          warm amber glow ("flare") and dark text for contrast — not a quiet
+          outline. A student is only ever in ONE consent state, so the declined
+          variant need not match: it drops to a soft amber OUTLINE with the
+          warning icon, reading as "allowed, but mind the marketing opt-out"
+          rather than the bold gold go-ahead. */}
       {declined ? (
         <Button
           size="sm"
-          className="w-full justify-start gap-2 bg-amber-500 text-white shadow hover:bg-amber-500/90 active:bg-amber-500/80 dark:bg-amber-600 dark:hover:bg-amber-600/90 dark:active:bg-amber-600/80"
+          variant="outline"
+          className="w-full justify-start gap-2 border-amber-500 text-amber-800 hover:bg-amber-50 active:bg-amber-100 dark:border-amber-500/60 dark:text-amber-300 dark:hover:bg-amber-500/10"
           onClick={() => setConfirming(true)}
         >
           <Mail className="h-3.5 w-3.5" />
           Email {studentName.split(" ")[0]}
-          <AlertTriangle className="h-3.5 w-3.5 ml-auto" />
+          <AlertTriangle className="h-3.5 w-3.5 ml-auto text-amber-600" />
         </Button>
       ) : (
-        <Button asChild size="sm" className="w-full justify-start gap-2 shadow">
+        <Button
+          asChild
+          size="sm"
+          className="w-full justify-start gap-2 border-0 bg-amber-400 font-semibold text-amber-950 shadow-lg shadow-amber-500/50 ring-1 ring-amber-300 hover:bg-amber-300 hover:shadow-amber-500/60 active:bg-amber-500 dark:bg-amber-400 dark:text-amber-950 dark:shadow-amber-400/30 dark:ring-amber-500/40"
+        >
           <a href={href}>
             <Mail className="h-3.5 w-3.5" />
             Email {studentName.split(" ")[0]}

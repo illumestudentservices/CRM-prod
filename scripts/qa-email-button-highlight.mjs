@@ -1,11 +1,11 @@
 /**
  * The "Email {student}" button is HIGHLIGHTED, not a quiet outline.
  *
- * Reps kept missing it, so on the student record it now renders as a filled
- * brand-navy button (the `default` Button variant: bg-[#1E3A5F] text-white),
- * and the marketing-declined variant renders filled AMBER (still visible, but
- * carrying the caution). This proves the rendered style, the mailto behaviour,
- * and the consent gate are all intact.
+ * Reps kept missing it, so on the student record it now renders as a GOLD
+ * button with a warm amber glow (bg-amber-400 text-amber-950 shadow-amber-500),
+ * and the marketing-declined variant renders as a soft amber OUTLINE (still
+ * visible, but carrying the caution). This proves the rendered style, the
+ * mailto behaviour, and the consent gate are all intact.
  *
  * Checks the SERVER-RENDERED HTML directly (authenticated fetch) rather than
  * driving a browser — deterministic, and it sidesteps the Turbopack dev
@@ -62,26 +62,31 @@ try {
     // address in the "Email" detail row above it does not — so this needle hits
     // the button, not the detail row. (Avoids matching on the visible label,
     // which React splits with marker comments.)
-    startSection(`round ${round}: consented → filled brand-navy link`);
+    startSection(`round ${round}: consented → golden flare link`);
     {
       const { status, html } = await fetchStudentHtml(admin.jar, normal.id);
       expect(status === 200, "student page loads", `status ${status}`);
       const needle = `mailto:${normal.email}?subject=`;
       expect(html.includes(needle), "Email button is a mailto link with a subject", needle);
-      const win = windowAround(html, needle, 700, 400);
-      expect(win.includes("bg-[#1E3A5F]") && win.includes("text-white"),
-        "button is HIGHLIGHTED (filled brand navy)", `window="${win.slice(0, 220)}"`);
-      expect(!win.includes("bg-transparent"),
-        "button is not the old transparent outline");
+      // The anchor renders `href` before `class`, and the Button's base classes
+      // are long — so the gold classes sit well AFTER the mailto needle. Widen
+      // the forward window to cover the whole class attribute.
+      const win = windowAround(html, needle, 200, 1100);
+      expect(win.includes("bg-amber-400") && win.includes("text-amber-950"),
+        "button is HIGHLIGHTED gold (filled amber, dark text)", `window="${win.slice(0, 240)}"`);
+      expect(win.includes("shadow-amber-500/50"),
+        "button has the golden flare (amber glow)", `window="${win.slice(0, 240)}"`);
+      expect(!win.includes("bg-[#1E3A5F]"),
+        "button is not the old navy fill");
     }
 
     // ── Declined: filled amber + consent caution still shown ────────────────
-    startSection(`round ${round}: declined → filled amber, gate still warns`);
+    startSection(`round ${round}: declined → amber outline, gate still warns`);
     {
       const { status, html } = await fetchStudentHtml(admin.jar, declined.id);
       expect(status === 200, "student page loads", `status ${status}`);
-      expect(html.includes("bg-amber-500"),
-        "declined button is HIGHLIGHTED amber");
+      expect(html.includes("border-amber-500"),
+        "declined button is the amber-outline caution");
       expect(/declined marketing/i.test(html), "the declined-marketing caution is shown");
     }
   }
