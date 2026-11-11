@@ -8,7 +8,7 @@ import { trashRecord, RecycleBinNotFound } from "@/lib/recycle-bin";
 import { logActivity } from "@/lib/activity-logger";
 import { taskRelation } from "@/lib/task-visibility";
 import { refuseAssignment } from "@/lib/task-assignment";
-import { notifyTaskAssigned, notifyManagerOfTaskUpdate, summariseKeyTaskChanges } from "@/lib/task-notify";
+import { notifyTaskAssigned, notifyAssignerOfTaskUpdate, summariseKeyTaskChanges } from "@/lib/task-notify";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -147,10 +147,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       });
     }
 
-    // Tell the editor's manager about the key change. Built from the APPLIED
+    // Tell the task's assigner about the key change. Built from the APPLIED
     // patch so stripped or computed fields are never reported, and compared
     // against the pre-update row so a no-op PATCH says nothing.
-    void notifyManagerOfTaskUpdate({
+    void notifyAssignerOfTaskUpdate({
       taskId: updated.id,
       actorUserId: userId,
       changes: summariseKeyTaskChanges(patch, existing),

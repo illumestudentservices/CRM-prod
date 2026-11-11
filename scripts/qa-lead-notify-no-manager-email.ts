@@ -37,7 +37,7 @@ async function run() {
   const mgrEmp = await db.employee.create({ data: { userId: mgrUser.id, employeeId: `${tag}-MGR`, jobTitle: "RM", startDate: new Date() } });
   await db.employee.create({ data: { userId: icrUser.id, employeeId: `${tag}-ICR`, jobTitle: "ICR", startDate: new Date(), managerId: mgrEmp.id } });
 
-  const leadBase = { nationality: "T", countryOfResidence: "T", interestedProgram: "CS", studyLevel: "UNDERGRADUATE", intakeYear: 2027, intakeMonth: 9, createdById: icrUser.id, assignedICRId: icrUser.id };
+  const leadBase = { nationality: "T", countryOfResidence: "T", interestedProgram: "CS", studyLevel: "UNDERGRADUATE" as const, intakeYear: 2027, intakeMonth: 9, createdById: icrUser.id, assignedICRId: icrUser.id };
   const leadIds: string[] = [];
 
   try {

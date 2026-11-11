@@ -53,18 +53,27 @@ export function summariseKeyTaskChanges(
 }
 
 /**
- * Tells the editor's manager that their team member changed a task.
+ * Tells the task's ASSIGNER (the person who created it) that their assignee
+ * made a key change.
  *
- * ★ WHO: the manager of the person who made the change (resolveManager follows
- * Employee.managerId first, region second). An action by someone with no
- * manager, or whose manager is themselves, tells nobody — the same quiet-null
- * rule the lead notifications use.
+ * ★ WHO: Task.createdBy — the manager who handed the task out, NOT the editor's
+ * line manager. A manager hears about the tasks THEY assigned, not about every
+ * task one of their reports happens to touch. So:
+ *   • a task a rep created for themselves (assigner === editor) tells nobody;
+ *   • a task assigned by someone else does not reach the editor's manager just
+ *     because they are the manager.
+ *
+ * ★ CHANGED 2026-11-11 (was `notifyManagerOfTaskUpdate`): it used to email
+ * resolveManager(actor) — the editor's line manager — which copied a VP/manager
+ * on their report's OWN self-made tasks (Duarte's "getting plenty of these"
+ * complaint, TSK-0144). Scoping to the assigner matches the task notes thread,
+ * which is already creator↔assignee.
  *
  * Only KEY changes reach here (see summariseKeyTaskChanges); an empty list is a
  * no-op. Fire-and-forget: never throws, never blocks the update that already
  * saved.
  */
-export async function notifyManagerOfTaskUpdate(opts: {
+export async function notifyAssignerOfTaskUpdate(opts: {
   taskId: string;
   actorUserId: string;
   changes: string[];
@@ -74,47 +83,46 @@ export async function notifyManagerOfTaskUpdate(opts: {
 
     const task = await db.task.findUnique({
       where: { id: opts.taskId },
-      select: { id: true, taskNumber: true, title: true, status: true, dueDate: true, priority: true },
+      select: {
+        id: true, taskNumber: true, title: true, status: true, dueDate: true, priority: true,
+        createdBy: {
+          select: { user: { select: { id: true, name: true, email: true, isActive: true, deletedAt: true } } },
+        },
+      },
     });
     if (!task) return false;
 
-    // resolveManager lives with the lead notifications but is generic — it
-    // answers "who does this user report to", which is exactly the question here.
-    const { resolveManager } = await import("@/lib/lead-notifications");
-    const manager = await resolveManager(opts.actorUserId);
-    if (!manager) return false; // nobody to tell
+    const assigner = task.createdBy?.user;
+    // Nobody to tell, the assigner is gone, or the assigner is the very person
+    // who just made the change (which includes every self-assigned task).
+    if (!assigner || !assigner.isActive || assigner.deletedAt) return false;
+    if (assigner.id === opts.actorUserId) return false;
 
     const actor = await db.user.findUnique({
       where: { id: opts.actorUserId },
-      select: { name: true, email: true },
+      select: { name: true },
     });
-    if (manager.email === actor?.email) return false; // never email the editor themselves
-
     const actorName = actor?.name ?? "A team member";
 
-    // In-app bell for the manager, alongside the email record.
-    const managerUser = await db.user.findFirst({
-      where: { email: manager.email },
-      select: { id: true },
-    });
-    if (managerUser && managerUser.id !== opts.actorUserId) {
-      await db.notification
-        .create({
-          data: {
-            userId: managerUser.id,
-            title: "Task updated",
-            message: `${actorName} ${opts.changes[0]} — ${task.title}`,
-            type: "TASK_UPDATED",
-            link: `/tasks?taskId=${task.id}`,
-          },
-        })
-        .catch(() => { /* the email is the record; the bell is a bonus */ });
-    }
+    // In-app bell for the assigner, alongside the email record.
+    await db.notification
+      .create({
+        data: {
+          userId: assigner.id,
+          title: "Task updated",
+          message: `${actorName} ${opts.changes[0]} — ${task.title}`,
+          type: "TASK_UPDATED",
+          link: `/tasks?taskId=${task.id}`,
+        },
+      })
+      .catch(() => { /* the email is the record; the bell is a bonus */ });
+
+    if (!assigner.email) return false;
 
     const { sendTaskUpdatedEmail } = await import("@/lib/email");
     await sendTaskUpdatedEmail({
-      to: manager.email,
-      managerName: manager.name,
+      to: assigner.email,
+      managerName: assigner.name ?? "there",
       actorName,
       taskTitle: task.title,
       taskId: task.id,
@@ -127,7 +135,7 @@ export async function notifyManagerOfTaskUpdate(opts: {
     });
     return true;
   } catch (err) {
-    console.error("[task-notify] manager update notify failed for task", opts.taskId, err);
+    console.error("[task-notify] assigner update notify failed for task", opts.taskId, err);
     return false;
   }
 }
