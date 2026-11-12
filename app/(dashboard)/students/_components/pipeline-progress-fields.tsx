@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { focusFieldWhenReady } from "@/lib/lead-focus";
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_OUTCOMES } from "@/lib/lead-options";
+import { apiErrorMessage } from "@/lib/form-errors";
 import {
   SUBMISSION_METHOD_OPTIONS,
   OFFER_TYPE_OPTIONS,
@@ -199,7 +200,7 @@ export function PipelineProgressFields({
     setSaving(null);
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      toast({ title: d.error ?? "Could not save", variant: "destructive" });
+      toast({ title: "Could not save", description: apiErrorMessage(d, "Could not save"), variant: "destructive" });
       setLoaded(false); // force a reload so the screen stops showing a value that was refused
     }
   }
@@ -217,7 +218,7 @@ export function PipelineProgressFields({
     setSaving(null);
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      toast({ title: d.error ?? "Could not save", variant: "destructive" });
+      toast({ title: "Could not save", description: apiErrorMessage(d, "Could not save"), variant: "destructive" });
       setLoaded(false);
     }
   }

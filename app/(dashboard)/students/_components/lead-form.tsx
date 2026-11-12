@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PipelineProgressFields } from "./pipeline-progress-fields";
 import { focusFieldWhenReady } from "@/lib/lead-focus";
 import { cn } from "@/lib/utils";
+import { apiErrorMessage } from "@/lib/form-errors";
 import type { Lead, RecruitmentPartner, Institution, User } from "@prisma/client";
 import { displayName } from "@/lib/person-name";
 import {
@@ -618,13 +619,10 @@ export function LeadForm({
       const data = await response.json();
 
       if (!response.ok) {
-        // Surface first validation detail if available
-        const firstDetail = data.details?.fieldErrors
-          ? Object.entries(data.details.fieldErrors as Record<string, string[]>)
-              .map(([field, msgs]) => `${field}: ${msgs[0]}`)
-              .join(", ")
-          : null;
-        throw new Error(firstDetail ?? data.error ?? "Something went wrong");
+        // Surface BOTH field-level AND form-level validation errors. A strict()
+        // schema reports an unknown/empty key as a FORM error, which this used
+        // to drop — so the user saw a bare "Error" that named nothing.
+        throw new Error(apiErrorMessage(data));
       }
 
       // API returns `warning` key when a duplicate is detected (POST) or data.isDuplicate (PATCH)
