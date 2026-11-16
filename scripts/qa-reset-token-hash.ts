@@ -69,7 +69,9 @@ async function run() {
       expect("POST set-password with raw link → success", setRes.status === 200 && setJson.success === true, `${setRes.status} ${JSON.stringify(setJson)}`);
 
       const fresh = await db.user.findUnique({ where: { id: user.id }, select: { password: true } });
-      expect("the account password actually changed", !!fresh && await bcrypt.compare(newPw, fresh.password));
+      let changed = false;
+      if (fresh?.password) changed = await bcrypt.compare(newPw, fresh.password);
+      expect("the account password actually changed", changed);
 
       // ── Single-use: the raw token is now spent ──────────────────────────
       r = await getJson(`/api/auth/verify-reset-token?token=${raw}`);
