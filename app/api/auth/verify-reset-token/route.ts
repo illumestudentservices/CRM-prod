@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { validatePassword } from "@/lib/password";
+import { validatePassword, hashResetToken } from "@/lib/password";
 import { isPasswordReused, recordPasswordInHistory, PASSWORD_REUSED_MESSAGE } from "@/lib/password-history";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const record = await db.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: hashResetToken(token) },
       select: { usedAt: true, expiresAt: true },
     });
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const record = await db.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: hashResetToken(token) },
       include: { user: { select: { id: true } } },
     });
 

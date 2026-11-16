@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 
 export interface PasswordValidation {
   valid: boolean;
@@ -26,6 +26,21 @@ export function validatePassword(password: string): PasswordValidation {
 /** Generates a cryptographically secure random token for magic links */
 export function generateResetToken(): string {
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * The value stored for a reset token — SHA-256 of the raw token, never the raw
+ * token itself. The raw token lives only in the emailed link and the user's
+ * browser; the database keeps a one-way hash, so a leaked DB dump, backup, or
+ * read-only SQL exposure yields no usable reset links. SHA-256 (not bcrypt) is
+ * right here: the input is already 256 bits of randomness, so it needs no work
+ * factor, and the lookup must be an indexed equality on `@unique token`.
+ *
+ * Deterministic, so create (store the hash) and verify (hash the presented
+ * token, look it up) agree.
+ */
+export function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 /** Generates a secure random temporary password that meets complexity rules */

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { generateResetToken } from "@/lib/password";
+import { generateResetToken, hashResetToken } from "@/lib/password";
 
 /**
  * Creates a one-time password-reset magic link token for a user.
@@ -10,11 +10,12 @@ export async function createMagicLink(userId: string, expiryHours = 24): Promise
   // Invalidate existing tokens
   await db.passwordResetToken.deleteMany({ where: { userId } });
 
+  // The raw token travels only in the emailed link; the DB stores its SHA-256.
   const token = generateResetToken();
   const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
 
   await db.passwordResetToken.create({
-    data: { userId, token, expiresAt },
+    data: { userId, token: hashResetToken(token), expiresAt },
   });
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
