@@ -323,7 +323,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     announcements: ["read"],
     directory: ["read"],
     knowledge_base: ["read"],
-    whatsapp: ["read", "write"],
+    whatsapp: [],
     markets: ["read", "export"],
     stakeholders: ["read"],
     activities: ["read"],
@@ -356,7 +356,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     announcements: ["read"],
     directory: ["read"],
     knowledge_base: ["read"],
-    whatsapp: ["read", "write"],
+    whatsapp: [],
     markets: ["read"],
     stakeholders: ["read"],
     activities: ["read", "write"],
@@ -388,7 +388,7 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     announcements: ["read", "write", "approve"],
     directory: ["read"],
     knowledge_base: ["read"],
-    whatsapp: ["read"],
+    whatsapp: [],
     markets: ["read", "export"],
     stakeholders: ["read", "export"],
     activities: ["read", "export"],
@@ -476,12 +476,19 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "ADMISSIONS_SUPPORT",
     "VP_GLOBAL_SALES",
   ],
+  // 2026-11-19: ACCOUNT_MANAGER / ADMISSIONS_SUPPORT / VP_GLOBAL_SALES hold the
+  // matching `read` in PERMISSION_MATRIX, so these links were drawn in their
+  // sidebars and bounced to /dashboard. Opened here to match the matrix (the
+  // deliberate read policy); pages + APIs stay role-scoped and field-redacted.
   students: [
     "SUPER_ADMIN",
     "HQ_EXECUTIVE",
     "HQ_ANALYTICS",
     "REGIONAL_MANAGER",
     "ICR",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
   sources: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   // Spec 32: RM creates and accepts, ICR completes, Client Relations Director
@@ -502,6 +509,9 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "INSTITUTION_CLIENT",
     "HR_MANAGER",
     "EMPLOYEE",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
   analytics: [
     "SUPER_ADMIN",
@@ -509,13 +519,22 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "HQ_ANALYTICS",
     "REGIONAL_MANAGER",
     "ICR",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
+  // EMPLOYEE + HR_MANAGER hold events:read too, so their Events link bounced.
   events: [
     "SUPER_ADMIN",
     "HQ_EXECUTIVE",
     "HQ_ANALYTICS",
     "REGIONAL_MANAGER",
     "ICR",
+    "EMPLOYEE",
+    "HR_MANAGER",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
   reports: [
     "SUPER_ADMIN",
@@ -523,6 +542,9 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
     "HQ_ANALYTICS",
     "REGIONAL_MANAGER",
     "INSTITUTION_CLIENT",
+    "ACCOUNT_MANAGER",
+    "ADMISSIONS_SUPPORT",
+    "VP_GLOBAL_SALES",
   ],
   // HQ_EXECUTIVE added 2026-10-09. The sidebar is drawn from PERMISSION_MATRIX
   // (via NAV_RESOURCE_MAP: hr -> erp.read) while proxy.ts admits the route from
@@ -538,24 +560,24 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   // isHR, /hr/employees/[id] already redirects anyone who is neither HR nor the
   // subject, and GET /api/hr/attendance and /api/hr/leave pin a non-HR caller
   // to their own rows. REGIONAL_MANAGER and ICR have had this page all along.
-  hr: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR", "HQ_EXECUTIVE"],
+  hr: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR", "HQ_EXECUTIVE", "ACCOUNT_MANAGER", "VP_GLOBAL_SALES"],
   travel: ["SUPER_ADMIN", "HR_MANAGER", "EMPLOYEE", "REGIONAL_MANAGER", "ICR"],
-  risk_compliance: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER"],
-  knowledge: ["SUPER_ADMIN", "HR_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "EMPLOYEE"],
+  risk_compliance: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
+  knowledge: ["SUPER_ADMIN", "HR_MANAGER", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "EMPLOYEE", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
   whatsapp: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER"],
-  markets: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
-  stakeholders: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  markets: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
+  stakeholders: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
   activities: ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
   // HQ_EXECUTIVE added 2026-10-09, same drift as `hr` above: they hold
   // `tasks: ["read"]` in PERMISSION_MATRIX, so the Tasks link was drawn in
   // their sidebar and bounced them to /dashboard when clicked.
-  tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE", "HQ_EXECUTIVE"],
+  tasks: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE", "HQ_EXECUTIVE", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
   settings:     ["SUPER_ADMIN"],
   activity_log: ["SUPER_ADMIN"],
   recycle_bin:  ["SUPER_ADMIN"],
   // ─── Redesign nav (Phases 2–7) ───────────────────────────────────────────
   // HR_MANAGER + EMPLOYEE added 2026-11-09 — opened to all internal staff.
-  recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
+  recruitment_network:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
   // ACCOUNT_MANAGER and VP_GLOBAL_SALES added 2026-08-15. Both hold
   // `recruitment_planning: ["read","approve","export"]` in PERMISSION_MATRIX and
   // both are NAMED STEPS in the plan approval chain — PR #62 routed
@@ -567,11 +589,11 @@ export const NAV_PERMISSIONS: Record<string, Role[]> = {
   // Measured before the fix: ACCOUNT_MANAGER → 307 /dashboard.
   recruitment_planning: [
     "SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR",
-    "ACCOUNT_MANAGER", "VP_GLOBAL_SALES",
+    "ACCOUNT_MANAGER", "VP_GLOBAL_SALES", "ADMISSIONS_SUPPORT",
   ],
-  market_intelligence:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR"],
+  market_intelligence:  ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
   // HR_MANAGER + EMPLOYEE added 2026-11-09 — opened to all internal staff.
-  field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE"],
+  field_operations:     ["SUPER_ADMIN", "HQ_EXECUTIVE", "HQ_ANALYTICS", "REGIONAL_MANAGER", "ICR", "HR_MANAGER", "EMPLOYEE", "ACCOUNT_MANAGER", "ADMISSIONS_SUPPORT", "VP_GLOBAL_SALES"],
 };
 
 export type { Role, Resource, Action };
