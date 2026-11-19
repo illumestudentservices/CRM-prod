@@ -72,7 +72,7 @@ function run(round: number) {
     f({ status: "ARCHIVED", institutionId: "D", institution: "Delta", icrId: "4", intakeYear: 2027, intakeMonth: 9, region: "China", icrEnr: 99, confidence: 5 }),
   ];
 
-  const { intakeRows, regionRows, institutionRows, grand } = rollupForecasts(rows);
+  const { intakeRows, regionRows, institutionRows, segmentRows, grand } = rollupForecasts(rows);
 
   // Grand enrolments: 10 + 8 + 5 = 23.
   expect("grand enrolments = 23", grand.enrolments === 23, `got ${grand.enrolments}`);
@@ -105,6 +105,13 @@ function run(round: number) {
   const instSum = institutionRows.reduce((s, r) => s + r.enrolments, 0);
   expect("by-institution sums to grand", instSum === grand.enrolments, `${instSum} vs ${grand.enrolments}`);
 
+  // By segment — §3. All rows use DIRECT_UG, so that segment carries everything.
+  expect("4 segments always shown, canonical order", segmentRows.length === 4 && segmentRows[0].segment === "DIRECT_UG");
+  const dug = segmentRows.find((r) => r.segment === "DIRECT_UG")!;
+  expect("Direct-UG segment = 23 enrolments, n=3", dug.enrolments === 23 && dug.n === 3, `got ${dug.enrolments}/${dug.n}`);
+  expect("empty segments carry 0", segmentRows.filter((r) => r.segment !== "DIRECT_UG").every((r) => r.enrolments === 0 && r.n === 0));
+  expect("by-segment sums to grand", segmentRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
+
   // Reconcile all breakdowns.
   expect("by-intake sums to grand", intakeRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
   expect("by-region sums to grand", regionRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
@@ -124,6 +131,7 @@ function run(round: number) {
   expect("empty => grand.n 0, no rows, variance null",
     empty.grand.n === 0 && empty.intakeRows.length === 0 && empty.regionRows.length === 0 &&
     empty.institutionRows.length === 0 && bucketVariance(empty.grand) === null);
+  expect("empty => 4 zeroed segment rows", empty.segmentRows.length === 4 && empty.segmentRows.every((r) => r.enrolments === 0 && r.n === 0));
 }
 
 for (let r = 1; r <= 3; r++) run(r);

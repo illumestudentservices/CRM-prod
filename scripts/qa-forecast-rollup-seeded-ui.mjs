@@ -70,6 +70,7 @@ try {
   ok("By intake table present", (await page.getByRole("heading", { name: /By intake/i }).count()) >= 1);
   ok("By region table present", (await page.getByRole("heading", { name: /By region/i }).count()) >= 1);
   ok("By institution table present", (await page.getByRole("heading", { name: /By institution/i }).count()) >= 1);
+  ok("By segment table present", (await page.getByRole("heading", { name: /By segment/i }).count()) >= 1);
   ok("Forecast vs Actual section present", (await page.getByRole("heading", { name: /Forecast vs Actual/i }).count()) >= 1);
 
   const body = await page.locator("body").innerText();
@@ -85,6 +86,9 @@ try {
   // Institution row totals 19 too (single institution).
   const instRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} College`) }).innerText().catch(() => "");
   ok("institution row totals 19", /\b19\b/.test(instRow), `row="${instRow.replace(/\s+/g, " ")}"`);
+  // By segment: all seeded forecasts use Direct — Undergraduate, so it carries 19.
+  const segRow = await page.getByRole("row", { name: /Direct — Undergraduate/ }).innerText().catch(() => "");
+  ok("Direct-UG segment row totals 19", /\b19\b/.test(segRow), `row="${segRow.replace(/\s+/g, " ")}"`);
   // Forecast vs Actual: Sep 2027 forecast 12 vs actual 10 → -17%.
   ok("Forecast-vs-Actual shows -17% variance", /-17%/.test(body), "expected -17% in body");
 } catch (e) {

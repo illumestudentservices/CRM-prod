@@ -228,6 +228,8 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   const byIntake = new Map<string, RollupBucket & { year: number; month: number }>();
   const byRegion = new Map<string, RollupBucket>();
   const byInstitution = new Map<string, RollupBucket & { institution: string }>();
+  const bySegment = new Map<ForecastSegmentKey, RollupBucket>();
+
   const grand = emptyBucket();
 
   for (const f of forecastsNewestFirst) {
@@ -263,6 +265,25 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
     if (!byInstitution.has(f.institutionId)) byInstitution.set(f.institutionId, { ...emptyBucket(), institution: f.institution.name });
     add(byInstitution.get(f.institutionId)!);
 
+    // §3: the four segments make up the forecast. Here the per-segment effective
+    // figures are totalled; actuals are not segmented, so segment buckets carry
+    // no Forecast-vs-Actual and `n` counts only the forecasts that actually
+    // forecast activity in that segment.
+    for (const s of f.segments) {
+      const ev = effectiveValues(s);
+      if (!bySegment.has(s.segment)) bySegment.set(s.segment, emptyBucket());
+      const b = bySegment.get(s.segment)!;
+      const active = ev.applications > 0 || ev.deposits > 0 || ev.enrolments > 0;
+      if (active) {
+        b.n += 1;
+        if (f.confidenceScore != null) { b.confSum += f.confidenceScore; b.confN += 1; }
+      }
+      b.applications += ev.applications;
+      b.deposits += ev.deposits;
+      b.enrolments += ev.enrolments;
+      b.weighted += ev.enrolments * weight;
+    }
+
     add(grand);
   }
 
@@ -272,8 +293,10 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
     .sort((a, b) => b.enrolments - a.enrolments || a.region.localeCompare(b.region));
   const institutionRows = [...byInstitution.values()]
     .sort((a, b) => b.enrolments - a.enrolments || a.institution.localeCompare(b.institution));
+  // Canonical §3 order, all four always shown.
+  const segmentRows = FORECAST_SEGMENTS.map((segment) => ({ segment, ...(bySegment.get(segment) ?? emptyBucket()) }));
 
-  return { intakeRows, regionRows, institutionRows, grand };
+  return { intakeRows, regionRows, institutionRows, segmentRows, grand };
 }
 
 // ─── Direction ───────────────────────────────────────────────────────────────

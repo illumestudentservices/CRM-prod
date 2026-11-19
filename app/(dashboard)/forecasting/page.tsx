@@ -6,7 +6,7 @@ import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import {
   totals, rollupForecasts, bucketAvgConfidence, bucketVariance,
-  type RollupBucket, MATURITY_LABELS,
+  type RollupBucket, MATURITY_LABELS, SEGMENT_LABELS,
 } from "@/lib/forecasting";
 
 /**
@@ -295,6 +295,7 @@ function RollupSummary({
   intakeRows,
   regionRows,
   institutionRows,
+  segmentRows,
   grand,
 }: ReturnType<typeof rollupForecasts>) {
   if (grand.n === 0) {
@@ -345,6 +346,10 @@ function RollupSummary({
       <BreakdownTable
         heading="By institution" firstCol="Institution" grand={grand}
         rows={institutionRows.map((r) => ({ key: r.institution, label: r.institution, bucket: r }))}
+      />
+      <BreakdownTable
+        heading="By segment" firstCol="Segment" grand={grand}
+        rows={segmentRows.map((r) => ({ key: r.segment, label: SEGMENT_LABELS[r.segment], bucket: r }))}
       />
 
       {/* Forecast vs Actual — Spec Pillar 6 KPI (Accuracy = Actual ÷ Forecast). */}
