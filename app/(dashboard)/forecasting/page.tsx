@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import {
-  totals, rollupForecasts, bucketAvgConfidence, bucketVariance,
+  totals, rollupForecasts, buildOutlookExports, bucketAvgConfidence, bucketVariance,
   type RollupBucket, MATURITY_LABELS, SEGMENT_LABELS,
 } from "@/lib/forecasting";
+import { ExportButton } from "@/components/shared/export-button";
 
 /**
  * Forecasting dashboard (spec §29-equivalent).
@@ -113,6 +114,7 @@ export default async function ForecastingPage({
 
   // Current forecast per intake, region and institution (dedup + effective).
   const rollup = rollupForecasts(forecasts);
+  const exportSections = buildOutlookExports(rollup);
 
   function row(f: (typeof forecasts)[number]) {
     const t = totals(f.segments);
@@ -183,6 +185,11 @@ export default async function ForecastingPage({
       <div className="flex flex-wrap items-center gap-2">
         {tab("list", "Forecasts", forecasts.length)}
         {tab("summary", "Summary")}
+        {view === "summary" && rollup.grand.n > 0 && (
+          <div className="ml-auto">
+            <ExportButton exports={exportSections} title="Projected Enrollment Outlook" />
+          </div>
+        )}
       </div>
 
       {view === "summary" ? (

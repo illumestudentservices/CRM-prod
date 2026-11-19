@@ -72,6 +72,7 @@ try {
   ok("By institution table present", (await page.getByRole("heading", { name: /By institution/i }).count()) >= 1);
   ok("By segment table present", (await page.getByRole("heading", { name: /By segment/i }).count()) >= 1);
   ok("Forecast vs Actual section present", (await page.getByRole("heading", { name: /Forecast vs Actual/i }).count()) >= 1);
+  ok("Export button present on Summary", (await page.getByRole("button", { name: /Export/i }).count()) >= 1);
 
   const body = await page.locator("body").innerText();
   ok("seeded region name shows", body.includes(`ZZ ${tag} Region`));

@@ -299,6 +299,91 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   return { intakeRows, regionRows, institutionRows, segmentRows, grand };
 }
 
+// ─── Export (Projected Enrollment Outlook → CSV / PDF) ───────────────────────
+
+const SHORT_MONTHS = [
+  "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Matches ExportSection in components/shared/export-button.tsx (structural). */
+export interface OutlookExportSection {
+  label: string;
+  filename: string;
+  columns: { key: string; header: string }[];
+  data: Record<string, unknown>[];
+}
+
+function confLabel(b: RollupBucket): string {
+  const v = bucketAvgConfidence(b);
+  return v === null ? "—" : `${v}/5`;
+}
+function varianceLabel(v: { variance: number; percent: number | null }): string {
+  return `${v.variance > 0 ? "+" : ""}${v.variance}${v.percent === null ? "" : ` (${v.percent > 0 ? "+" : ""}${v.percent}%)`}`;
+}
+
+/**
+ * Turn a roll-up into the export datasets behind the Summary's Export button —
+ * the same tables the screen shows, as plain rows the shared ExportButton
+ * renders to CSV or the branded PDF. Pure and serialisable so the server page
+ * can pass it straight to the client button, and unit-testable on its own.
+ *
+ * Forecast-vs-Actual sections appear only when that grouping has an actual
+ * recorded, so the export menu stays clean when none do.
+ */
+export function buildOutlookExports(r: ReturnType<typeof rollupForecasts>): OutlookExportSection[] {
+  const metricCols = (header: string) => [
+    { key: "group", header },
+    { key: "forecasts", header: "Forecasts" },
+    { key: "applications", header: "Applications" },
+    { key: "deposits", header: "Deposits" },
+    { key: "enrolments", header: "Enrolments" },
+    { key: "weighted", header: "Weighted" },
+    { key: "confidence", header: "Avg confidence" },
+  ];
+  const metricRow = (group: string, b: RollupBucket): Record<string, unknown> => ({
+    group,
+    forecasts: b.n,
+    applications: b.applications,
+    deposits: b.deposits,
+    enrolments: b.enrolments,
+    weighted: Math.round(b.weighted),
+    confidence: confLabel(b),
+  });
+
+  const sections: OutlookExportSection[] = [
+    { label: "By intake", filename: "forecast-by-intake", columns: metricCols("Intake"),
+      data: r.intakeRows.map((x) => metricRow(`${SHORT_MONTHS[x.month]} ${x.year}`, x)) },
+    { label: "By region", filename: "forecast-by-region", columns: metricCols("Region"),
+      data: r.regionRows.map((x) => metricRow(x.region, x)) },
+    { label: "By institution", filename: "forecast-by-institution", columns: metricCols("Institution"),
+      data: r.institutionRows.map((x) => metricRow(x.institution, x)) },
+    { label: "By segment", filename: "forecast-by-segment", columns: metricCols("Segment"),
+      data: r.segmentRows.map((x) => metricRow(SEGMENT_LABELS[x.segment], x)) },
+  ];
+
+  const vCols = (header: string) => [
+    { key: "group", header },
+    { key: "forecast", header: "Forecast" },
+    { key: "actual", header: "Actual" },
+    { key: "variance", header: "Variance" },
+  ];
+  const vData = <T,>(rows: readonly T[], label: (x: T) => string, bucket: (x: T) => RollupBucket) =>
+    rows
+      .map((x) => ({ label: label(x), v: bucketVariance(bucket(x)) }))
+      .filter((x): x is typeof x & { v: NonNullable<typeof x.v> } => x.v !== null)
+      .map((x) => ({ group: x.label, forecast: x.v.forecast, actual: x.v.actual, variance: varianceLabel(x.v) }));
+
+  const fvaIntake = vData(r.intakeRows, (x) => `${SHORT_MONTHS[x.month]} ${x.year}`, (x) => x);
+  if (fvaIntake.length) sections.push({ label: "Forecast vs Actual — intake", filename: "forecast-vs-actual-intake", columns: vCols("Intake"), data: fvaIntake });
+  const fvaRegion = vData(r.regionRows, (x) => x.region, (x) => x);
+  if (fvaRegion.length) sections.push({ label: "Forecast vs Actual — region", filename: "forecast-vs-actual-region", columns: vCols("Region"), data: fvaRegion });
+  const fvaInst = vData(r.institutionRows, (x) => x.institution, (x) => x);
+  if (fvaInst.length) sections.push({ label: "Forecast vs Actual — institution", filename: "forecast-vs-actual-institution", columns: vCols("Institution"), data: fvaInst });
+
+  return sections;
+}
+
 // ─── Direction ───────────────────────────────────────────────────────────────
 
 export interface Direction {
