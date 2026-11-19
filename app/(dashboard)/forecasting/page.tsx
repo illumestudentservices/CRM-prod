@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { totals, MATURITY_LABELS } from "@/lib/forecasting";
+import { totals, rollupForecasts, MATURITY_LABELS } from "@/lib/forecasting";
 
 /**
  * Forecasting dashboard (spec §29-equivalent).
@@ -12,6 +12,10 @@ import { totals, MATURITY_LABELS } from "@/lib/forecasting";
  * A server component so the row scope is decided once, on the server, against
  * the session — the list a user sees is the list they are entitled to, not a
  * client filter over everything.
+ *
+ * Two views, chosen by ?view: the per-forecast LIST (default) and a roll-up
+ * SUMMARY that totals the expected numbers by intake and by region — the one
+ * screen a VP or RM opens instead of adding forty rows in their head.
  */
 
 export const dynamic = "force-dynamic";
@@ -59,8 +63,16 @@ const MONTHS = [
   "", "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+const MONTHS_SHORT = [
+  "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
-export default async function ForecastingPage() {
+export default async function ForecastingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ view?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -69,6 +81,8 @@ export default async function ForecastingPage() {
     redirect("/dashboard");
   }
 
+  const view = (await searchParams)?.view === "summary" ? "summary" : "list";
+
   const forecasts = await db.forecast.findMany({
     where: scopeFilter(role, session.user.id),
     orderBy: [{ periodYear: "desc" }, { periodMonth: "desc" }],
@@ -76,8 +90,11 @@ export default async function ForecastingPage() {
       id: true, periodYear: true, periodMonth: true, status: true,
       intakeYear: true, intakeMonth: true, confidenceScore: true,
       pipelineMaturity: true,
+      institutionId: true, icrId: true,
       institution: { select: { name: true } },
-      icr: { select: { name: true, email: true } },
+      // Region of the ICR who owns the forecast — the same key the review chain
+      // scopes by (lib/forecasting.ts canReview uses icr.regionId).
+      icr: { select: { name: true, email: true, region: { select: { name: true } } } },
       segments: {
         select: {
           segment: true,
@@ -90,6 +107,9 @@ export default async function ForecastingPage() {
 
   const open = forecasts.filter((f) => f.status !== "ACCEPTED" && f.status !== "ARCHIVED");
   const closed = forecasts.filter((f) => f.status === "ACCEPTED" || f.status === "ARCHIVED");
+
+  // Current forecast per intake and per region (dedup + effective totals).
+  const { intakeRows, regionRows, grand } = rollupForecasts(forecasts);
 
   function row(f: (typeof forecasts)[number]) {
     const t = totals(f.segments);
@@ -116,9 +136,6 @@ export default async function ForecastingPage() {
             <span className="font-medium text-slate-700 dark:text-slate-300">
               {t.effective.enrolments} enrolments
             </span>
-            {/* Spec §13: when the RM has adjusted, both numbers are shown. The
-                whole point of keeping them is that a reader can see the
-                disagreement, so hiding the original here would waste it. */}
             {t.adjusted && t.icr.enrolments !== t.effective.enrolments && (
               <span className="text-amber-600 dark:text-amber-400">
                 RM adjusted from {t.icr.enrolments}
@@ -132,6 +149,24 @@ export default async function ForecastingPage() {
     );
   }
 
+  const tab = (key: "list" | "summary", label: string, count?: number) => {
+    const active = view === key;
+    const href = key === "summary" ? "/forecasting?view=summary" : "/forecasting";
+    return (
+      <Link
+        href={href}
+        className={
+          "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+          (active
+            ? "border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60")
+        }
+      >
+        {label}{count !== undefined ? ` ${count}` : ""}
+      </Link>
+    );
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -142,27 +177,166 @@ export default async function ForecastingPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {tab("list", "Forecasts", forecasts.length)}
+        {tab("summary", "Summary")}
+      </div>
+
+      {view === "summary" ? (
+        <RollupSummary intakeRows={intakeRows} regionRows={regionRows} grand={grand} />
+      ) : (
+        <>
+          <section>
+            <h2 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+              Open forecasts ({open.length})
+            </h2>
+            {open.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                No forecasts in progress.
+              </p>
+            ) : (
+              <ul className="space-y-2">{open.map(row)}</ul>
+            )}
+          </section>
+
+          {closed.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                Accepted ({closed.length})
+              </h2>
+              <ul className="space-y-2">{closed.map(row)}</ul>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function num(n: number) {
+  return n.toLocaleString("en-CA");
+}
+
+function RollupSummary({
+  intakeRows,
+  regionRows,
+  grand,
+}: ReturnType<typeof rollupForecasts>) {
+  if (grand.n === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+        No forecasts to summarise yet.
+      </p>
+    );
+  }
+
+  const Th = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
+    <th className={`px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 ${right ? "text-right" : "text-left"}`}>
+      {children}
+    </th>
+  );
+  const Td = ({ children, right, strong }: { children: React.ReactNode; right?: boolean; strong?: boolean }) => (
+    <td className={`px-3 py-2.5 text-sm ${right ? "text-right tabular-nums" : "text-left"} ${strong ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
+      {children}
+    </td>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Headline */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          ["Expected enrolments", grand.enrolments, "text-emerald-600 dark:text-emerald-400"],
+          ["Deposits", grand.deposits, "text-slate-900 dark:text-slate-100"],
+          ["Applications", grand.applications, "text-slate-900 dark:text-slate-100"],
+          ["Forecasts counted", grand.n, "text-slate-900 dark:text-slate-100"],
+        ].map(([label, value, cls]) => (
+          <div key={label as string} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{label as string}</p>
+            <p className={`mt-1 text-2xl font-bold ${cls as string}`}>{num(value as number)}</p>
+          </div>
+        ))}
+      </div>
+      <p className="-mt-2 text-xs text-slate-400 dark:text-slate-500">
+        The current (most recent) forecast is counted once per institution, ICR and intake, using
+        the Regional‑Manager‑adjusted figure where one exists. Archived forecasts are excluded.
+      </p>
+
+      {/* By intake */}
       <section>
-        <h2 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-          Open forecasts ({open.length})
-        </h2>
-        {open.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
-            No forecasts in progress.
-          </p>
-        ) : (
-          <ul className="space-y-2">{open.map(row)}</ul>
-        )}
+        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">By intake</h2>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table className="w-full">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
+              <tr>
+                <Th>Intake</Th>
+                <Th right>Forecasts</Th>
+                <Th right>Applications</Th>
+                <Th right>Deposits</Th>
+                <Th right>Enrolments</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {intakeRows.map((r) => (
+                <tr key={`${r.year}-${r.month}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <Td strong>{MONTHS_SHORT[r.month]} {r.year}</Td>
+                  <Td right>{num(r.n)}</Td>
+                  <Td right>{num(r.applications)}</Td>
+                  <Td right>{num(r.deposits)}</Td>
+                  <Td right strong>{num(r.enrolments)}</Td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+              <tr>
+                <Td strong>Total</Td>
+                <Td right strong>{num(grand.n)}</Td>
+                <Td right strong>{num(grand.applications)}</Td>
+                <Td right strong>{num(grand.deposits)}</Td>
+                <Td right strong>{num(grand.enrolments)}</Td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </section>
 
-      {closed.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-            Accepted ({closed.length})
-          </h2>
-          <ul className="space-y-2">{closed.map(row)}</ul>
-        </section>
-      )}
+      {/* By region */}
+      <section>
+        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">By region</h2>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table className="w-full">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
+              <tr>
+                <Th>Region</Th>
+                <Th right>Forecasts</Th>
+                <Th right>Applications</Th>
+                <Th right>Deposits</Th>
+                <Th right>Enrolments</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {regionRows.map((r) => (
+                <tr key={r.region} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <Td strong>{r.region}</Td>
+                  <Td right>{num(r.n)}</Td>
+                  <Td right>{num(r.applications)}</Td>
+                  <Td right>{num(r.deposits)}</Td>
+                  <Td right strong>{num(r.enrolments)}</Td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+              <tr>
+                <Td strong>Total</Td>
+                <Td right strong>{num(grand.n)}</Td>
+                <Td right strong>{num(grand.applications)}</Td>
+                <Td right strong>{num(grand.deposits)}</Td>
+                <Td right strong>{num(grand.enrolments)}</Td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

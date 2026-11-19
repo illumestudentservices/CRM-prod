@@ -147,6 +147,78 @@ export function totals(segments: readonly SegmentValues[]) {
   return { icr, effective, adjusted: segments.some(wasAdjusted) };
 }
 
+// ─── Roll-up summary ─────────────────────────────────────────────────────────
+
+/** The minimal forecast shape the roll-up needs. */
+export interface RollupInput {
+  status: ForecastStatus;
+  institutionId: string;
+  icrId: string;
+  intakeYear: number;
+  intakeMonth: number;
+  icr: { region: { name: string } | null };
+  segments: readonly SegmentValues[];
+}
+
+export interface RollupBucket {
+  n: number;
+  applications: number;
+  deposits: number;
+  enrolments: number;
+}
+const emptyBucket = (): RollupBucket => ({ n: 0, applications: 0, deposits: 0, enrolments: 0 });
+
+/**
+ * Totals the *current* forecast for each intake and each region.
+ *
+ * Forecasts are re-made every month for the same intake, so the raw rows hold
+ * several estimates of the same thing; summing them all would multiply the
+ * business plan. The caller passes rows ordered newest period first, so the
+ * FIRST row seen for a (institution, ICR, intake) key is the current one and
+ * the rest are history to drop. ARCHIVED rows are superseded and excluded.
+ *
+ * The figure summed is the effective (RM-adjusted where set) value — the number
+ * the business actually plans against.
+ */
+export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
+  const seen = new Set<string>();
+  const byIntake = new Map<string, RollupBucket & { year: number; month: number }>();
+  const byRegion = new Map<string, RollupBucket>();
+  const grand = emptyBucket();
+
+  for (const f of forecastsNewestFirst) {
+    if (f.status === "ARCHIVED") continue;
+    const key = `${f.institutionId}|${f.icrId}|${f.intakeYear}|${f.intakeMonth}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const e = totals(f.segments).effective;
+    const add = (b: RollupBucket) => {
+      b.n += 1;
+      b.applications += e.applications;
+      b.deposits += e.deposits;
+      b.enrolments += e.enrolments;
+    };
+
+    const ik = `${f.intakeYear}-${String(f.intakeMonth).padStart(2, "0")}`;
+    if (!byIntake.has(ik)) byIntake.set(ik, { ...emptyBucket(), year: f.intakeYear, month: f.intakeMonth });
+    add(byIntake.get(ik)!);
+
+    const rk = f.icr.region?.name ?? "No region";
+    if (!byRegion.has(rk)) byRegion.set(rk, emptyBucket());
+    add(byRegion.get(rk)!);
+
+    add(grand);
+  }
+
+  const intakeRows = [...byIntake.values()].sort((a, b) => a.year - b.year || a.month - b.month);
+  const regionRows = [...byRegion.entries()]
+    .map(([region, b]) => ({ region, ...b }))
+    .sort((a, b) => b.enrolments - a.enrolments || a.region.localeCompare(b.region));
+
+  return { intakeRows, regionRows, grand };
+}
+
 // ─── Direction ───────────────────────────────────────────────────────────────
 
 export interface Direction {
