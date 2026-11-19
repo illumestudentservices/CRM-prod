@@ -149,13 +149,20 @@ export function totals(segments: readonly SegmentValues[]) {
 
 // ─── Roll-up summary ─────────────────────────────────────────────────────────
 
-/** The minimal forecast shape the roll-up needs. */
+/**
+ * The minimal forecast shape the roll-up needs. Spec Pillar 6 (Forecast
+ * Sub-Module): expected enrolments and confidence per institution/region, plus
+ * Forecast-vs-Actual variance — so the roll-up carries confidence and actuals.
+ */
 export interface RollupInput {
   status: ForecastStatus;
   institutionId: string;
+  institution: { name: string };
   icrId: string;
   intakeYear: number;
   intakeMonth: number;
+  confidenceScore: number | null;
+  actualEnrolments: number | null;
   icr: { region: { name: string } | null };
   segments: readonly SegmentValues[];
 }
@@ -165,11 +172,44 @@ export interface RollupBucket {
   applications: number;
   deposits: number;
   enrolments: number;
+  /** Confidence-weighted enrolments: Σ enrolments × (confidence/5). */
+  weighted: number;
+  /** Running sum / count of stated confidence scores, for the average. */
+  confSum: number;
+  confN: number;
+  /** Forecast-vs-Actual, over the rows that have an actual recorded. */
+  actual: number;
+  forecastWithActual: number;
+  withActualN: number;
 }
-const emptyBucket = (): RollupBucket => ({ n: 0, applications: 0, deposits: 0, enrolments: 0 });
+const emptyBucket = (): RollupBucket => ({
+  n: 0, applications: 0, deposits: 0, enrolments: 0,
+  weighted: 0, confSum: 0, confN: 0,
+  actual: 0, forecastWithActual: 0, withActualN: 0,
+});
+
+/** Average confidence (1–5, one decimal) over the forecasts that stated one. */
+export function bucketAvgConfidence(b: RollupBucket): number | null {
+  return b.confN ? Math.round((b.confSum / b.confN) * 10) / 10 : null;
+}
 
 /**
- * Totals the *current* forecast for each intake and each region.
+ * Forecast-vs-Actual variance for a bucket — Spec §31 / Pillar 6 KPI
+ * "Forecast Accuracy (%) = (Actual / Forecast) × 100". `null` until at least
+ * one actual is recorded. `percent` is the signed variance (actual−forecast)
+ * over forecast; accuracy % is `100 + percent`.
+ */
+export function bucketVariance(b: RollupBucket):
+  | { forecast: number; actual: number; variance: number; percent: number | null }
+  | null {
+  if (b.withActualN === 0) return null;
+  const variance = b.actual - b.forecastWithActual;
+  const percent = b.forecastWithActual === 0 ? null : Math.round((variance / b.forecastWithActual) * 100);
+  return { forecast: b.forecastWithActual, actual: b.actual, variance, percent };
+}
+
+/**
+ * Totals the *current* forecast for each intake, region and institution.
  *
  * Forecasts are re-made every month for the same intake, so the raw rows hold
  * several estimates of the same thing; summing them all would multiply the
@@ -178,12 +218,16 @@ const emptyBucket = (): RollupBucket => ({ n: 0, applications: 0, deposits: 0, e
  * the rest are history to drop. ARCHIVED rows are superseded and excluded.
  *
  * The figure summed is the effective (RM-adjusted where set) value — the number
- * the business actually plans against.
+ * the business actually plans against. A confidence-weighted figure and the
+ * Forecast-vs-Actual totals are carried alongside for the Projected Enrollment
+ * Outlook (Spec Pillar 6). A forecast with no stated confidence is counted in
+ * full (weight 1.0) and simply left out of the average-confidence figure.
  */
 export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   const seen = new Set<string>();
   const byIntake = new Map<string, RollupBucket & { year: number; month: number }>();
   const byRegion = new Map<string, RollupBucket>();
+  const byInstitution = new Map<string, RollupBucket & { institution: string }>();
   const grand = emptyBucket();
 
   for (const f of forecastsNewestFirst) {
@@ -193,11 +237,19 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
     seen.add(key);
 
     const e = totals(f.segments).effective;
+    const weight = (f.confidenceScore ?? 5) / 5; // no stated confidence ⇒ full
     const add = (b: RollupBucket) => {
       b.n += 1;
       b.applications += e.applications;
       b.deposits += e.deposits;
       b.enrolments += e.enrolments;
+      b.weighted += e.enrolments * weight;
+      if (f.confidenceScore != null) { b.confSum += f.confidenceScore; b.confN += 1; }
+      if (f.actualEnrolments != null) {
+        b.actual += f.actualEnrolments;
+        b.forecastWithActual += e.enrolments;
+        b.withActualN += 1;
+      }
     };
 
     const ik = `${f.intakeYear}-${String(f.intakeMonth).padStart(2, "0")}`;
@@ -208,6 +260,9 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
     if (!byRegion.has(rk)) byRegion.set(rk, emptyBucket());
     add(byRegion.get(rk)!);
 
+    if (!byInstitution.has(f.institutionId)) byInstitution.set(f.institutionId, { ...emptyBucket(), institution: f.institution.name });
+    add(byInstitution.get(f.institutionId)!);
+
     add(grand);
   }
 
@@ -215,8 +270,10 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   const regionRows = [...byRegion.entries()]
     .map(([region, b]) => ({ region, ...b }))
     .sort((a, b) => b.enrolments - a.enrolments || a.region.localeCompare(b.region));
+  const institutionRows = [...byInstitution.values()]
+    .sort((a, b) => b.enrolments - a.enrolments || a.institution.localeCompare(b.institution));
 
-  return { intakeRows, regionRows, grand };
+  return { intakeRows, regionRows, institutionRows, grand };
 }
 
 // ─── Direction ───────────────────────────────────────────────────────────────

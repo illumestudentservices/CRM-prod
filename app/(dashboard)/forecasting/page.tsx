@@ -4,7 +4,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
-import { totals, rollupForecasts, MATURITY_LABELS } from "@/lib/forecasting";
+import {
+  totals, rollupForecasts, bucketAvgConfidence, bucketVariance,
+  type RollupBucket, MATURITY_LABELS,
+} from "@/lib/forecasting";
 
 /**
  * Forecasting dashboard (spec §29-equivalent).
@@ -89,7 +92,7 @@ export default async function ForecastingPage({
     select: {
       id: true, periodYear: true, periodMonth: true, status: true,
       intakeYear: true, intakeMonth: true, confidenceScore: true,
-      pipelineMaturity: true,
+      pipelineMaturity: true, actualEnrolments: true,
       institutionId: true, icrId: true,
       institution: { select: { name: true } },
       // Region of the ICR who owns the forecast — the same key the review chain
@@ -108,8 +111,8 @@ export default async function ForecastingPage({
   const open = forecasts.filter((f) => f.status !== "ACCEPTED" && f.status !== "ARCHIVED");
   const closed = forecasts.filter((f) => f.status === "ACCEPTED" || f.status === "ARCHIVED");
 
-  // Current forecast per intake and per region (dedup + effective totals).
-  const { intakeRows, regionRows, grand } = rollupForecasts(forecasts);
+  // Current forecast per intake, region and institution (dedup + effective).
+  const rollup = rollupForecasts(forecasts);
 
   function row(f: (typeof forecasts)[number]) {
     const t = totals(f.segments);
@@ -183,7 +186,7 @@ export default async function ForecastingPage({
       </div>
 
       {view === "summary" ? (
-        <RollupSummary intakeRows={intakeRows} regionRows={regionRows} grand={grand} />
+        <RollupSummary {...rollup} />
       ) : (
         <>
           <section>
@@ -217,9 +220,81 @@ function num(n: number) {
   return n.toLocaleString("en-CA");
 }
 
+const Th = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
+  <th className={`px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 ${right ? "text-right" : "text-left"}`}>
+    {children}
+  </th>
+);
+const Td = ({ children, right, strong }: { children: React.ReactNode; right?: boolean; strong?: boolean }) => (
+  <td className={`px-3 py-2.5 text-sm ${right ? "text-right tabular-nums" : "text-left"} ${strong ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
+    {children}
+  </td>
+);
+
+function conf(b: RollupBucket) {
+  const v = bucketAvgConfidence(b);
+  return v === null ? "—" : `${v}/5`;
+}
+
+/** One breakdown table (intake / region / institution) with the Outlook columns. */
+function BreakdownTable({
+  heading, firstCol, rows, grand,
+}: {
+  heading: string;
+  firstCol: string;
+  rows: Array<{ key: string; label: string; bucket: RollupBucket }>;
+  grand: RollupBucket;
+}) {
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">{heading}</h2>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+        <table className="w-full">
+          <thead className="bg-slate-50 dark:bg-slate-800/50">
+            <tr>
+              <Th>{firstCol}</Th>
+              <Th right>Forecasts</Th>
+              <Th right>Applications</Th>
+              <Th right>Deposits</Th>
+              <Th right>Enrolments</Th>
+              <Th right>Weighted</Th>
+              <Th right>Avg conf.</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.map((r) => (
+              <tr key={r.key} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <Td strong>{r.label}</Td>
+                <Td right>{num(r.bucket.n)}</Td>
+                <Td right>{num(r.bucket.applications)}</Td>
+                <Td right>{num(r.bucket.deposits)}</Td>
+                <Td right strong>{num(r.bucket.enrolments)}</Td>
+                <Td right>{num(Math.round(r.bucket.weighted))}</Td>
+                <Td right>{conf(r.bucket)}</Td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+            <tr>
+              <Td strong>Total</Td>
+              <Td right strong>{num(grand.n)}</Td>
+              <Td right strong>{num(grand.applications)}</Td>
+              <Td right strong>{num(grand.deposits)}</Td>
+              <Td right strong>{num(grand.enrolments)}</Td>
+              <Td right strong>{num(Math.round(grand.weighted))}</Td>
+              <Td right strong>{conf(grand)}</Td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function RollupSummary({
   intakeRows,
   regionRows,
+  institutionRows,
   grand,
 }: ReturnType<typeof rollupForecasts>) {
   if (grand.n === 0) {
@@ -230,112 +305,104 @@ function RollupSummary({
     );
   }
 
-  const Th = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
-    <th className={`px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 ${right ? "text-right" : "text-left"}`}>
-      {children}
-    </th>
-  );
-  const Td = ({ children, right, strong }: { children: React.ReactNode; right?: boolean; strong?: boolean }) => (
-    <td className={`px-3 py-2.5 text-sm ${right ? "text-right tabular-nums" : "text-left"} ${strong ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-300"}`}>
-      {children}
-    </td>
-  );
+  const grandVar = bucketVariance(grand);
+  // Forecast-vs-Actual applies per intake (actuals are an intake outcome).
+  const actualIntakes = intakeRows.filter((r) => r.withActualN > 0);
 
   return (
     <div className="space-y-6">
-      {/* Headline */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Headline — Projected Enrollment Outlook */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {[
-          ["Expected enrolments", grand.enrolments, "text-emerald-600 dark:text-emerald-400"],
-          ["Deposits", grand.deposits, "text-slate-900 dark:text-slate-100"],
-          ["Applications", grand.applications, "text-slate-900 dark:text-slate-100"],
-          ["Forecasts counted", grand.n, "text-slate-900 dark:text-slate-100"],
+          ["Expected enrolments", num(grand.enrolments), "text-emerald-600 dark:text-emerald-400"],
+          ["Confidence‑weighted", num(Math.round(grand.weighted)), "text-slate-900 dark:text-slate-100"],
+          ["Avg confidence", conf(grand), "text-slate-900 dark:text-slate-100"],
+          ["Deposits", num(grand.deposits), "text-slate-900 dark:text-slate-100"],
+          ["Applications", num(grand.applications), "text-slate-900 dark:text-slate-100"],
+          ["Forecasts counted", num(grand.n), "text-slate-900 dark:text-slate-100"],
         ].map(([label, value, cls]) => (
-          <div key={label as string} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{label as string}</p>
-            <p className={`mt-1 text-2xl font-bold ${cls as string}`}>{num(value as number)}</p>
+          <div key={label} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+            <p className={`mt-1 text-2xl font-bold ${cls}`}>{value}</p>
           </div>
         ))}
       </div>
       <p className="-mt-2 text-xs text-slate-400 dark:text-slate-500">
-        The current (most recent) forecast is counted once per institution, ICR and intake, using
-        the Regional‑Manager‑adjusted figure where one exists. Archived forecasts are excluded.
+        Projected Enrollment Outlook. The current (most recent) forecast is counted once per
+        institution, ICR and intake, using the Regional‑Manager‑adjusted figure where one exists.
+        <span className="whitespace-nowrap"> “Weighted”</span> scales each forecast by its confidence
+        (score ÷ 5); a forecast with no score is counted in full. Archived forecasts are excluded.
       </p>
 
-      {/* By intake */}
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">By intake</h2>
-        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800/50">
-              <tr>
-                <Th>Intake</Th>
-                <Th right>Forecasts</Th>
-                <Th right>Applications</Th>
-                <Th right>Deposits</Th>
-                <Th right>Enrolments</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {intakeRows.map((r) => (
-                <tr key={`${r.year}-${r.month}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <Td strong>{MONTHS_SHORT[r.month]} {r.year}</Td>
-                  <Td right>{num(r.n)}</Td>
-                  <Td right>{num(r.applications)}</Td>
-                  <Td right>{num(r.deposits)}</Td>
-                  <Td right strong>{num(r.enrolments)}</Td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
-              <tr>
-                <Td strong>Total</Td>
-                <Td right strong>{num(grand.n)}</Td>
-                <Td right strong>{num(grand.applications)}</Td>
-                <Td right strong>{num(grand.deposits)}</Td>
-                <Td right strong>{num(grand.enrolments)}</Td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
+      <BreakdownTable
+        heading="By intake" firstCol="Intake" grand={grand}
+        rows={intakeRows.map((r) => ({ key: `${r.year}-${r.month}`, label: `${MONTHS_SHORT[r.month]} ${r.year}`, bucket: r }))}
+      />
+      <BreakdownTable
+        heading="By region" firstCol="Region" grand={grand}
+        rows={regionRows.map((r) => ({ key: r.region, label: r.region, bucket: r }))}
+      />
+      <BreakdownTable
+        heading="By institution" firstCol="Institution" grand={grand}
+        rows={institutionRows.map((r) => ({ key: r.institution, label: r.institution, bucket: r }))}
+      />
 
-      {/* By region */}
+      {/* Forecast vs Actual — Spec Pillar 6 KPI (Accuracy = Actual ÷ Forecast). */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">By region</h2>
-        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800/50">
-              <tr>
-                <Th>Region</Th>
-                <Th right>Forecasts</Th>
-                <Th right>Applications</Th>
-                <Th right>Deposits</Th>
-                <Th right>Enrolments</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {regionRows.map((r) => (
-                <tr key={r.region} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                  <Td strong>{r.region}</Td>
-                  <Td right>{num(r.n)}</Td>
-                  <Td right>{num(r.applications)}</Td>
-                  <Td right>{num(r.deposits)}</Td>
-                  <Td right strong>{num(r.enrolments)}</Td>
+        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Forecast vs Actual</h2>
+        {actualIntakes.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
+            No actual enrolments recorded yet. Once an intake’s actuals are entered on its accepted
+            forecast, its variance appears here.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full">
+              <thead className="bg-slate-50 dark:bg-slate-800/50">
+                <tr>
+                  <Th>Intake</Th>
+                  <Th right>Forecast</Th>
+                  <Th right>Actual</Th>
+                  <Th right>Variance</Th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
-              <tr>
-                <Td strong>Total</Td>
-                <Td right strong>{num(grand.n)}</Td>
-                <Td right strong>{num(grand.applications)}</Td>
-                <Td right strong>{num(grand.deposits)}</Td>
-                <Td right strong>{num(grand.enrolments)}</Td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {actualIntakes.map((r) => {
+                  const v = bucketVariance(r)!;
+                  const good = v.variance >= 0;
+                  return (
+                    <tr key={`${r.year}-${r.month}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <Td strong>{MONTHS_SHORT[r.month]} {r.year}</Td>
+                      <Td right>{num(v.forecast)}</Td>
+                      <Td right strong>{num(v.actual)}</Td>
+                      <Td right>
+                        <span className={good ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                          {v.variance > 0 ? "+" : ""}{num(v.variance)}
+                          {v.percent === null ? "" : ` (${v.percent > 0 ? "+" : ""}${v.percent}%)`}
+                        </span>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {grandVar && (
+                <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+                  <tr>
+                    <Td strong>Total</Td>
+                    <Td right strong>{num(grandVar.forecast)}</Td>
+                    <Td right strong>{num(grandVar.actual)}</Td>
+                    <Td right strong>
+                      <span className={grandVar.variance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                        {grandVar.variance > 0 ? "+" : ""}{num(grandVar.variance)}
+                        {grandVar.percent === null ? "" : ` (${grandVar.percent > 0 ? "+" : ""}${grandVar.percent}%)`}
+                      </span>
+                    </Td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

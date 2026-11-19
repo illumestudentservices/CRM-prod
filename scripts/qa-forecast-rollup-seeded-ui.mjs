@@ -19,13 +19,14 @@ const fIds = [];
 let fail = 0;
 const ok = (n, c, x = "") => { if (c) console.log(`  ✓ ${n}`); else { fail++; console.log(`  ✗ ${n} ${x}`); } };
 
-async function seedForecast({ periodY, periodM, intakeY, intakeM, status, enrol }) {
+async function seedForecast({ periodY, periodM, intakeY, intakeM, status, enrol, confidence = null, actual = null }) {
   const f = await db.forecast.create({
     data: {
       periodYear: periodY, periodMonth: periodM,
       institutionId: inst.id, icrId: icr.id,
       intakeYear: intakeY, intakeMonth: intakeM,
       status, createdById: admin.user.id,
+      confidenceScore: confidence, actualEnrolments: actual,
       segments: { create: { segment: "DIRECT_UG", icrApplications: enrol * 4, icrDeposits: enrol * 2, icrEnrolments: enrol } },
     },
   });
@@ -45,12 +46,13 @@ try {
     data: { name: `ZZ ${tag} College`, country: "Canada", type: "College", createdById: admin.user.id, regionId: region.id },
   });
 
-  // Sep 2027 intake: current forecast (Nov) = 12; older re-forecast (Oct) = 99 → must be dropped.
-  await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 12 });
+  // Sep 2027 intake: current forecast (Nov) = 12, confidence 4/5, ACTUAL 10 recorded;
+  //                  older re-forecast (Oct) = 99 → must be dropped.
+  await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 12, confidence: 4, actual: 10 });
   await seedForecast({ periodY: 2026, periodM: 10, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 99 });
-  // Jan 2028 intake: 7.
+  // Jan 2028 intake: 7, no actual yet.
   await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2028, intakeM: 1, status: "SUBMITTED_TO_RM", enrol: 7 });
-  // Expected: region total 19, Sep-2027 intake 12, Jan-2028 intake 7, grand 19, 2 forecasts counted.
+  // Expected: region total 19, grand 19, 2 forecasts; Forecast-vs-Actual Sep 2027 = 12 vs 10 (-2, -17%).
 
   browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -67,16 +69,24 @@ try {
 
   ok("By intake table present", (await page.getByRole("heading", { name: /By intake/i }).count()) >= 1);
   ok("By region table present", (await page.getByRole("heading", { name: /By region/i }).count()) >= 1);
+  ok("By institution table present", (await page.getByRole("heading", { name: /By institution/i }).count()) >= 1);
+  ok("Forecast vs Actual section present", (await page.getByRole("heading", { name: /Forecast vs Actual/i }).count()) >= 1);
 
   const body = await page.locator("body").innerText();
   ok("seeded region name shows", body.includes(`ZZ ${tag} Region`));
+  ok("seeded institution name shows", body.includes(`ZZ ${tag} College`));
   // Headline "Expected enrolments" grand total = 19 (99 deduped away).
   ok("grand expected enrolments = 19 (re-forecast deduped, not 111)", /\b19\b/.test(body) && !/\b111\b/.test(body), `body had 111=${/\b111\b/.test(body)}`);
   ok("no NaN / undefined on Summary", !/\bNaN\b|\bundefined\b|Invalid Date/.test(body));
 
-  // The region row should read 19; scope the assertion to the region's table row.
+  // Region row totals 19.
   const regionRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} Region`) }).innerText().catch(() => "");
   ok("region row totals 19", /\b19\b/.test(regionRow), `row="${regionRow.replace(/\s+/g, " ")}"`);
+  // Institution row totals 19 too (single institution).
+  const instRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} College`) }).innerText().catch(() => "");
+  ok("institution row totals 19", /\b19\b/.test(instRow), `row="${instRow.replace(/\s+/g, " ")}"`);
+  // Forecast vs Actual: Sep 2027 forecast 12 vs actual 10 → -17%.
+  ok("Forecast-vs-Actual shows -17% variance", /-17%/.test(body), "expected -17% in body");
 } catch (e) {
   fail++; console.error("CRASH:", e?.stack || e);
 } finally {
