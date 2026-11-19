@@ -80,17 +80,20 @@ try {
   ok("grand expected enrolments = 19 (re-forecast deduped, not 111)", /\b19\b/.test(body) && !/\b111\b/.test(body), `body had 111=${/\b111\b/.test(body)}`);
   ok("no NaN / undefined on Summary", !/\bNaN\b|\bundefined\b|Invalid Date/.test(body));
 
-  // Region row totals 19.
-  const regionRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} Region`) }).innerText().catch(() => "");
+  // Region row totals 19 (first match = the breakdown table; the name also now
+  // appears in the Forecast-vs-Actual table, so scope to the first).
+  const regionRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} Region`) }).first().innerText().catch(() => "");
   ok("region row totals 19", /\b19\b/.test(regionRow), `row="${regionRow.replace(/\s+/g, " ")}"`);
   // Institution row totals 19 too (single institution).
-  const instRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} College`) }).innerText().catch(() => "");
+  const instRow = await page.getByRole("row", { name: new RegExp(`ZZ ${tag} College`) }).first().innerText().catch(() => "");
   ok("institution row totals 19", /\b19\b/.test(instRow), `row="${instRow.replace(/\s+/g, " ")}"`);
   // By segment: all seeded forecasts use Direct — Undergraduate, so it carries 19.
   const segRow = await page.getByRole("row", { name: /Direct — Undergraduate/ }).innerText().catch(() => "");
   ok("Direct-UG segment row totals 19", /\b19\b/.test(segRow), `row="${segRow.replace(/\s+/g, " ")}"`);
-  // Forecast vs Actual: Sep 2027 forecast 12 vs actual 10 → -17%.
-  ok("Forecast-vs-Actual shows -17% variance", /-17%/.test(body), "expected -17% in body");
+  // Forecast vs Actual now shown by intake, region AND institution → the -17%
+  // variance appears in several tables (rows + totals), not just once.
+  const variances = (body.match(/-17%/g) || []).length;
+  ok("Forecast-vs-Actual shown across groupings (≥3 × -17%)", variances >= 3, `found ${variances}`);
 } catch (e) {
   fail++; console.error("CRASH:", e?.stack || e);
 } finally {

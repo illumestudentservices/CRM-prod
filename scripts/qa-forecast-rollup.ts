@@ -126,6 +126,14 @@ function run(round: number) {
   // Jan intake has no actual → variance null.
   expect("intake w/o actual has null variance", bucketVariance(jan) === null);
 
+  // Variance is now available by region and by institution too (the actual sits
+  // on A / Alpha College / China: forecast 10, actual 9).
+  const chinaV = bucketVariance(china);
+  expect("China region variance = -10% (10→9)", chinaV !== null && chinaV.forecast === 10 && chinaV.actual === 9 && chinaV.percent === -10, `got ${JSON.stringify(chinaV)}`);
+  const alphaV = bucketVariance(alpha);
+  expect("Alpha College variance = -10% (10→9)", alphaV !== null && alphaV.percent === -10, `got ${JSON.stringify(alphaV)}`);
+  expect("LATAM region (no actual) has null variance", bucketVariance(latam) === null);
+
   // Empty input is safe.
   const empty = rollupForecasts([]);
   expect("empty => grand.n 0, no rows, variance null",

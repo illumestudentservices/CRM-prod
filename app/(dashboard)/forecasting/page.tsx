@@ -291,6 +291,64 @@ function BreakdownTable({
   );
 }
 
+type Variance = NonNullable<ReturnType<typeof bucketVariance>>;
+
+function varianceCell(v: Variance) {
+  return (
+    <span className={v.variance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+      {v.variance > 0 ? "+" : ""}{num(v.variance)}
+      {v.percent === null ? "" : ` (${v.percent > 0 ? "+" : ""}${v.percent}%)`}
+    </span>
+  );
+}
+
+/** One Forecast-vs-Actual table; renders nothing when no row has an actual yet. */
+function VarianceTable({
+  heading, firstCol, rows, grand,
+}: {
+  heading: string;
+  firstCol: string;
+  rows: Array<{ key: string; label: string; bucket: RollupBucket }>;
+  grand: Variance | null;
+}) {
+  const withActual = rows
+    .map((r) => ({ ...r, v: bucketVariance(r.bucket) }))
+    .filter((r): r is typeof r & { v: Variance } => r.v !== null);
+  if (withActual.length === 0) return null;
+  return (
+    <div>
+      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{heading}</h3>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+        <table className="w-full">
+          <thead className="bg-slate-50 dark:bg-slate-800/50">
+            <tr><Th>{firstCol}</Th><Th right>Forecast</Th><Th right>Actual</Th><Th right>Variance</Th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {withActual.map((r) => (
+              <tr key={r.key} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <Td strong>{r.label}</Td>
+                <Td right>{num(r.v.forecast)}</Td>
+                <Td right strong>{num(r.v.actual)}</Td>
+                <Td right>{varianceCell(r.v)}</Td>
+              </tr>
+            ))}
+          </tbody>
+          {grand && (
+            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
+              <tr>
+                <Td strong>Total</Td>
+                <Td right strong>{num(grand.forecast)}</Td>
+                <Td right strong>{num(grand.actual)}</Td>
+                <Td right strong>{varianceCell(grand)}</Td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function RollupSummary({
   intakeRows,
   regionRows,
@@ -307,8 +365,6 @@ function RollupSummary({
   }
 
   const grandVar = bucketVariance(grand);
-  // Forecast-vs-Actual applies per intake (actuals are an intake outcome).
-  const actualIntakes = intakeRows.filter((r) => r.withActualN > 0);
 
   return (
     <div className="space-y-6">
@@ -353,59 +409,33 @@ function RollupSummary({
       />
 
       {/* Forecast vs Actual — Spec Pillar 6 KPI (Accuracy = Actual ÷ Forecast). */}
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Forecast vs Actual</h2>
-        {actualIntakes.length === 0 ? (
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">Forecast vs Actual</h2>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+            Variance against the accepted forecast once actual enrolments are recorded (§31) — a
+            planning‑quality measure, not a staff performance score.
+          </p>
+        </div>
+        {grandVar === null ? (
           <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
             No actual enrolments recorded yet. Once an intake’s actuals are entered on its accepted
             forecast, its variance appears here.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-            <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-800/50">
-                <tr>
-                  <Th>Intake</Th>
-                  <Th right>Forecast</Th>
-                  <Th right>Actual</Th>
-                  <Th right>Variance</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {actualIntakes.map((r) => {
-                  const v = bucketVariance(r)!;
-                  const good = v.variance >= 0;
-                  return (
-                    <tr key={`${r.year}-${r.month}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <Td strong>{MONTHS_SHORT[r.month]} {r.year}</Td>
-                      <Td right>{num(v.forecast)}</Td>
-                      <Td right strong>{num(v.actual)}</Td>
-                      <Td right>
-                        <span className={good ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                          {v.variance > 0 ? "+" : ""}{num(v.variance)}
-                          {v.percent === null ? "" : ` (${v.percent > 0 ? "+" : ""}${v.percent}%)`}
-                        </span>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {grandVar && (
-                <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
-                  <tr>
-                    <Td strong>Total</Td>
-                    <Td right strong>{num(grandVar.forecast)}</Td>
-                    <Td right strong>{num(grandVar.actual)}</Td>
-                    <Td right strong>
-                      <span className={grandVar.variance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                        {grandVar.variance > 0 ? "+" : ""}{num(grandVar.variance)}
-                        {grandVar.percent === null ? "" : ` (${grandVar.percent > 0 ? "+" : ""}${grandVar.percent}%)`}
-                      </span>
-                    </Td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
+          <div className="space-y-4">
+            <VarianceTable
+              heading="By intake" firstCol="Intake" grand={grandVar}
+              rows={intakeRows.map((r) => ({ key: `${r.year}-${r.month}`, label: `${MONTHS_SHORT[r.month]} ${r.year}`, bucket: r }))}
+            />
+            <VarianceTable
+              heading="By region" firstCol="Region" grand={grandVar}
+              rows={regionRows.map((r) => ({ key: r.region, label: r.region, bucket: r }))}
+            />
+            <VarianceTable
+              heading="By institution" firstCol="Institution" grand={grandVar}
+              rows={institutionRows.map((r) => ({ key: r.institution, label: r.institution, bucket: r }))}
+            />
           </div>
         )}
       </section>
