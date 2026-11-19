@@ -104,6 +104,7 @@ async function getExecutiveDashboardData(regionId?: string | null) {
     leadsLastMonth,
     enrolled,
     enrolledLastMonth,
+    enrolledThisMonth,
     activeInstitutions,
     topInstRaw,
     attentionInstitutions,
@@ -116,6 +117,9 @@ async function getExecutiveDashboardData(regionId?: string | null) {
     db.lead.count({ where: { ...leadScope, createdAt: { gte: lastMonthStart, lte: lastMonthEnd } } }),
     db.lead.count({ where: { ...leadScope, stage: "ENROLLED" } }),
     db.lead.count({ where: { ...leadScope, stage: "ENROLLED", updatedAt: { gte: lastMonthStart, lte: lastMonthEnd } } }),
+    // "Enrolled this month" — so the tile's trend compares like with like
+    // (this month's enrolments vs last month's), not the all-time total.
+    db.lead.count({ where: { ...leadScope, stage: "ENROLLED", updatedAt: { gte: thisMonthStart } } }),
     db.institution.count({ where: { deletedAt: null, accountStatus: "ACTIVE", ...geoFilter } }),
     // Top institutions by enrolled count
     db.lead.groupBy({
@@ -305,6 +309,7 @@ async function getExecutiveDashboardData(regionId?: string | null) {
       leadsLastMonth,
       enrolled,
       enrolledLastMonth,
+      enrolledThisMonth,
       activeInstitutions,
       conversionRate,
     },
@@ -921,7 +926,7 @@ async function ExecutiveDashboard({
         <StatCard
           title="Enrolled"
           value={stats.enrolled.toLocaleString("en-CA")}
-          change={calcChange(stats.enrolled, stats.enrolledLastMonth)}
+          change={calcChange(stats.enrolledThisMonth, stats.enrolledLastMonth)}
           icon="GraduationCap"
           iconColor="text-emerald-600"
           iconBg="bg-emerald-50"
