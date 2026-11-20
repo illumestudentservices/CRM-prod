@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * Notes thread for a recruitment partner (agent/school).
@@ -81,6 +82,11 @@ export async function POST(
     }
     if (!(await effectiveHasPermission(session.user.role as Role, "recruitment_network", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Per-user throttle so one account cannot spam a partner's note thread.
+    if (!rateLimit(`partner-note:${session.user.id}`, 40, 10 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many notes in a short time. Please wait a few minutes." }, { status: 429 });
     }
 
     const { id } = await params;

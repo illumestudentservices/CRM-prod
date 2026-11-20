@@ -9,6 +9,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { visibleTaskWhere } from "@/lib/task-visibility";
 import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
+import { rateLimit } from "@/lib/rate-limit";
 
 // HR_ROLES was removed on 2026-10-09. Being in HR is not a relationship to
 // a task, and it was the only thing standing between an HR account and every
@@ -132,6 +133,10 @@ export async function POST(req: NextRequest) {
   }
   if (!(await effectiveHasPermission(session.user.role as Role, "tasks", "write"))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // Generous per-user cap on task creation (each can notify an assignee).
+  if (!rateLimit(`hr-task-create:${session.user.id}`, 60, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many tasks created in a short time. Please wait a few minutes." }, { status: 429 });
   }
 
   const employee = await db.employee.findUnique({

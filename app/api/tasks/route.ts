@@ -9,6 +9,7 @@ import { requiresParent, validateTaskParent } from "@/lib/task-workflow";
 import { logActivity } from "@/lib/activity-logger";
 import { refuseAssignment } from "@/lib/task-assignment";
 import { notifyTaskAssigned } from "@/lib/task-notify";
+import { rateLimit } from "@/lib/rate-limit";
 
 const blankToUndefined = (v: unknown) =>
   v === "" || v === null || v === "none" ? undefined : v;
@@ -107,6 +108,10 @@ export async function POST(req: NextRequest) {
     const { role, id: userId } = session.user;
     if (!(await effectiveHasPermission(role as Role, "tasks", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // Generous per-user cap on task creation (each can notify an assignee).
+    if (!rateLimit(`task-create:${userId}`, 60, 10 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many tasks created in a short time. Please wait a few minutes." }, { status: 429 });
     }
 
     let body: unknown;

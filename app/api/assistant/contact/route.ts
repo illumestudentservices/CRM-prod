@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import type { Role } from "@/lib/permissions";
 import { assertNoNulBytes, ApiError } from "@/lib/api-validation";
 import { sendSupportRequest } from "@/lib/assistant-escalation";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * "Send a message to IT support" — the deliberate escalation from the help
@@ -25,6 +26,15 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Each send emails IT. Nobody legitimately escalates this often — cap it so
+    // one account cannot flood the support inbox.
+    if (!rateLimit(`support-contact:${session.user.id}`, 5, 10 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: "You've sent several support messages. Please wait a few minutes before sending another." },
+        { status: 429 }
+      );
     }
 
     let body: unknown;

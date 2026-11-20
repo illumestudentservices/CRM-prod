@@ -6,6 +6,7 @@ import { effectiveHasPermission } from "@/lib/effective-permissions";
 import type { Role } from "@/lib/permissions";
 import { canAccessLead, institutionIdsForUser } from "@/lib/lead-access";
 import { logActivity } from "@/lib/activity-logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 const noteSchema = z.object({
   content: z.string().min(1, "Note content is required").max(5000),
@@ -94,6 +95,11 @@ export async function POST(
 
     if (!(await effectiveHasPermission(session.user.role, "leads", "write"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Per-user throttle so one account cannot spam a student's note thread.
+    if (!rateLimit(`lead-note:${session.user.id}`, 40, 10 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many notes in a short time. Please wait a few minutes." }, { status: 429 });
     }
 
     const { id } = await params;
