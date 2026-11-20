@@ -175,8 +175,21 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const existing = await db.travelRequest.findUnique({ where: { id } });
+  const existing = await db.travelRequest.findUnique({
+    where: { id },
+    include: { employee: { select: { user: { select: { id: true } } } } },
+  });
   if (!existing) {
+    return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
+  }
+
+  // Object scope, same as GET and PATCH above: travel:delete lets you bin YOUR
+  // OWN trip, not any trip by id. Deleting another employee's request is a
+  // management action and needs travel:approve. 404, not 403, so a stranger
+  // cannot confirm the id exists by walking ids.
+  const canApproveTravel = await effectiveHasPermission(session.user.role, "travel", "approve");
+  const isOwner = existing.employee.user?.id === session.user.id;
+  if (!isOwner && !canApproveTravel) {
     return NextResponse.json({ error: "Travel request not found" }, { status: 404 });
   }
 

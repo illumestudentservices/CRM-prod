@@ -9,7 +9,7 @@
  */
 import { db, createAndLogin, destroyUser, api, startSection, expect, summary } from "./qa-lib.mjs";
 
-let owner, outsider, hr, tripIds = [];
+let owner, outsider, hr, tripIds = [], overrideSet = false;
 const mkTrip = async (employeeId) => {
   const t = await db.travelRequest.create({
     data: { employeeId, destination: "QA City", purpose: "QA", departDate: new Date(Date.UTC(2027, 0, 10)), returnDate: new Date(Date.UTC(2027, 0, 12)), status: "PENDING" },
@@ -73,10 +73,41 @@ try {
   const hrOwn = await mkTrip(hr.employee.id);
   r = await api(hr.jar, "PATCH", `/api/travel/${hrOwn.id}`, { status: "APPROVED" });
   expect(r.status === 403, "HR cannot approve their OWN trip (no self-approval even for approvers)", `got ${r.status}`);
+
+  // ── DELETE is object-scoped (2026-11-17 fix) ────────────────────────────
+  // The latent gap: a principal with travel:delete but NOT travel:approve and
+  // not the owner could bin any trip by id. No default role has that combo, so
+  // grant EMPLOYEE travel:delete via an override to exercise it.
+  startSection("DELETE: delete-without-approve cannot bin another's trip (×3)");
+  await db.permissionOverride.upsert({
+    where: { role_resource_action: { role: "EMPLOYEE", resource: "travel", action: "delete" } },
+    update: { granted: true, updatedById: owner.user.id },
+    create: { role: "EMPLOYEE", resource: "travel", action: "delete", granted: true, updatedById: owner.user.id },
+  });
+  overrideSet = true;
+
+  const victim = await mkTrip(owner.employee.id); // owned by `owner`, not `outsider`
+  for (let i = 1; i <= 3; i++) {
+    const d = await api(outsider.jar, "DELETE", `/api/travel/${victim.id}`);
+    expect(d.status === 404, `run ${i}: non-owner (delete, no approve) DELETE is 404`, `got ${d.status}`);
+    // trashRecord hard-deletes + copies to the recycle bin, so a trashed trip is
+    // simply gone; the refused one must still be present.
+    const row = await db.travelRequest.findUnique({ where: { id: victim.id }, select: { id: true } });
+    expect(row !== null, `run ${i}: victim trip still exists (not trashed)`, "row was null");
+  }
+
+  // The owner may delete their own; an approver (HR) may delete anyone's.
+  const mine = await mkTrip(owner.employee.id);
+  let dd = await api(owner.jar, "DELETE", `/api/travel/${mine.id}`);
+  expect(dd.ok, "owner can delete their OWN trip (200)", `got ${dd.status}`);
+  const forDel = await mkTrip(owner.employee.id);
+  dd = await api(hr.jar, "DELETE", `/api/travel/${forDel.id}`);
+  expect(dd.ok, "approver (HR) can delete another's trip (200)", `got ${dd.status}`);
 } catch (e) {
   console.error("\n[fatal]", e?.stack || e);
   process.exitCode = 1;
 } finally {
+  if (overrideSet) await db.permissionOverride.deleteMany({ where: { role: "EMPLOYEE", resource: "travel", action: "delete" } }).catch(() => {});
   for (const id of tripIds) await db.travelRequest.delete({ where: { id } }).catch(() => {});
   for (const u of [owner, outsider, hr]) if (u) await destroyUser(u);
   const f = summary();
