@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +48,7 @@ import {
   ArrowUpDown,
   ExternalLink,
   Paperclip,
+  Search,
 } from "lucide-react";
 import { ExportButton } from "@/components/shared/export-button";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
@@ -165,10 +168,16 @@ export function TasksClient({
   tasks,
   employees,
   currentUserId,
+  canBulk = false,
+  bulkRoster = [],
 }: {
   tasks: TaskItem[];
   employees: EmployeeItem[];
   currentUserId: string;
+  /** HQ Executive / CEO / Super Admin: may assign one task to several people. */
+  canBulk?: boolean;
+  /** Every active employee — the pool for the multi-assignee picker. */
+  bulkRoster?: EmployeeItem[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -207,6 +216,9 @@ export function TasksClient({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  // Bulk-capable users pick many people; the single `assigneeId` is ignored then.
+  const [assigneeIds, setAssigneeIds] = useState<Set<string>>(new Set());
+  const [assigneeSearch, setAssigneeSearch] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   // Spec §1: every task except PERSONAL/INTERNAL must be linked to a parent
@@ -242,6 +254,8 @@ export function TasksClient({
     setTitle("");
     setDescription("");
     setAssigneeId("");
+    setAssigneeIds(new Set());
+    setAssigneeSearch("");
     setPriority("MEDIUM");
     setCategory("PERSONAL");
     setParentType("none");
@@ -250,6 +264,14 @@ export function TasksClient({
     setReminderDate("");
     setEstimatedMinutes("");
     setDueDate("");
+  }
+
+  function toggleAssignee(id: string) {
+    setAssigneeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   // ── Filtering ─────────────────────────────────────────────────────────────
@@ -325,27 +347,43 @@ export function TasksClient({
     e.preventDefault();
     setSaving(true);
 
+    // When a bulk-capable user has picked people, send one request that creates
+    // a task per person. Otherwise fall back to the ordinary single-task create.
+    const bulkMode = canBulk && assigneeIds.size >= 1;
+    const common = {
+      title,
+      description: description || undefined,
+      priority,
+      category,
+      ...(parentType !== "none" && parentId !== "none" ? { parentType, parentId } : {}),
+      reminderDate: reminderDate ? new Date(reminderDate).toISOString() : undefined,
+      estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : undefined,
+    };
+
     try {
-      const res = await fetch("/api/hr/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: description || undefined,
-          assigneeId: assigneeId || null,
-          priority,
-          dueDate: dueDate || undefined,
-          category,
-          ...(parentType !== "none" && parentId !== "none"
-            ? { parentType, parentId }
-            : {}),
-          reminderDate: reminderDate ? new Date(reminderDate).toISOString() : undefined,
-          estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : undefined,
-        }),
-      });
+      const res = bulkMode
+        ? await fetch("/api/tasks/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...common,
+              assigneeIds: [...assigneeIds],
+              // The bulk route requires full ISO; the date input is day-only.
+              dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+            }),
+          })
+        : await fetch("/api/hr/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...common,
+              assigneeId: assigneeId || null,
+              dueDate: dueDate || undefined,
+            }),
+          });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(err.error || "Failed to create task");
         return;
       }
@@ -666,13 +704,51 @@ export function TasksClient({
                       onChange={(e) => setReminderDate(e.target.value)}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  {canBulk ? (
+                    <div>
+                      <Label>
+                        Assignees{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          ({assigneeIds.size} selected)
+                        </span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          value={assigneeSearch}
+                          onChange={(e) => setAssigneeSearch(e.target.value)}
+                          placeholder="Search people..."
+                          className="pl-7"
+                        />
+                      </div>
+                      <ScrollArea className="mt-1 h-40 rounded-md border border-slate-200 dark:border-slate-700">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {bulkRoster
+                            .filter((emp) =>
+                              (emp.user.name ?? "").toLowerCase().includes(assigneeSearch.trim().toLowerCase())
+                            )
+                            .map((emp) => (
+                              <label
+                                key={emp.id}
+                                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              >
+                                <Checkbox
+                                  checked={assigneeIds.has(emp.id)}
+                                  onCheckedChange={() => toggleAssignee(emp.id)}
+                                />
+                                <span className="text-sm">{emp.user.name || "Unnamed"}</span>
+                              </label>
+                            ))}
+                        </div>
+                      </ScrollArea>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Pick several people to create one task each. Leave empty to keep it for yourself.
+                      </p>
+                    </div>
+                  ) : (
                     <div>
                       <Label htmlFor="task-assignee">Assignee</Label>
-                      <Select
-                        value={assigneeId}
-                        onValueChange={setAssigneeId}
-                      >
+                      <Select value={assigneeId} onValueChange={setAssigneeId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
@@ -686,20 +762,21 @@ export function TasksClient({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="task-priority">Priority</Label>
-                      <Select value={priority} onValueChange={setPriority}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="LOW">Low</SelectItem>
-                          <SelectItem value="MEDIUM">Medium</SelectItem>
-                          <SelectItem value="HIGH">High</SelectItem>
-                          <SelectItem value="URGENT">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="task-priority">Priority</Label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="URGENT">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="task-due">Due Date</Label>

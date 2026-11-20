@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
 import { MyDashboard } from "./_components/my-dashboard";
 import { FireTemplatesButton } from "./_components/fire-templates-button";
-import { BulkAssignDialog } from "./_components/bulk-assign-dialog";
 
 /**
  * The tasks this person is entitled to see, with a count of the files on each.
@@ -108,32 +107,29 @@ export default async function TasksPage() {
           { label: "Tasks" },
         ]}
         actions={
-          canWrite || canBulk ? (
-            <div className="flex items-center gap-2">
-              {canBulk && (
-                <BulkAssignDialog
-                  roster={bulkRoster.map((e) => ({ id: e.id, user: { id: e.user.id, name: e.user.name, image: e.user.image } }))}
-                />
-              )}
-              {canWrite && (
-                <FireTemplatesButton
-                  templates={templates.map((t) => ({
-                    id: t.id,
-                    name: t.name,
-                    description: t.description,
-                    triggerEvent: t.triggerEvent,
-                    category: t.category,
-                    recurrence: t.recurrence,
-                    isActive: t.isActive,
-                  }))}
-                />
-              )}
-            </div>
+          canWrite ? (
+            <FireTemplatesButton
+              templates={templates.map((t) => ({
+                id: t.id,
+                name: t.name,
+                description: t.description,
+                triggerEvent: t.triggerEvent,
+                category: t.category,
+                recurrence: t.recurrence,
+                isActive: t.isActive,
+              }))}
+            />
           ) : undefined
         }
       />
       <MyDashboard />
-      <TasksClient tasks={tasks} employees={employees} currentUserId={session.user.id} />
+      <TasksClient
+        tasks={tasks}
+        employees={employees}
+        currentUserId={session.user.id}
+        canBulk={canBulk}
+        bulkRoster={bulkRoster.map((e) => ({ id: e.id, user: { id: e.user.id, name: e.user.name, image: e.user.image } }))}
+      />
     </div>
   );
 }
