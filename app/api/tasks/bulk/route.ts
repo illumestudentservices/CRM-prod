@@ -10,6 +10,13 @@ import { logActivity } from "@/lib/activity-logger";
 import { canBulkAssignTasks } from "@/lib/task-assignment";
 import { ACTIVE_EMPLOYEE } from "@/lib/hr-scope";
 import { notifyTaskAssigned } from "@/lib/task-notify";
+import { rateLimit } from "@/lib/rate-limit";
+
+// One bulk call can fan out to 200 people (a task + an email each). Cap how
+// often a single account may do it, so a compromised or misused bulk-assigner
+// cannot turn one session into an internal mail / notification flood.
+const BULK_MAX_PER_WINDOW = 10;
+const BULK_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Assign ONE task to MANY people in one request — a task per person, so each
@@ -56,6 +63,15 @@ export async function POST(req: NextRequest) {
     }
     if (!canBulkAssignTasks(role as Role, email)) {
       return NextResponse.json({ error: "Only HQ Executives and the CEO can assign to several people at once." }, { status: 403 });
+    }
+
+    // Per-user throttle (in-memory sliding window). Counts requests, so a normal
+    // few-at-a-time workflow is never hit, but a flood is.
+    if (!rateLimit(`tasks-bulk:${userId}`, BULK_MAX_PER_WINDOW, BULK_WINDOW_MS)) {
+      return NextResponse.json(
+        { error: "You're assigning in bulk too frequently. Please wait a few minutes and try again." },
+        { status: 429 }
+      );
     }
 
     let body: unknown;
