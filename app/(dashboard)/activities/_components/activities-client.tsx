@@ -205,6 +205,10 @@ export function ActivitiesClient({
   const [type, setType] = useState<string>("SCHOOL_VISIT");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  // Spec §3 — the user sets the lifecycle status directly (default Planned).
+  // Previously it was guessed from the date, so an activity logged for today
+  // became "Completed" and never appeared under the Planned tab.
+  const [activityStatus, setActivityStatus] = useState("PLANNED");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [description, setDescription] = useState("");
@@ -237,6 +241,7 @@ export function ActivitiesClient({
     setType("SCHOOL_VISIT");
     setTitle("");
     setDate("");
+    setActivityStatus("PLANNED");
     setCity("");
     setCountry("");
     setDescription("");
@@ -297,6 +302,7 @@ export function ActivitiesClient({
       type,
       title,
       date,
+      status: activityStatus,
       city: city || null,
       country: country || null,
       description: finalDescription || null,
@@ -554,6 +560,24 @@ export function ActivitiesClient({
                         required
                       />
                     </div>
+                  </div>
+
+                  {/* Spec §3 — lifecycle status, chosen by the user. Default
+                      Planned so forward-looking field work lands under the
+                      Planned tab instead of being guessed Completed. */}
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-700 dark:text-slate-300">Status *</Label>
+                    <Select value={activityStatus} onValueChange={setActivityStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PLANNED">Planned</SelectItem>
+                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1018,7 +1042,7 @@ export function ActivitiesClient({
                     <button
                       key={t.key}
                       type="button"
-                      onClick={() => setStatusFilter(t.key)}
+                      onClick={() => applyLocal(() => { setStatusFilter(t.key); setViewFilter(""); setTypeFilter(""); })}
                       className={
                         "text-xs px-2.5 py-1 rounded-full border transition-colors " +
                         (active

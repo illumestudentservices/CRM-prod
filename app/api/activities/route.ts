@@ -33,6 +33,11 @@ const createActivitySchema = z.object({
   description: z.string().optional().nullable(),
   date: z.string().min(1, "Date is required"),
   endDate: z.string().optional().nullable(),
+  // Spec §3 (Field Operations) — lifecycle status. Optional: when the form
+  // sends it, the user's choice wins; when absent (older callers), it is derived
+  // from the date below. Without this, an activity logged for TODAY was always
+  // guessed COMPLETED, so a planned visit never appeared under "Planned".
+  status: z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional(),
   location: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
   country: z.string().optional().nullable(),
@@ -204,19 +209,19 @@ export async function POST(req: NextRequest) {
       roi = data.leadsGenerated / data.cost;
     }
 
-    // Spec §3 (Field Operations) — derive lifecycle status. An activity with
-    // its endDate already in the past is COMPLETED (someone logged it after
-    // the fact). A future date is PLANNED. Everything else is IN_PROGRESS.
+    // Spec §3 (Field Operations) — lifecycle status. The user's explicit choice
+    // from the form wins. Only when none is sent do we DERIVE one from the date,
+    // and the derivation now treats TODAY as PLANNED (not COMPLETED): work dated
+    // today has not necessarily happened, and guessing COMPLETED is exactly what
+    // hid planned activities. A date strictly in the past ⇒ COMPLETED (logged
+    // after the fact); today or future ⇒ PLANNED.
     const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const activityDate = new Date(data.date);
     const activityEndDate = data.endDate ? new Date(data.endDate) : null;
-    const isCompleted = activityEndDate ? activityEndDate < now : activityDate < now;
-    const isPlanned = activityDate > now;
-    const status = isCompleted
-      ? ("COMPLETED" as const)
-      : isPlanned
-      ? ("PLANNED" as const)
-      : ("IN_PROGRESS" as const);
+    const derivedPast = activityEndDate ? activityEndDate < startOfToday : activityDate < startOfToday;
+    const status = data.status ?? (derivedPast ? ("COMPLETED" as const) : ("PLANNED" as const));
+    const isCompleted = status === "COMPLETED";
 
     // Every link is verified to exist rather than trusted. A stale or
     // hand-crafted id would otherwise reach Prisma and surface as a 500 with a
