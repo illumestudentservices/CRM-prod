@@ -321,7 +321,7 @@ export function ActivitiesPanel({ leadId }: { leadId: string }) {
               <div className="space-y-1.5">
                 <Label>Date</Label>
                 <Input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
-                <p className="text-xs text-slate-400 dark:text-slate-500">Must be in the future.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Today or later.</p>
               </div>
             ) : (
               <div className="space-y-1.5">

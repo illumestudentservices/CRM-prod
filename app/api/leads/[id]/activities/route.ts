@@ -40,7 +40,7 @@ const createSchema = z
     outcome: z.string().max(2000).optional(),
   })
   .refine((d) => d.scheduledFor || d.completed, {
-    message: "An activity must either be scheduled for a future date or marked completed",
+    message: "An activity must either be scheduled for a date or marked completed",
   });
 
 const updateSchema = z.object({
@@ -112,9 +112,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   const d = parsed.data;
 
-  if (d.scheduledFor && !d.completed && new Date(d.scheduledFor) <= new Date()) {
+  // Today counts as "later": a follow-up can be booked for today, so reject only
+  // a date before the start of today, not one that merely falls earlier today.
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  if (d.scheduledFor && !d.completed && new Date(d.scheduledFor) < startOfToday) {
     return NextResponse.json(
-      { error: "A scheduled activity must be in the future." },
+      { error: "A scheduled activity cannot be in the past." },
       { status: 422 }
     );
   }
@@ -208,8 +212,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!scheduledFor) {
       return NextResponse.json({ error: "A new date is required." }, { status: 422 });
     }
-    if (new Date(scheduledFor) <= new Date()) {
-      return NextResponse.json({ error: "The new date must be in the future." }, { status: 422 });
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    if (new Date(scheduledFor) < startOfToday) {
+      return NextResponse.json({ error: "The new date cannot be in the past." }, { status: 422 });
     }
     const activity = await db.leadActivity.update({
       where: { id: activityId },
