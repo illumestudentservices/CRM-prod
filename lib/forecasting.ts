@@ -162,6 +162,7 @@ export interface RollupInput {
   intakeYear: number;
   intakeMonth: number;
   confidenceScore: number | null;
+  pipelineMaturity: PipelineMaturity | null;
   actualEnrolments: number | null;
   icr: { region: { name: string } | null };
   segments: readonly SegmentValues[];
@@ -229,6 +230,7 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   const byRegion = new Map<string, RollupBucket>();
   const byInstitution = new Map<string, RollupBucket & { institution: string }>();
   const bySegment = new Map<ForecastSegmentKey, RollupBucket>();
+  const byMaturity = new Map<PipelineMaturity | "UNASSESSED", RollupBucket>();
 
   const grand = emptyBucket();
 
@@ -265,6 +267,11 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
     if (!byInstitution.has(f.institutionId)) byInstitution.set(f.institutionId, { ...emptyBucket(), institution: f.institution.name });
     add(byInstitution.get(f.institutionId)!);
 
+    // §10/§15: how much of the plan sits behind a mature pipeline vs an early one.
+    const mk = f.pipelineMaturity ?? "UNASSESSED";
+    if (!byMaturity.has(mk)) byMaturity.set(mk, emptyBucket());
+    add(byMaturity.get(mk)!);
+
     // §3: the four segments make up the forecast. Here the per-segment effective
     // figures are totalled; actuals are not segmented, so segment buckets carry
     // no Forecast-vs-Actual and `n` counts only the forecasts that actually
@@ -296,7 +303,14 @@ export function rollupForecasts(forecastsNewestFirst: readonly RollupInput[]) {
   // Canonical §3 order, all four always shown.
   const segmentRows = FORECAST_SEGMENTS.map((segment) => ({ segment, ...(bySegment.get(segment) ?? emptyBucket()) }));
 
-  return { intakeRows, regionRows, institutionRows, segmentRows, grand };
+  // Strongest pipeline first; "Not assessed" (no maturity yet) last, only if present.
+  const MATURITY_ORDER: PipelineMaturity[] = ["HIGH_MATURITY", "MODERATE_MATURITY", "PIPELINE_DEPENDENT", "EARLY_STAGE"];
+  const maturityRows: Array<RollupBucket & { maturity: PipelineMaturity | "UNASSESSED"; label: string }> = [
+    ...MATURITY_ORDER.filter((m) => byMaturity.has(m)).map((m) => ({ maturity: m, label: MATURITY_LABELS[m], ...byMaturity.get(m)! })),
+    ...(byMaturity.has("UNASSESSED") ? [{ maturity: "UNASSESSED" as const, label: "Not assessed", ...byMaturity.get("UNASSESSED")! }] : []),
+  ];
+
+  return { intakeRows, regionRows, institutionRows, segmentRows, maturityRows, grand };
 }
 
 // ─── Export (Projected Enrollment Outlook → CSV / PDF) ───────────────────────
@@ -360,6 +374,8 @@ export function buildOutlookExports(r: ReturnType<typeof rollupForecasts>): Outl
       data: r.institutionRows.map((x) => metricRow(x.institution, x)) },
     { label: "By segment", filename: "forecast-by-segment", columns: metricCols("Segment"),
       data: r.segmentRows.map((x) => metricRow(SEGMENT_LABELS[x.segment], x)) },
+    { label: "By pipeline maturity", filename: "forecast-by-maturity", columns: metricCols("Pipeline maturity"),
+      data: r.maturityRows.map((x) => metricRow(x.label, x)) },
   ];
 
   const vCols = (header: string) => [

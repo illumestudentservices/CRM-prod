@@ -33,7 +33,7 @@ function f(o: {
     institutionId: o.institutionId ?? o.institution, institution: { name: o.institution },
     icrId: o.icrId ?? "icr1",
     intakeYear: o.intakeYear ?? 2027, intakeMonth: o.intakeMonth ?? 9,
-    confidenceScore: o.confidence ?? null, actualEnrolments: o.actual ?? null,
+    confidenceScore: o.confidence ?? null, pipelineMaturity: null, actualEnrolments: o.actual ?? null,
     icr: { region: o.region === null ? null : { name: o.region } },
     segments: [seg],
   };
@@ -84,9 +84,13 @@ function run(round: number) {
   const evilCsv = toCSV(evilRegion.data, evilRegion.columns);
   expect("CSV prefixes formula value with apostrophe", evilCsv.includes(`"'=cmd`), evilCsv.split("\r\n")[1] ?? "");
 
-  // Empty rollup → only the 4 breakdowns, each with no data rows.
+  // Empty rollup → only the 5 breakdowns (no Forecast-vs-Actual sections).
   const emptySections = buildOutlookExports(rollupForecasts([]));
-  expect("empty rollup → 4 sections, no FvA", emptySections.length === 4 && emptySections.every((s) => s.data.length === 0 || s.label === "By segment"));
+  const emptyLabels = emptySections.map((s) => s.label);
+  expect("empty rollup → 5 breakdowns, no FvA",
+    emptySections.length === 5 && !emptyLabels.some((l) => l.startsWith("Forecast vs Actual")),
+    emptyLabels.join(" | "));
+  expect("empty rollup includes By pipeline maturity", emptyLabels.includes("By pipeline maturity"));
 }
 
 for (let r = 1; r <= 3; r++) run(r);

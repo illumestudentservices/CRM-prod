@@ -32,6 +32,7 @@ function f(opts: {
   icrApp?: number; icrDep?: number;
   confidence?: number | null;
   actual?: number | null;
+  maturity?: RollupInput["pipelineMaturity"];
 }): RollupInput {
   const seg: SegmentValues = {
     segment: "DIRECT_UG",
@@ -49,6 +50,7 @@ function f(opts: {
     icrId: opts.icrId,
     intakeYear: opts.intakeYear, intakeMonth: opts.intakeMonth,
     confidenceScore: opts.confidence ?? null,
+    pipelineMaturity: opts.maturity ?? null,
     actualEnrolments: opts.actual ?? null,
     icr: { region: opts.region === null ? null : { name: opts.region } },
     segments: [seg],
@@ -60,19 +62,19 @@ function run(round: number) {
 
   // Rows passed NEWEST period first (the caller's contract).
   const rows: RollupInput[] = [
-    // A / ICR-1 / Sep 2027 China: newest=10, conf 4/5, actual 9 recorded.
-    f({ institutionId: "A", institution: "Alpha College", icrId: "1", intakeYear: 2027, intakeMonth: 9, region: "China", icrEnr: 10, confidence: 4, actual: 9 }),
+    // A / ICR-1 / Sep 2027 China: newest=10, conf 4/5, actual 9 recorded, HIGH maturity.
+    f({ institutionId: "A", institution: "Alpha College", icrId: "1", intakeYear: 2027, intakeMonth: 9, region: "China", icrEnr: 10, confidence: 4, actual: 9, maturity: "HIGH_MATURITY" }),
     // ...older estimate same intake (30) — dropped.
     f({ institutionId: "A", institution: "Alpha College", icrId: "1", intakeYear: 2027, intakeMonth: 9, region: "China", icrEnr: 30, confidence: 1 }),
-    // B / ICR-2 / Sep 2027 LATAM: ICR 20 → RM 8, conf 3/5, no actual.
-    f({ institutionId: "B", institution: "Beta Institute", icrId: "2", intakeYear: 2027, intakeMonth: 9, region: "LATAM", icrEnr: 20, rmEnr: 8, confidence: 3 }),
-    // C / ICR-3 / Jan 2028, no region, no confidence (counts in full), no actual.
+    // B / ICR-2 / Sep 2027 LATAM: ICR 20 → RM 8, conf 3/5, no actual, MODERATE maturity.
+    f({ institutionId: "B", institution: "Beta Institute", icrId: "2", intakeYear: 2027, intakeMonth: 9, region: "LATAM", icrEnr: 20, rmEnr: 8, confidence: 3, maturity: "MODERATE_MATURITY" }),
+    // C / ICR-3 / Jan 2028, no region, no confidence (counts in full), no actual, no maturity.
     f({ institutionId: "C", institution: "Gamma School", icrId: "3", intakeYear: 2028, intakeMonth: 1, region: null, icrEnr: 5 }),
     // ARCHIVED — ignored entirely.
     f({ status: "ARCHIVED", institutionId: "D", institution: "Delta", icrId: "4", intakeYear: 2027, intakeMonth: 9, region: "China", icrEnr: 99, confidence: 5 }),
   ];
 
-  const { intakeRows, regionRows, institutionRows, segmentRows, grand } = rollupForecasts(rows);
+  const { intakeRows, regionRows, institutionRows, segmentRows, maturityRows, grand } = rollupForecasts(rows);
 
   // Grand enrolments: 10 + 8 + 5 = 23.
   expect("grand enrolments = 23", grand.enrolments === 23, `got ${grand.enrolments}`);
@@ -112,6 +114,16 @@ function run(round: number) {
   expect("empty segments carry 0", segmentRows.filter((r) => r.segment !== "DIRECT_UG").every((r) => r.enrolments === 0 && r.n === 0));
   expect("by-segment sums to grand", segmentRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
 
+  // By pipeline maturity — §10/§15. Strongest first, "Not assessed" last.
+  expect("maturity rows in order High, Moderate, Not assessed",
+    maturityRows.map((r) => r.maturity).join(",") === "HIGH_MATURITY,MODERATE_MATURITY,UNASSESSED",
+    maturityRows.map((r) => r.maturity).join(","));
+  const high = maturityRows.find((r) => r.maturity === "HIGH_MATURITY")!;
+  const unassessed = maturityRows.find((r) => r.maturity === "UNASSESSED")!;
+  expect("High maturity = 10 enrolments", high.enrolments === 10, `got ${high?.enrolments}`);
+  expect("Not assessed = 5, labelled", unassessed.enrolments === 5 && unassessed.label === "Not assessed", `got ${unassessed?.enrolments}/${unassessed?.label}`);
+  expect("by-maturity sums to grand", maturityRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
+
   // Reconcile all breakdowns.
   expect("by-intake sums to grand", intakeRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
   expect("by-region sums to grand", regionRows.reduce((s, r) => s + r.enrolments, 0) === grand.enrolments);
@@ -140,6 +152,7 @@ function run(round: number) {
     empty.grand.n === 0 && empty.intakeRows.length === 0 && empty.regionRows.length === 0 &&
     empty.institutionRows.length === 0 && bucketVariance(empty.grand) === null);
   expect("empty => 4 zeroed segment rows", empty.segmentRows.length === 4 && empty.segmentRows.every((r) => r.enrolments === 0 && r.n === 0));
+  expect("empty => no maturity rows", empty.maturityRows.length === 0);
 }
 
 for (let r = 1; r <= 3; r++) run(r);

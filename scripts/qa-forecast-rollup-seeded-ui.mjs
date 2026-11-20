@@ -19,14 +19,14 @@ const fIds = [];
 let fail = 0;
 const ok = (n, c, x = "") => { if (c) console.log(`  ✓ ${n}`); else { fail++; console.log(`  ✗ ${n} ${x}`); } };
 
-async function seedForecast({ periodY, periodM, intakeY, intakeM, status, enrol, confidence = null, actual = null }) {
+async function seedForecast({ periodY, periodM, intakeY, intakeM, status, enrol, confidence = null, actual = null, maturity = null }) {
   const f = await db.forecast.create({
     data: {
       periodYear: periodY, periodMonth: periodM,
       institutionId: inst.id, icrId: icr.id,
       intakeYear: intakeY, intakeMonth: intakeM,
       status, createdById: admin.user.id,
-      confidenceScore: confidence, actualEnrolments: actual,
+      confidenceScore: confidence, actualEnrolments: actual, pipelineMaturity: maturity,
       segments: { create: { segment: "DIRECT_UG", icrApplications: enrol * 4, icrDeposits: enrol * 2, icrEnrolments: enrol } },
     },
   });
@@ -48,7 +48,7 @@ try {
 
   // Sep 2027 intake: current forecast (Nov) = 12, confidence 4/5, ACTUAL 10 recorded;
   //                  older re-forecast (Oct) = 99 → must be dropped.
-  await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 12, confidence: 4, actual: 10 });
+  await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 12, confidence: 4, actual: 10, maturity: "HIGH_MATURITY" });
   await seedForecast({ periodY: 2026, periodM: 10, intakeY: 2027, intakeM: 9, status: "ACCEPTED", enrol: 99 });
   // Jan 2028 intake: 7, no actual yet.
   await seedForecast({ periodY: 2026, periodM: 11, intakeY: 2028, intakeM: 1, status: "SUBMITTED_TO_RM", enrol: 7 });
@@ -71,6 +71,8 @@ try {
   ok("By region table present", (await page.getByRole("heading", { name: /By region/i }).count()) >= 1);
   ok("By institution table present", (await page.getByRole("heading", { name: /By institution/i }).count()) >= 1);
   ok("By segment table present", (await page.getByRole("heading", { name: /By segment/i }).count()) >= 1);
+  ok("By pipeline maturity table present", (await page.getByRole("heading", { name: /By pipeline maturity/i }).count()) >= 1);
+  ok("maturity level 'High maturity' shown", (await page.getByText(/High maturity/i).count()) >= 1);
   ok("Forecast vs Actual section present", (await page.getByRole("heading", { name: /Forecast vs Actual/i }).count()) >= 1);
   ok("Export button present on Summary", (await page.getByRole("button", { name: /Export/i }).count()) >= 1);
 

@@ -452,6 +452,7 @@ function RollupSummary({
   regionRows,
   institutionRows,
   segmentRows,
+  maturityRows,
   grand,
 }: ReturnType<typeof rollupForecasts>) {
   if (grand.n === 0) {
@@ -504,6 +505,10 @@ function RollupSummary({
       <BreakdownTable
         heading="By segment" firstCol="Segment" grand={grand}
         rows={segmentRows.map((r) => ({ key: r.segment, label: SEGMENT_LABELS[r.segment], bucket: r }))}
+      />
+      <BreakdownTable
+        heading="By pipeline maturity" firstCol="Pipeline maturity" grand={grand}
+        rows={maturityRows.map((r) => ({ key: r.maturity, label: r.label, bucket: r }))}
       />
 
       {/* Forecast vs Actual — Spec Pillar 6 KPI (Accuracy = Actual ÷ Forecast). */}
