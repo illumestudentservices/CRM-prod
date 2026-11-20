@@ -1742,6 +1742,23 @@ model LeadNote {
   @@map("lead_notes")
 }
 
+/// The notes thread on a recruitment partner (agent/school). A running log any
+/// staff member with recruitment_network access can append to — relationship
+/// history, agreement chatter, red flags. Append-only, newest first, mirroring
+/// LeadNote. Distinct from the partner's single `notes` summary field.
+model PartnerNote {
+  id        String             @id @default(uuid())
+  partnerId String
+  partner   RecruitmentPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  content   String             @db.Text
+  authorId  String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([partnerId])
+  @@map("partner_notes")
+}
+
 /// The notes thread on a task — a back-and-forth between the task's assignee
 /// and its creator (the manager). Append-only; access follows the task's own
 /// assignee/creator rule in lib/task-visibility.ts.
@@ -1830,6 +1847,7 @@ model RecruitmentPartner {
 
   // Phase 2 — Recruitment Network
   partnerContacts PartnerContact[]
+  partnerNotes    PartnerNote[]
 
   @@map("sources")
 }
