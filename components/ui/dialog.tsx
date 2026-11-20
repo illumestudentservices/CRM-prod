@@ -37,6 +37,10 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4",
+        // Never taller than the viewport: a long form scrolls inside the dialog
+        // instead of running off-screen (which forced a zoom-out to reach the
+        // buttons). Applies to every dialog in the app.
+        "max-h-[90vh] overflow-y-auto",
         "bg-white p-6 shadow-lg rounded-lg border border-slate-200 text-slate-900",
         "dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100",
         "duration-200",
