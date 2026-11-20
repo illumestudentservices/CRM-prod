@@ -230,6 +230,19 @@ export const FIELD_CATALOG: Record<string, { label: string; fields: FieldDef[] }
         writeRoles: ["SUPER_ADMIN", "ICR", "ADMISSIONS_SUPPORT"],
       },
       {
+        // Immigration casework — as sensitive as the passport and seen by the
+        // same roles. Catalogued so redactFields strips it for non-casework
+        // roles wherever a lead is returned (defence in depth).
+        name: "visaRefusalReason", label: "Visa refusal reason", sensitivity: "personal",
+        readRoles: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "ADMISSIONS_SUPPORT"],
+        writeRoles: ["SUPER_ADMIN", "ICR", "ADMISSIONS_SUPPORT"],
+      },
+      {
+        name: "visaRefusalDate", label: "Visa refusal date", sensitivity: "personal",
+        readRoles: ["SUPER_ADMIN", "REGIONAL_MANAGER", "ICR", "ADMISSIONS_SUPPORT"],
+        writeRoles: ["SUPER_ADMIN", "ICR", "ADMISSIONS_SUPPORT"],
+      },
+      {
         name: "budgetRange", label: "Budget range", sensitivity: "personal",
         readRoles: ALL_STAFF,
         writeRoles: ["SUPER_ADMIN", "HQ_EXECUTIVE", "REGIONAL_MANAGER", "ICR"],
