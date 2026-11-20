@@ -75,7 +75,7 @@ const MONTHS_SHORT = [
 export default async function ForecastingPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ view?: string }>;
+  searchParams?: Promise<{ view?: string; fy?: string; region?: string; status?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -85,7 +85,8 @@ export default async function ForecastingPage({
     redirect("/dashboard");
   }
 
-  const view = (await searchParams)?.view === "summary" ? "summary" : "list";
+  const sp = (await searchParams) ?? {};
+  const view = sp.view === "summary" ? "summary" : "list";
 
   const forecasts = await db.forecast.findMany({
     where: scopeFilter(role, session.user.id),
@@ -112,8 +113,27 @@ export default async function ForecastingPage({
   const open = forecasts.filter((f) => f.status !== "ACCEPTED" && f.status !== "ARCHIVED");
   const closed = forecasts.filter((f) => f.status === "ACCEPTED" || f.status === "ARCHIVED");
 
+  // ─── Summary filters (intake year / region / status) ───────────────────────
+  // Options come from everything in the user's scope; the chosen filters narrow
+  // the set BEFORE the roll-up dedups, so totals reflect exactly the slice shown.
+  const regionName = (f: (typeof forecasts)[number]) => f.icr.region?.name ?? "No region";
+  const years = [...new Set(forecasts.map((f) => f.intakeYear))].sort((a, b) => a - b);
+  const regions = [...new Set(forecasts.map(regionName))].sort((a, b) => a.localeCompare(b));
+
+  const fy = sp.fy && /^\d{4}$/.test(sp.fy) && years.includes(Number(sp.fy)) ? Number(sp.fy) : null;
+  const regionFilter = sp.region && regions.includes(sp.region) ? sp.region : null;
+  const statusMode: "ALL" | "ACCEPTED" | "OPEN" =
+    sp.status === "ACCEPTED" || sp.status === "OPEN" ? sp.status : "ALL";
+  const filtersActive = fy !== null || regionFilter !== null || statusMode !== "ALL";
+
+  let filtered = forecasts;
+  if (fy !== null) filtered = filtered.filter((f) => f.intakeYear === fy);
+  if (regionFilter) filtered = filtered.filter((f) => regionName(f) === regionFilter);
+  if (statusMode === "ACCEPTED") filtered = filtered.filter((f) => f.status === "ACCEPTED");
+  else if (statusMode === "OPEN") filtered = filtered.filter((f) => f.status !== "ACCEPTED" && f.status !== "ARCHIVED");
+
   // Current forecast per intake, region and institution (dedup + effective).
-  const rollup = rollupForecasts(forecasts);
+  const rollup = rollupForecasts(filtered);
   const exportSections = buildOutlookExports(rollup);
 
   function row(f: (typeof forecasts)[number]) {
@@ -193,7 +213,14 @@ export default async function ForecastingPage({
       </div>
 
       {view === "summary" ? (
-        <RollupSummary {...rollup} />
+        <>
+          <ForecastFilters
+            years={years} regions={regions}
+            fy={fy} region={regionFilter} status={statusMode}
+            active={filtersActive} shown={filtered.length} total={forecasts.length}
+          />
+          <RollupSummary {...rollup} />
+        </>
       ) : (
         <>
           <section>
@@ -225,6 +252,70 @@ export default async function ForecastingPage({
 
 function num(n: number) {
   return n.toLocaleString("en-CA");
+}
+
+/**
+ * Summary filters — a plain GET form so it works with no client JS (server
+ * component): changing a select and pressing Apply reloads with new query
+ * params, which the page reads back. `view=summary` is kept so Apply stays on
+ * this tab.
+ */
+function ForecastFilters({
+  years, regions, fy, region, status, active, shown, total,
+}: {
+  years: number[];
+  regions: string[];
+  fy: number | null;
+  region: string | null;
+  status: "ALL" | "ACCEPTED" | "OPEN";
+  active: boolean;
+  shown: number;
+  total: number;
+}) {
+  const selectClass =
+    "rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
+  const labelClass = "flex flex-col gap-1 text-xs font-medium text-slate-500 dark:text-slate-400";
+  return (
+    <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+      <input type="hidden" name="view" value="summary" />
+      <label className={labelClass}>
+        Intake year
+        <select name="fy" defaultValue={fy ?? ""} className={selectClass}>
+          <option value="">All years</option>
+          {years.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </label>
+      <label className={labelClass}>
+        Region
+        <select name="region" defaultValue={region ?? ""} className={selectClass}>
+          <option value="">All regions</option>
+          {regions.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </label>
+      <label className={labelClass}>
+        Status
+        <select name="status" defaultValue={status} className={selectClass}>
+          <option value="ALL">All (current)</option>
+          <option value="ACCEPTED">Accepted only</option>
+          <option value="OPEN">In progress</option>
+        </select>
+      </label>
+      <button
+        type="submit"
+        className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+      >
+        Apply
+      </button>
+      {active && (
+        <Link href="/forecasting?view=summary" className="px-2 py-1.5 text-sm text-slate-500 underline underline-offset-2 hover:text-slate-700 dark:hover:text-slate-200">
+          Clear
+        </Link>
+      )}
+      <span className="ml-auto self-center text-xs text-slate-400 dark:text-slate-500">
+        Showing {shown} of {total} forecasts
+      </span>
+    </form>
+  );
 }
 
 const Th = ({ children, right }: { children: React.ReactNode; right?: boolean }) => (
