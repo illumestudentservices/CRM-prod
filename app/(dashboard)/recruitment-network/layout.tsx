@@ -24,7 +24,7 @@ export default async function RecruitmentNetworkLayout({ children }: { children:
     <div className="p-6">
       <h1 className="text-2xl font-semibold">Recruitment Network</h1>
       <p className="text-sm text-muted-foreground mb-4">
-        Partners and network performance. Events and campaigns moved to Recruitment Planning.
+        Partners and network performance.
       </p>
       <nav className="flex gap-2 border-b mb-4">
         {tabs.map((t) => (
