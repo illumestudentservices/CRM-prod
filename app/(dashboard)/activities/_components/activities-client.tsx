@@ -1043,7 +1043,7 @@ export function ActivitiesClient({
               tabs.push({ key: "UNSET", label: "Unclassified" });
             }
             return (
-              <div className="flex flex-wrap items-center gap-1 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 {tabs.map((t) => {
                   const active = statusFilter === t.key;
                   return (
@@ -1052,13 +1052,19 @@ export function ActivitiesClient({
                       type="button"
                       onClick={() => applyLocal(() => { setStatusFilter(t.key); setViewFilter(""); setTypeFilter(""); })}
                       className={
-                        "text-xs px-2.5 py-1 rounded-full border transition-colors " +
+                        "text-sm font-medium px-4 py-2 rounded-full border transition-colors " +
                         (active
                           ? "bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
                           : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60")
                       }
                     >
-                      {t.label} <span className="opacity-70">{statusCounts[t.key] ?? 0}</span>
+                      {t.label}{" "}
+                      <span className={
+                        "ml-1 inline-flex min-w-[1.25rem] justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold " +
+                        (active ? "bg-white/20 dark:bg-slate-900/15" : "bg-slate-100 dark:bg-slate-800")
+                      }>
+                        {statusCounts[t.key] ?? 0}
+                      </span>
                     </button>
                   );
                 })}
