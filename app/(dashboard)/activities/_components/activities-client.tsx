@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +81,13 @@ interface ActivityItem {
   leadsGenerated: number | null;
   cost: number | null;
   outcomes: string | null;
+  // Extra scalars returned by the list query (Prisma `include` returns all) —
+  // used to prefill the edit dialog without a second fetch.
+  description?: string | null;
+  location?: string | null;
+  counsellorsEngaged?: number | null;
+  applicationsGenerated?: number | null;
+  followUp?: string | null;
   user: { id: string; name: string | null; image: string | null };
   institution: { id: string; name: string } | null;
   market: { id: string; name: string } | null;
@@ -146,6 +153,7 @@ export function ActivitiesClient({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachmentsActivity, setAttachmentsActivity] = useState<ActivityItem | null>(null);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   // Extra filters the stat cards + the role dashboard above drive:
   //  - viewFilter: date/status bucket (?view=), from the role-dashboard tiles
@@ -1094,7 +1102,12 @@ export function ActivitiesClient({
                   const cfg = TYPE_CONFIG[a.type];
                   const statusCls = a.status ? STATUS_BADGE[a.status] ?? "" : "bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
                   return (
-                    <TableRow key={a.id}>
+                    <TableRow
+                      key={a.id}
+                      onClick={() => setEditing(a)}
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                      title="Click to view / edit"
+                    >
                       <TableCell>
                         <p className="font-medium text-slate-900 dark:text-slate-100 text-sm">{a.title}</p>
                         {a.school && (
@@ -1132,7 +1145,7 @@ export function ActivitiesClient({
                       <TableCell className="text-right">
                         <button
                           type="button"
-                          onClick={() => setAttachmentsActivity(a)}
+                          onClick={(e) => { e.stopPropagation(); setAttachmentsActivity(a); }}
                           className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded"
                           title="Attachments"
                           aria-label="Attachments"
@@ -1149,6 +1162,16 @@ export function ActivitiesClient({
         </CardContent>
       </Card>
 
+      {/* Click a row to view / edit the activity */}
+      {editing && (
+        <EditActivityDialog
+          activity={editing}
+          typeOptions={ACTIVITY_TYPES}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); router.refresh(); }}
+        />
+      )}
+
       {/* Per-activity attachments modal — opened from the row's paperclip icon */}
       <Dialog open={!!attachmentsActivity} onOpenChange={(o) => !o && setAttachmentsActivity(null)}>
         <DialogContent className="max-w-lg">
@@ -1161,5 +1184,169 @@ export function ActivitiesClient({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ─── Edit activity ─────────────────────────────────────────────────────────────
+
+/**
+ * View / edit an activity in place. Opened by clicking a row. Prefilled from the
+ * row data (the list query returns every scalar), saved with PATCH
+ * /api/activities/[id]. Status is editable here — that is how a planned activity
+ * is marked In Progress / Completed / Cancelled after the fact.
+ */
+function EditActivityDialog({
+  activity, typeOptions, onClose, onSaved,
+}: {
+  activity: ActivityItem;
+  typeOptions: ReadonlyArray<{ value: string; label: string }>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const toDateInput = (d: Date | string) => {
+    try { return new Date(d).toISOString().slice(0, 10); } catch { return ""; }
+  };
+
+  const [type, setType] = useState<string>(activity.type);
+  const [status, setStatus] = useState<string>(activity.status ?? "PLANNED");
+  const [title, setTitle] = useState(activity.title);
+  const [date, setDate] = useState(toDateInput(activity.date));
+  const [city, setCity] = useState(activity.city ?? "");
+  const [country, setCountry] = useState(activity.country ?? "");
+  const [location, setLocation] = useState(activity.location ?? "");
+  const [description, setDescription] = useState(activity.description ?? "");
+  const [outcomes, setOutcomes] = useState(activity.outcomes ?? "");
+  const [studentsEngaged, setStudentsEngaged] = useState(activity.studentsEngaged?.toString() ?? "");
+  const [leadsGenerated, setLeadsGenerated] = useState(activity.leadsGenerated?.toString() ?? "");
+  const [cost, setCost] = useState(activity.cost?.toString() ?? "");
+
+  async function save() {
+    setSaving(true);
+    try {
+      const numOrNull = (s: string, parser: (v: string) => number) => (s.trim() === "" ? null : parser(s));
+      const payload: Record<string, unknown> = {
+        type, status, title, date,
+        city: city || null, country: country || null, location: location || null,
+        description: description || null, outcomes: outcomes || null,
+        studentsEngaged: numOrNull(studentsEngaged, (v) => parseInt(v, 10)),
+        leadsGenerated: numOrNull(leadsGenerated, (v) => parseInt(v, 10)),
+        cost: numOrNull(cost, parseFloat),
+      };
+      const res = await fetch(`/api/activities/${activity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({
+          title: err?.error ?? "Could not save changes",
+          description: err?.details ? Object.values(err.details.fieldErrors ?? {}).flat().join(" ") || undefined : undefined,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Activity updated" });
+      onSaved();
+    } catch {
+      toast({ title: "Could not save changes", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-slate-900 dark:text-slate-100">Edit Activity</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-5 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Activity Type</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {typeOptions.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PLANNED">Planned</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Title *</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Date *</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">City</Label>
+              <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Country</Label>
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-slate-700 dark:text-slate-300">Location / Venue</Label>
+            <Input value={location} onChange={(e) => setLocation(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-slate-700 dark:text-slate-300">Description</Label>
+            <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-slate-700 dark:text-slate-300">Outcomes</Label>
+            <Textarea rows={2} value={outcomes} onChange={(e) => setOutcomes(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Students Engaged</Label>
+              <Input type="number" min={0} value={studentsEngaged} onChange={(e) => setStudentsEngaged(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Leads Generated</Label>
+              <Input type="number" min={0} value={leadsGenerated} onChange={(e) => setLeadsGenerated(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Cost ($)</Label>
+              <Input type="number" min={0} step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !title || !date}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {saving ? "Saving..." : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

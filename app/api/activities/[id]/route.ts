@@ -19,6 +19,7 @@ const actionItemSchema = z.object({
 
 const updateActivitySchema = z.object({
   type: z.enum(ACTIVITY_TYPES as unknown as [ActivityType, ...ActivityType[]]).optional(),
+  status: z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED", "CLOSED", "CANCELLED"]).optional(),
   title: z.string().min(2).optional(),
   description: z.string().optional().nullable(),
   date: z.string().optional(),
@@ -141,6 +142,13 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = { roi };
     if (data.type !== undefined) updateData.type = data.type;
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+      // Keep actualDate in step with the status: stamp it when moving to a done
+      // state, clear it when moving back to planned/in-progress.
+      const doneDate = data.date ? new Date(data.date) : existing.date;
+      updateData.actualDate = data.status === "COMPLETED" || data.status === "CLOSED" ? (existing.actualDate ?? doneDate) : null;
+    }
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.date !== undefined) updateData.date = new Date(data.date);
