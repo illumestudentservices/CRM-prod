@@ -78,6 +78,37 @@ export async function refuseAssignment(
   };
 }
 
+// ─── Bulk assignment (many reps in one go) ───────────────────────────────────
+
+/**
+ * The CEO keeps the bulk-assign power as a person, not only through a role, so
+ * it survives a role change. Pinned by email like lib/region-owners.ts, which
+ * stays correct across the test and production databases. Mike Henniger holds
+ * HQ_EXECUTIVE today, so the role check already covers him — this is belt and
+ * braces, and the single place to change if the CEO account ever moves.
+ */
+export const BULK_ASSIGN_CEO_EMAILS = ["mike@illumestudentservices.ca"];
+
+/**
+ * Who may assign ONE task to MANY people at once. Deliberately narrow: HQ
+ * Executives, the CEO, and Super Admins. Unlike the per-report rule above, a
+ * bulk assigner may target any active employee — the gate is the trust, so the
+ * target list does not also have to be.
+ */
+export function canBulkAssignTasks(role?: Role, email?: string | null): boolean {
+  if (role === "SUPER_ADMIN" || role === "HQ_EXECUTIVE") return true;
+  return !!email && BULK_ASSIGN_CEO_EMAILS.includes(email.toLowerCase());
+}
+
+/** Every active employee — the pool a bulk assigner may put a task on. */
+export async function bulkAssignRoster() {
+  return db.employee.findMany({
+    where: { ...ACTIVE_EMPLOYEE },
+    include: { user: { select: { id: true, name: true, image: true } } },
+    orderBy: { user: { name: "asc" } },
+  });
+}
+
 /**
  * The people the signed-in employee may pick in an assignee dropdown: them,
  * then their direct reports by name.

@@ -104,7 +104,9 @@ export const PERMISSION_MATRIX: Record<Role, Record<Resource, Action[]>> = {
     travel: ["read"],
     risk_compliance: ["read", "export"],
     knowledge: ["read"],
-    tasks: ["read"],
+    // HQ Executives can raise tasks — including bulk-assigning to many reps at
+    // once (lib/task-assignment.ts canBulkAssignTasks). Was read-only.
+    tasks: ["read", "write"],
     recruitment_network: ["read", "export"],
     recruitment_planning: ["read", "approve", "export"],
     icr_transition: ["read"],

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { assignableEmployees } from "@/lib/task-assignment";
+import { assignableEmployees, canBulkAssignTasks, bulkAssignRoster } from "@/lib/task-assignment";
 import type { Role } from "@/lib/permissions";
 import { visibleTaskWhereForUser } from "@/lib/task-visibility";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { TasksClient } from "./_components/tasks-client";
 import { MyDashboard } from "./_components/my-dashboard";
 import { FireTemplatesButton } from "./_components/fire-templates-button";
+import { BulkAssignDialog } from "./_components/bulk-assign-dialog";
 
 /**
  * The tasks this person is entitled to see, with a count of the files on each.
@@ -84,8 +85,9 @@ export default async function TasksPage() {
   if (!(await effectiveHasPermission(session.user.role, "tasks", "read"))) redirect("/dashboard");
 
   const canWrite = await effectiveHasPermission(session.user.role, "tasks", "write");
+  const canBulk = canBulkAssignTasks(session.user.role as Role, session.user.email);
 
-  const [tasks, employees, templates] = await Promise.all([
+  const [tasks, employees, templates, bulkRoster] = await Promise.all([
     getVisibleTasks(session.user.id),
     getAssignableEmployees(session.user.id, session.user.role as Role),
     canWrite
@@ -93,6 +95,7 @@ export default async function TasksPage() {
           orderBy: [{ isActive: "desc" }, { name: "asc" }],
         })
       : Promise.resolve([]),
+    canBulk ? bulkAssignRoster() : Promise.resolve([]),
   ]);
 
   return (
@@ -105,18 +108,27 @@ export default async function TasksPage() {
           { label: "Tasks" },
         ]}
         actions={
-          canWrite ? (
-            <FireTemplatesButton
-              templates={templates.map((t) => ({
-                id: t.id,
-                name: t.name,
-                description: t.description,
-                triggerEvent: t.triggerEvent,
-                category: t.category,
-                recurrence: t.recurrence,
-                isActive: t.isActive,
-              }))}
-            />
+          canWrite || canBulk ? (
+            <div className="flex items-center gap-2">
+              {canBulk && (
+                <BulkAssignDialog
+                  roster={bulkRoster.map((e) => ({ id: e.id, user: { id: e.user.id, name: e.user.name, image: e.user.image } }))}
+                />
+              )}
+              {canWrite && (
+                <FireTemplatesButton
+                  templates={templates.map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    description: t.description,
+                    triggerEvent: t.triggerEvent,
+                    category: t.category,
+                    recurrence: t.recurrence,
+                    isActive: t.isActive,
+                  }))}
+                />
+              )}
+            </div>
           ) : undefined
         }
       />
