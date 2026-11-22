@@ -4,9 +4,19 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
 import { trashRecord } from "@/lib/recycle-bin";
-import type { ActivityType } from "@prisma/client";
+import type { ActivityType, Role } from "@prisma/client";
 import { ACTIVITY_TYPES } from "@/lib/activity-types";
+import { canSeeAllFieldOps } from "@/lib/activity-scope";
 import { logActivity } from "@/lib/activity-logger";
+
+// Object-level scope for a single activity. The LIST route
+// (activityVisibilityWhere) shows non-supervisors only the activities they
+// logged; without the same check here, the [id] route could be used to read,
+// edit or delete around that scope by guessing an id. 404 (not 403) so it can't
+// be used to tell a real id from a forbidden one.
+function canReachActivity(role: string, userId: string, ownerId: string): boolean {
+  return canSeeAllFieldOps(role as Role) || ownerId === userId;
+}
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -77,6 +87,10 @@ export async function GET(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
+    if (!canReachActivity(session.user.role, session.user.id, activity.userId)) {
+      return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
     return NextResponse.json({ data: activity });
   } catch (error) {
     console.error("[GET /api/activities/[id]]", error);
@@ -107,6 +121,10 @@ export async function PATCH(
     });
 
     if (!existing) {
+      return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    if (!canReachActivity(session.user.role, session.user.id, existing.userId)) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
@@ -215,6 +233,10 @@ export async function DELETE(
     });
 
     if (!existing) {
+      return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    if (!canReachActivity(session.user.role, session.user.id, existing.userId)) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
