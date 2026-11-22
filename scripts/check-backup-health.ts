@@ -23,9 +23,9 @@
  *   BACKUP_MIN_BYTES  default 10240  (matches backup-db.sh's own floor)
  */
 import "dotenv/config";
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { db } from "@/lib/db";
 import { notifyAdmins } from "@/lib/admin-alerts";
 import { reportAutomationFailure } from "@/lib/automation-failure";
@@ -37,7 +37,6 @@ const PREFIX = "illume_crm-nightly-";
 // Encrypted backups (.sql.gz.gpg) are the norm now; older plaintext .sql.gz are
 // still accepted while they age out of the 14-day retention window.
 const SUFFIXES = [".sql.gz.gpg", ".sql.gz"];
-const PASSPHRASE_FILE = process.env.BACKUP_PASSPHRASE_FILE ?? "/root/.illume-backup-passphrase";
 
 type Problem = { reason: string; detail: [string, string][] };
 
@@ -100,19 +99,26 @@ function inspect(): Problem | null {
   // binary is not a backup fault), but a genuine corruption / un-decryptable
   // dump IS reported.
   if (newest.name.endsWith(".gpg")) {
-    // Encrypted: prove it decrypts with the stored passphrase, then gzip -t the
-    // plaintext stream. Only attempted when gpg and the passphrase are present
-    // here — otherwise skip, like the gzip-missing case below.
+    // Public-key encrypted: this box holds only the public key, so it cannot
+    // decrypt to check. Instead confirm the file is a well-formed OpenPGP
+    // message (not truncated/corrupt) — that needs no key. The dump's contents
+    // were already verified in plaintext by backup-db.sh before encryption.
+    // Best-effort about gpg being on PATH here.
     let gpgHere = true;
     try { execFileSync("gpg", ["--version"], { stdio: "ignore" }); } catch { gpgHere = false; }
-    if (gpgHere && existsSync(PASSPHRASE_FILE)) {
+    if (gpgHere) {
+      // `gpg --list-packets` EXITS NON-ZERO on a public-only keyring (no secret
+      // key to open it) even for a good file, but still PRINTS the packet list.
+      // So capture stdout either way and look for the encrypted-data packet,
+      // rather than trusting the exit code (which would false-alarm nightly).
+      let pkts = "";
       try {
-        execSync(
-          `gpg --quiet --batch --yes --pinentry-mode loopback --passphrase-file ${JSON.stringify(PASSPHRASE_FILE)} --decrypt ${JSON.stringify(newest.path)} | gzip -t`,
-          { stdio: "ignore" }
-        );
-      } catch {
-        return { reason: "Newest backup failed to decrypt / verify (bad passphrase or corrupt)", detail: base };
+        pkts = execFileSync("gpg", ["--list-packets", newest.path], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+      } catch (e) {
+        pkts = (e as { stdout?: Buffer | string }).stdout?.toString() ?? "";
+      }
+      if (!pkts.includes("encrypted data packet")) {
+        return { reason: "Newest backup is not a valid OpenPGP message (truncated/corrupt)", detail: base };
       }
     }
   } else {
