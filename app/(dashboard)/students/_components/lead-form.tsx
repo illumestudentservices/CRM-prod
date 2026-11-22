@@ -414,6 +414,18 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   EDUCATION_PARTNER: "Education partner",
 };
 
+/**
+ * Lead channels that point at a specific partner, and which partner TYPE to pick.
+ * When one of these channels is chosen, the form shows an inline "which agent /
+ * which school" picker right under Lead Channel (and keeps the Source section's
+ * type filter in step). Other channels (website, walk-in, ads …) have no
+ * specific partner, so no inline picker appears.
+ */
+const CHANNEL_SOURCE_TYPE: Record<string, string> = {
+  AGENT_REFERRAL: "AGENT",
+  SCHOOL_REFERRAL: "SCHOOL",
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LeadForm({
@@ -720,6 +732,30 @@ export function LeadForm({
       setValue("sourceId", undefined, { shouldDirty: true });
     }
   }
+  // Inline "which agent / which school" picker shown right under Lead Channel
+  // when the chosen channel points at a specific partner type.
+  const currentChannel = watch("channel");
+  const inlineSourceType = CHANNEL_SOURCE_TYPE[currentChannel ?? ""] ?? null;
+  const inlineSourceOptions = React.useMemo(() => {
+    if (!inlineSourceType) return [];
+    const match = partnerSources
+      .filter((s) => s.type === inlineSourceType)
+      .map((s) => ({ value: s.id, label: s.name }));
+    return [{ value: "none", label: "Not listed / no specific one" }, ...match];
+  }, [partnerSources, inlineSourceType]);
+
+  // Picking a referral channel steers the source: set the Source section's type
+  // filter to match and clear a source that no longer fits the new channel.
+  function onChannelChange(v: string) {
+    setValue("channel", v, { shouldValidate: true });
+    const mapped = CHANNEL_SOURCE_TYPE[v];
+    if (mapped) {
+      setSourceType(mapped);
+      const cur = partnerSources.find((s) => s.id === currentSourceId);
+      if (cur && cur.type !== mapped) setValue("sourceId", undefined, { shouldDirty: true });
+    }
+  }
+
   const currentInstitutionId = watch("institutionId");
   const currentAssignedICRId = watch("assignedICRId");
   const currentIntakeMonth = watch("intakeMonth");
@@ -818,7 +854,7 @@ export function LeadForm({
               <FormField name="channel" label="Lead Channel" error={errors.channel?.message}>
                 <Select
                   value={watch("channel") || ""}
-                  onValueChange={(v) => setValue("channel", v, { shouldValidate: true })}
+                  onValueChange={onChannelChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select channel..." />
@@ -832,6 +868,33 @@ export function LeadForm({
                   </SelectContent>
                 </Select>
               </FormField>
+
+              {/* Referral channels point at a specific partner — pick which one
+                  right here. Writes the same `sourceId` as the Source section, so
+                  the two stay in agreement. */}
+              {inlineSourceType && (
+                <FormField
+                  name="sourceId"
+                  label={inlineSourceType === "AGENT" ? "Which agent?" : "Which school?"}
+                  error={errors.sourceId?.message}
+                >
+                  {inlineSourceOptions.length > 1 ? (
+                    <Combobox
+                      options={inlineSourceOptions}
+                      value={currentSourceId ?? "none"}
+                      onChange={(v) => setValue("sourceId", v === "none" ? undefined : v, { shouldDirty: true })}
+                      placeholder={inlineSourceType === "AGENT" ? "Select agent..." : "Select school..."}
+                      searchPlaceholder={inlineSourceType === "AGENT" ? "Search agents…" : "Search schools…"}
+                      emptyText={inlineSourceType === "AGENT" ? "No agent matches that." : "No school matches that."}
+                    />
+                  ) : (
+                    <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                      No {inlineSourceType === "AGENT" ? "agents" : "schools"} have been set up yet. Add them under
+                      Recruitment Network → Recruitment Partners.
+                    </p>
+                  )}
+                </FormField>
+              )}
             </div>
 
             <MatchCheckPanel
