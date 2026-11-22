@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
@@ -177,40 +178,42 @@ export default async function NetworkPerformancePage() {
         <p className="text-xs text-muted-foreground mb-2">
           Auto-calculated. Tier is set by the network-automation cron; manual writes are refused.
         </p>
-        <table className="w-full text-sm border">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">Agent</th>
-              <th className="text-left p-2">Country</th>
-              <th className="text-left p-2">Tier</th>
-              <th className="text-left p-2">Applications</th>
-              <th className="text-left p-2">Offers</th>
-              <th className="text-left p-2">Deposits</th>
-              <th className="text-left p-2">Enrolments</th>
-              <th className="text-left p-2">Yield</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map((a) => (
-              <tr key={a.id} className="border-t">
-                <td className="p-2">{a.source.name}</td>
-                <td className="p-2">{a.source.country}</td>
-                <td className="p-2">{a.tier}</td>
-                {/* Applications is a derivable but not currently stored count;
-                    the AgentProfile.offers column stands in for the moment
-                    since offers > applications is guaranteed impossible. */}
-                <td className="p-2 text-muted-foreground">—</td>
-                <td className="p-2">{a.offers}</td>
-                <td className="p-2">{a.deposits}</td>
-                <td className="p-2">{a.enrolments}</td>
-                <td className="p-2">{a.yieldRate != null ? `${a.yieldRate.toFixed(1)}%` : "—"}</td>
-              </tr>
-            ))}
-            {agents.length === 0 && (
-              <tr><td className="p-3 text-center text-muted-foreground" colSpan={8}>No agents yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Agent</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Tier</TableHead>
+                <TableHead className="text-right">Applications</TableHead>
+                <TableHead className="text-right">Offers</TableHead>
+                <TableHead className="text-right">Deposits</TableHead>
+                <TableHead className="text-right">Enrolments</TableHead>
+                <TableHead className="text-right">Yield</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agents.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium text-slate-900 dark:text-slate-100">{a.source.name}</TableCell>
+                  <TableCell>{a.source.country}</TableCell>
+                  <TableCell>{a.tier}</TableCell>
+                  {/* Applications is a derivable but not currently stored count;
+                      the AgentProfile.offers column stands in for the moment
+                      since offers > applications is guaranteed impossible. */}
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right tabular-nums">{a.offers}</TableCell>
+                  <TableCell className="text-right tabular-nums">{a.deposits}</TableCell>
+                  <TableCell className="text-right tabular-nums">{a.enrolments}</TableCell>
+                  <TableCell className="text-right tabular-nums">{a.yieldRate != null ? `${a.yieldRate.toFixed(1)}%` : "—"}</TableCell>
+                </TableRow>
+              ))}
+              {agents.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">No agents yet.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </section>
 
       {/* ─── 2. Schools ───────────────────────────────────────────────────
@@ -218,39 +221,41 @@ export default async function NetworkPerformancePage() {
           are now measured by field-operations engagement instead. */}
       <section>
         <h2 className="text-lg font-semibold mb-2">School Rankings</h2>
-        <table className="w-full text-sm border">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">School</th>
-              <th className="text-left p-2">Country</th>
-              <th className="text-left p-2">Type</th>
-              <th className="text-left p-2">Relationship</th>
-              <th className="text-left p-2">Field Ops</th>
-              <th className="text-left p-2">Last Visit</th>
-              <th className="text-left p-2">Days Since</th>
-            </tr>
-          </thead>
-          <tbody>
-            {schoolStats.map((s) => {
-              const ds = daysSince(s.lastVisitDate);
-              const stale = ds !== null && ds > 180;
-              return (
-                <tr key={s.id} className="border-t">
-                  <td className="p-2">{s.name}</td>
-                  <td className="p-2">{s.country}</td>
-                  <td className="p-2">{s.type}</td>
-                  <td className="p-2">{s.relationshipStatus}</td>
-                  <td className="p-2">{s._count.activities}</td>
-                  <td className="p-2">{s.lastVisitDate?.toISOString().slice(0, 10) ?? "—"}</td>
-                  <td className={`p-2 ${stale ? "text-red-600 dark:text-red-400" : ""}`}>{ds ?? "—"}</td>
-                </tr>
-              );
-            })}
-            {schoolStats.length === 0 && (
-              <tr><td className="p-3 text-center text-muted-foreground" colSpan={7}>No schools yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>School</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Relationship</TableHead>
+                <TableHead className="text-right">Field Ops</TableHead>
+                <TableHead>Last Visit</TableHead>
+                <TableHead className="text-right">Days Since</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {schoolStats.map((s) => {
+                const ds = daysSince(s.lastVisitDate);
+                const stale = ds !== null && ds > 180;
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium text-slate-900 dark:text-slate-100">{s.name}</TableCell>
+                    <TableCell>{s.country}</TableCell>
+                    <TableCell>{s.type}</TableCell>
+                    <TableCell>{s.relationshipStatus}</TableCell>
+                    <TableCell className="text-right tabular-nums">{s._count.activities}</TableCell>
+                    <TableCell>{s.lastVisitDate?.toISOString().slice(0, 10) ?? "—"}</TableCell>
+                    <TableCell className={`text-right tabular-nums ${stale ? "text-red-600 dark:text-red-400" : ""}`}>{ds ?? "—"}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {schoolStats.length === 0 && (
+                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No schools yet.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </section>
 
       {/* ─── 3. Campaign Rankings ─────────────────────────────────────────

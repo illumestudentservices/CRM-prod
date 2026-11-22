@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { effectiveHasPermission } from "@/lib/effective-permissions";
+import { PageHeader } from "@/components/shared/page-header";
 
 const TABS: Array<{ href: string; label: string }> = [
   { href: "/recruitment-network/partners", label: "Recruitment Partners" },
@@ -21,17 +22,18 @@ export default async function RecruitmentNetworkLayout({ children }: { children:
   );
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Recruitment Network</h1>
-      <p className="text-sm text-muted-foreground mb-4">
-        Partners and network performance.
-      </p>
-      <nav className="flex gap-2 border-b mb-4">
+    <div className="space-y-6">
+      <PageHeader
+        title="Recruitment Network"
+        description="Partners and network performance."
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Recruitment Network" }]}
+      />
+      <nav className="flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-800">
         {tabs.map((t) => (
           <Link
             key={t.href}
             href={t.href}
-            className="px-3 py-2 text-sm font-medium hover:bg-muted rounded-t transition-colors"
+            className="rounded-t-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
           >
             {t.label}
           </Link>

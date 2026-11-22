@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PartnerForm } from "./_components/partner-form";
 import { PartnerFilters } from "./_components/partner-filters";
 
@@ -256,67 +257,67 @@ export default async function PartnersPage({ searchParams }: Props) {
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">Partner</th>
-              <th className="text-left p-2">Type</th>
-              <th className="text-left p-2">Country / City</th>
-              <th className="text-left p-2">Contact</th>
-              <th className="text-left p-2">People</th>
-              <th className="text-left p-2">Leads</th>
-              <th className="text-left p-2">Tier</th>
-              <th className="text-left p-2">Enrolments</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Partner</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Country / City</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead className="text-right">People</TableHead>
+              <TableHead className="text-right">Leads</TableHead>
+              <TableHead>Tier</TableHead>
+              <TableHead className="text-right">Enrolments</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {partners.map((p) => {
               const typeCls = TYPE_BADGE[p.type] ?? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
               const tierCls = p.agentProfile?.tier
                 ? TIER_BADGE[p.agentProfile.tier] ?? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
                 : null;
               return (
-                <tr key={p.id} className="border-t hover:bg-muted/50">
-                  <td className="p-2">
-                    <Link href={`/recruitment-network/partners/${p.id}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Link href={`/recruitment-network/partners/${p.id}`} className="font-medium text-blue-600 hover:underline dark:text-blue-400">
                       {p.name}
                     </Link>
-                  </td>
-                  <td className="p-2">
-                    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${typeCls}`}>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${typeCls}`}>
                       {p.type.replace(/_/g, " ")}
                     </span>
-                  </td>
-                  <td className="p-2">
+                  </TableCell>
+                  <TableCell>
                     {p.country}
                     {p.city && <span className="text-muted-foreground"> · {p.city}</span>}
-                  </td>
-                  <td className="p-2 text-muted-foreground">{p.contactPerson ?? "—"}</td>
-                  <td className="p-2">{p._count.partnerContacts}</td>
-                  <td className="p-2">{p._count.leads}</td>
-                  <td className="p-2">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{p.contactPerson ?? "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">{p._count.partnerContacts}</TableCell>
+                  <TableCell className="text-right tabular-nums">{p._count.leads}</TableCell>
+                  <TableCell>
                     {p.agentProfile?.tier ? (
-                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold border ${tierCls}`}>
+                      <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold ${tierCls}`}>
                         {p.agentProfile.tier}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </td>
-                  <td className="p-2">{p.agentProfile?.enrolments ?? "—"}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{p.agentProfile?.enrolments ?? "—"}</TableCell>
+                </TableRow>
               );
             })}
             {partners.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   No partners match the current filter.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

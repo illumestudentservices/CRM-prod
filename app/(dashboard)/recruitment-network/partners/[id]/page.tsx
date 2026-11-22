@@ -53,7 +53,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {partner.agentProfile && (
-        <div className="border rounded p-4">
+        <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
           <h3 className="font-medium mb-2">Agent Profile</h3>
           <div className="grid grid-cols-4 gap-2 text-sm">
             <div>Tier: <strong>{partner.agentProfile.tier}</strong></div>
@@ -106,12 +106,12 @@ function Metric({ label, value, href }: { label: string; value: number; href?: s
     </>
   );
   if (!href) {
-    return <div className="border rounded p-4">{inner}</div>;
+    return <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">{inner}</div>;
   }
   return (
     <Link
       href={href}
-      className="group block rounded border p-4 transition-colors hover:border-blue-400 hover:bg-muted/50 dark:hover:border-blue-500/50"
+      className="group block rounded-lg border border-slate-200 p-4 transition-colors hover:border-blue-400 hover:bg-muted/50 dark:border-slate-800 dark:hover:border-blue-500/50"
     >
       <div className="text-xs text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400">
         {label} <span aria-hidden>→</span>
