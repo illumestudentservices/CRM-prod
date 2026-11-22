@@ -46,6 +46,12 @@ try {
     (await bodyHas(page, "Not listed / no specific one")) && !(await bodyHas(page, "No schools have been set up")));
   ok("…and not the agent label", !(await bodyHas(page, "Which agent?")));
 
+  // Direct Lead → selectable, no inline picker, Assignment Source control shows
+  await pick("Direct Lead");
+  ok("Direct Lead is selectable with no inline agent/school picker",
+    !(await bodyHas(page, "Which agent?")) && !(await bodyHas(page, "Which school?")));
+  ok("…and keeps the Assignment-section Source control", await bodyHas(page, "Source type"));
+
   // Website → no inline picker, and the Assignment Source control is back
   await pick("Website");
   ok("Website shows no inline agent/school picker",

@@ -40,6 +40,7 @@ export const LEAD_CHANNELS = [
   { value: "SCHOOL_REFERRAL", label: "School Referral" },
   { value: "WEBSITE", label: "Website" },
   { value: "WALK_IN", label: "Walk-in" },
+  { value: "DIRECT_LEAD", label: "Direct Lead" },
   { value: "STUDENT_REFERRAL", label: "Student Referral" },
   { value: "STAFF_REFERRAL", label: "Staff Referral" },
   { value: "GOOGLE_ADS", label: "Google Ads" },
