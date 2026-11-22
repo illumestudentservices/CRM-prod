@@ -132,7 +132,9 @@ export async function postNewHireAnnouncement(opts: {
         userId,
         title,
         message: content.slice(0, 500),
-        type: "ANNOUNCEMENT",
+        // Dedicated type so these can age out after a week (lib/notification-cleanup.ts)
+        // without touching other announcements.
+        type: "NEW_HIRE",
         link: "/dashboard",
       })),
     });
