@@ -35,7 +35,9 @@ function relativeTime(iso: string): string {
 export function NotificationsClient() {
   const router = useRouter();
   const { toast } = useToast();
-  const [filter, setFilter] = React.useState<"all" | "unread">("all");
+  // The hub defaults to Unread — the list of things still needing attention.
+  // Marking all read empties it; read ones are kept and stay visible under "All".
+  const [filter, setFilter] = React.useState<"all" | "unread">("unread");
   const [rows, setRows] = React.useState<Row[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [total, setTotal] = React.useState(0);
@@ -84,11 +86,16 @@ export function NotificationsClient() {
 
   async function markAll() {
     setBusy(true);
-    setRows((r) => r.map((n) => ({ ...n, isRead: true })));
+    // Everything becomes read → it leaves the Unread hub. Keep the rows in the
+    // database (not deleted); they remain under "All". Clear the view optimistically
+    // and land on Unread so the hub visibly empties from whichever tab you clicked.
+    setRows([]);
+    loadedRef.current = 0;
     setUnreadCount(0);
     try {
       await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) });
-      await load(true, filter);
+      if (filter === "unread") await load(true, "unread");
+      else setFilter("unread"); // the effect reloads the now-empty unread view
     } finally { setBusy(false); }
   }
 
@@ -147,7 +154,7 @@ export function NotificationsClient() {
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Bell className="mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm text-slate-500">{filter === "unread" ? "No unread notifications." : "You're all caught up."}</p>
+            <p className="text-sm text-slate-500">{filter === "unread" ? "No unread notifications — switch to All to see earlier ones." : "You're all caught up."}</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">

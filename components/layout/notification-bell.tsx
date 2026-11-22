@@ -150,7 +150,9 @@ export function NotificationBell({ initialCount = 0 }: { initialCount?: number }
   }
 
   async function markAll() {
-    setRows((r) => r.map((n) => ({ ...n, isRead: true })));
+    // The bell shows unread only, so marking all read empties it. Rows are kept
+    // in the database — just cleared from this list (and the badge).
+    setRows([]);
     setUnread(0);
     await fetch("/api/notifications", {
       method: "PATCH",
