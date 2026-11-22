@@ -23,9 +23,9 @@
  *   BACKUP_MIN_BYTES  default 10240  (matches backup-db.sh's own floor)
  */
 import "dotenv/config";
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { db } from "@/lib/db";
 import { notifyAdmins } from "@/lib/admin-alerts";
 import { reportAutomationFailure } from "@/lib/automation-failure";
@@ -34,7 +34,10 @@ const DIR = process.env.BACKUP_DIR ?? "/root/db-backups";
 const MAX_AGE_H = Number(process.env.BACKUP_MAX_AGE_H ?? 26);
 const MIN_BYTES = Number(process.env.BACKUP_MIN_BYTES ?? 10240);
 const PREFIX = "illume_crm-nightly-";
-const SUFFIX = ".sql.gz";
+// Encrypted backups (.sql.gz.gpg) are the norm now; older plaintext .sql.gz are
+// still accepted while they age out of the 14-day retention window.
+const SUFFIXES = [".sql.gz.gpg", ".sql.gz"];
+const PASSPHRASE_FILE = process.env.BACKUP_PASSPHRASE_FILE ?? "/root/.illume-backup-passphrase";
 
 type Problem = { reason: string; detail: [string, string][] };
 
@@ -45,7 +48,7 @@ function newestNightly(): { path: string; name: string; mtime: Date; size: numbe
   } catch (e) {
     throw new Error(`cannot read backup directory ${DIR}: ${(e as Error).message}`);
   }
-  const candidates = entries.filter((n) => n.startsWith(PREFIX) && n.endsWith(SUFFIX));
+  const candidates = entries.filter((n) => n.startsWith(PREFIX) && SUFFIXES.some((s) => n.endsWith(s)));
   let newest: { path: string; name: string; mtime: Date; size: number } | null = null;
   for (const name of candidates) {
     const path = join(DIR, name);
@@ -69,7 +72,7 @@ function inspect(): Problem | null {
       reason: "No nightly backup file found",
       detail: [
         ["Directory", DIR],
-        ["Looked for", `${PREFIX}*${SUFFIX}`],
+        ["Looked for", `${PREFIX}*.sql.gz[.gpg]`],
       ],
     };
   }
@@ -93,15 +96,34 @@ function inspect(): Problem | null {
       detail: base,
     };
   }
-  // Integrity: gzip -t. Best-effort — if gzip isn't on PATH we don't flag it
-  // corrupt, that would be a false alarm about the checker's own environment.
-  try {
-    execFileSync("gzip", ["-t", newest.path], { stdio: "ignore" });
-  } catch (e) {
-    const msg = (e as NodeJS.ErrnoException).code === "ENOENT"
-      ? null // gzip binary missing — skip the integrity check, not a backup problem
-      : "gzip integrity check failed";
-    if (msg) return { reason: msg, detail: base };
+  // Integrity. Best-effort about the checker's OWN environment (a missing
+  // binary is not a backup fault), but a genuine corruption / un-decryptable
+  // dump IS reported.
+  if (newest.name.endsWith(".gpg")) {
+    // Encrypted: prove it decrypts with the stored passphrase, then gzip -t the
+    // plaintext stream. Only attempted when gpg and the passphrase are present
+    // here — otherwise skip, like the gzip-missing case below.
+    let gpgHere = true;
+    try { execFileSync("gpg", ["--version"], { stdio: "ignore" }); } catch { gpgHere = false; }
+    if (gpgHere && existsSync(PASSPHRASE_FILE)) {
+      try {
+        execSync(
+          `gpg --quiet --batch --yes --pinentry-mode loopback --passphrase-file ${JSON.stringify(PASSPHRASE_FILE)} --decrypt ${JSON.stringify(newest.path)} | gzip -t`,
+          { stdio: "ignore" }
+        );
+      } catch {
+        return { reason: "Newest backup failed to decrypt / verify (bad passphrase or corrupt)", detail: base };
+      }
+    }
+  } else {
+    try {
+      execFileSync("gzip", ["-t", newest.path], { stdio: "ignore" });
+    } catch (e) {
+      const msg = (e as NodeJS.ErrnoException).code === "ENOENT"
+        ? null // gzip binary missing — skip the integrity check, not a backup problem
+        : "gzip integrity check failed";
+      if (msg) return { reason: msg, detail: base };
+    }
   }
 
   console.log(`[check-backup-health] ok — ${newest.name}, ${(newest.size / 1_048_576).toFixed(2)}MB, ${ageH.toFixed(1)}h old`);
