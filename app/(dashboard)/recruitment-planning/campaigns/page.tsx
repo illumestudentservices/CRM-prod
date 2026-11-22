@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 import { ListSearch } from "@/components/shared/list-search";
 import { auth } from "@/lib/auth";
@@ -180,54 +181,54 @@ export default async function CampaignsPage({ searchParams }: Props) {
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">Campaign</th>
-              <th className="text-left p-2">Type</th>
-              <th className="text-left p-2">Channel</th>
-              <th className="text-left p-2">Location</th>
-              <th className="text-left p-2">Start → End</th>
-              <th className="text-left p-2">Status</th>
-              <th className="text-left p-2">Budget / Spend</th>
-              <th className="text-left p-2">Leads</th>
-              <th className="text-left p-2">Owner</th>
-              <th className="text-left p-2">Source</th>
-              <th className="text-center p-2 w-[40px]"></th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Campaign</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Start → End</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Budget / Spend</TableHead>
+              <TableHead>Leads</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead className="w-10"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {campaigns.map((c) => {
               const displayStatus = c.status ?? (c.isActive ? "OPEN" : "CANCELLED");
               const badgeCls = STATUS_BADGE[displayStatus] ?? STATUS_BADGE.UNSET;
               const location = [c.city, c.country].filter(Boolean).join(", ") || (c.venue ?? "—");
               return (
-                <tr key={c.id} className="border-t hover:bg-muted/50">
-                  <td className="p-2 font-medium">{c.name}</td>
-                  <td className="p-2 text-muted-foreground">{c.type ?? "—"}</td>
-                  <td className="p-2">{c.channel}</td>
-                  <td className="p-2">{location}</td>
-                  <td className="p-2 whitespace-nowrap">
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.type ?? "—"}</TableCell>
+                  <TableCell>{c.channel}</TableCell>
+                  <TableCell>{location}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {c.startDate.toISOString().slice(0, 10)}
                     {" → "}
                     {c.endDate?.toISOString().slice(0, 10) ?? "—"}
-                  </td>
-                  <td className="p-2">
+                  </TableCell>
+                  <TableCell>
                     <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${badgeCls}`}>
                       {displayStatus}
                     </span>
-                  </td>
-                  <td className="p-2 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {c.actualSpend != null
                       ? `$${c.actualSpend.toLocaleString("en-CA")}`
                       : c.budget != null
                       ? `$${c.budget.toLocaleString("en-CA")} (planned)`
                       : "—"}
-                  </td>
-                  <td className="p-2">{c.leadsGenerated}</td>
-                  <td className="p-2 text-muted-foreground">{c.owner?.name ?? "—"}</td>
-                  <td className="p-2">
+                  </TableCell>
+                  <TableCell>{c.leadsGenerated}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.owner?.name ?? "—"}</TableCell>
+                  <TableCell>
                     {c.source ? (
                       <Link href={`/recruitment-network/partners/${c.source.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
                         {c.source.name}
@@ -235,22 +236,22 @@ export default async function CampaignsPage({ searchParams }: Props) {
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </td>
-                  <td className="p-2 text-center">
+                  </TableCell>
+                  <TableCell className="text-center">
                     <CampaignAttachmentsButton campaignId={c.id} campaignName={c.name} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
             {campaigns.length === 0 && (
-              <tr>
-                <td colSpan={11} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
                   No campaigns match the current filter.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

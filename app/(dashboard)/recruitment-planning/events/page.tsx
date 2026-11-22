@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 import { ListSearch } from "@/components/shared/list-search";
 
@@ -121,53 +122,53 @@ export default async function EventsPage({ searchParams }: Props) {
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">Event</th>
-              <th className="text-left p-2">Type</th>
-              <th className="text-left p-2">Date</th>
-              <th className="text-left p-2">Location</th>
-              <th className="text-left p-2">Status</th>
-              <th className="text-left p-2">Owner</th>
-              <th className="text-left p-2">Institutions</th>
-              <th className="text-left p-2">Leads</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Event</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Institutions</TableHead>
+              <TableHead>Leads</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {events.map((e) => {
               const badgeCls = STATUS_BADGE[e.status] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
               return (
-                <tr key={e.id} className="border-t hover:bg-muted/50">
-                  <td className="p-2">
+                <TableRow key={e.id}>
+                  <TableCell>
                     <Link href={`/events/${e.id}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
                       {e.name}
                     </Link>
-                  </td>
-                  <td className="p-2 text-muted-foreground">{e.type.replace(/_/g, " ")}</td>
-                  <td className="p-2 whitespace-nowrap">{e.date.toISOString().slice(0, 10)}</td>
-                  <td className="p-2">{e.city}, {e.country}</td>
-                  <td className="p-2">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{e.type.replace(/_/g, " ")}</TableCell>
+                  <TableCell className="whitespace-nowrap">{e.date.toISOString().slice(0, 10)}</TableCell>
+                  <TableCell>{e.city}, {e.country}</TableCell>
+                  <TableCell>
                     <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${badgeCls}`}>
                       {e.status.replace(/_/g, " ")}
                     </span>
-                  </td>
-                  <td className="p-2 text-muted-foreground">{e.assignedICR?.name ?? "—"}</td>
-                  <td className="p-2">{e._count.participations}</td>
-                  <td className="p-2">{e._count.leads}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{e.assignedICR?.name ?? "—"}</TableCell>
+                  <TableCell>{e._count.participations}</TableCell>
+                  <TableCell>{e._count.leads}</TableCell>
+                </TableRow>
               );
             })}
             {events.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   No events match the current filter.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

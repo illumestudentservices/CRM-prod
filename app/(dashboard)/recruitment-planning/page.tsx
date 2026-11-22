@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -162,46 +163,46 @@ export default async function RecruitmentPlanningPage({ searchParams }: Props) {
           : `${plans.length} of ${scopedPlans.length} plans`}
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-2">Quarter</th>
-              <th className="text-left p-2">ICR</th>
-              <th className="text-left p-2">Client / Market</th>
-              <th className="text-left p-2">Currency</th>
-              <th className="text-left p-2">Status</th>
-              <th className="text-left p-2">Travel</th>
-              <th className="text-left p-2">Events</th>
-              <th className="text-left p-2">Budget items</th>
-              <th className="text-left p-2">Variations</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Quarter</TableHead>
+              <TableHead>ICR</TableHead>
+              <TableHead>Client / Market</TableHead>
+              <TableHead>Currency</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Travel</TableHead>
+              <TableHead className="text-right">Events</TableHead>
+              <TableHead className="text-right">Budget items</TableHead>
+              <TableHead className="text-right">Variations</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {plans.map((p) => (
-              <tr key={p.id} className="border-t hover:bg-muted/50">
-                <td className="p-2">
-                  <Link href={`/recruitment-planning/${p.id}`} className="text-blue-600 hover:underline">
+              <TableRow key={p.id}>
+                <TableCell>
+                  <Link href={`/recruitment-planning/${p.id}`} className="font-medium text-blue-600 hover:underline dark:text-blue-400">
                     Q{p.quarter} {p.year}
                   </Link>
-                </td>
-                <td className="p-2">{p.icr.name}</td>
-                <td className="p-2">{p.institution?.name ?? p.market?.name ?? "—"}</td>
-                <td className="p-2">{p.reportingCurrency}</td>
-                <td className="p-2">
-                  <span className="text-xs px-2 py-0.5 bg-muted rounded">{STATUS_LABELS[p.status] ?? p.status}</span>
-                </td>
-                <td className="p-2">{p._count.plannedTravel}</td>
-                <td className="p-2">{p._count.plannedEvents}</td>
-                <td className="p-2">{p._count.budgetItems}</td>
-                <td className="p-2">{p._count.variationRequests}</td>
-              </tr>
+                </TableCell>
+                <TableCell>{p.icr.name}</TableCell>
+                <TableCell>{p.institution?.name ?? p.market?.name ?? "—"}</TableCell>
+                <TableCell>{p.reportingCurrency}</TableCell>
+                <TableCell>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{STATUS_LABELS[p.status] ?? p.status}</span>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{p._count.plannedTravel}</TableCell>
+                <TableCell className="text-right tabular-nums">{p._count.plannedEvents}</TableCell>
+                <TableCell className="text-right tabular-nums">{p._count.budgetItems}</TableCell>
+                <TableCell className="text-right tabular-nums">{p._count.variationRequests}</TableCell>
+              </TableRow>
             ))}
             {plans.length === 0 && (
-              <tr><td colSpan={9} className="p-4 text-center text-sm text-muted-foreground">No plans yet. Click "New plan" to create one.</td></tr>
+              <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">No plans yet. Click &quot;New plan&quot; to create one.</TableCell></TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
