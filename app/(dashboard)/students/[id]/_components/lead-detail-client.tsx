@@ -19,7 +19,7 @@ import { useLeadFocus } from "@/lib/lead-focus";
 
 interface LeadDetailClientProps {
   lead: Lead;
-  sources: Pick<RecruitmentPartner, "id" | "name">[];
+  sources: Pick<RecruitmentPartner, "id" | "name" | "type">[];
   institutions: Pick<Institution, "id" | "name">[];
   icrUsers: Pick<User, "id" | "name" | "image">[];
   /**

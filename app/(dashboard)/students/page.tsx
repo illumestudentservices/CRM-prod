@@ -43,7 +43,7 @@ async function getLeadsData(userId: string, role: string, regionId: string | nul
     }),
     db.recruitmentPartner.findMany({
       where: { deletedAt: null, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, type: true  },
       orderBy: { name: "asc" },
     }),
     db.institution.findMany({

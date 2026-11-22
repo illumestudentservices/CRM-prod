@@ -355,7 +355,7 @@ interface LeadFormProps {
   open: boolean;
   onClose: () => void;
   lead?: Lead | null;
-  sources?: Pick<RecruitmentPartner, "id" | "name">[];
+  sources?: Pick<RecruitmentPartner, "id" | "name" | "type">[];
   institutions?: Pick<Institution, "id" | "name">[];
   icrUsers?: Pick<User, "id" | "name">[];
   /**
@@ -401,6 +401,18 @@ const PIPELINE_DETAIL_FIELDS = new Set([
   "counsellingOutcomeEnum",
   "counsellingOutcome",
 ]);
+
+/** Friendly labels for the SourceType enum, used by the source-type filter. */
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  AGENT: "Agent",
+  SCHOOL: "School",
+  WALK_IN: "Walk-in",
+  CAMPAIGN: "Campaign",
+  DIGITAL: "Digital",
+  PARTNER: "Partner",
+  REFERRAL_PARTNER: "Referral partner",
+  EDUCATION_PARTNER: "Education partner",
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -667,13 +679,47 @@ export function LeadForm({
   const currentStudyLevel = watch("studyLevel");
   const currentSourceId = watch("sourceId");
   // Searchable source list. "Direct Lead Source (No agent)" is pinned to the top
-  // and "No source" sits just below it; the ~hundreds of agents are searchable.
+  // and "No source" sits just below it; the ~hundreds of partners are searchable.
   const DIRECT_SOURCE_NAME = "Direct Lead Source (No agent)";
+
+  // Two-step source picker: choose the TYPE (Agent / School / …) first, then the
+  // picker below narrows to partners of that type. "Direct" and "No source" are
+  // always offered regardless of the type filter.
+  const partnerSources = React.useMemo(
+    () => sources.filter((s) => s.name !== DIRECT_SOURCE_NAME),
+    [sources]
+  );
+  const typeOptions = React.useMemo(() => {
+    const order = ["AGENT", "SCHOOL", "CAMPAIGN", "REFERRAL_PARTNER", "EDUCATION_PARTNER", "PARTNER", "DIGITAL", "WALK_IN"];
+    return [...new Set(partnerSources.map((s) => s.type))]
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b))
+      .map((t) => ({ value: t, label: SOURCE_TYPE_LABELS[t] ?? t }));
+  }, [partnerSources]);
+
+  // Start the type filter on the lead's existing source type (so editing shows
+  // the right list), else "ALL".
+  const [sourceType, setSourceType] = React.useState<string>(() => {
+    const cur = sources.find((s) => s.id === lead?.sourceId && s.name !== DIRECT_SOURCE_NAME);
+    return cur?.type ?? "ALL";
+  });
+
   const sourceOptions = React.useMemo(() => {
     const direct = sources.filter((s) => s.name === DIRECT_SOURCE_NAME).map((s) => ({ value: s.id, label: s.name }));
-    const rest = sources.filter((s) => s.name !== DIRECT_SOURCE_NAME).map((s) => ({ value: s.id, label: s.name }));
+    const rest = partnerSources
+      .filter((s) => sourceType === "ALL" || s.type === sourceType)
+      .map((s) => ({ value: s.id, label: s.name }));
     return [...direct, { value: "none", label: "No source" }, ...rest];
-  }, [sources]);
+  }, [sources, partnerSources, sourceType]);
+
+  function onSourceTypeChange(v: string) {
+    setSourceType(v);
+    // If the currently-chosen partner isn't of the new type, clear it so the
+    // picker and the selection can't disagree.
+    const cur = partnerSources.find((s) => s.id === currentSourceId);
+    if (v !== "ALL" && cur && cur.type !== v) {
+      setValue("sourceId", undefined, { shouldDirty: true });
+    }
+  }
   const currentInstitutionId = watch("institutionId");
   const currentAssignedICRId = watch("assignedICRId");
   const currentIntakeMonth = watch("intakeMonth");
@@ -1164,6 +1210,22 @@ export function LeadForm({
                   satisfy, with no clue anywhere that the answer was "an admin
                   must add a source first". Production sat in exactly that state
                   between the August purge and the agent import. */}
+              {typeOptions.length > 0 && (
+                <FormField name="sourceType" label="Source type">
+                  <Select value={sourceType} onValueChange={onSourceTypeChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All types</SelectItem>
+                      {typeOptions.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              )}
+
               <FormField name="sourceId" label="Source" neededToProgress error={errors.sourceId?.message}>
                 {sources.length > 0 ? (
                   <Combobox
@@ -1172,7 +1234,7 @@ export function LeadForm({
                     onChange={(v) =>
                       setValue("sourceId", v === "none" ? undefined : v, { shouldDirty: true })
                     }
-                    placeholder="Select source..."
+                    placeholder={sourceType === "ALL" ? "Select source..." : `Select ${(SOURCE_TYPE_LABELS[sourceType] ?? "source").toLowerCase()}...`}
                     searchPlaceholder="Search sources…"
                     emptyText="No source matches that."
                   />

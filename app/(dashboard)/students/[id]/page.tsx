@@ -138,7 +138,7 @@ export default async function LeadDetailPage({
   const [sources, institutions, icrUsers] = await Promise.all([
     db.recruitmentPartner.findMany({
       where: { deletedAt: null, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, type: true  },
       orderBy: { name: "asc" },
     }),
     db.institution.findMany({
