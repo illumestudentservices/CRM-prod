@@ -89,7 +89,9 @@ async function main() {
       where: { type: "SCHOOL", deletedAt: null },
       select: { name: true, city: true, country: true },
     });
-    const presentKeys = new Set(present.map((p) => key(deSuffix(p.name, p.city), p.city, p.country)));
+    // Location tag is the city when known, else the country — strip whichever
+    // was used so re-runs match (otherwise a renamed row looks "missing").
+    const presentKeys = new Set(present.map((p) => key(deSuffix(p.name, clean(p.city) || p.country), p.city, p.country)));
 
     const toCreate = rows.filter((r) => !presentKeys.has(key(r.name, r.city, r.country)));
     const already = rows.length - toCreate.length;
@@ -108,7 +110,8 @@ async function main() {
     for (const r of toCreate) {
       await db.recruitmentPartner.create({
         data: {
-          name: r.city ? `${r.name} (${r.city})` : r.name,
+          // Tag every school with its location: city if known, else country.
+          name: `${r.name} (${clean(r.city) || r.country})`,
           type: "SCHOOL",
           country: r.country,
           city: r.city || null,
