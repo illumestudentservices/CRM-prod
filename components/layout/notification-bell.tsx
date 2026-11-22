@@ -254,6 +254,14 @@ export function NotificationBell({ initialCount = 0 }: { initialCount?: number }
             </button>
           ))}
         </div>
+
+        <DropdownMenuSeparator className="m-0" />
+        <button
+          onClick={(e) => { e.preventDefault(); setOpen(false); router.push("/notifications"); }}
+          className="w-full px-3 py-2.5 text-center text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
+        >
+          View all notifications
+        </button>
       </DropdownMenuContent>
     </DropdownMenu>
   );
