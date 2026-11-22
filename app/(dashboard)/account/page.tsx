@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, ShieldOff, ShieldCheck, Copy, RefreshCw, AlertTriangle, CheckCircle2, Loader2, Palette } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SessionsCard } from "./_components/sessions-card";
 
 type Step = "idle" | "setup-qr" | "setup-verify" | "setup-done" | "disable-confirm";
 
@@ -374,6 +375,9 @@ export default function AccountPage() {
 
         </CardContent>
       </Card>
+
+      {/* Devices & sessions */}
+      <SessionsCard />
 
       {/* Appearance / theme */}
       <Card>

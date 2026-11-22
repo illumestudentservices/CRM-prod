@@ -3270,6 +3270,25 @@ model RevokedSession {
   @@map("revoked_sessions")
 }
 
+/// One row per active login (per-device), keyed by the JWT's per-login `sid`.
+/// Powers the "your devices / log out a session" screen: sessions are stateless
+/// JWTs, so this is the only place a login is recorded. Written best-effort at
+/// sign-in; a row going stale past the 48h session ceiling, or whose sid is in
+/// revoked_sessions, is treated as gone. No FK relation (like RevokedSession) so
+/// the auth path never depends on a join.
+model ActiveSession {
+  sid        String   @id
+  userId     String
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("active_sessions")
+}
+
 enum AccountRequestStatus {
   PENDING
   APPROVED

@@ -75,6 +75,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await db.revokedSession.deleteMany({
           where: { revokedAt: { lt: new Date(Date.now() - SESSION_MAX_AGE_SECONDS * 1000) } },
         });
+        // Drop this session from the "your sessions" list — it has just ended.
+        await db.activeSession.deleteMany({ where: { sid } });
       } catch (err) {
         // Never let a revocation write failure throw out of sign-out — the
         // cookie is cleared regardless; this only closes the replay window.
@@ -89,11 +91,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
         const email = credentials.email as string;
         const password = credentials.password as string;
+
+        // Device info for the "your sessions" screen. Read-only header sniffing,
+        // wrapped so a quirk here never affects the auth decision below.
+        const headers = (request as Request | undefined)?.headers;
+        const ua = headers?.get("user-agent")?.slice(0, 300) ?? null;
+        const xff = headers?.get("x-forwarded-for");
+        const ip = (xff ? xff.split(",")[0]!.trim() : headers?.get("x-real-ip")) ?? null;
 
         let user;
         try {
@@ -200,6 +209,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             passwordChangedAt: user.passwordChangedAt?.getTime() ?? null,
             twoFactorPending: true,
             twoFactorEnabled: true,
+            ua,
+            ip,
           };
         }
 
@@ -216,6 +227,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           passwordChangedAt: user.passwordChangedAt?.getTime() ?? null,
           twoFactorPending: false,
           twoFactorEnabled: false,
+          ua,
+          ip,
         };
       },
     }),
@@ -245,6 +258,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (user as { twoFactorPending?: boolean }).twoFactorPending ?? false;
         token.twoFactorEnabled =
           (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false;
+
+        // Record this login so it can be listed and revoked on the "your
+        // sessions" screen. Best-effort: a tracking-write failure must never
+        // throw out of the sign-in path, so it is caught and swallowed.
+        try {
+          await db.activeSession.create({
+            data: {
+              sid: token.sid as string,
+              userId: user.id as string,
+              userAgent: (user as { ua?: string | null }).ua ?? null,
+              ipAddress: (user as { ip?: string | null }).ip ?? null,
+            },
+          });
+        } catch (err) {
+          console.error("[auth] active-session record failed:", err);
+        }
       }
       // Lift the second-factor gate — but ONLY on server-verified proof, never
       // on the client's say-so. The verify route stamps `mfaVerifiedSid` on the
