@@ -11,6 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+
+const POLL_MS = 45_000; // keep the badge live without a click
+const POPUP_SESSION_KEY = "illume-notif-popup-shown";
 
 /**
  * The notification bell.
@@ -52,6 +56,7 @@ function relativeTime(iso: string): string {
 
 export function NotificationBell({ initialCount = 0 }: { initialCount?: number }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
   const [rows, setRows] = React.useState<NotificationRow[]>([]);
   const [unread, setUnread] = React.useState(initialCount);
@@ -61,6 +66,65 @@ export function NotificationBell({ initialCount = 0 }: { initialCount?: number }
   // The count comes from the server on each render of the shell; keep the badge
   // in step with it until the user opens the panel and we learn better.
   React.useEffect(() => setUnread(initialCount), [initialCount]);
+
+  // Keep only the unread count fresh — cheap (one row) — so the badge stays
+  // accurate on its own, not only when the panel is opened. Previously the
+  // number was frozen at page-render time and only moved on a click.
+  const refreshCount = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?limit=1");
+      if (!res.ok) return;
+      const json = await res.json();
+      setUnread(json.meta?.unreadCount ?? 0);
+    } catch {
+      /* transient — keep the last known count */
+    }
+  }, []);
+
+  // Poll on an interval and whenever the tab regains focus, so a notification
+  // that arrives while the page is open shows up without a reload or a click.
+  React.useEffect(() => {
+    const id = window.setInterval(refreshCount, POLL_MS);
+    const onFocus = () => { if (!document.hidden) void refreshCount(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshCount]);
+
+  // On the first page of a session (i.e. just after login), pop the unread
+  // notifications as toasts so the user sees them without opening the bell.
+  // Guarded by sessionStorage so navigating around does not repeat them.
+  React.useEffect(() => {
+    let alreadyShown = false;
+    try { alreadyShown = sessionStorage.getItem(POPUP_SESSION_KEY) === "1"; } catch { /* private mode */ }
+    if (alreadyShown) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/notifications?unreadOnly=true&limit=5");
+        if (!res.ok) return;
+        const json = await res.json();
+        const unreadRows: NotificationRow[] = (json.data ?? []).filter((r: NotificationRow) => !r.isRead);
+        const total: number = json.meta?.unreadCount ?? unreadRows.length;
+        setUnread(total);
+        unreadRows.slice(0, 4).forEach((r) =>
+          toast({ title: r.title, description: r.message ?? undefined })
+        );
+        if (total > 4) {
+          toast({ title: `+${total - 4} more notifications`, description: "Open the bell to see them all." });
+        }
+      } catch {
+        /* a failed popup must not block the page */
+      } finally {
+        try { sessionStorage.setItem(POPUP_SESSION_KEY, "1"); } catch { /* ignore */ }
+      }
+    })();
+    // Run once per mount; the sessionStorage guard makes it once per session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const load = React.useCallback(async () => {
     setLoading(true);
