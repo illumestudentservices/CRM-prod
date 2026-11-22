@@ -153,7 +153,7 @@ export default async function FieldOperationsPage({
       : Promise.resolve(null),
   ]);
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Field Operations"
         description="Planned service-delivery activities linked to Clients, Recruitment Partners, Events and Markets."
