@@ -21,6 +21,15 @@ import { readFileSync } from "node:fs";
 const COMMIT = process.argv.includes("--commit");
 const clean = (s) => (s == null ? "" : String(s).replace(/\s+/g, " ").trim());
 const norm = (s) => clean(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Imported schools carry the city in the name — "Delhi Private School
+// (Sharjah)". Strip that exact "(City)" suffix before keying, or every
+// already-imported school looks missing and the import duplicates them.
+const deSuffix = (name, city) => {
+  const c = clean(city);
+  if (!c) return clean(name);
+  return clean(name).replace(new RegExp("\\s*\\(" + esc(c) + "\\)\\s*$", "i"), "").trim();
+};
 
 const REGION = { uae: "Middle East", oman: "Middle East", qatar: "Middle East", egypt: "Africa" };
 
@@ -62,7 +71,7 @@ async function main() {
       where: { type: "SCHOOL", deletedAt: null },
       select: { name: true, city: true, country: true },
     });
-    const presentKeys = new Set(present.map((p) => key(p.name, p.city, p.country)));
+    const presentKeys = new Set(present.map((p) => key(deSuffix(p.name, p.city), p.city, p.country)));
 
     const toCreate = rows.filter((r) => !presentKeys.has(key(r.name, r.city, r.country)));
     const already = rows.length - toCreate.length;
@@ -82,7 +91,7 @@ async function main() {
       const regionName = REGION[norm(r.country)];
       await db.recruitmentPartner.create({
         data: {
-          name: r.name,
+          name: r.city ? `${r.name} (${r.city})` : r.name,
           type: "SCHOOL",
           country: r.country,
           city: r.city || null,
