@@ -1265,50 +1265,64 @@ export function LeadForm({
               Assignment & Source
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Rendered even with nothing to choose from.
-                  It used to be hidden entirely when `sources` was empty, which
-                  produced the worst version of this problem: the New Lead gate
-                  hard-requires a source, but the field it is asked for was not
-                  on screen — so the requirement was invisible AND impossible to
-                  satisfy, with no clue anywhere that the answer was "an admin
-                  must add a source first". Production sat in exactly that state
-                  between the August purge and the agent import. */}
-              {typeOptions.length > 0 && (
-                <FormField name="sourceType" label="Source type">
-                  <Select value={sourceType} onValueChange={onSourceTypeChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">All types</SelectItem>
-                      {typeOptions.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              )}
-
-              <FormField name="sourceId" label="Source" neededToProgress error={errors.sourceId?.message}>
-                {sources.length > 0 ? (
-                  <Combobox
-                    options={sourceOptions}
-                    value={currentSourceId ?? "none"}
-                    onChange={(v) =>
-                      setValue("sourceId", v === "none" ? undefined : v, { shouldDirty: true })
-                    }
-                    placeholder={sourceType === "ALL" ? "Select source..." : `Select ${(SOURCE_TYPE_LABELS[sourceType] ?? "source").toLowerCase()}...`}
-                    searchPlaceholder="Search sources…"
-                    emptyText="No source matches that."
-                  />
-                ) : (
-                  <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                    No lead sources have been set up yet. An administrator needs to add
-                    them under Recruitment Network → Recruitment Partners before a student
-                    can move past New Lead.
+              {/* When a referral channel is chosen, the agent/school is picked
+                  inline under Lead Channel (same sourceId) — so hide these to
+                  avoid two controls for one field. For every other channel the
+                  Source control stays here, where the lead still needs a source
+                  (Direct / a partner / none) to move past New Lead. */}
+              {inlineSourceType ? (
+                <FormField name="sourceId" label="Source">
+                  <p className="text-xs rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-muted-foreground dark:border-slate-800 dark:bg-slate-900/40">
+                    Set above under Lead Channel — {inlineSourceType === "AGENT" ? "Which agent?" : "Which school?"}
                   </p>
-                )}
-              </FormField>
+                </FormField>
+              ) : (
+                <>
+                  {/* Rendered even with nothing to choose from. It used to be
+                      hidden entirely when `sources` was empty, which produced the
+                      worst version of this problem: the New Lead gate hard-requires
+                      a source, but the field it is asked for was not on screen — so
+                      the requirement was invisible AND impossible to satisfy.
+                      Production sat in exactly that state between the August purge
+                      and the agent import. */}
+                  {typeOptions.length > 0 && (
+                    <FormField name="sourceType" label="Source type">
+                      <Select value={sourceType} onValueChange={onSourceTypeChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All types</SelectItem>
+                          {typeOptions.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormField>
+                  )}
+
+                  <FormField name="sourceId" label="Source" neededToProgress error={errors.sourceId?.message}>
+                    {sources.length > 0 ? (
+                      <Combobox
+                        options={sourceOptions}
+                        value={currentSourceId ?? "none"}
+                        onChange={(v) =>
+                          setValue("sourceId", v === "none" ? undefined : v, { shouldDirty: true })
+                        }
+                        placeholder={sourceType === "ALL" ? "Select source..." : `Select ${(SOURCE_TYPE_LABELS[sourceType] ?? "source").toLowerCase()}...`}
+                        searchPlaceholder="Search sources…"
+                        emptyText="No source matches that."
+                      />
+                    ) : (
+                      <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                        No lead sources have been set up yet. An administrator needs to add
+                        them under Recruitment Network → Recruitment Partners before a student
+                        can move past New Lead.
+                      </p>
+                    )}
+                  </FormField>
+                </>
+              )}
 
               {institutions.length > 0 && (
                 <FormField name="institutionId" label="Institution" error={errors.institutionId?.message}>

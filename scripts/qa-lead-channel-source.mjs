@@ -36,6 +36,8 @@ try {
   ok("…with an agent picker (not the empty-state)",
     (await bodyHas(page, "Not listed / no specific one")) && !(await bodyHas(page, "No agents have been set up")));
   ok("…and not the school label", !(await bodyHas(page, "Which school?")));
+  ok("…and NO duplicate 'Source type' in Assignment section",
+    !(await bodyHas(page, "Source type")) && (await bodyHas(page, "Set above under Lead Channel")));
 
   // School Referral → "Which school?" picker
   await pick("School Referral");
@@ -44,10 +46,12 @@ try {
     (await bodyHas(page, "Not listed / no specific one")) && !(await bodyHas(page, "No schools have been set up")));
   ok("…and not the agent label", !(await bodyHas(page, "Which agent?")));
 
-  // Website → no inline picker
+  // Website → no inline picker, and the Assignment Source control is back
   await pick("Website");
   ok("Website shows no inline agent/school picker",
     !(await bodyHas(page, "Which agent?")) && !(await bodyHas(page, "Which school?")));
+  ok("…and the Assignment-section Source type/Source control returns",
+    (await bodyHas(page, "Source type")) && !(await bodyHas(page, "Set above under Lead Channel")));
 } catch (e) {
   fail++; console.error("CRASH", e?.stack || e);
 } finally {
