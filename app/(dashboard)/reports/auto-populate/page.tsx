@@ -15,7 +15,7 @@ export default async function AutoPopulateReportPage() {
   ]);
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Auto-populated Monthly Report</h1>
       <p className="text-sm text-muted-foreground mb-4">
         Numbers are auto-generated from CRM data. Add narrative before submitting.

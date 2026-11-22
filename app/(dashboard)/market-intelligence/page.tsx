@@ -14,7 +14,7 @@ export default async function MarketIntelligencePage() {
   });
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold mb-1">Market Intelligence</h1>
       <p className="text-sm text-muted-foreground mb-4">
         Priority + potential + risk-level classification per country. RM-edited narrative, CRM-generated numbers.

@@ -288,7 +288,7 @@ export default async function EventDetailPage({
                       ? Math.min(100, Math.round((o.achieved / o.goal) * 100))
                       : null;
                   return (
-                    <div key={i} className="rounded border border-slate-200 dark:border-slate-800 p-3 text-sm">
+                    <div key={i} className="rounded-lg border border-slate-200 dark:border-slate-800 p-3 text-sm">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="font-medium text-slate-800 dark:text-slate-200">{o.target}</p>
                         {typeof o.achieved === "number" && typeof o.goal === "number" && (
@@ -344,7 +344,7 @@ export default async function EventDetailPage({
                     const amt = categoryTotals.get(cat) ?? 0;
                     if (amt === 0) return null;
                     return (
-                      <div key={cat} className="rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
+                      <div key={cat} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
                         <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">{categoryLabel[cat]}</p>
                         <p className="text-sm font-semibold tabular-nums">{formatCurrency(amt)}</p>
                       </div>

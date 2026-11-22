@@ -71,7 +71,7 @@ export default async function IcrReportPage({ params }: { params: Promise<{ id: 
   const lastReturn = report.approvals.find((a) => a.action === "RETURNED");
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <IcrReportClient
         report={{
           id: report.id,

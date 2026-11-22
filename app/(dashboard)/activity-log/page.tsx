@@ -31,7 +31,7 @@ export default async function ActivityLogPage() {
   ]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Activity Log"
         description="Complete audit trail of all actions taken on the portal — visible to Super Admins only"

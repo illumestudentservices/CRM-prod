@@ -88,7 +88,7 @@ export default async function ForecastPage({
   const t = totals(forecast.segments);
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-5">
       <Link href="/forecasting" className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
         ← All forecasts
       </Link>

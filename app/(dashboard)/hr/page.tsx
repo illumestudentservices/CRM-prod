@@ -162,7 +162,7 @@ export default async function HRPage({
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="HR & ERP"
         description="Workforce management, HR operations, and internal tools"

@@ -70,7 +70,7 @@ export default async function AnalyticsPage() {
     : [[], [], []];
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       <PageHeader
         title="Analytics"
         description={

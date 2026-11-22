@@ -157,7 +157,7 @@ export default function NewReportPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <PageHeader
         title="Create Monthly Report"
         description="Select the institution and reporting period to generate a pre-populated report"

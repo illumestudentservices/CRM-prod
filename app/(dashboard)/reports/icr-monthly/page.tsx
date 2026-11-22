@@ -73,7 +73,7 @@ export default async function IcrMonthlyReportsPage() {
   const taken = new Set(reports.filter((r) => r.icr.id === userId).map((r) => `${r.reportingYear}-${r.reportingMonth}`));
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="ICR Monthly Reports"
         description="One report per representative per month, pre-filled from the CRM and sent to your Regional Manager for approval."

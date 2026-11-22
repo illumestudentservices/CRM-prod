@@ -83,7 +83,7 @@ export default async function TransitionReportPage({
     d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="space-y-5">
       <Link
         href="/icr-transition"
         className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"

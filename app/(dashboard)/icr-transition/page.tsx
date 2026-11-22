@@ -114,7 +114,7 @@ export default async function IcrTransitionPage() {
   const closed = reports.filter((r) => r.status === "FINAL" || r.status === "ARCHIVED");
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
